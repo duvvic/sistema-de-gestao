@@ -1,0 +1,5 @@
+{
+  "name": "NIC Labs Manager",
+  "description": "A collaborative project management tool featuring a Kanban board, task details, and AI-powered image editing capabilities.",
+  "requestFramePermissions": []
+}
