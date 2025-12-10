@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
-    "@supabase/supabase-js": "^2.86.0",
+    "@supabase/supabase-js": "^2.87.1",
     "@tailwindcss/vite": "^4.1.17",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.555.0",

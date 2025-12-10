@@ -11,8 +11,8 @@ interface TeamMemberDetailProps {
 }
 
 const TeamMemberDetail: React.FC<TeamMemberDetailProps> = ({ user, tasks, projects, onBack, onTaskClick }) => {
-  // Logic: Get tasks for this user
-  let userTasks = tasks.filter(t => t.developer === user.name);
+  // Logic: Get tasks for this user by ID (não por nome)
+  let userTasks = tasks.filter(t => t.developerId === user.id);
   
   // Logic: Get unique projects user is involved in
   const userProjectIds = Array.from(new Set(userTasks.map(t => t.projectId)));

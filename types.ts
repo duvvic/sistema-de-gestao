@@ -1,33 +1,29 @@
 // types.ts
+// Interface ORIGINAL do front-end - NÃO ALTERAR
 
 export type Status = 'Todo' | 'In Progress' | 'Review' | 'Done';
-export type Role = 'admin' | 'developer' | 'gestor' | string;
+
+export type Role = 'admin' | 'developer' | 'gestor';
+
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
 export type Impact = 'Low' | 'Medium' | 'High';
 
-// ======================
-// 👤 Usuários / Colaboradores
-// ======================
 export interface User {
-  id: string;               // ID_Colaborador
-  name: string;             // NomeColaborador
-  email: string;            // E-mail
-  role: Role;               // papel (admin, developer, gestor, etc.)
-  avatarUrl?: string | null; // avatar_url (opcional)
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  avatarUrl?: string;
+  cargo?: string; // Campo adicional do banco
 }
 
-// ======================
-// 🏢 Clientes
-// ======================
 export interface Client {
   id: string;
   name: string;
   logoUrl: string;
+  active?: boolean;
 }
 
-// ======================
-// 📁 Projetos
-// ======================
 export interface Project {
   id: string;
   name: string;
@@ -37,25 +33,23 @@ export interface Project {
   estimatedDelivery?: string;
   budget?: number;
   manager?: string;
+  status?: string;
+  active?: boolean;
 }
 
-// ======================
-// ✅ Tarefas
-// ======================
 export interface Task {
   id: string;
   title: string;
   projectId: string;
   clientId: string;
   status: Status;
-  estimatedDelivery: string; // ISO Date string
-  progress: number;          // 0-100
+  estimatedDelivery: string;
+  progress: number;
   description?: string;
-  attachment?: string;       // Base64 image
-  developer?: string;        // Nome do desenvolvedor
+  attachment?: string;
+  developer?: string; // NOME do desenvolvedor (string)
+  developerId?: string; // ID do desenvolvedor para JOIN com User
   notes?: string;
-
-  // Campos de gestão
   scheduledStart?: string;
   actualStart?: string;
   actualDelivery?: string;
@@ -64,32 +58,26 @@ export interface Task {
   risks?: string;
 }
 
-// ======================
-// ⏱️ Apontamento de Horas
-// ======================
 export interface TimesheetEntry {
   id: string;
   userId: string;
-  userName: string; // Denormalized for easier display
+  userName: string;
   clientId: string;
   projectId: string;
   taskId: string;
-  date: string;     // YYYY-MM-DD
-  startTime: string; // HH:mm
-  endTime: string;   // HH:mm
-  totalHours: number; // Decimal
+  date: string;
+  startTime: string;
+  endTime: string;
+  totalHours: number;
   description?: string;
 }
 
-// ======================
-// 🔄 Views da aplicação
-// ======================
-export type View = 
-  | 'login' 
-  | 'admin' 
-  | 'kanban' 
-  | 'task-detail' 
-  | 'task-create' 
+export type View =
+  | 'login'
+  | 'admin'
+  | 'kanban'
+  | 'task-detail'
+  | 'task-create'
   | 'project-create'
   | 'user-tasks'
   | 'developer-projects'

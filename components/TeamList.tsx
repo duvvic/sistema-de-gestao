@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Task } from '../types';
-import { Briefcase, Mail, CheckSquare, ShieldCheck, User as UserIcon, Search, Trash2 } from 'lucide-react';
+import { Briefcase, Mail, CheckSquare, ShieldCheck, User as UserIcon, Search, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
 interface TeamListProps {
@@ -14,6 +14,20 @@ const TeamList: React.FC<TeamListProps> = ({ users, tasks, onUserClick, onDelete
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+  // Função para verificar se uma tarefa está atrasada
+  const isTaskDelayed = (task: Task): boolean => {
+    if (task.status === 'Done') return false;
+    if (!task.estimatedDelivery) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const parts = task.estimatedDelivery.split('-');
+    const dueDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    
+    return today > dueDate;
+  };
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -56,7 +70,10 @@ const TeamList: React.FC<TeamListProps> = ({ users, tasks, onUserClick, onDelete
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-4 custom-scrollbar">
         {filteredUsers.map(user => {
-          const userTaskCount = tasks.filter(t => t.developer === user.name).length;
+          const userAllTasks = tasks.filter(t => t.developerId === user.id);
+          const userActiveTasks = userAllTasks.filter(t => t.status !== 'Done');
+          const delayedTasks = userActiveTasks.filter(isTaskDelayed);
+          const onTimeTasks = userActiveTasks.filter(t => !isTaskDelayed(t));
           
           return (
             <div 
@@ -93,12 +110,32 @@ const TeamList: React.FC<TeamListProps> = ({ users, tasks, onUserClick, onDelete
                     <Mail className="w-4 h-4 text-slate-400" />
                     {user.email}
                  </div>
-                 <div className="flex items-center gap-3 text-sm text-slate-600">
-                    <CheckSquare className="w-4 h-4 text-slate-400" />
-                    {userTaskCount} Tarefas Alocadas
-                 </div>
+                 
+                 {/* Tarefas Atrasadas (Vermelho) */}
+                 {delayedTasks.length > 0 && (
+                   <div className="flex items-center gap-3 text-sm font-semibold">
+                      <AlertCircle className="w-4 h-4 text-red-500" />
+                      <span className="text-red-600">{delayedTasks.length} Atrasada{delayedTasks.length > 1 ? 's' : ''}</span>
+                   </div>
+                 )}
+                 
+                 {/* Tarefas No Prazo (Verde) */}
+                 {onTimeTasks.length > 0 && (
+                   <div className="flex items-center gap-3 text-sm font-semibold">
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      <span className="text-green-600">{onTimeTasks.length} No Prazo</span>
+                   </div>
+                 )}
+                 
+                 {/* Se não tem tarefas ativas */}
+                 {userActiveTasks.length === 0 && (
+                   <div className="flex items-center gap-3 text-sm text-slate-500">
+                      <CheckSquare className="w-4 h-4 text-slate-400" />
+                      <span>Sem tarefas ativas</span>
+                   </div>
+                 )}
               </div>
-
+              
               <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
                  {onDeleteUser ? (
                     <button 

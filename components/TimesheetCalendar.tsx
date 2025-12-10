@@ -6,6 +6,7 @@ interface TimesheetCalendarProps {
   entries: TimesheetEntry[];
   onDateClick: (date: string) => void;
   onEntryClick: (entry: TimesheetEntry) => void;
+  tasks?: { id: string; title: string }[];
 }
 
 const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ entries, onDateClick, onEntryClick }) => {
@@ -50,40 +51,75 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ entries, onDateCl
     const totalHours = dayEntries.reduce((acc, curr) => acc + curr.totalHours, 0);
 
     const isToday = new Date().toISOString().split('T')[0] === dateStr;
+    const hasEntries = dayEntries.length > 0;
 
     days.push(
       <div 
         key={d} 
         onClick={() => onDateClick(dateStr)}
         className={`
-          border border-slate-100 min-h-[120px] p-2 relative group cursor-pointer transition-colors
-          ${isToday ? 'bg-purple-50/50' : 'bg-white hover:bg-slate-50'}
+          min-h-[120px] p-2 relative group cursor-pointer transition-all border-2
+          ${hasEntries
+            ? 'bg-green-50/40 border-green-300 hover:bg-green-50/60'
+            : isToday
+            ? 'bg-purple-50/40 border-purple-300 hover:bg-purple-50/60'
+            : 'bg-white border-slate-100 hover:bg-slate-50'
+          }
         `}
       >
         <div className="flex justify-between items-start mb-2">
           <span className={`
             text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full
-            ${isToday ? 'bg-[#4c1d95] text-white' : 'text-slate-700'}
+            ${hasEntries
+              ? 'bg-green-500 text-white'
+              : isToday
+              ? 'bg-[#4c1d95] text-white'
+              : 'text-slate-700'
+            }
           `}>
             {d}
           </span>
-          {totalHours > 0 && (
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-              {totalHours.toFixed(1)}h
+          {hasEntries && (
+            <span className="text-xs font-bold text-green-700 bg-green-200 px-2 py-1 rounded-full flex items-center gap-1">
+              <span>✓</span>
+              <span>{totalHours.toFixed(1)}h</span>
             </span>
           )}
         </div>
 
         <div className="space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
-          {dayEntries.map(entry => (
-            <div 
-              key={entry.id}
-              onClick={(e) => { e.stopPropagation(); onEntryClick(entry); }}
-              className="text-[10px] bg-[#4c1d95]/10 text-[#4c1d95] px-1.5 py-1 rounded border border-[#4c1d95]/20 truncate hover:bg-[#4c1d95]/20 transition-colors"
-            >
-              {entry.startTime} - {entry.description || 'Sem descrição'}
-            </div>
-          ))}
+          {(() => {
+            if (dayEntries.length === 0) {
+              return (
+                <div className="text-[11px] text-slate-400 italic px-2 py-1">
+                  Sem apontamentos
+                </div>
+              );
+            }
+
+            const previews = dayEntries.slice(0, 3).map(entry => {
+              const taskTitle = tasks?.find(t => t.id === entry.taskId)?.title || entry.description || 'Sem descrição';
+              return (
+                <div
+                  key={entry.id}
+                  onClick={(e) => { e.stopPropagation(); onEntryClick(entry); }}
+                  className="text-[11px] bg-green-100 text-green-800 px-2 py-1 rounded border border-green-300 truncate hover:bg-green-200 transition-colors cursor-pointer"
+                >
+                  {entry.startTime} • {taskTitle}
+                </div>
+              );
+            });
+
+            const more = dayEntries.length - previews.length;
+            return (
+              <>
+                {previews}
+                {more > 0 && (
+                  <div className="text-[11px] text-green-700 font-semibold px-2 py-1">+{more} mais</div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Hover Add Button */}

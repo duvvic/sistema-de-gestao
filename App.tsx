@@ -1,3 +1,6 @@
+// App.tsx
+// Aplicação principal com integração Supabase
+
 import React, { useState, useEffect } from 'react';
 import KanbanBoard from './components/KanbanBoard';
 import TaskDetail from './components/TaskDetail';
@@ -15,249 +18,90 @@ import TimesheetAdminDashboard from './components/TimesheetAdminDashboard';
 import TimesheetAdminDetail from './components/TimesheetAdminDetail';
 import { Task, Project, Client, View, User, TimesheetEntry } from './types';
 import { LayoutDashboard, Users, CheckSquare, LogOut, Briefcase, Clock } from 'lucide-react';
-import { supabase } from './services/supabaseClient';
+import { useAppData } from './hooks/useAppData';
 
-// --- MOCK DATA ---
-const MOCK_CLIENTS: Client[] = [
-  { id: 'c1', name: 'NIC Labs', logoUrl: 'https://nic-labs.com/wp-content/uploads/2024/04/Logo-com-fundo-branco-1.png' },
-  { id: 'c2', name: 'TechCorp Global', logoUrl: 'https://picsum.photos/200/200?random=1' },
-  { id: 'c3', name: 'Inova Brasil', logoUrl: 'https://picsum.photos/200/200?random=2' },
-  { id: 'c4', name: 'StartUp One', logoUrl: 'https://picsum.photos/200/200?random=3' },
-];
+// Services para CRUD no Supabase
+import { createClient as createClientDb, deleteClient as deleteClientDb } from './services/clientService';
+// projectService and taskService are imported dynamically where needed to avoid
+// static resolution issues during the Vite/Rollup build.
 
-const MOCK_PROJECTS: Project[] = [
-  { id: 'p1', name: 'Plataforma SaaS', clientId: 'c1', manager: 'Roberto A.' },
-  { id: 'p2', name: 'App Mobile Delivery', clientId: 'c2', manager: 'Ana B.' },
-  { id: 'p3', name: 'Website Institucional', clientId: 'c3' },
-];
-
-const getDate = (daysOffset: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() + daysOffset);
-  return date.toISOString().split('T')[0];
-};
-
-const MOCK_TASKS: Task[] = [
-  {
-    id: 't1',
-    title: 'Setup Inicial do Repositório',
-    projectId: 'p1',
-    clientId: 'c1',
-    status: 'Done',
-    estimatedDelivery: getDate(-10),
-    progress: 100,
-    description: 'Configuração do Git, ESLint e Prettier.',
-    developer: 'João S.',
-    priority: 'High'
-  },
-  {
-    id: 't2',
-    title: 'Wireframes da Home',
-    projectId: 'p3',
-    clientId: 'c3',
-    status: 'Done',
-    estimatedDelivery: getDate(-5),
-    progress: 100,
-    developer: 'Maria F.',
-    notes: 'Aprovado pelo cliente'
-  },
-  {
-    id: 't3',
-    title: 'Desenvolvimento Tela de Login',
-    projectId: 'p1',
-    clientId: 'c1',
-    status: 'Review',
-    estimatedDelivery: getDate(2),
-    progress: 90,
-    description: 'Implementar autenticação JWT e layout responsivo.',
-    developer: 'João S.',
-    priority: 'Medium'
-  },
-  {
-    id: 't4',
-    title: 'API de Produtos',
-    projectId: 'p2',
-    clientId: 'c2',
-    status: 'In Progress',
-    estimatedDelivery: getDate(5),
-    progress: 45,
-    description: 'CRUD completo de produtos para o app delivery.',
-    developer: 'Carlos M.'
-  },
-  {
-    id: 't5',
-    title: 'Integração API Stripe',
-    projectId: 'p2',
-    clientId: 'c2',
-    status: 'In Progress',
-    estimatedDelivery: getDate(-3),
-    progress: 30,
-    description: 'Conexão com gateway de pagamento.',
-    developer: 'Maria F.',
-    priority: 'Critical',
-    risks: 'Documentação da API mudou recentemente.',
-    notes: 'Bloqueado por credenciais pendentes'
-  },
-  {
-    id: 't6',
-    title: 'Refatoração de Legado',
-    projectId: 'p1',
-    clientId: 'c1',
-    status: 'Todo',
-    estimatedDelivery: getDate(-7),
-    progress: 0,
-    description: 'Melhorar performance do módulo de relatórios.',
-    developer: 'João S.',
-    priority: 'Medium'
-  },
-  {
-    id: 't7',
-    title: 'Testes E2E (Cypress)',
-    projectId: 'p1',
-    clientId: 'c1',
-    status: 'Todo',
-    estimatedDelivery: getDate(10),
-    progress: 0,
-    developer: 'Carlos M.'
-  },
-  {
-    id: 't8',
-    title: 'Dashboard Administrativo',
-    projectId: 'p2',
-    clientId: 'c2',
-    status: 'Todo',
-    estimatedDelivery: getDate(15),
-    progress: 0,
-    developer: 'Maria F.',
-    impact: 'High'
-  },
-];
-
-const MOCK_TIMESHEETS: TimesheetEntry[] = [
-  {
-    id: 'ts1',
-    userId: 'u2',
-    userName: 'João S.',
-    clientId: 'c1',
-    projectId: 'p1',
-    taskId: 't3',
-    date: getDate(0),
-    startTime: '09:00',
-    endTime: '12:00',
-    totalHours: 3.0,
-    description: 'Frontend Login Screen'
-  },
-  {
-    id: 'ts2',
-    userId: 'u2',
-    userName: 'João S.',
-    clientId: 'c1',
-    projectId: 'p1',
-    taskId: 't3',
-    date: getDate(0),
-    startTime: '13:00',
-    endTime: '17:00',
-    totalHours: 4.0,
-    description: 'Auth Logic Integration'
-  },
-  {
-    id: 'ts3',
-    userId: 'u3',
-    userName: 'Maria F.',
-    clientId: 'c2',
-    projectId: 'p2',
-    taskId: 't5',
-    date: getDate(-1),
-    startTime: '10:00',
-    endTime: '15:00',
-    totalHours: 5.0,
-    description: 'Debugging Stripe Webhooks'
-  }
-];
-
-// fallback caso Supabase não responda
+// =====================================================
+// FALLBACK DATA (caso o banco esteja vazio)
+// =====================================================
 const FALLBACK_USERS: User[] = [
   { id: 'u1', name: 'Admin User', email: 'admin@nic.com', role: 'admin' },
   { id: 'u2', name: 'João S.', email: 'joao@nic.com', role: 'developer' },
 ];
 
+// =====================================================
+// COMPONENTE PRINCIPAL
+// =====================================================
 function App() {
+  // Hook do Supabase
+  const {
+    users: loadedUsers,
+    clients: loadedClients,
+    projects: loadedProjects,
+    tasks: loadedTasks,
+    timesheetEntries: loadedTimesheets,
+    loading: dataLoading,
+    error: dataError,
+  } = useAppData();
+
+  // State de autenticação
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<View>('login');
 
+  // State de dados (local, sincronizado com Supabase)
+  const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<User[]>(FALLBACK_USERS);
+  const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>([]);
+
+  // State de seleção
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>(MOCK_TIMESHEETS);
+  // State de Timesheet
   const [selectedTimesheetDate, setSelectedTimesheetDate] = useState<string | undefined>(undefined);
   const [timesheetEntryToEdit, setTimesheetEntryToEdit] = useState<TimesheetEntry | null>(null);
   const [timesheetAdminClient, setTimesheetAdminClient] = useState<string | null>(null);
 
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
-  const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS);
-  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
-  const [users, setUsers] = useState<User[]>([]);
-  const [usersLoading, setUsersLoading] = useState(true);
-  const [usersError, setUsersError] = useState<string | null>(null);
-
-  // -------- Carregar usuários do Supabase --------
+  // =====================================================
+  // SINCRONIZAÇÃO COM SUPABASE
+  // =====================================================
   useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        setUsersLoading(true);
-        setUsersError(null);
-
-        const { data, error } = await supabase
-          .from('dim_colaboradores')
-          .select('ID_Colaborador, NomeColaborador, "E-mail", avatar_url, papel');
-
-        console.log('RAW Supabase data (dim_colaboradores):', data);
-
-        if (error) {
-          console.error('Erro ao carregar usuários do Supabase:', error);
-          setUsers(FALLBACK_USERS);
-          setUsersError('Erro ao carregar usuários do banco, usando usuários de teste.');
-          return;
-        }
-
-        if (!data || data.length === 0) {
-          console.warn('Nenhum usuário retornado do Supabase. Usando fallback.');
-          setUsers(FALLBACK_USERS);
-          return;
-        }
-
-        const mappedUsers: User[] = data.map((row: any) => ({
-          id: String(row.ID_Colaborador),
-          name: row.NomeColaborador,
-          email: row['E-mail'],
-          avatarUrl: row.avatar_url ?? undefined,
-          role: row.papel === 'admin' ? 'admin' : 'developer',
-        }));
-
-        console.log('Mapped users -> state:', mappedUsers);
-        setUsers(mappedUsers);
-      } catch (e) {
-        console.error('Erro inesperado ao carregar usuários:', e);
-        setUsers(FALLBACK_USERS);
-        setUsersError('Erro inesperado ao carregar usuários, usando usuários de teste.');
-      } finally {
-        setUsersLoading(false);
+    if (!dataLoading) {
+      console.log("📥 Sincronizando dados do Supabase para o state local...");
+      
+      setClients(loadedClients);
+      setProjects(loadedProjects);
+      setTasks(loadedTasks);
+      setTimesheetEntries(loadedTimesheets);
+      
+      // Só atualiza users se o banco retornou dados
+      if (loadedUsers.length > 0) {
+        setUsers(loadedUsers);
       }
-    };
+      
+      console.log("✅ Sincronização concluída:", {
+        clients: loadedClients.length,
+        projects: loadedProjects.length,
+        tasks: loadedTasks.length,
+        users: loadedUsers.length || FALLBACK_USERS.length,
+      });
+    }
+  }, [dataLoading, loadedClients, loadedProjects, loadedTasks, loadedUsers, loadedTimesheets]);
 
-    loadUsers();
-  }, []);
-
-  // -------- Handlers gerais --------
+  // =====================================================
+  // HANDLERS - LOGIN/LOGOUT
+  // =====================================================
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    if (user.role === 'admin') {
-      setCurrentView('admin');
-    } else {
-      setCurrentView('developer-projects');
-    }
+    setCurrentView(user.role === 'admin' ? 'admin' : 'developer-projects');
   };
 
   const handleLogout = () => {
@@ -266,8 +110,12 @@ function App() {
     setSelectedClientId(null);
     setSelectedProjectId(null);
     setSelectedTaskId(null);
+    setSelectedUserId(null);
   };
 
+  // =====================================================
+  // HANDLERS - TIMESHEET
+  // =====================================================
   const handleTimesheetNav = () => {
     if (currentUser?.role === 'admin') {
       setCurrentView('timesheet-admin-dashboard');
@@ -287,27 +135,46 @@ function App() {
     setCurrentView('timesheet-form');
   };
 
+  const handleCreateTimesheetForTask = (task: Task) => {
+    if (!currentUser) return;
+    const today = new Date().toISOString().split('T')[0];
+    const initial: TimesheetEntry = {
+      id: crypto.randomUUID(),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      clientId: task.clientId || '',
+      projectId: task.projectId || '',
+      taskId: task.id,
+      date: today,
+      startTime: '09:00',
+      endTime: '18:00',
+      totalHours: 9,
+      description: `Apontamento rápido: ${task.title}`,
+    };
+
+    setTimesheetEntryToEdit(initial);
+    setCurrentView('timesheet-form');
+  };
+
   const handleSaveTimesheet = (entry: TimesheetEntry) => {
-    const exists = timesheetEntries.find(e => e.id === entry.id);
-    if (exists) {
-      setTimesheetEntries(timesheetEntries.map(e => e.id === entry.id ? entry : e));
-    } else {
-      setTimesheetEntries([...timesheetEntries, entry]);
-    }
+    setTimesheetEntries(prev => {
+      const exists = prev.some(e => e.id === entry.id);
+      return exists
+        ? prev.map(e => (e.id === entry.id ? entry : e))
+        : [...prev, entry];
+    });
 
     if (currentUser?.role === 'admin') {
-      if (timesheetAdminClient) setCurrentView('timesheet-admin-detail');
-      else setCurrentView('timesheet-admin-dashboard');
+      setCurrentView(timesheetAdminClient ? 'timesheet-admin-detail' : 'timesheet-admin-dashboard');
     } else {
       setCurrentView('timesheet-calendar');
     }
   };
 
   const handleDeleteTimesheet = (entryId: string) => {
-    setTimesheetEntries(timesheetEntries.filter(e => e.id !== entryId));
+    setTimesheetEntries(prev => prev.filter(e => e.id !== entryId));
     if (currentUser?.role === 'admin') {
-      if (timesheetAdminClient) setCurrentView('timesheet-admin-detail');
-      else setCurrentView('timesheet-admin-dashboard');
+      setCurrentView(timesheetAdminClient ? 'timesheet-admin-detail' : 'timesheet-admin-dashboard');
     } else {
       setCurrentView('timesheet-calendar');
     }
@@ -318,6 +185,9 @@ function App() {
     setCurrentView('timesheet-admin-detail');
   };
 
+  // =====================================================
+  // HANDLERS - CLIENTES
+  // =====================================================
   const handleClientSelect = (clientId: string) => {
     setSelectedClientId(clientId);
     setCurrentView('kanban');
@@ -327,24 +197,41 @@ function App() {
     setCurrentView('client-create');
   };
 
-  const handleSaveClient = (newClient: Client) => {
-    setClients([...clients, newClient]);
-    setCurrentView('admin');
+  const handleSaveClient = async (newClient: Client) => {
+    try {
+      // Salva no Supabase e obtém o ID real
+      const newId = await createClientDb(newClient);
+      
+      // Atualiza o state local com o ID do banco
+      const clientWithRealId = { ...newClient, id: String(newId) };
+      setClients(prev => [...prev, clientWithRealId]);
+      
+      console.log("✅ Cliente salvo com sucesso:", clientWithRealId);
+      setCurrentView('admin');
+    } catch (error) {
+      console.error("❌ Erro ao salvar cliente:", error);
+      alert("Erro ao salvar cliente. Verifique o console.");
+    }
   };
 
-  const handleDeleteClient = (clientId: string) => {
-    setClients(clients.filter(c => c.id !== clientId));
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      // Deleta no Supabase (soft delete)
+      await deleteClientDb(clientId);
+      
+      // Remove do state local
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      
+      console.log("✅ Cliente deletado com sucesso");
+    } catch (error) {
+      console.error("❌ Erro ao deletar cliente:", error);
+      alert("Erro ao deletar cliente. Verifique o console.");
+    }
   };
 
-  const handleTeamMemberSelect = (userId: string) => {
-    setSelectedUserId(userId);
-    setCurrentView('team-member-detail');
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    setUsers(users.filter(u => u.id !== userId));
-  };
-
+  // =====================================================
+  // HANDLERS - TAREFAS
+  // =====================================================
   const handleTaskClick = (taskId: string) => {
     setSelectedTaskId(taskId);
     setCurrentView('task-detail');
@@ -355,10 +242,87 @@ function App() {
     setCurrentView('task-create');
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(t => t.id !== taskId));
-    if (selectedTaskId === taskId) {
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      // Deleta no Supabase
+      const { deleteTask } = await import('./services/taskService');
+      await deleteTask(taskId);
+      
+      // Remove do state local
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      if (selectedTaskId === taskId) setSelectedTaskId(null);
+      
+      console.log("✅ Tarefa deletada com sucesso");
+    } catch (error) {
+      console.error("❌ Erro ao deletar tarefa:", error);
+      alert("Erro ao deletar tarefa. Verifique o console.");
+    }
+  };
+
+  const handleSaveTask = async (updatedTask: Task) => {
+    try {
+      const exists = tasks.some(t => t.id === updatedTask.id);
+      
+      if (exists) {
+        // UPDATE no Supabase
+        const { updateTask } = await import('./services/taskService');
+        await updateTask(updatedTask.id, updatedTask);
+        setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
+      } else {
+        // CREATE no Supabase
+        const { createTask } = await import('./services/taskService');
+        const newId = await createTask(updatedTask);
+        const taskWithRealId = { ...updatedTask, id: String(newId) };
+        setTasks(prev => [...prev, taskWithRealId]);
+      }
+
+      console.log("✅ Tarefa salva com sucesso");
+      
+      // Navegação após salvar
+      if (selectedUserId) {
+        setCurrentView('team-member-detail');
+      } else if (currentUser?.role !== 'admin') {
+        setCurrentView('user-tasks');
+      } else {
+        setCurrentView('kanban');
+      }
+      
       setSelectedTaskId(null);
+    } catch (error) {
+      console.error("❌ Erro ao salvar tarefa:", error);
+      alert("Erro ao salvar tarefa. Verifique o console.");
+    }
+  };
+
+  // =====================================================
+  // HANDLERS - PROJETOS
+  // =====================================================
+  const handleNewProject = () => {
+    setCurrentView('project-create');
+  };
+
+  const handleSaveProject = async (newProject: Project) => {
+    try {
+      // Salva no Supabase e obtém o ID real
+      const { createProject } = await import('./services/projectService');
+      const newId = await createProject(newProject);
+      
+      // Atualiza o state local com o ID do banco
+      const projectWithRealId = { ...newProject, id: String(newId) };
+      setProjects(prev => [...prev, projectWithRealId]);
+      
+      console.log("✅ Projeto salvo com sucesso:", projectWithRealId);
+      
+      // Navigate back depending on the current user role: developers return to their projects view
+      if (currentUser?.role === 'developer') {
+        setCurrentView('developer-projects');
+      } else {
+        setCurrentView('kanban');
+      }
+      if (!selectedClientId) setSelectedClientId(newProject.clientId);
+    } catch (error) {
+      console.error("❌ Erro ao salvar projeto:", error);
+      alert("Erro ao salvar projeto. Verifique o console.");
     }
   };
 
@@ -367,134 +331,129 @@ function App() {
     setCurrentView('user-tasks');
   };
 
-  const handleSaveTask = (updatedTask: Task) => {
-    if (selectedTaskId) {
-      setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
-    } else {
-      setTasks([...tasks, updatedTask]);
-    }
-
-    if (currentUser?.role !== 'admin' && currentView === 'task-create') {
-      setCurrentView('user-tasks');
-    } else if (selectedUserId) {
-      setCurrentView('team-member-detail');
-    } else {
-      setCurrentView('kanban');
-    }
-
-    setSelectedTaskId(null);
+  // =====================================================
+  // HANDLERS - EQUIPE
+  // =====================================================
+  const handleTeamMemberSelect = (userId: string) => {
+    setSelectedUserId(userId);
+    setCurrentView('team-member-detail');
   };
 
-  const handleNewProject = () => {
-    setCurrentView('project-create');
+  const handleDeleteUser = (userId: string) => {
+    // Por segurança, não deletamos usuários do banco por enquanto
+    // Apenas remove da visualização local
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    console.warn("⚠️ Usuário removido apenas localmente (não do banco)");
   };
 
-  const handleSaveProject = (newProject: Project) => {
-    setProjects([...projects, newProject]);
-    setCurrentView('kanban');
-    if (!selectedClientId) {
-      setSelectedClientId(newProject.clientId);
-    }
-  };
-
+  // =====================================================
+  // HELPERS
+  // =====================================================
   const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : undefined;
   const selectedTeamMember = selectedUserId ? users.find(u => u.id === selectedUserId) : undefined;
-  const getClientForProject = (pid: string) => projects.find(p => p.id === pid)?.clientId;
+  const getClientForProject = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    return project?.clientId;
+  };
 
-  // -------- Tela de login / loading --------
+  // =====================================================
+  // TELA DE LOGIN / LOADING
+  // =====================================================
   if (!currentUser) {
-    if (usersLoading) {
+    if (dataLoading) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <p className="text-slate-500">Carregando usuários...</p>
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-[#4c1d95] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-500 font-medium">Carregando dados...</p>
+          </div>
         </div>
       );
+    }
+
+    if (dataError) {
+      console.warn("Erro ao carregar dados:", dataError);
     }
 
     return <Login onLogin={handleLogin} users={users} />;
   }
 
-  // -------- App logado --------
+  // =====================================================
+  // RENDERIZAÇÃO PRINCIPAL
+  // =====================================================
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-20 lg:w-64 bg-white border-r border-slate-200 flex flex-col items-center lg:items-stretch py-6 transition-all duration-300 z-20">
-        <div className="mb-10 px-6 flex justify-center lg:justify-start">
+    <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
+      {/* SIDEBAR */}
+      <aside className="w-20 lg:w-64 bg-white border-r border-slate-200 flex flex-col py-6">
+        {/* Logo */}
+        <div className="flex justify-center lg:justify-start px-6 mb-10">
           <img
             src="https://nic-labs.com/wp-content/uploads/2024/04/Logo-com-fundo-branco-1.png"
             alt="NIC Labs"
-            className="h-20 w-auto object-contain"
+            className="h-16 lg:h-20 object-contain"
           />
         </div>
 
+        {/* Menu */}
         <nav className="flex-1 space-y-2 px-3">
+          {/* Admin Menu */}
           {currentUser.role === 'admin' && (
-            <SidebarItem
-              icon={<Briefcase size={20} />}
-              label="Clientes"
-              active={currentView === 'admin' || currentView === 'client-create'}
-              onClick={() => {
-                setSelectedClientId(null);
-                setCurrentView('admin');
-              }}
-            />
+            <>
+              <SidebarItem
+                icon={<Briefcase size={20} />}
+                label="Clientes"
+                active={currentView === 'admin'}
+                onClick={() => setCurrentView('admin')}
+              />
+              <SidebarItem
+                icon={<LayoutDashboard size={20} />}
+                label="Projetos"
+                active={currentView === 'kanban'}
+                onClick={() => setCurrentView('kanban')}
+              />
+              <SidebarItem
+                icon={<Users size={20} />}
+                label="Equipe"
+                active={currentView === 'team-list' || currentView === 'team-member-detail'}
+                onClick={() => setCurrentView('team-list')}
+              />
+            </>
           )}
 
-          {currentUser.role === 'admin' && (
-            <SidebarItem
-              icon={<LayoutDashboard size={20} />}
-              label="Projetos"
-              active={currentView === 'kanban' || currentView === 'project-create'}
-              onClick={() => setCurrentView('kanban')}
-            />
-          )}
-
+          {/* Developer Menu */}
           {currentUser.role === 'developer' && (
-            <SidebarItem
-              icon={<LayoutDashboard size={20} />}
-              label="Projetos"
-              active={currentView === 'developer-projects'}
-              onClick={() => {
-                setSelectedProjectId(null);
-                setCurrentView('developer-projects');
-              }}
-            />
+            <>
+              <SidebarItem
+                icon={<LayoutDashboard size={20} />}
+                label="Meus Projetos"
+                active={currentView === 'developer-projects'}
+                onClick={() => {
+                  setSelectedProjectId(null);
+                  setCurrentView('developer-projects');
+                }}
+              />
+              <SidebarItem
+                icon={<CheckSquare size={20} />}
+                label="Todas as Tarefas"
+                active={currentView === 'user-tasks' && !selectedProjectId}
+                onClick={() => {
+                  setSelectedProjectId(null);
+                  setCurrentView('user-tasks');
+                }}
+              />
+            </>
           )}
 
-          {currentUser.role === 'developer' && (
-            <SidebarItem
-              icon={<CheckSquare size={20} />}
-              label="Todas as Tarefas"
-              active={currentView === 'user-tasks' && !selectedProjectId}
-              onClick={() => {
-                setSelectedProjectId(null);
-                setCurrentView('user-tasks');
-              }}
-            />
-          )}
-
+          {/* Timesheet - Ambos os papéis */}
           <SidebarItem
             icon={<Clock size={20} />}
             label="Apontamento de Horas"
-            active={
-              currentView === 'timesheet-calendar' ||
-              currentView === 'timesheet-form' ||
-              currentView === 'timesheet-admin-dashboard' ||
-              currentView === 'timesheet-admin-detail'
-            }
+            active={currentView.includes('timesheet')}
             onClick={handleTimesheetNav}
           />
-
-          {currentUser.role === 'admin' && (
-            <SidebarItem
-              icon={<Users size={20} />}
-              label="Equipe"
-              active={currentView === 'team-list' || currentView === 'team-member-detail'}
-              onClick={() => setCurrentView('team-list')}
-            />
-          )}
         </nav>
 
+        {/* User Info + Logout */}
         <div className="mt-auto px-3 space-y-2">
           <div className="flex items-center gap-3 px-3 py-2 mb-2">
             <div className="w-8 h-8 rounded-full bg-[#4c1d95] text-white flex items-center justify-center font-bold text-xs">
@@ -506,20 +465,22 @@ function App() {
             </div>
           </div>
 
-          <div className="h-px bg-slate-100 my-4 mx-3" />
-
+          <div className="h-px bg-slate-100 my-4 mx-3"></div>
+          
           <SidebarItem
             icon={<LogOut size={20} />}
             label="Sair"
-            className="text-red-500 hover:bg-red-50 group-hover:text-red-600"
+            className="text-red-500 hover:bg-red-50"
             onClick={handleLogout}
           />
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 overflow-hidden relative bg-slate-50">
         <div className="absolute inset-0 p-6 lg:p-10 overflow-hidden flex flex-col">
+
+          {/* === ADMIN VIEWS === */}
           {currentView === 'admin' && (
             <AdminDashboard
               clients={clients}
@@ -546,14 +507,10 @@ function App() {
               onNewTask={handleNewTask}
               onNewProject={handleNewProject}
               filteredClientId={selectedClientId}
-              onBackToAdmin={
-                currentUser.role === 'admin'
-                  ? () => {
-                      setSelectedClientId(null);
-                      setCurrentView('admin');
-                    }
-                  : undefined
-              }
+              onBackToAdmin={currentUser.role === 'admin' ? () => {
+                setSelectedClientId(null);
+                setCurrentView('admin');
+              } : undefined}
               onDeleteTask={handleDeleteTask}
               user={currentUser}
             />
@@ -563,7 +520,14 @@ function App() {
             <ProjectForm
               clients={clients}
               onSave={handleSaveProject}
-              onBack={() => setCurrentView('kanban')}
+              onBack={() => {
+                // If a developer opened the project form, return to the developer view.
+                if (currentUser?.role === 'developer') {
+                  setCurrentView('developer-projects');
+                } else {
+                  setCurrentView('kanban');
+                }
+              }}
               preSelectedClientId={selectedClientId || undefined}
             />
           )}
@@ -587,6 +551,7 @@ function App() {
             />
           )}
 
+          {/* === DEVELOPER VIEWS === */}
           {currentView === 'developer-projects' && (
             <DeveloperProjects
               user={currentUser}
@@ -594,6 +559,7 @@ function App() {
               clients={clients}
               tasks={tasks}
               onProjectClick={handleDeveloperProjectClick}
+              onNewProject={() => setCurrentView('project-create')}
             />
           )}
 
@@ -607,9 +573,12 @@ function App() {
               filterProjectId={selectedProjectId}
               onBack={selectedProjectId ? () => setCurrentView('developer-projects') : undefined}
               onNewTask={handleNewTask}
+              onCreateTimesheetForTask={handleCreateTimesheetForTask}
+              timesheetEntries={timesheetEntries}
             />
           )}
 
+          {/* === SHARED TASK VIEWS === */}
           {(currentView === 'task-detail' || currentView === 'task-create') && (
             <TaskDetail
               task={selectedTask}
@@ -622,18 +591,16 @@ function App() {
                 else if (currentUser.role !== 'admin') setCurrentView('user-tasks');
                 else setCurrentView('kanban');
               }}
-              preSelectedClientId={
-                selectedProjectId
-                  ? getClientForProject(selectedProjectId)
-                  : selectedClientId || undefined
-              }
+              preSelectedClientId={selectedProjectId ? getClientForProject(selectedProjectId) : (selectedClientId || undefined)}
               user={currentUser}
             />
           )}
 
+          {/* === TIMESHEET VIEWS === */}
           {currentView === 'timesheet-calendar' && (
             <TimesheetCalendar
               entries={timesheetEntries.filter(e => e.userId === currentUser.id)}
+              tasks={tasks.map(t => ({ id: t.id, title: t.title }))}
               onDateClick={handleTimesheetDateClick}
               onEntryClick={handleTimesheetEntryClick}
             />
@@ -672,12 +639,16 @@ function App() {
               onEditEntry={handleTimesheetEntryClick}
             />
           )}
+
         </div>
       </main>
     </div>
   );
 }
 
+// =====================================================
+// COMPONENTE SIDEBAR ITEM
+// =====================================================
 const SidebarItem: React.FC<{
   icon: React.ReactNode;
   label: string;
@@ -690,7 +661,7 @@ const SidebarItem: React.FC<{
     className={`
       w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group
       ${active ? 'bg-[#4c1d95] text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 hover:text-[#4c1d95]'}
-      ${className ?? ''}
+      ${className || ''}
     `}
   >
     <span className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-[#4c1d95]'} transition-colors`}>

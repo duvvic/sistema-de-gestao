@@ -1,200 +1,317 @@
-import React from 'react';
-import { Task, Project, Client, User } from '../types';
-import { CheckCircle2, Circle, Clock, AlertCircle, ArrowRight, Calendar, ArrowLeft, Plus, AlertTriangle } from 'lucide-react';
+// components/UserTasks.tsx
+import React, { useMemo, useState } from "react";
+import { Task, Project, Client, User, TimesheetEntry } from "../types";
+import { ArrowLeft, Plus, FolderKanban, Calendar, Building2 } from "lucide-react";
 
 interface UserTasksProps {
   user: User;
   tasks: Task[];
   projects: Project[];
   clients: Client[];
-  onTaskClick: (taskId: string) => void;
-  // New Props for Contextual View
   filterProjectId?: string | null;
+
+  onTaskClick: (taskId: string) => void;
+  onNewTask: () => void;
+  onCreateTimesheetForTask?: (task: Task) => void;
+  timesheetEntries?: TimesheetEntry[];
+
   onBack?: () => void;
-  onNewTask?: () => void;
 }
 
-const UserTasks: React.FC<UserTasksProps> = ({ 
-  user, 
-  tasks, 
-  projects, 
-  clients, 
-  onTaskClick,
+const UserTasks: React.FC<UserTasksProps> = ({
+  user,
+  tasks,
+  projects,
+  clients,
   filterProjectId,
+  onTaskClick,
+  onNewTask,
   onBack,
-  onNewTask
+  onCreateTimesheetForTask,
+  timesheetEntries
 }) => {
-  // Helper to check delay (boolean/count)
-  const getDelayInfo = (task: Task) => {
-    if (task.status === 'Done') return null;
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    // Parse manually to avoid timezone issues
-    const parts = task.estimatedDelivery.split('-');
-    const due = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-    
-    const diffTime = today.getTime() - due.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays > 0) return diffDays;
-    return null;
-  };
 
-  // Sorting Logic Helper
-  // 0: Delayed, 1: In Progress, 2: Todo, 3: Review, 4: Done
-  const getTaskPriority = (task: Task) => {
-    // 1. Check Delay first (Highest Priority)
-    const delay = getDelayInfo(task);
-    if (delay !== null && delay > 0) return 0;
+  const [viewFilter, setViewFilter] = useState<'all'|'concluded'|'delayed'|'inprogress'>('all');
 
-    // 2. Check Status
-    switch (task.status) {
-      case 'In Progress': return 1;
-      case 'Todo': return 2;
-      case 'Review': return 3;
-      case 'Done': return 4;
-      default: return 5;
+  // ================================
+  // 1) Filtra apenas tarefas do usuário
+  // ================================
+  const myTasks = useMemo(
+    () => tasks.filter((t) => t.developerId === user.id),
+    [tasks, user.id]
+  );
+
+  // ================================
+  // 2) Filtra por projeto (se houver)
+  // ================================
+  const filteredTasks = useMemo(() => {
+    if (!filterProjectId) return myTasks;
+    return myTasks.filter((t) => t.projectId === filterProjectId);
+  }, [myTasks, filterProjectId]);
+
+  const isTaskDelayed = (task: Task) => {
+    if (!task.estimatedDelivery) return false;
+    if (task.actualDelivery) return false; // already done
+    try {
+      const due = new Date(task.estimatedDelivery);
+      const today = new Date();
+      // normalize dates (compare yyyy-mm-dd only)
+      const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+      const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      return dueDay < todayDay;
+    } catch (e) {
+      return false;
     }
   };
 
-  // Filter tasks for the logged in user
-  let myTasks = tasks.filter(t => t.developer === user.name);
 
-  // Apply project filter if exists
-  if (filterProjectId) {
-    myTasks = myTasks.filter(t => t.projectId === filterProjectId);
-  }
+  // ================================
+  // 3) Agrupar em 3 colunas: Em Progresso, Atrasadas, Concluídas
+  // ================================
+  const tasksByStatus = useMemo(() => {
+    const concluded = filteredTasks.filter(t => !!t.actualDelivery || t.status === 'Done');
+    const delayed = filteredTasks.filter(t => !concluded.includes(t) && isTaskDelayed(t));
+    const inProgress = filteredTasks.filter(t => !concluded.includes(t) && !delayed.includes(t));
 
-  // Apply Sorting
-  myTasks.sort((a, b) => getTaskPriority(a) - getTaskPriority(b));
+    return {
+      InProgress: inProgress,
+      Delayed: delayed,
+      Concluded: concluded,
+    };
+  }, [filteredTasks]);
 
-  const currentProject = filterProjectId ? projects.find(p => p.id === filterProjectId) : null;
-  const currentClient = currentProject ? clients.find(c => c.id === currentProject.clientId) : null;
 
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'Done': return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-      case 'In Progress': return <Clock className="w-5 h-5 text-blue-500" />;
-      case 'Review': return <AlertCircle className="w-5 h-5 text-purple-500" />;
-      default: return <Circle className="w-5 h-5 text-slate-300" />;
-    }
-  };
-
+  // ================================
+  // 4) Render
+  // ================================
   return (
     <div className="h-full flex flex-col p-2">
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          {filterProjectId && onBack && (
-            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
-               <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">
-              {filterProjectId ? currentProject?.name : 'Todas as Tarefas'}
-            </h1>
-            <p className="text-slate-500 mt-1">
-              {filterProjectId 
-                ? `Tarefas para ${currentClient?.name}` 
-                : `Lista geral de atividades alocadas a ${user.name}`}
-            </p>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Minhas Tarefas</h1>
+          <p className="text-slate-500">
+            {filterProjectId
+              ? "Tarefas do projeto selecionado"
+              : "Todas as suas tarefas"}
+          </p>
         </div>
 
-        {/* Contextual New Task Button */}
-        {onNewTask && (
-           <button 
-             onClick={onNewTask}
-             className="bg-[#4c1d95] hover:bg-[#3b1675] text-white px-5 py-2.5 rounded-xl shadow-md transition-colors flex items-center gap-2 font-bold text-sm"
-           >
-             <Plus className="w-5 h-5" />
-             Nova Tarefa
-           </button>
-        )}
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 transition flex items-center gap-2"
+            >
+              <ArrowLeft size={18} />
+              Voltar
+            </button>
+          )}
+
+          <button
+            onClick={onNewTask}
+            className="px-4 py-2 rounded-xl bg-[#4c1d95] text-white hover:bg-[#3b1675] transition flex items-center gap-2 shadow"
+          >
+            <Plus size={20} />
+            Nova Tarefa
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col">
-        {myTasks.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-10">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-               <CheckCircle2 className="w-8 h-8 text-slate-300" />
-            </div>
-            <p className="text-lg font-medium">Nenhuma tarefa encontrada neste contexto.</p>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 sticky top-0 z-10">
-                <tr>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Status</th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Tarefa</th>
-                  {!filterProjectId && (
-                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Projeto / Cliente</th>
-                  )}
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Entrega</th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {myTasks.map(task => {
-                  const project = projects.find(p => p.id === task.projectId);
-                  const client = clients.find(c => c.id === task.clientId);
-                  const daysDelayed = getDelayInfo(task);
-                  
-                  return (
-                    <tr 
-                      key={task.id} 
-                      onClick={() => onTaskClick(task.id)}
-                      className={`
-                        cursor-pointer group transition-colors
-                        ${daysDelayed ? 'bg-red-50 hover:bg-red-100/80' : 'hover:bg-purple-50/50'}
-                      `}
-                    >
-                      <td className="p-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(task.status)}
-                          <div className="flex flex-col">
-                             <span className="text-sm font-medium text-slate-700">{task.status}</span>
-                             {daysDelayed && (
-                               <span className="text-[10px] font-bold text-red-600 flex items-center gap-1">
-                                 <AlertTriangle className="w-3 h-3" />
-                                 {daysDelayed} dias de atraso
-                               </span>
-                             )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <p className={`font-semibold ${daysDelayed ? 'text-red-900' : 'text-slate-800'}`}>{task.title}</p>
-                        {task.notes && <p className="text-xs text-slate-500 truncate max-w-xs">{task.notes}</p>}
-                      </td>
-                      {!filterProjectId && (
-                        <td className="p-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-slate-700">{project?.name || 'Sem projeto'}</span>
-                            <span className="text-xs text-slate-500">{client?.name}</span>
-                          </div>
-                        </td>
-                      )}
-                      <td className="p-4 whitespace-nowrap">
-                        <div className={`flex items-center gap-1.5 text-sm w-fit px-2 py-1 rounded-lg ${daysDelayed ? 'bg-red-100 text-red-700 font-bold' : 'bg-slate-50 text-slate-600'}`}>
-                          <Calendar className="w-3.5 h-3.5" />
-                          {new Date(task.estimatedDelivery).toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="p-4 text-right">
-                        <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-[#4c1d95] transition-colors" />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Top status cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <button onClick={() => setViewFilter('inprogress')} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-left">
+          <div className="text-sm text-slate-500">Em Progresso</div>
+          <div className="text-2xl font-bold text-slate-800 mt-2">{tasksByStatus.InProgress.length}</div>
+        </button>
+
+        <button onClick={() => setViewFilter('delayed')} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-left">
+          <div className="text-sm text-slate-500">Atrasadas</div>
+          <div className="text-2xl font-bold text-red-600 mt-2">{tasksByStatus.Delayed.length}</div>
+        </button>
+
+        <button onClick={() => setViewFilter('concluded')} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-left">
+          <div className="text-sm text-slate-500">Concluídas</div>
+          <div className="text-2xl font-bold text-green-600 mt-2">{tasksByStatus.Concluded.length}</div>
+        </button>
       </div>
+
+      {/* Empty State */}
+      {filteredTasks.length === 0 && (
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl p-8">
+          <FolderKanban className="w-12 h-12 mb-4 text-slate-300" />
+          <p>Nenhuma tarefa encontrada.</p>
+        </div>
+      )}
+
+      {/* Kanban / Filtered Lists */}
+      {filteredTasks.length > 0 && (
+        <div className="h-full overflow-y-auto pb-4 custom-scrollbar">
+          {viewFilter === 'all' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <TaskColumn
+                title="Em Progresso"
+                tasks={tasksByStatus.InProgress}
+                clients={clients}
+                projects={projects}
+                onTaskClick={onTaskClick}
+                onCreateTimesheetForTask={onCreateTimesheetForTask}
+                timesheetEntries={timesheetEntries}
+                currentUserId={user.id}
+              />
+
+              <TaskColumn
+                title="Atrasadas"
+                tasks={tasksByStatus.Delayed}
+                clients={clients}
+                projects={projects}
+                onTaskClick={onTaskClick}
+                onCreateTimesheetForTask={onCreateTimesheetForTask}
+                timesheetEntries={timesheetEntries}
+                currentUserId={user.id}
+              />
+
+              <TaskColumn
+                title="Concluídas"
+                tasks={tasksByStatus.Concluded}
+                clients={clients}
+                projects={projects}
+                onTaskClick={onTaskClick}
+                onCreateTimesheetForTask={onCreateTimesheetForTask}
+                timesheetEntries={timesheetEntries}
+                currentUserId={user.id}
+              />
+            </div>
+          )}
+
+          {viewFilter === 'concluded' && (
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                <h3 className="font-bold text-slate-700 mb-3">Tarefas Concluídas</h3>
+                <div className="space-y-3">
+                  {tasksByStatus.Concluded.map(t => (
+                    <button key={t.id} onClick={() => onTaskClick(t.id)} className="w-full text-left bg-slate-50 hover:bg-slate-100 transition border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="font-bold text-slate-800">{t.title}</div>
+                      <div className="text-xs text-slate-500 mt-1">Entrega: {t.actualDelivery}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {viewFilter === 'delayed' && (
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                <h3 className="font-bold text-red-600 mb-3">Tarefas Atrasadas</h3>
+                <div className="space-y-3">
+                  {tasksByStatus.Delayed.map(t => (
+                    <button key={t.id} onClick={() => onTaskClick(t.id)} className="w-full text-left bg-slate-50 hover:bg-slate-100 transition border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="font-bold text-slate-800">{t.title}</div>
+                      <div className="text-xs text-slate-500 mt-1">Prevista: {t.estimatedDelivery}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {viewFilter === 'inprogress' && (
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                <h3 className="font-bold text-slate-700 mb-3">Em Progresso</h3>
+                <div className="space-y-3">
+                  {tasksByStatus.InProgress.map(t => (
+                    <button key={t.id} onClick={() => onTaskClick(t.id)} className="w-full text-left bg-slate-50 hover:bg-slate-100 transition border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="font-bold text-slate-800">{t.title}</div>
+                      <div className="text-xs text-slate-500 mt-1">Prevista: {t.estimatedDelivery}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
 export default UserTasks;
+
+
+// ================================================
+// COMPONENTE: COLUNA DO KANBAN
+// ================================================
+const TaskColumn: React.FC<{
+  title: string;
+  tasks: Task[];
+  clients: Client[];
+  projects: Project[];
+  onTaskClick: (id: string) => void;
+  onCreateTimesheetForTask?: (task: Task) => void;
+  timesheetEntries?: TimesheetEntry[];
+  currentUserId?: string;
+}> = ({ title, tasks, clients, projects, onTaskClick, onCreateTimesheetForTask, timesheetEntries, currentUserId }) => {
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col">
+      <h2 className="text-lg font-bold text-slate-700 mb-4">{title}</h2>
+
+      <div className="space-y-3 overflow-y-auto custom-scrollbar">
+        {tasks.map(task => {
+          const project = projects.find(p => p.id === task.projectId);
+          const client = clients.find(c => c.id === task.clientId);
+
+          return (
+            <div key={task.id} className="w-full bg-slate-50 hover:bg-slate-100 transition border border-slate-200 rounded-xl p-4 shadow-sm">
+              <button
+                onClick={() => onTaskClick(task.id)}
+                className="w-full text-left"
+              >
+                <p className="font-bold text-slate-800">{task.title}</p>
+
+                <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+                  <Calendar size={14} />
+                  {task.estimatedDelivery}
+                </div>
+
+                <div className="text-xs text-slate-600 mt-1 flex items-center gap-2">
+                  <Building2 size={14} className="text-[#4c1d95]" />
+                  {client?.name ?? "Cliente"}
+                </div>
+
+                <div className="text-xs text-slate-500 mt-1">
+                  Projeto: {project?.name ?? "Sem projeto"}
+                </div>
+              </button>
+
+              {/* badge: show if user has no timesheet for this task today and task not done */}
+              {(() => {
+                const today = new Date().toISOString().split('T')[0];
+                const hasEntry = !!timesheetEntries?.some(e => e.taskId === task.id && e.date === today && e.userId === currentUserId);
+                const show = !hasEntry && task.status !== 'Done';
+                return show ? (
+                  <div className="mt-3">
+                    <span className="inline-block px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Sem Apont.</span>
+                  </div>
+                ) : null;
+              })()}
+
+              <div className="mt-3 flex items-center gap-2">
+                {onCreateTimesheetForTask && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onCreateTimesheetForTask(task); }}
+                    className="px-3 py-1 rounded-lg bg-[#4c1d95] text-white text-sm hover:bg-[#3b1675] transition"
+                  >
+                    Apontar Hoje
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
