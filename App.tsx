@@ -1,7 +1,7 @@
 // App.tsx
 // Aplicação principal com integração Supabase
 
-import React, { useState, useEffect } from 'react';
+import React, { Component, useState, useEffect } from 'react';
 import KanbanBoard from './components/KanbanBoard';
 import KanbanProjects from './components/KanbanProjects';
 import TaskDetail from './components/TaskDetail';
@@ -50,13 +50,22 @@ const FALLBACK_USERS: User[] = [
 // =====================================================
 
 // Error Boundary simples para capturar erros em componentes filhos
-type ErrorBoundaryProps = { name?: string; children: React.ReactNode };
-type ErrorBoundaryState = { hasError: boolean; error?: any };
+interface ErrorBoundaryProps { 
+  name?: string; 
+  children: React.ReactNode;
+}
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+interface ErrorBoundaryState { 
+  hasError: boolean; 
+  error?: any;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  readonly state: ErrorBoundaryState = { hasError: false };
+  readonly props!: ErrorBoundaryProps;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false };
   }
   
   static getDerivedStateFromError(error: any): ErrorBoundaryState {
