@@ -36,15 +36,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
   const clientProjects = projects.filter(p => p.clientId === client.id);
   const tasksByProject = (projectId: string) => tasks.filter(t => t.projectId === projectId);
 
-  // DEBUG
-  React.useEffect(() => {
-      clientId: client?.id,
-      clientName: client?.name,
-      totalProjects: projects?.length,
-      clientProjects: clientProjects?.length,
-      projectDetails: clientProjects.map(p => ({ id: p.id, name: p.name, clientId: p.clientId }))
-    });
-  }, [client, projects, clientProjects]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

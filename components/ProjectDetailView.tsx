@@ -121,7 +121,7 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
+              {Object.entries(tasksByStatus).map(([status, statusTasks]: [string, Task[]]) => (
                 <div
                   key={status}
                   className={`${getStatusColor(status)} border border-slate-200 rounded-2xl p-4 flex flex-col`}

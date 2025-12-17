@@ -29,17 +29,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
   const [sortBy, setSortBy] = useState<SortOption>('recent');
 
-  // Log inicial para diagnosticar props na tela de Admin
-  React.useEffect(() => {
-      clientsCount: (clients || []).length,
-      projectsCount: (projects || []).length,
-      tasksCount: (tasks || []).length,
-      hasOnAddClient: typeof onAddClient === 'function',
-      hasOnSelectClient: typeof onSelectClient === 'function',
-      hasOnSelectClientProjects: typeof onSelectClientProjects === 'function',
-      hasOnDeleteClient: typeof onDeleteClient === 'function',
-    });
-  }, [clients, projects, tasks, onAddClient, onSelectClient, onSelectClientProjects, onDeleteClient]);
+
 
   // --------- PROTEÇÃO CONTRA UNDEFINED ---------
   const safeClients = clients || [];

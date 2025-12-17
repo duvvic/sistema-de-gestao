@@ -21,7 +21,7 @@ const AllProjectsView: React.FC<AllProjectsViewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('');
 
   // Mapear clientes por ID para fácil acesso
-  const clientMap = new Map(clients.map(c => [c.id, c]));
+  const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));
 
   // Filtrar projetos por busca e status (status derivado de ativo)
   const filteredProjects = projects.filter(project => {
