@@ -53,7 +53,7 @@ export interface DbTaskRow {
   Porcentagem: number | null;
   StatusTarefa: string | null;
   DiasAtraso: string | null;
-  Observacoes: string | null; // Cuidado: pode ser "Observações" com cedilha
+  "Observações": string | null;
   LinkEF: string | null;
   inicio_previsto: string | null;
   inicio_real: string | null;
@@ -112,7 +112,6 @@ export async function fetchUsers(): Promise<User[]> {
 
 // Soft delete de colaborador (marca ativo = false) e confirma linha afetada
 export async function deactivateUser(userId: string): Promise<boolean> {
-
   const numericId = Number(userId);
   if (Number.isNaN(numericId)) {
     throw new Error(`ID de colaborador inválido: ${userId}`);
@@ -122,16 +121,15 @@ export async function deactivateUser(userId: string): Promise<boolean> {
     .from("dim_colaboradores")
     .update({ ativo: false })
     .eq("ID_Colaborador", numericId)
-    .select("ID_Colaborador");
+    .select("ID_Colaborador, NomeColaborador, ativo");
 
   if (error) {
-
     throw error;
   }
 
-  const updated = !!(data && data.length);
+  const updated = !!(data && data.length > 0);
   if (!updated) {
-    throw new Error("Nenhum registro atualizado em dim_colaboradores (verifique RLS ou ID)");
+    throw new Error("Nenhum registro atualizado. Verifique permissões RLS ou se o ID existe.");
   }
 
   return true;
@@ -280,27 +278,18 @@ function normalizeRole(papel: string | null): "admin" | "developer" | "gestor" {
  */
 export async function fetchTimesheets(): Promise<any[]> {
   // Prioriza a tabela brasileira encontrada no banco
-  const candidates = ['horas_trabalhadas', 'timesheet_entries', 'apontamentos', 'fato_apontamentos', 'timesheets'];
-  for (const table of candidates) {
-    try {
-
-      const { data, error } = await supabase.from(table).select('*');
-      if (error) {
-        // Se tabela não existir, continue para próxima
-
-        continue;
-      }
-      if (!data || data.length === 0) {
-
-        return [];
-      }
-
-      return data;
-    } catch (err) {
-
-      continue;
+  try {
+    const { data, error } = await supabase
+      .from('horas_trabalhadas')
+      .select('ID_Horas_Trabalhadas, ID_Colaborador, NomeColaborador, ID_Cliente, ID_Projeto, id_tarefa_novo, Data, Horas_Trabalhadas');
+    
+    if (error) {
+      // Se tabela não existir ou houver erro, retorna vazio
+      return [];
     }
+    
+    return data || [];
+  } catch (err) {
+    return [];
   }
-
-  return [];
 }

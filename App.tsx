@@ -265,6 +265,7 @@ function App() {
           .from('horas_trabalhadas')
           .update({
             ID_Colaborador: entry.userId,
+            NomeColaborador: entry.userName,
             ID_Cliente: entry.clientId,
             ID_Projeto: entry.projectId,
             id_tarefa_novo: entry.taskId,
@@ -276,11 +277,11 @@ function App() {
         if (error) throw error;
       } else {
         // Insert
-
         const { data, error } = await supabase
           .from('horas_trabalhadas')
           .insert({
             ID_Colaborador: entry.userId,
+            NomeColaborador: entry.userName,
             ID_Cliente: entry.clientId,
             ID_Projeto: entry.projectId,
             id_tarefa_novo: entry.taskId,

@@ -215,7 +215,7 @@ export function useAppData(): AppData {
             
             // Campos de texto
             risks: row.Riscos || undefined,
-            notes: row.Observacoes || undefined,
+            notes: row["Observações"] || undefined,
             description: undefined, // Não existe no banco atual
             attachment: undefined, // Não existe no banco atual
           };
@@ -224,23 +224,20 @@ export function useAppData(): AppData {
         // Buscar apontamentos (se houver)
         const rawTimesheets = await fetchTimesheets();
 
-        // Faz um mapeamento flexível dos campos para o formato do front
+        // Faz um mapeamento dos campos da tabela horas_trabalhadas para o formato do front
         const timesheetMapped: TimesheetEntry[] = (rawTimesheets || []).map((r: any) => ({
-          id: String(
-            // Prioriza o id específico da tabela horas_trabalhadas
-            r.ID_Horas_Trabalhadas || r.id || r.ID || r.id_apontamento || crypto.randomUUID()
-          ),
-          userId: String(r.ID_Colaborador || r.userId || r.user_id || r.colaborador || r.usuario || ''),
-          userName: r.NomeColaborador || r.userName || r.user_name || r.usuario_nome || '',
-          clientId: String(r.ID_Cliente || r.clientId || r.client_id || r.cliente || ''),
-          projectId: String(r.ID_Projeto || r.projectId || r.project_id || r.projeto || ''),
-          taskId: String(r.id_tarefa_novo || r.ID_Tarefa || r.taskId || r.task_id || r.tarefa || ''),
-          date: r.Data || r.date || r.data || r.dia || (new Date()).toISOString().split('T')[0],
+          id: String(r.ID_Horas_Trabalhadas || crypto.randomUUID()),
+          userId: String(r.ID_Colaborador || ''),
+          userName: r.NomeColaborador || '',
+          clientId: String(r.ID_Cliente || ''),
+          projectId: String(r.ID_Projeto || ''),
+          taskId: String(r.id_tarefa_novo || ''),
+          date: r.Data || (new Date()).toISOString().split('T')[0],
           // A tabela atual não tem start/end time — mantém defaults
-          startTime: r.startTime || r.start_time || r.hora_inicio || '09:00',
-          endTime: r.endTime || r.end_time || r.hora_fim || '18:00',
-          totalHours: Number(r.Horas_Trabalhadas || r.totalHours || r.total_hours || r.horas || 0),
-          description: r.descricao || r.description || r.notas || r.obs || undefined,
+          startTime: '09:00',
+          endTime: '18:00',
+          totalHours: Number(r.Horas_Trabalhadas || 0),
+          description: undefined,
         }));
 
         // Atualiza os states (retorna todos, filtragem no componente)
