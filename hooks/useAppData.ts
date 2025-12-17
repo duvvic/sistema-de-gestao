@@ -228,12 +228,11 @@ export function useAppData(): AppData {
         const timesheetMapped: TimesheetEntry[] = (rawTimesheets || []).map((r: any) => ({
           id: String(r.ID_Horas_Trabalhadas || crypto.randomUUID()),
           userId: String(r.ID_Colaborador || ''),
-          userName: r.NomeColaborador || '',
+          userName: r.dim_colaboradores?.NomeColaborador || '',
           clientId: String(r.ID_Cliente || ''),
           projectId: String(r.ID_Projeto || ''),
           taskId: String(r.id_tarefa_novo || ''),
           date: r.Data || (new Date()).toISOString().split('T')[0],
-          // A tabela atual não tem start/end time — mantém defaults
           startTime: '09:00',
           endTime: '18:00',
           totalHours: Number(r.Horas_Trabalhadas || 0),

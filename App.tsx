@@ -264,11 +264,10 @@ function App() {
         const { error } = await supabase
           .from('horas_trabalhadas')
           .update({
-            ID_Colaborador: entry.userId,
-            NomeColaborador: entry.userName,
-            ID_Cliente: entry.clientId,
-            ID_Projeto: entry.projectId,
-            id_tarefa_novo: entry.taskId,
+            ID_Colaborador: Number(entry.userId),
+            ID_Cliente: Number(entry.clientId),
+            ID_Projeto: Number(entry.projectId),
+            id_tarefa_novo: Number(entry.taskId),
             Data: entry.date,
             Horas_Trabalhadas: entry.totalHours
           })
@@ -280,11 +279,10 @@ function App() {
         const { data, error } = await supabase
           .from('horas_trabalhadas')
           .insert({
-            ID_Colaborador: entry.userId,
-            NomeColaborador: entry.userName,
-            ID_Cliente: entry.clientId,
-            ID_Projeto: entry.projectId,
-            id_tarefa_novo: entry.taskId,
+            ID_Colaborador: Number(entry.userId),
+            ID_Cliente: Number(entry.clientId),
+            ID_Projeto: Number(entry.projectId),
+            id_tarefa_novo: Number(entry.taskId),
             Data: entry.date,
             Horas_Trabalhadas: entry.totalHours
           })

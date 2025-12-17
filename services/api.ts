@@ -277,14 +277,21 @@ function normalizeRole(papel: string | null): "admin" | "developer" | "gestor" {
  * Suporta múltiplos nomes de tabela para facilitar integração com diferentes schemas.
  */
 export async function fetchTimesheets(): Promise<any[]> {
-  // Prioriza a tabela brasileira encontrada no banco
   try {
     const { data, error } = await supabase
       .from('horas_trabalhadas')
-      .select('ID_Horas_Trabalhadas, ID_Colaborador, NomeColaborador, ID_Cliente, ID_Projeto, id_tarefa_novo, Data, Horas_Trabalhadas');
+      .select(`
+        ID_Horas_Trabalhadas,
+        ID_Colaborador,
+        ID_Cliente,
+        ID_Projeto,
+        id_tarefa_novo,
+        Data,
+        Horas_Trabalhadas,
+        dim_colaboradores!inner(NomeColaborador)
+      `);
     
     if (error) {
-      // Se tabela não existir ou houver erro, retorna vazio
       return [];
     }
     
