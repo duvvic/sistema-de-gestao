@@ -891,14 +891,25 @@ function App() {
 
   const handleSaveUserAvatar = async (userId: string, avatarUrl: string | null) => {
     try {
-      const { error } = await supabase
+      // Converte userId para número
+      const numericUserId = Number(userId);
+      
+      if (isNaN(numericUserId)) {
+        alert('ID de usuário inválido');
+        return;
+      }
+
+      const { data, error } = await supabase
         .from('dim_colaboradores')
         .update({
           avatar_url: avatarUrl
         })
-        .eq('ID_Colaborador', Number(userId));
+        .eq('ID_Colaborador', numericUserId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       // Atualiza estado local
       setUsers(prev => prev.map(u => 
@@ -911,9 +922,8 @@ function App() {
       }
 
       alert('Foto de perfil atualizada com sucesso!');
-    } catch (error) {
-
-      alert('Erro ao atualizar foto de perfil. Tente novamente.');
+    } catch (error: any) {
+      alert(`Erro ao atualizar foto de perfil: ${error.message}`);
     }
   };
 
