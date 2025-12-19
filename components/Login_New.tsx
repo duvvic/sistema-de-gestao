@@ -5,6 +5,7 @@ import { Lock, Mail, ArrowRight } from 'lucide-react';
 import { User } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useDataController } from '../controllers/useDataController';
 
 type Mode = 'login' | 'set-password';
 
@@ -38,8 +39,8 @@ async function hashPassword(password: string): Promise<string> {
 const Login: React.FC = () => {
     const navigate = useNavigate();
     const { login, currentUser } = useAuth();
+    const { users } = useDataController();
 
-    const [users, setUsers] = useState<User[]>([]);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [mode, setMode] = useState<Mode>('login');
@@ -47,20 +48,6 @@ const Login: React.FC = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
-
-    // Carregar usuários ao montar (ANTES de autenticar)
-    useEffect(() => {
-        const loadUsers = async () => {
-            try {
-                const { fetchUsers } = await import('../services/api');
-                const usersData = await fetchUsers();
-                setUsers(usersData);
-            } catch (error) {
-                console.error('Erro ao carregar usuários:', error);
-            }
-        };
-        loadUsers();
-    }, []);
 
     // Redireciona se já estiver logado
     useEffect(() => {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 import { TimesheetEntry, Client, Project, User, Task } from '../types';
 import { ArrowLeft, Edit2, Calendar, Clock, Users, Briefcase, ChevronDown, ChevronUp, CheckSquare } from 'lucide-react';
 
@@ -12,24 +13,51 @@ interface TimesheetAdminDetailProps {
   onEditEntry: (entry: TimesheetEntry) => void;
 }
 
-const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({ 
-  client, 
-  projects, 
-  entries,
-  tasks,
+const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
+  client,
+  projects: initialProjects,
+  entries: initialEntries,
+  tasks: initialTasks,
+  users: initialUsers,
   onBack,
   onEditEntry
 }) => {
+  const [projects, setProjects] = useState(initialProjects);
+  const [entries, setEntries] = useState(initialEntries);
+  const [tasks, setTasks] = useState(initialTasks);
+  const [users, setUsers] = useState(initialUsers);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+
+  // Realtime subscriptions
+  useSupabaseRealtime('dim_projetos', (payload) => {
+    if (payload.eventType === 'INSERT') setProjects(prev => [...prev, payload.new]);
+    else if (payload.eventType === 'UPDATE') setProjects(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
+    else if (payload.eventType === 'DELETE') setProjects(prev => prev.filter(p => p.id !== payload.old.id));
+  });
+  useSupabaseRealtime('fato_tarefas', (payload) => {
+    if (payload.eventType === 'INSERT') setTasks(prev => [...prev, payload.new]);
+    else if (payload.eventType === 'UPDATE') setTasks(prev => prev.map(t => t.id === payload.new.id ? payload.new : t));
+    else if (payload.eventType === 'DELETE') setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+  });
+  useSupabaseRealtime('fato_apontamentos', (payload) => {
+    if (payload.eventType === 'INSERT') setEntries(prev => [...prev, payload.new]);
+    else if (payload.eventType === 'UPDATE') setEntries(prev => prev.map(e => e.id === payload.new.id ? payload.new : e));
+    else if (payload.eventType === 'DELETE') setEntries(prev => prev.filter(e => e.id !== payload.old.id));
+  });
+  useSupabaseRealtime('dim_colaboradores', (payload) => {
+    if (payload.eventType === 'INSERT') setUsers(prev => [...prev, payload.new]);
+    else if (payload.eventType === 'UPDATE') setUsers(prev => prev.map(u => u.id === payload.new.id ? payload.new : u));
+    else if (payload.eventType === 'DELETE') setUsers(prev => prev.filter(u => u.id !== payload.old.id));
+  });
 
   const clientProjects = projects.filter(p => p.clientId === client.id);
   const clientEntries = entries.filter(e => e.clientId === client.id);
   const totalClientHours = clientEntries.reduce((acc, curr) => acc + curr.totalHours, 0);
 
   // Agrupar por Usuário
-  const userStats = Array.from(new Set(clientEntries.map(e => e.userId))).map(userId => {
+  const userStats = Array.from(new Set(clientEntries.map(e => e.userId))).map((userId: string) => {
     const userEntries = clientEntries.filter(e => e.userId === userId);
     const totalHours = userEntries.reduce((acc, curr) => acc + curr.totalHours, 0);
     const userName = userEntries[0]?.userName || 'Desconhecido';
@@ -81,16 +109,16 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-4">
-           <img src={client.logoUrl} alt={client.name} className="w-12 h-12 rounded-lg object-contain bg-slate-50 border border-slate-200 p-1" />
-           <div>
-              <h1 className="text-xl font-bold text-slate-800">{client.name} - Resumo de Horas</h1>
-              <p className="text-sm text-slate-500">Total Acumulado: <span className="font-bold text-[#4c1d95]">{totalClientHours.toFixed(1)}h</span></p>
-           </div>
+          <img src={client.logoUrl} alt={client.name} className="w-12 h-12 rounded-lg object-contain bg-slate-50 border border-slate-200 p-1" />
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">{client.name} - Resumo de Horas</h1>
+            <p className="text-sm text-slate-500">Total Acumulado: <span className="font-bold text-[#4c1d95]">{totalClientHours.toFixed(1)}h</span></p>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
-        
+
         {/* SEÇÃO: Colaboradores */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -99,7 +127,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
           </h2>
           <div className="space-y-2">
             {userStats.map(user => (
-              <div 
+              <div
                 key={user.userId}
                 className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden"
               >
@@ -125,7 +153,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                 {expandedUsers.has(user.userId) && (
                   <div className="bg-white border-t border-slate-200 p-4 space-y-3">
                     {user.entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
-                      <div 
+                      <div
                         key={entry.id}
                         className="flex items-center justify-between text-sm p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer group"
                         onClick={() => onEditEntry(entry)}
@@ -162,7 +190,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
           </h2>
           <div className="space-y-2">
             {projectStats.map(project => (
-              <div 
+              <div
                 key={project.projectId}
                 className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden"
               >
@@ -189,15 +217,15 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                   <div className="bg-white border-t border-slate-200 p-4 space-y-2">
                     {(() => {
                       // Agrupar apontamentos por tarefa
-                      const taskGroups = Array.from(new Set(project.entries.map(e => e.taskId))).map(taskId => {
+                      const taskGroups = Array.from(new Set(project.entries.map(e => e.taskId))).map((taskId: string) => {
                         const taskEntries = project.entries.filter(e => e.taskId === taskId);
                         const taskInfo = tasks.find(t => t.id === taskId);
                         const totalHours = taskEntries.reduce((acc, curr) => acc + curr.totalHours, 0);
-                        return { 
-                          taskId, 
+                        return {
+                          taskId,
                           taskTitle: taskInfo?.title || 'Tarefa sem título',
-                          totalHours, 
-                          entries: taskEntries 
+                          totalHours,
+                          entries: taskEntries
                         };
                       }).sort((a, b) => b.totalHours - a.totalHours);
 
@@ -228,7 +256,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                           {expandedTasks.has(taskGroup.taskId) && (
                             <div className="bg-white border-t border-slate-200 p-3 space-y-2">
                               {taskGroup.entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
-                                <div 
+                                <div
                                   key={entry.id}
                                   className="flex items-center justify-between text-sm p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer group"
                                   onClick={() => onEditEntry(entry)}

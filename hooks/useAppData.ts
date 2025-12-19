@@ -55,12 +55,12 @@ function normalizeStatus(raw: string | null): Status {
   if (s.includes("conclu") || s.includes("done") || s.includes("finaliz")) {
     return "Done";
   }
-  
+
   // Em andamento / In Progress
   if (s.includes("andamento") || s.includes("progresso") || s.includes("progress") || s.includes("execu")) {
     return "In Progress";
   }
-  
+
   // Revisão / Review
   if (s.includes("revis") || s.includes("review") || s.includes("valida")) {
     return "Review";
@@ -75,7 +75,7 @@ function normalizeStatus(raw: string | null): Status {
  */
 function normalizePriority(raw: string | null): Priority | undefined {
   if (!raw) return undefined;
-  
+
   const s = raw.toLowerCase().trim();
 
   if (s.includes("crítica") || s.includes("critica") || s.includes("critical") || s.includes("urgente")) {
@@ -93,7 +93,7 @@ function normalizePriority(raw: string | null): Priority | undefined {
  */
 function normalizeImpact(raw: string | null): Impact | undefined {
   if (!raw) return undefined;
-  
+
   const s = raw.toLowerCase().trim();
 
   if (s.includes("alto") || s.includes("high")) return "High";
@@ -114,12 +114,12 @@ function formatDate(dateStr: string | null): string {
     defaultDate.setDate(defaultDate.getDate() + 7);
     return defaultDate.toISOString().split("T")[0];
   }
-  
+
   // Se já está no formato correto, retorna
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return dateStr;
   }
-  
+
   // Tenta parsear e formatar
   try {
     const date = new Date(dateStr);
@@ -129,7 +129,7 @@ function formatDate(dateStr: string | null): string {
   } catch {
     // Ignora erro de parse
   }
-  
+
   // Fallback
   const defaultDate = new Date();
   defaultDate.setDate(defaultDate.getDate() + 7);
@@ -155,9 +155,19 @@ export function useAppData(): AppData {
 
     async function loadData() {
       try {
-
         setLoading(true);
         setError(null);
+
+        // Verificar se está autenticado no Supabase
+        const { supabase } = await import('../services/supabaseClient');
+        const { data: { session } } = await supabase.auth.getSession();
+
+        // Se não tiver sessão E não tiver usuário no localStorage, não carregar dados
+        const storedUser = localStorage.getItem('currentUser');
+        if (!session && !storedUser) {
+          setLoading(false);
+          return;
+        }
 
         // Carrega todos os dados em paralelo
         const [usersData, clientsData, projectsData, tasksData] = await Promise.all([
@@ -174,11 +184,11 @@ export function useAppData(): AppData {
         // O front-end usa task.developer como STRING (nome)
         // Precisamos fazer o JOIN com dim_colaboradores
         // =====================================================
-        
+
         const tasksMapped: Task[] = tasksData.map((row: DbTaskRow) => {
           // Busca o nome do desenvolvedor pelo ID
           let developerName: string | undefined = undefined;
-          
+
           if (row.ID_Colaborador) {
             const developer = usersData.find(
               (u) => u.id === String(row.ID_Colaborador)
@@ -191,28 +201,28 @@ export function useAppData(): AppData {
             title: row.Afazer || "(Sem título)",
             projectId: String(row.ID_Projeto),
             clientId: String(row.ID_Cliente),
-            
+
             // IMPORTANTE: developer é o NOME (string)
             developer: developerName,
-            
+
             // developerId é o ID para JOIN com User
             developerId: row.ID_Colaborador ? String(row.ID_Colaborador) : undefined,
-            
+
             status: normalizeStatus(row.StatusTarefa),
-            
+
             // Datas
             estimatedDelivery: formatDate(row.entrega_estimada),
             actualDelivery: row.entrega_real || undefined,
             scheduledStart: row.inicio_previsto || undefined,
             actualStart: row.inicio_real || undefined,
-            
+
             // Progresso (0-100)
             progress: Math.min(100, Math.max(0, Number(row.Porcentagem) || 0)),
-            
+
             // Prioridade e Impacto
             priority: normalizePriority(row.Prioridade),
             impact: normalizeImpact(row.Impacto),
-            
+
             // Campos de texto
             risks: row.Riscos || undefined,
             notes: row["Observações"] || undefined,

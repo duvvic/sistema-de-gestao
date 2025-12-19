@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 import { Client, Project, Task } from '../types';
 import { ArrowLeft, FolderKanban, CheckSquare, Info } from 'lucide-react';
 
@@ -14,16 +15,30 @@ interface ClientDetailViewProps {
 
 const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   client,
-  projects,
-  tasks,
+  projects: initialProjects,
+  tasks: initialTasks,
   onBack,
   onTaskClick,
   onProjectClick,
   onOpenClientDetails,
 }) => {
+  const [projects, setProjects] = useState(initialProjects);
+  const [tasks, setTasks] = useState(initialTasks);
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks'>('projects');
   const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'inprogress' | 'review' | 'done'>('all');
   const [showClientInfo, setShowClientInfo] = useState(false);
+
+  // Realtime subscriptions
+  useSupabaseRealtime('dim_projetos', (payload) => {
+    if (payload.eventType === 'INSERT') setProjects(prev => [...prev, payload.new]);
+    else if (payload.eventType === 'UPDATE') setProjects(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
+    else if (payload.eventType === 'DELETE') setProjects(prev => prev.filter(p => p.id !== payload.old.id));
+  });
+  useSupabaseRealtime('fato_tarefas', (payload) => {
+    if (payload.eventType === 'INSERT') setTasks(prev => [...prev, payload.new]);
+    else if (payload.eventType === 'UPDATE') setTasks(prev => prev.map(t => t.id === payload.new.id ? payload.new : t));
+    else if (payload.eventType === 'DELETE') setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+  });
 
   // Removido: cálculo e exibição de contrato fora de "Informações"
 

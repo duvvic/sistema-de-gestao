@@ -101,15 +101,6 @@ const UserTasks: React.FC<UserTasksProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="px-4 py-2.5 rounded-xl border-2 border-white text-white hover:bg-white/10 transition-all flex items-center gap-2 font-semibold"
-              >
-                <ArrowLeft size={18} />
-                Voltar
-              </button>
-            )}
 
             <button
               onClick={onNewTask}

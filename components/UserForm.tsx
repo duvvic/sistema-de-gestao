@@ -1,21 +1,27 @@
+// components/UserForm.tsx - Adaptado para Router
 import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useDataController } from '../controllers/useDataController';
 import { User } from '../types';
 import { ArrowLeft, Save, User as UserIcon, Mail, Briefcase, Shield } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 
-interface UserFormProps {
-  initialUser?: User;
-  users?: User[];
-  onSave: (user: Partial<User>) => void;
-  onBack: () => void;
-}
+const UserForm: React.FC = () => {
+  const { userId } = useParams<{ userId: string }>();
+  const navigate = useNavigate();
+  const { users } = useDataController();
 
-const UserForm: React.FC<UserFormProps> = ({ initialUser, users = [], onSave, onBack }) => {
+  const isNew = !userId || userId === 'new';
+  const initialUser = !isNew ? users.find(u => u.id === userId) : undefined;
+
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     cargo: '',
     role: 'developer' as 'admin' | 'developer',
-    active: true
+    active: true,
+    avatarUrl: ''
   });
 
   useEffect(() => {
@@ -25,120 +31,203 @@ const UserForm: React.FC<UserFormProps> = ({ initialUser, users = [], onSave, on
         email: initialUser.email,
         cargo: initialUser.cargo || '',
         role: initialUser.role,
-        active: initialUser.active
+        active: initialUser.active !== false,
+        avatarUrl: initialUser.avatarUrl || ''
       });
     }
   }, [initialUser]);
 
-  // Extrair cargos únicos da lista de usuários
   const existingCargos = useMemo(() => {
-
     const cargos = users
-      .map(u => {
-
-        return u.cargo;
-      })
+      .map(u => u.cargo)
       .filter((cargo): cargo is string => !!cargo && cargo.trim() !== '');
-    const uniqueCargos = Array.from(new Set(cargos)).sort();
-
-    return uniqueCargos;
+    return Array.from(new Set(cargos)).sort();
   }, [users]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.email) {
       alert('Por favor, preencha nome e email.');
       return;
     }
 
-    onSave(initialUser ? { ...formData, id: initialUser.id } : formData);
+    setLoading(true);
+    try {
+      // Preparar payload para dim_colaboradores
+      const payload = {
+        Nome: formData.name,
+        Email: formData.email,
+        Cargo: formData.cargo,
+        Role: formData.role,
+        ativo: formData.active,
+        avatar_url: formData.avatarUrl // Assumindo coluna existente ou similar
+      };
+
+      if (isNew) {
+        const { error } = await supabase.from('dim_colaboradores').insert(payload);
+        if (error) throw error;
+        alert('Colaborador criado com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('dim_colaboradores')
+          .update(payload)
+          .eq('ID_Colaborador', userId);
+        if (error) throw error;
+        alert('Colaborador atualizado com sucesso!');
+      }
+      navigate(-1);
+    } catch (error: any) {
+      console.error(error);
+      alert('Erro ao salvar colaborador: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  if (!isNew && !initialUser) {
+    return <div className="p-8">Colaborador não encontrado.</div>;
+  }
+
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="h-full flex flex-col bg-slate-50">
       {/* Header */}
-      <div className="px-8 py-6 bg-gradient-to-r from-[#4c1d95] to-purple-600 border-b border-slate-200 flex items-center justify-between sticky top-0 z-10 shadow-lg">
+      <div className="px-8 py-6 bg-white border-b border-slate-200 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack}
-            className="p-2 hover:bg-white/20 rounded-xl transition-colors"
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
           >
-            <ArrowLeft className="w-5 h-5 text-white" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <UserIcon className="w-7 h-7 text-purple-200" />
-              {initialUser ? 'Editar Desenvolvedor' : 'Novo Desenvolvedor'}
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              {isNew ? 'Novo Colaborador' : 'Editar Colaborador'}
             </h2>
-            <p className="text-purple-200 text-sm mt-1">{initialUser ? 'Editar informações do colaborador' : 'Cadastrar novo colaborador na equipe'}</p>
+            <p className="text-slate-500 text-sm">
+              {isNew ? 'Adicionar membro à equipe' : `Editando ${formData.name}`}
+            </p>
           </div>
         </div>
-        <button 
-          onClick={handleSubmit}
-          className="px-6 py-3 bg-white text-[#4c1d95] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2.5 hover:scale-105"
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="px-6 py-2.5 bg-[#4c1d95] text-white rounded-lg font-bold shadow hover:bg-[#3b1675] transition-all flex items-center gap-2 disabled:opacity-50"
         >
-          <Save className="w-5 h-5" />
-          Salvar
+          <Save className="w-4 h-4" />
+          {loading ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
 
       {/* Form */}
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-2xl mx-auto">
-          <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
-            
+      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 space-y-6">
+
+            {/* Avatar */}
+            <div className="flex justify-center mb-6">
+              <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 overflow-hidden text-3xl font-bold text-slate-300">
+                {formData.avatarUrl ? (
+                  <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  formData.name ? formData.name.substring(0, 2).toUpperCase() : <UserIcon className="w-10 h-10" />
+                )}
+              </div>
+            </div>
+
             {/* Nome */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-purple-600" />
+              <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                <UserIcon className="w-4 h-4 text-[#4c1d95]" />
                 Nome Completo *
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
-                placeholder="João da Silva"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none transition-all"
+                placeholder="Ex: João da Silva"
                 required
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                <Mail className="w-4 h-4 text-purple-600" />
+              <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-[#4c1d95]" />
                 Email *
               </label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
-                placeholder="joao@empresa.com"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none transition-all"
+                placeholder="email@exemplo.com"
                 required
               />
             </div>
 
-            {/* Cargo */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Cargo */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-[#4c1d95]" />
+                  Cargo
+                </label>
+                <input
+                  type="text"
+                  list="cargo-options"
+                  value={formData.cargo}
+                  onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none transition-all"
+                  placeholder="Ex: Full Stack Dev"
+                />
+                <datalist id="cargo-options">
+                  {existingCargos.map(cargo => (
+                    <option key={cargo} value={cargo} />
+                  ))}
+                </datalist>
+              </div>
+
+              {/* Role (Permissão) */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-[#4c1d95]" />
+                  Permissão
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'developer' })}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none"
+                >
+                  <option value="developer">Desenvolvedor (Padrão)</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Avatar URL (Opcional, manual por enquanto) */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-purple-600" />
-                Cargo
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Avatar URL (Opcional)</label>
               <input
                 type="text"
-                list="cargo-options"
-                value={formData.cargo}
-                onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
-                placeholder="Desenvolvedor Full Stack"
+                value={formData.avatarUrl}
+                onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none text-sm font-mono text-slate-500"
+                placeholder="https://..."
               />
-              <datalist id="cargo-options">
-                {existingCargos.map(cargo => (
-                  <option key={cargo} value={cargo} />
-                ))}
-              </datalist>
+            </div>
+
+            {/* Active Checkbox */}
+            <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+              <input
+                type="checkbox"
+                id="activeUser"
+                checked={formData.active}
+                onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                className="w-5 h-5 text-[#4c1d95] rounded focus:ring-[#4c1d95]"
+              />
+              <label htmlFor="activeUser" className="text-sm font-medium text-slate-700">Colaborador Ativo</label>
             </div>
 
           </form>
