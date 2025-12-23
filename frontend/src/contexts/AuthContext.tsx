@@ -45,11 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             active: userData.ativo ?? true,
                         };
                         setCurrentUser(user);
-                        localStorage.setItem('currentUser', JSON.stringify(user));
+                        sessionStorage.setItem('currentUser', JSON.stringify(user));
                     }
                 } else {
-                    // Fallback para localStorage
-                    const storedUser = localStorage.getItem('currentUser');
+                    // Fallback para sessionStorage
+                    const storedUser = sessionStorage.getItem('currentUser');
                     if (storedUser) {
                         setCurrentUser(JSON.parse(storedUser));
                     }
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 setCurrentUser(null);
-                localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('currentUser');
             } else if (event === 'SIGNED_IN' && session?.user) {
                 const { data: userData } = await supabase
                     .from('dim_colaboradores')
@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         active: userData.ativo ?? true,
                     };
                     setCurrentUser(user);
-                    localStorage.setItem('currentUser', JSON.stringify(user));
+                    sessionStorage.setItem('currentUser', JSON.stringify(user));
                 }
             }
         });
@@ -100,18 +100,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const login = (user: User) => {
         setCurrentUser(user);
-        localStorage.setItem('currentUser', JSON.stringify(user));
+        sessionStorage.setItem('currentUser', JSON.stringify(user));
     };
 
     const logout = () => {
         setCurrentUser(null);
-        localStorage.removeItem('currentUser');
+        sessionStorage.removeItem('currentUser');
         supabase.auth.signOut();
     };
 
     const updateUser = (user: User) => {
         setCurrentUser(user);
-        localStorage.setItem('currentUser', JSON.stringify(user));
+        sessionStorage.setItem('currentUser', JSON.stringify(user));
     };
 
     return (

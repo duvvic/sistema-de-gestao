@@ -107,23 +107,68 @@ export async function createTask(data: Partial<Task>): Promise<number> {
 // UPDATE
 // ===========================
 export async function updateTask(taskId: string, data: Partial<Task>): Promise<void> {
-  // Busca o ID do colaborador pelo nome (developer)
-  const collaboratorId = await getCollaboratorIdByName(data.developer);
+  // Monta o payload apenas com os campos fornecidos
+  const payload: Record<string, any> = {};
 
-  const payload = {
-    Afazer: data.title,
-    ID_Colaborador: collaboratorId,
-    StatusTarefa: mapStatusToDb(data.status),
-    entrega_estimada: data.estimatedDelivery || null,
-    entrega_real: data.actualDelivery || null,
-    inicio_previsto: data.scheduledStart || null,
-    inicio_real: data.actualStart || null,
-    Porcentagem: data.progress ?? 0,
-    Prioridade: mapPriorityToDb(data.priority),
-    Impacto: mapImpactToDb(data.impact),
-    Riscos: data.risks || null,
-    "Observações": data.notes || null,
-  };
+  // Só inclui título se fornecido
+  if (data.title !== undefined) {
+    payload.Afazer = data.title;
+  }
+
+  // Só busca e atualiza colaborador se fornecido
+  if (data.developer !== undefined) {
+    const collaboratorId = await getCollaboratorIdByName(data.developer);
+    payload.ID_Colaborador = collaboratorId;
+  }
+
+  // Só atualiza status se fornecido
+  if (data.status !== undefined) {
+    payload.StatusTarefa = mapStatusToDb(data.status);
+  }
+
+  // Só atualiza datas se fornecidas
+  if (data.estimatedDelivery !== undefined) {
+    payload.entrega_estimada = data.estimatedDelivery || null;
+  }
+  if (data.actualDelivery !== undefined) {
+    payload.entrega_real = data.actualDelivery || null;
+  }
+  if (data.scheduledStart !== undefined) {
+    payload.inicio_previsto = data.scheduledStart || null;
+  }
+  if (data.actualStart !== undefined) {
+    payload.inicio_real = data.actualStart || null;
+  }
+
+  // Só atualiza progresso se fornecido
+  if (data.progress !== undefined) {
+    payload.Porcentagem = data.progress;
+  }
+
+  // Só atualiza prioridade se fornecida
+  if (data.priority !== undefined) {
+    payload.Prioridade = mapPriorityToDb(data.priority);
+  }
+
+  // Só atualiza impacto se fornecido
+  if (data.impact !== undefined) {
+    payload.Impacto = mapImpactToDb(data.impact);
+  }
+
+  // Só atualiza riscos se fornecidos
+  if (data.risks !== undefined) {
+    payload.Riscos = data.risks || null;
+  }
+
+  // Só atualiza observações se fornecidas
+  if (data.notes !== undefined) {
+    payload["Observações"] = data.notes || null;
+  }
+
+  // Se não há nada para atualizar, retorna
+  if (Object.keys(payload).length === 0) {
+    return;
+  }
 
   const { error } = await supabase
     .from("fato_tarefas")
@@ -131,10 +176,8 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
     .eq("id_tarefa_novo", Number(taskId));
 
   if (error) {
-
     throw error;
   }
-
 }
 
 // ===========================

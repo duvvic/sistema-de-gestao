@@ -15,8 +15,6 @@ import DeveloperProjects from '@/components/DeveloperProjects';
 import KanbanBoard from '@/components/KanbanBoard';
 import TaskDetail from '@/components/TaskDetail';
 import MainLayout from '@/components/MainLayout';
-import UserTasks from '@/components/UserTasks';
-import { useDataController } from '@/controllers/useDataController';
 
 // Componentes de Equipe
 import TeamList from '@/components/TeamList';
@@ -57,8 +55,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
 };
 
 const AppRoutes: React.FC = () => {
-    const { currentUser } = useAuth();
-    const { tasks, projects, clients, timesheetEntries } = useDataController();
     return (
         <Routes>
             {/* Rota Pública Check */}
@@ -258,11 +254,11 @@ const AppRoutes: React.FC = () => {
                     }
                 />
 
-                {/* Minhas Tarefas (Developer) - Kanban igual admin, mas filtrado */}
+                {/* Tarefas do Developer (Kanban já filtra por usuário) */}
                 <Route
                     path="developer/tasks"
                     element={
-                        <ProtectedRoute requiredRole="developer">
+                        <ProtectedRoute>
                             <KanbanBoard />
                         </ProtectedRoute>
                     }

@@ -40,9 +40,9 @@ const MainLayout: React.FC = () => {
     ];
 
     const developerMenuItems = [
-    { path: '/developer/projects', icon: Briefcase, label: 'Projetos' },
-    { path: '/developer/tasks', icon: CheckSquare, label: 'Minhas Tarefas' },
-    { path: '/timesheet', icon: Clock, label: 'Timesheet' },
+        { path: '/developer/projects', icon: Briefcase, label: 'Projetos' },
+        { path: '/developer/tasks', icon: CheckSquare, label: 'Minhas Tarefas' },
+        { path: '/timesheet', icon: Clock, label: 'Timesheet' },
     ];
 
     const menuItems = currentUser?.role === 'admin' ? adminMenuItems : developerMenuItems;

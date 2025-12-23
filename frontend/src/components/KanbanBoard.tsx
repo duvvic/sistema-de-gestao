@@ -255,14 +255,17 @@ const KanbanBoard: React.FC = () => {
     }
   }, [highlightedTaskId]);
 
-  // Filter: mostra só tarefas do usuário logado se não for admin
+  // Filter
   const filteredTasks = useMemo(() => {
-    return tasks.filter(t =>
-      (isAdmin || t.developerId === currentUser?.id) &&
-      (!filteredClientId || t.clientId === filteredClientId) &&
-      (t.title.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [tasks, filteredClientId, searchTerm, currentUser, isAdmin]);
+    return tasks.filter(t => {
+      // Se não for admin, mostrar apenas as tarefas do usuário logado
+      const userFilter = isAdmin || t.developerId === currentUser?.id;
+      
+      return userFilter &&
+        (!filteredClientId || t.clientId === filteredClientId) &&
+        (t.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    });
+  }, [tasks, filteredClientId, searchTerm, isAdmin, currentUser]);
 
   const currentClient = useMemo(() =>
     filteredClientId ? clients.find(c => c.id === filteredClientId) : null
