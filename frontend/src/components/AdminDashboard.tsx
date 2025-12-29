@@ -31,7 +31,6 @@ const AdminDashboard: React.FC = () => {
   }, [initialTasks]);
 
   // Painel de debug
-  const isDebug = true;
 
   // Proteção contra undefined
   const safeClients = clients || [];
@@ -99,19 +98,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col p-8">
-      {/* Painel de Debug */}
-      {isDebug && (
-        <div style={{ background: '#fffbe6', border: '1px solid #fbbf24', color: '#92400e', padding: 12, marginBottom: 16, borderRadius: 8, fontSize: 13 }}>
-          <b>DEBUG:</b> <br />
-          <div><b>Erro:</b> {error ? String(error) : 'Nenhum'}</div>
-          <div><b>Loading:</b> {String(loading)}</div>
-          <div><b>Clients:</b> {clients.length} | <b>Projects:</b> {projects.length} | <b>Tasks:</b> {tasks.length} | <b>Users:</b> {users?.length ?? 0}</div>
-          <details style={{marginTop:8}}>
-            <summary>Ver dados brutos</summary>
-            <pre style={{maxHeight:200,overflow:'auto',background:'#f3f3f3',padding:8}}>{JSON.stringify({clients,projects,tasks,users}, null, 2)}</pre>
-          </details>
-        </div>
-      )}
+
 
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
