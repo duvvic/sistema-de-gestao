@@ -38,9 +38,42 @@ async function hashPassword(password: string): Promise<string> {
     return hash.toString(16);
 }
 
+const Snowflakes: React.FC = () => {
+    return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+            {[...Array(30)].map((_, i) => (
+                <motion.div
+                    key={i}
+                    initial={{
+                        opacity: 0,
+                        y: -20,
+                        x: Math.random() * 100 + "%"
+                    }}
+                    animate={{
+                        opacity: [0, 0.8, 0],
+                        y: "110vh",
+                        x: (Math.random() * 100 + (Math.random() - 0.5) * 20) + "%"
+                    }}
+                    transition={{
+                        duration: Math.random() * 5 + 5,
+                        repeat: Infinity,
+                        delay: Math.random() * 5,
+                        ease: "linear"
+                    }}
+                    className="absolute text-white/40"
+                    style={{ fontSize: Math.random() * 10 + 10 + "px" }}
+                >
+                    ❄
+                </motion.div>
+            ))}
+        </div>
+    );
+};
+
 const Login: React.FC = () => {
     const navigate = useNavigate();
     const { login, currentUser } = useAuth();
+    // ... restante do componente ...
 
     const [users, setUsers] = useState<User[]>([]);
     const [email, setEmail] = useState('');
@@ -330,6 +363,7 @@ const Login: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#0f0720] flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
+            <Snowflakes />
             {/* Globos de Luz */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#4c1d95] opacity-20 blur-[120px] rounded-full"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#7c3aed] opacity-20 blur-[120px] rounded-full"></div>
