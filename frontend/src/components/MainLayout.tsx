@@ -23,6 +23,49 @@ const MainLayout: React.FC = () => {
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
+    // Lógica para detectar direção da navegação (iOS Style)
+    const [direction, setDirection] = React.useState<'root' | 'forward' | 'back'>('root');
+    const prevPathRef = React.useRef(location.pathname);
+
+    React.useEffect(() => {
+        const prevPath = prevPathRef.current;
+        const currentPath = location.pathname;
+
+        // Verifica profundidade (número de barras)
+        const prevDepth = prevPath.split('/').filter(Boolean).length;
+        const currentDepth = currentPath.split('/').filter(Boolean).length;
+
+        if (currentDepth > prevDepth) {
+            setDirection('forward'); // Entrando em detalhe
+        } else if (currentDepth < prevDepth) {
+            setDirection('back'); // Voltando
+        } else {
+            setDirection('root'); // Navegação lateral (menu)
+        }
+
+        prevPathRef.current = currentPath;
+    }, [location.pathname]);
+
+    // Variantes de animação
+    const variants = {
+        initial: (dir: string) => {
+            if (dir === 'forward') return { x: '100%', opacity: 1 }; // Entra da direita
+            if (dir === 'back') return { x: '-30%', opacity: 0 };    // Entra da esquerda (efeito paralaxe suave)
+            return { y: 20, opacity: 0 };                            // Menu: vem de baixo
+        },
+        animate: {
+            x: 0,
+            y: 0,
+            opacity: 1,
+            transition: { duration: 0.3, ease: [0.25, 1, 0.5, 1] as [number, number, number, number] } // Curva estilo iOS (easeOutQuart aprox)
+        },
+        exit: (dir: string) => {
+            if (dir === 'forward') return { x: '-30%', opacity: 0 };  // Sai para a esquerda
+            if (dir === 'back') return { x: '100%', opacity: 1, zIndex: 10 };     // Sai para a direita (sobrepondo)
+            return { opacity: 0 };                                    // Menu: fade out simples
+        }
+    };
+
     const handleLogout = () => {
         logout();
         navigate('/login');
@@ -32,7 +75,7 @@ const MainLayout: React.FC = () => {
         return location.pathname.startsWith(path);
     };
 
-    // Menu items baseado no role
+    // ... (rest of menu definitions)
 
     const adminMenuItems = [
         { path: '/admin/clients', icon: Users, label: 'Clientes' },
@@ -50,11 +93,11 @@ const MainLayout: React.FC = () => {
     const menuItems = currentUser?.role === 'admin' ? adminMenuItems : developerMenuItems;
 
     return (
-        <div className="flex h-screen bg-slate-50">
+        <div className="flex h-screen bg-slate-50 overflow-hidden">
             {/* Sidebar */}
             <div
                 className={`${sidebarOpen ? 'w-64' : 'w-20'
-                    } bg-gradient-to-b from-[#4c1d95] to-[#5b21b6] text-white transition-all duration-300 flex flex-col`}
+                    } bg-gradient-to-b from-[#4c1d95] to-[#5b21b6] text-white transition-all duration-300 flex flex-col z-20 shadow-xl relative`}
             >
                 {/* Header */}
                 <div className="p-6 flex items-center justify-between border-b border-purple-600">
@@ -142,16 +185,18 @@ const MainLayout: React.FC = () => {
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="flex-1 overflow-hidden relative bg-slate-50">
-                <AnimatePresence mode="wait">
+            {/* Main Content - iOS Navigation Wrapper */}
+            <div className="flex-1 overflow-hidden relative bg-slate-50 perspective-1000">
+                <AnimatePresence custom={direction} mode="popLayout">
                     <motion.div
                         key={location.pathname}
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -15 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className="h-full overflow-auto"
+                        custom={direction}
+                        variants={variants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        className="h-full w-full overflow-auto absolute top-0 left-0 bg-slate-50 shadow-2xl"
+                    // Adiciona sombra quando está "flutuando" na animação
                     >
                         <Outlet />
                     </motion.div>
