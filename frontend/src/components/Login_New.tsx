@@ -122,7 +122,7 @@ const Login: React.FC = () => {
                 email: String(dbUser["E-mail"] || "").trim().toLowerCase(),
                 avatarUrl: dbUser.avatar_url || undefined,
                 cargo: dbUser.Cargo || undefined,
-                role: dbUser.papel === 'admin' ? 'admin' : (dbUser.papel === 'gestor' ? 'gestor' : 'developer'),
+                role: dbUser.papel === 'Administrador' ? 'admin' : 'developer',
                 active: dbUser.ativo !== false,
             };
 
@@ -264,7 +264,7 @@ const Login: React.FC = () => {
                 id: String(dbUser.ID_Colaborador),
                 name: dbUser.NomeColaborador || "Sem nome",
                 email: normalizedEmail,
-                role: dbUser.papel === 'admin' ? 'admin' : 'developer',
+                role: dbUser.papel === 'Administrador' ? 'admin' : 'developer',
             } as User;
 
             const { error: authError } = await supabase.auth.signInWithOtp({
@@ -308,7 +308,7 @@ const Login: React.FC = () => {
                 id: String(dbUser.ID_Colaborador),
                 name: dbUser.NomeColaborador || "Sem nome",
                 email: normalizedEmail,
-                role: dbUser.papel === 'admin' ? 'admin' : 'developer',
+                role: dbUser.papel === 'Administrador' ? 'admin' : 'developer',
             } as User;
 
             const { error: authError } = await supabase.auth.signInWithOtp({
