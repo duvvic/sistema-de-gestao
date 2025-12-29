@@ -101,7 +101,7 @@ const MainLayout: React.FC = () => {
                     {sidebarOpen && (
                         <div className="flex-1 min-w-0 text-left">
                             <p className="font-semibold truncate text-white group-hover:underline">{currentUser?.name}</p>
-                            <p className="text-xs text-purple-200 truncate capitalize">{currentUser?.role}</p>
+                            <p className="text-xs text-purple-200 truncate capitalize">{currentUser?.cargo || 'Colaborador'}</p>
                         </div>
                     )}
                 </button>
