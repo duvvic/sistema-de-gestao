@@ -163,8 +163,11 @@ const Login: React.FC = () => {
             }
 
             console.log('[Login] Sucesso!');
+            console.log('[Login] foundUser.role:', foundUser.role);
+            console.log('[Login] dbUser.papel:', dbUser.papel);
             login(foundUser);
             const redirectPath = foundUser.role === 'admin' ? '/admin/clients' : '/developer/projects';
+            console.log('[Login] Redirecionando para:', redirectPath);
             navigate(redirectPath);
 
         } catch (err: any) {
