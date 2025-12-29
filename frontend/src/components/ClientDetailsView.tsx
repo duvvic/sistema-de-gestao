@@ -211,8 +211,9 @@ const ClientDetailsView: React.FC = () => {
                       </div>
 
                       {/* Equipe do Projeto */}
-                      <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                        <div className="flex -space-x-1.5 overflow-hidden">
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                        <p className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Equipe do Projeto</p>
+                        <div className="flex flex-wrap gap-2">
                           {projectMembers
                             .filter(pm => pm.projectId === project.id)
                             .map(pm => {
@@ -221,23 +222,26 @@ const ClientDetailsView: React.FC = () => {
                               return (
                                 <div
                                   key={member.id}
-                                  className="w-6 h-6 rounded-full border border-white bg-slate-100 flex items-center justify-center overflow-hidden"
-                                  title={member.name}
+                                  className="flex items-center gap-2 bg-slate-50 pl-1 pr-3 py-1 rounded-full border border-slate-200 hover:border-purple-200 hover:bg-purple-50 transition-colors"
+                                  title={member.cargo || 'Colaborador'}
                                 >
-                                  {member.avatarUrl ? (
-                                    <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="text-[9px] font-bold text-slate-500">
-                                      {member.name.substring(0, 2).toUpperCase()}
-                                    </span>
-                                  )}
+                                  <div className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center overflow-hidden text-[8px] font-bold text-slate-500">
+                                    {member.avatarUrl ? (
+                                      <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      member.name.substring(0, 2).toUpperCase()
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-medium text-slate-600 truncate max-w-[100px]">
+                                    {member.name.split(' ')[0]}
+                                  </span>
                                 </div>
                               );
                             })}
+                          {projectMembers.filter(pm => pm.projectId === project.id).length === 0 && (
+                            <span className="text-xs text-slate-400 italic">Nenhum colaborador vinculado</span>
+                          )}
                         </div>
-                        {projectMembers.filter(pm => pm.projectId === project.id).length === 0 && (
-                          <span className="text-[10px] text-slate-400 italic">Sem equipe</span>
-                        )}
                       </div>
                     </button>
                   );
