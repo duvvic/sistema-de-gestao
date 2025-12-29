@@ -38,7 +38,19 @@ const ClientForm: React.FC = () => {
         await updateClient(clientId, { name, logoUrl });
         alert('Cliente atualizado com sucesso!');
       } else {
-        await createClient({ name, logoUrl, active: true });
+        // Coleta dados extras do formulário nativo (gambiarra controlada para evitar state complexo)
+        const form = e.currentTarget as HTMLFormElement;
+        const choice = (form.elements.namedItem('contractChoice') as HTMLSelectElement)?.value;
+        const months = (form.elements.namedItem('contractMonths') as HTMLInputElement)?.value;
+
+        await createClient({
+          name,
+          logoUrl,
+          active: true,
+          // @ts-ignore - Passando propriedades extras que o service sabe lidar
+          contractChoice: choice,
+          contractMonths: months
+        });
         alert('Cliente criado com sucesso!');
       }
 
@@ -118,7 +130,60 @@ const ClientForm: React.FC = () => {
                 />
               </div>
             )}
+            {logoUrl && (
+              <div className="mt-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
+                <p className="text-sm text-slate-600 mb-2">Preview:</p>
+                <img
+                  src={logoUrl}
+                  alt="Preview"
+                  className="h-20 object-contain"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://placehold.co/200x200?text=Logo';
+                  }}
+                />
+              </div>
+            )}
           </div>
+
+          {!isEdit && (
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+              <h3 className="font-semibold text-slate-800">Contrato de Serviço</h3>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Possui tempo de contrato determinado?</label>
+                <select
+                  name="contractChoice"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#4c1d95]"
+                  defaultValue="nao"
+                  id="contractChoiceSelect"
+                  onChange={(e) => {
+                    const monthsInput = document.getElementById('monthsInput');
+                    if (monthsInput) {
+                      if (e.target.value === 'sim') {
+                        monthsInput.classList.remove('hidden');
+                      } else {
+                        monthsInput.classList.add('hidden');
+                      }
+                    }
+                  }}
+                >
+                  <option value="nao">Não (Indeterminado)</option>
+                  <option value="sim">Sim (Determinado)</option>
+                </select>
+              </div>
+
+              <div id="monthsInput" className="hidden">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Duração (Meses)</label>
+                <input
+                  type="number"
+                  name="contractMonths"
+                  min="1"
+                  defaultValue="12"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#4c1d95]"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Botões */}
           <div className="flex gap-3 pt-4">

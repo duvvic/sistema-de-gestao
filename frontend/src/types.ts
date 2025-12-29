@@ -23,6 +23,8 @@ export interface Client {
   name: string;
   logoUrl: string;
   active?: boolean;
+  Criado?: string;
+  Contrato?: string;
 }
 
 export interface Project {
