@@ -272,15 +272,16 @@ export function useAppData(): AppData {
         const timesheetMapped: TimesheetEntry[] = (rawTimesheets || []).map((r: any) => ({
           id: String(r.ID_Horas_Trabalhadas || crypto.randomUUID()),
           userId: String(r.ID_Colaborador || ''),
-          userName: r.dim_colaboradores?.NomeColaborador || '',
+          userName: r.dim_colaboradores?.NomeColaborador || r.userName || '',
           clientId: String(r.ID_Cliente || ''),
           projectId: String(r.ID_Projeto || ''),
           taskId: String(r.id_tarefa_novo || ''),
           date: r.Data || (new Date()).toISOString().split('T')[0],
-          startTime: '09:00',
-          endTime: '18:00',
+          startTime: r.Hora_Inicio || '09:00',
+          endTime: r.Hora_Fim || '18:00',
           totalHours: Number(r.Horas_Trabalhadas || 0),
-          description: undefined,
+          lunchDeduction: !!r.Almoco_Deduzido,
+          description: r.Descricao || undefined,
         }));
 
         // Atualiza os states (retorna todos, filtragem no componente)

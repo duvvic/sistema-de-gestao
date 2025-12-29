@@ -33,7 +33,8 @@ const TimesheetForm: React.FC = () => {
     endTime: '18:00',
     description: '',
     userId: user?.id,
-    userName: user?.name
+    userName: user?.name,
+    lunchDeduction: false
   });
 
   const [taskProgress, setTaskProgress] = useState<number>(0);
@@ -49,6 +50,9 @@ const TimesheetForm: React.FC = () => {
   useEffect(() => {
     if (initialEntry) {
       setFormData(initialEntry);
+      if (initialEntry.lunchDeduction !== undefined) {
+        setDeductLunch(initialEntry.lunchDeduction);
+      }
     } else if (isAdmin && preSelectedUserId) {
       const targetUser = users.find(u => u.id === preSelectedUserId);
       if (targetUser) {
@@ -123,6 +127,7 @@ const TimesheetForm: React.FC = () => {
       endTime: formData.endTime!,
       totalHours: adjustedTotalHours,
       description: formData.description,
+      lunchDeduction: deductLunch,
     };
 
     if (willBeCompleted) {

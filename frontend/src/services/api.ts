@@ -257,6 +257,10 @@ export async function fetchTimesheets(): Promise<any[]> {
         id_tarefa_novo,
         Data,
         Horas_Trabalhadas,
+        Hora_Inicio,
+        Hora_Fim,
+        Almoco_Deduzido,
+        Descricao,
         dim_colaboradores!inner(NomeColaborador)
       `);
 

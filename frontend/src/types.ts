@@ -74,6 +74,7 @@ export interface TimesheetEntry {
   endTime: string;
   totalHours: number;
   description?: string;
+  lunchDeduction?: boolean;
 }
 
 export type View =

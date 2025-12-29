@@ -234,7 +234,11 @@ export const useDataController = () => {
                 ID_Projeto: Number(entry.projectId),
                 id_tarefa_novo: Number(entry.taskId),
                 Data: entry.date,
-                Horas_Trabalhadas: entry.totalHours
+                Horas_Trabalhadas: entry.totalHours,
+                Hora_Inicio: entry.startTime,
+                Hora_Fim: entry.endTime,
+                Almoco_Deduzido: entry.lunchDeduction,
+                Descricao: entry.description
             })
             .select('ID_Horas_Trabalhadas')
             .single();
@@ -257,7 +261,11 @@ export const useDataController = () => {
                 ID_Projeto: Number(entry.projectId),
                 id_tarefa_novo: Number(entry.taskId),
                 Data: entry.date,
-                Horas_Trabalhadas: entry.totalHours
+                Horas_Trabalhadas: entry.totalHours,
+                Hora_Inicio: entry.startTime,
+                Hora_Fim: entry.endTime,
+                Almoco_Deduzido: entry.lunchDeduction,
+                Descricao: entry.description
             })
             .eq('ID_Horas_Trabalhadas', entry.id);
 
