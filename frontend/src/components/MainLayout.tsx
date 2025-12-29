@@ -1,8 +1,9 @@
+```
 // components/MainLayout.tsx
 // Layout principal com menu lateral e navegação
 
 import React, { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
     LayoutDashboard,
@@ -21,6 +22,7 @@ const MainLayout: React.FC = () => {
     const { currentUser, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+    const navType = useNavigationType(); // Detecta PUSH, POP, REPLACE
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
     // Definição dos menus (movido para cima para ser usado na lógica de animação do menu)
@@ -62,8 +64,14 @@ const MainLayout: React.FC = () => {
 
         let newDir: 'root' | 'forward' | 'back' | 'menu-down' | 'menu-up' = 'root';
 
-        // 1. Navegação entre menus principais -> Animação Vertical (Baseada na ordem)
-        if (isPrevMain && isCurrentMain) {
+        // Prioridade 1: Navegação Hierárquica Explícita (Detalhes)
+        if (curr.startsWith(prev + '/')) {
+            newDir = 'forward';
+        } else if (prev.startsWith(curr + '/')) {
+            newDir = 'back';
+        } 
+        // Prioridade 2: Navegação entre Menus Principais
+        else if (isPrevMain && isCurrentMain) {
             const prevIndex = menuItems.findIndex(m => m.path === prev);
             const currIndex = menuItems.findIndex(m => m.path === curr);
 
@@ -74,58 +82,52 @@ const MainLayout: React.FC = () => {
                 newDir = 'root'; // Caso de fallback (ex: profile)
             }
         }
-        // 2. Entrando em detalhe (URL nova contém a antiga) -> Ex: /projects -> /projects/123
-        else if (curr.startsWith(prev + '/')) {
-            newDir = 'forward';
-        }
-        // 3. Voltando (URL antiga continha a nova) -> Ex: /projects/123 -> /projects
-        else if (prev.startsWith(curr + '/')) {
+        // Prioridade 3: Fallback usando NavigationType (POP geralmente é voltar)
+        else if (navType === 'POP') {
             newDir = 'back';
         }
-        // 4. Fallback por profundidade
+        // Fallback final
         else {
-            const prevDepth = prev.split('/').filter(Boolean).length;
-            const currentDepth = curr.split('/').filter(Boolean).length;
-
-            if (currentDepth > prevDepth) newDir = 'forward';
-            else if (currentDepth < prevDepth) newDir = 'back';
-            else newDir = 'root';
+            newDir = 'root';
         }
 
         setDirection(newDir);
         prevPathRef.current = currentPath;
-    }, [location.pathname, menuItems]);
+    }, [location.pathname, menuItems, navType]);
 
     // Variantes de animação refinadas
     const variants = {
         initial: (dir: string) => {
-            if (dir === 'forward') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%', y: 0 };
-            if (dir === 'back') return { x: '-20%', opacity: 0.5, position: 'absolute', width: '100%', height: '100%', y: 0 };
-
-            // Navegação Menu Vertical
-            if (dir === 'menu-down') return { y: '-20%', opacity: 0, position: 'absolute', width: '100%', height: '100%', x: 0 }; // Vem de cima
-            if (dir === 'menu-up') return { y: '20%', opacity: 0, position: 'absolute', width: '100%', height: '100%', x: 0 };   // Vem de baixo
-
-            return { opacity: 0, position: 'absolute', width: '100%', height: '100%' }; // Fade simples p/ outros
+            // Forward: Entra pela direita, z-index alto
+            if (dir === 'forward') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%', zIndex: 50 };
+            // Back: Entra pela esquerda (fundo), z-index baixo
+            if (dir === 'back') return { x: '-20%', opacity: 0.8, position: 'absolute', width: '100%', height: '100%', zIndex: 0 };
+            
+            if (dir === 'menu-down') return { y: '-15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
+            if (dir === 'menu-up') return { y: '15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
+            
+            return { opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
         },
-        animate: {
-            x: 0,
-            y: 0,
+        animate: { 
+            x: 0, 
+            y: 0, 
             opacity: 1,
-            position: 'absolute',
-            width: '100%',
+            position: 'absolute', 
+            width: '100%', 
             height: '100%',
+            zIndex: 10, // Base level
             transition: { duration: 0.48, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] } // 5% mais lento (0.45 -> 0.48)
         },
         exit: (dir: string) => {
-            if (dir === 'forward') return { x: '-20%', opacity: 0.5, position: 'absolute', width: '100%', height: '100%' };
-            if (dir === 'back') return { x: '100%', opacity: 1, zIndex: 50, position: 'absolute', width: '100%', height: '100%' };
+            // Forward: Sai pela esquerda (fundo), z-index baixo
+            if (dir === 'forward') return { x: '-20%', opacity: 0.8, position: 'absolute', width: '100%', height: '100%', zIndex: 0 };
+            // Back: Sai pela direita (frente), z-index alto
+            if (dir === 'back') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%', zIndex: 50 };
+            
+            if (dir === 'menu-down') return { y: '15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
+            if (dir === 'menu-up') return { y: '-15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
 
-            // Saída Menu Vertical (oposto da entrada)
-            if (dir === 'menu-down') return { y: '20%', opacity: 0, position: 'absolute', width: '100%', height: '100%' };
-            if (dir === 'menu-up') return { y: '-20%', opacity: 0, position: 'absolute', width: '100%', height: '100%' };
-
-            return { opacity: 0, scale: 0.95, position: 'absolute', width: '100%', height: '100%' };
+            return { opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
         }
     };
 
@@ -142,8 +144,9 @@ const MainLayout: React.FC = () => {
         <div className="flex h-screen bg-slate-50 overflow-hidden">
             {/* Sidebar */}
             <div
-                className={`${sidebarOpen ? 'w-64' : 'w-20'
-                    } bg-gradient-to-b from-[#4c1d95] to-[#5b21b6] text-white transition-all duration-300 flex flex-col z-20 shadow-xl relative`}
+                className={`${
+    sidebarOpen ? 'w-64' : 'w-20'
+} bg - gradient - to - b from - [#4c1d95] to - [#5b21b6] text - white transition - all duration - 300 flex flex - col z - 20 shadow - xl relative`} // z-20 para ficar acima do conteúdo
             >
                 {/* Header */}
                 <div className="p-6 flex items-center justify-between border-b border-purple-600">
@@ -170,9 +173,9 @@ const MainLayout: React.FC = () => {
                     )}
                 </div>
 
-                {/* User Info Melhorado e Clicável */}
+                 {/* User Info Melhorado e Clicável */}
                 <button
-                    className={`p-6 border-b border-purple-600 w-full bg-gradient-to-r from-[#4c1d95]/80 to-[#5b21b6]/60 hover:from-[#6d28d9]/90 hover:to-[#7c3aed]/70 transition-all flex items-center gap-3 group focus:outline-none`}
+                    className={`p - 6 border - b border - purple - 600 w - full bg - gradient - to - r from - [#4c1d95] / 80 to - [#5b21b6] / 60 hover: from - [#6d28d9] / 90 hover: to - [#7c3aed] / 70 transition - all flex items - center gap - 3 group focus: outline - none`}
                     style={{ cursor: 'pointer' }}
                     onClick={() => navigate('/profile')}
                     title="Ver/editar perfil"
@@ -206,10 +209,11 @@ const MainLayout: React.FC = () => {
                             <button
                                 key={item.path}
                                 onClick={() => navigate(item.path)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${active
-                                    ? 'bg-white text-[#4c1d95] shadow-lg'
-                                    : 'text-purple-100 hover:bg-purple-700'
-                                    } ${!sidebarOpen && 'justify-center'}`}
+                                className={`w - full flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - all ${
+    active
+        ? 'bg-white text-[#4c1d95] shadow-lg'
+        : 'text-purple-100 hover:bg-purple-700'
+} ${ !sidebarOpen && 'justify-center' } `}
                             >
                                 <Icon className="w-5 h-5 flex-shrink-0" />
                                 {sidebarOpen && <span className="font-medium" translate="no">{item.label}</span>}
@@ -222,8 +226,9 @@ const MainLayout: React.FC = () => {
                 <div className="p-4 border-t border-purple-600">
                     <button
                         onClick={handleLogout}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-purple-100 hover:bg-red-600 transition-colors ${!sidebarOpen && 'justify-center'
-                            }`}
+                        className={`w - full flex items - center gap - 3 px - 4 py - 3 rounded - lg text - purple - 100 hover: bg - red - 600 transition - colors ${
+    !sidebarOpen && 'justify-center'
+} `}
                     >
                         <LogOut className="w-5 h-5 flex-shrink-0" />
                         {sidebarOpen && <span className="font-medium">Sair</span>}
