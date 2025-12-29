@@ -309,14 +309,6 @@ const TaskDetail: React.FC = () => {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-sm font-medium text-slate-700">Anexo / Mockup</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowImageEditor(true)}
-                    className="text-xs flex items-center gap-1.5 text-[#4c1d95] hover:underline font-medium"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Editar com Gemini AI
-                  </button>
                 </div>
                 <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col items-center justify-center min-h-[200px] relative overflow-hidden group">
                   {formData.attachment ? (
