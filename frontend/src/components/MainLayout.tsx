@@ -23,20 +23,28 @@ const MainLayout: React.FC = () => {
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
-    // Listamos as rotas "raiz" do menu para forçar a animação de baixo p/ cima
-    const MAIN_PATHS = [
-        '/admin/clients',
-        '/tasks',
-        '/admin/team',
-        '/timesheet',
-        '/developer/projects',
-        '/developer/tasks',
-        '/profile'
+    // Definição dos menus (movido para cima para ser usado na lógica de animação do menu)
+    const adminMenuItems = [
+        { path: '/admin/clients', icon: Users, label: 'Clientes' },
+        { path: '/tasks', icon: CheckSquare, label: 'Tarefas' },
+        { path: '/admin/team', icon: Users, label: 'Funcionários' },
+        { path: '/timesheet', icon: Clock, label: 'Folha de Ponto' },
     ];
+
+    const developerMenuItems = [
+        { path: '/developer/projects', icon: Briefcase, label: 'Projetos' },
+        { path: '/developer/tasks', icon: CheckSquare, label: 'Minhas Tarefas' },
+        { path: '/timesheet', icon: Clock, label: 'Folha de Ponto' },
+    ];
+
+    const menuItems = currentUser?.role === 'admin' ? adminMenuItems : developerMenuItems;
+
+    // Listamos as rotas "raiz" do menu para forçar a animação
+    const MAIN_PATHS = menuItems.map(m => m.path).concat(['/profile']);
 
     // Ref para guardar o path anterior e calcular direção instantaneamente
     const prevPathRef = React.useRef(location.pathname);
-    const [direction, setDirection] = useState<'root' | 'forward' | 'back'>('root');
+    const [direction, setDirection] = useState<'root' | 'forward' | 'back' | 'menu-down' | 'menu-up'>('root');
 
     // UseLayoutEffect roda antes da pintura browser, evitando "flash"
     React.useLayoutEffect(() => {
@@ -52,11 +60,19 @@ const MainLayout: React.FC = () => {
         const isPrevMain = MAIN_PATHS.some(p => prev === p);
         const isCurrentMain = MAIN_PATHS.some(p => curr === p);
 
-        let newDir: 'root' | 'forward' | 'back' = 'root';
+        let newDir: 'root' | 'forward' | 'back' | 'menu-down' | 'menu-up' = 'root';
 
-        // 1. Navegação entre menus principais -> Animação Vertical (Root)
+        // 1. Navegação entre menus principais -> Animação Vertical (Baseada na ordem)
         if (isPrevMain && isCurrentMain) {
-            newDir = 'root';
+            const prevIndex = menuItems.findIndex(m => m.path === prev);
+            const currIndex = menuItems.findIndex(m => m.path === curr);
+
+            if (prevIndex !== -1 && currIndex !== -1) {
+                if (currIndex > prevIndex) newDir = 'menu-down'; // Clicou em item abaixo -> Vem de cima
+                else newDir = 'menu-up';   // Clicou em item acima -> Vem de baixo
+            } else {
+                newDir = 'root'; // Caso de fallback (ex: profile)
+            }
         }
         // 2. Entrando em detalhe (URL nova contém a antiga) -> Ex: /projects -> /projects/123
         else if (curr.startsWith(prev + '/')) {
@@ -66,7 +82,7 @@ const MainLayout: React.FC = () => {
         else if (prev.startsWith(curr + '/')) {
             newDir = 'back';
         }
-        // 4. Fallback por profundidade (para casos onde a URL muda totalmente mas a hierarquia lógica existe)
+        // 4. Fallback por profundidade
         else {
             const prevDepth = prev.split('/').filter(Boolean).length;
             const currentDepth = curr.split('/').filter(Boolean).length;
@@ -78,14 +94,19 @@ const MainLayout: React.FC = () => {
 
         setDirection(newDir);
         prevPathRef.current = currentPath;
-    }, [location.pathname]);
+    }, [location.pathname, menuItems]);
 
     // Variantes de animação refinadas
     const variants = {
         initial: (dir: string) => {
-            if (dir === 'forward') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%' };
-            if (dir === 'back') return { x: '-20%', opacity: 0.5, position: 'absolute', width: '100%', height: '100%' };
-            return { y: 100, opacity: 0, position: 'absolute', width: '100%', height: '100%' };
+            if (dir === 'forward') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%', y: 0 };
+            if (dir === 'back') return { x: '-20%', opacity: 0.5, position: 'absolute', width: '100%', height: '100%', y: 0 };
+
+            // Navegação Menu Vertical
+            if (dir === 'menu-down') return { y: '-20%', opacity: 0, position: 'absolute', width: '100%', height: '100%', x: 0 }; // Vem de cima
+            if (dir === 'menu-up') return { y: '20%', opacity: 0, position: 'absolute', width: '100%', height: '100%', x: 0 };   // Vem de baixo
+
+            return { opacity: 0, position: 'absolute', width: '100%', height: '100%' }; // Fade simples p/ outros
         },
         animate: {
             x: 0,
@@ -94,11 +115,16 @@ const MainLayout: React.FC = () => {
             position: 'absolute',
             width: '100%',
             height: '100%',
-            transition: { duration: 0.45, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] } // Spring mais lento e suave
+            transition: { duration: 0.48, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] } // 5% mais lento (0.45 -> 0.48)
         },
         exit: (dir: string) => {
             if (dir === 'forward') return { x: '-20%', opacity: 0.5, position: 'absolute', width: '100%', height: '100%' };
             if (dir === 'back') return { x: '100%', opacity: 1, zIndex: 50, position: 'absolute', width: '100%', height: '100%' };
+
+            // Saída Menu Vertical (oposto da entrada)
+            if (dir === 'menu-down') return { y: '20%', opacity: 0, position: 'absolute', width: '100%', height: '100%' };
+            if (dir === 'menu-up') return { y: '-20%', opacity: 0, position: 'absolute', width: '100%', height: '100%' };
+
             return { opacity: 0, scale: 0.95, position: 'absolute', width: '100%', height: '100%' };
         }
     };
@@ -111,23 +137,6 @@ const MainLayout: React.FC = () => {
     const isActive = (path: string) => {
         return location.pathname.startsWith(path);
     };
-
-    // ... (rest of menu definitions)
-
-    const adminMenuItems = [
-        { path: '/admin/clients', icon: Users, label: 'Clientes' },
-        { path: '/tasks', icon: CheckSquare, label: 'Tarefas' },
-        { path: '/admin/team', icon: Users, label: 'Funcionários' },
-        { path: '/timesheet', icon: Clock, label: 'Folha de Ponto' },
-    ];
-
-    const developerMenuItems = [
-        { path: '/developer/projects', icon: Briefcase, label: 'Projetos' },
-        { path: '/developer/tasks', icon: CheckSquare, label: 'Minhas Tarefas' },
-        { path: '/timesheet', icon: Clock, label: 'Folha de Ponto' },
-    ];
-
-    const menuItems = currentUser?.role === 'admin' ? adminMenuItems : developerMenuItems;
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
