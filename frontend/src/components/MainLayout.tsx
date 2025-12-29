@@ -14,6 +14,7 @@ import {
     Menu,
     X
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import logoImg from '@/assets/logo.png';
 
 const MainLayout: React.FC = () => {
@@ -142,8 +143,19 @@ const MainLayout: React.FC = () => {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 overflow-auto">
-                <Outlet />
+            <div className="flex-1 overflow-hidden relative bg-slate-50">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={location.pathname}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="h-full overflow-auto"
+                    >
+                        <Outlet />
+                    </motion.div>
+                </AnimatePresence>
             </div>
         </div>
     );
