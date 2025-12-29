@@ -21,6 +21,7 @@ import {
   fetchTimesheets,
   DbTaskRow,
 } from "@/services/api";
+import { useAuth } from '@/contexts/AuthContext';
 
 // =====================================================
 // INTERFACE DO HOOK
@@ -151,6 +152,7 @@ export function useAppData(): AppData {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
     let isMounted = true;
@@ -164,12 +166,16 @@ export function useAppData(): AppData {
         const { supabase } = await import('@/services/supabaseClient');
         const { data: { session } } = await supabase.auth.getSession();
 
-        // Se não tiver sessão E não tiver usuário no localStorage, não carregar dados
-        const storedUser = localStorage.getItem('currentUser');
-        if (!session && !storedUser) {
+        // Se não tiver sessão E não tiver usuário no sessionStorage, não carregar dados
+        const storedUser = sessionStorage.getItem('currentUser');
+
+        if (!session && !storedUser && !currentUser) {
+          console.log('[useAppData] Sem sessão ou usuário, aguardando login...');
           setLoading(false);
           return;
         }
+
+        console.log('[useAppData] Carregando dados do banco...');
 
         // Carrega todos os dados em paralelo
         const [usersData, clientsData, projectsData, tasksData, membersRes] = await Promise.all([
@@ -267,7 +273,7 @@ export function useAppData(): AppData {
         }
 
       } catch (err) {
-
+        console.error('[useAppData] Erro:', err);
         if (isMounted) {
           setError(err instanceof Error ? err.message : "Falha ao carregar dados do banco.");
         }
@@ -278,13 +284,15 @@ export function useAppData(): AppData {
       }
     }
 
-    loadData();
+    if (!authLoading) {
+      loadData();
+    }
 
     // Cleanup
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentUser, authLoading]);
 
   return {
     users,

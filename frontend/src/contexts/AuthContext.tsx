@@ -19,7 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Carregar usuário do localStorage ao iniciar
+    // Carregar usuário do sessionStorage ao iniciar
     useEffect(() => {
         const loadUser = async () => {
             try {
