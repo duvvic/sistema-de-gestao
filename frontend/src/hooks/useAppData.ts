@@ -236,7 +236,7 @@ export function useAppData(): AppData {
             risks: row.Riscos || undefined,
             notes: row["Observações"] || undefined, // Mapped to notes
             attachment: row.attachment || undefined,
-            description: undefined, // Não existe no banco atual
+            description: row.description || undefined,
             daysOverdue: (() => {
               if (!row.entrega_estimada) return 0;
 

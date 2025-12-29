@@ -60,6 +60,7 @@ export interface DbTaskRow {
   DiasAtraso: string | null;
   "Observações": string | null;
   attachment: string | null;
+  description: string | null;
   inicio_previsto: string | null;
   inicio_real: string | null;
   entrega_estimada: string | null;
