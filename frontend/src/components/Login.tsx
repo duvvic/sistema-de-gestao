@@ -135,7 +135,7 @@ const Login: React.FC = () => {
                 email: String(dbUser["E-mail"] || "").trim().toLowerCase(),
                 avatarUrl: dbUser.avatar_url || undefined,
                 cargo: dbUser.Cargo || undefined,
-                role: dbUser.papel === 'admin' ? 'admin' : (dbUser.papel === 'gestor' ? 'gestor' : 'developer'),
+                role: dbUser.papel === 'Administrador' ? 'admin' : (dbUser.papel === 'Gestor' ? 'gestor' : 'developer'),
                 active: dbUser.ativo !== false,
             };
 
