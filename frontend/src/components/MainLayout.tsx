@@ -45,26 +45,35 @@ const MainLayout: React.FC = () => {
 
         if (prevPath === currentPath) return;
 
-        const isPrevMain = MAIN_PATHS.some(p => prevPath.startsWith(p) && prevPath.split('/').length === p.split('/').length);
-        const isCurrentMain = MAIN_PATHS.some(p => currentPath.startsWith(p) && currentPath.split('/').length === p.split('/').length);
+        // Normaliza paths removendo barras finais para comparação segura
+        const prev = prevPath.endsWith('/') && prevPath !== '/' ? prevPath.slice(0, -1) : prevPath;
+        const curr = currentPath.endsWith('/') && currentPath !== '/' ? currentPath.slice(0, -1) : currentPath;
+
+        const isPrevMain = MAIN_PATHS.some(p => prev === p);
+        const isCurrentMain = MAIN_PATHS.some(p => curr === p);
 
         let newDir: 'root' | 'forward' | 'back' = 'root';
 
+        // 1. Navegação entre menus principais -> Animação Vertical (Root)
         if (isPrevMain && isCurrentMain) {
-            // De menu para menu => Baixo para cima (Root)
             newDir = 'root';
-        } else {
-            // Navegação de detalhes
-            const prevDepth = prevPath.split('/').filter(Boolean).length;
-            const currentDepth = currentPath.split('/').filter(Boolean).length;
+        }
+        // 2. Entrando em detalhe (URL nova contém a antiga) -> Ex: /projects -> /projects/123
+        else if (curr.startsWith(prev + '/')) {
+            newDir = 'forward';
+        }
+        // 3. Voltando (URL antiga continha a nova) -> Ex: /projects/123 -> /projects
+        else if (prev.startsWith(curr + '/')) {
+            newDir = 'back';
+        }
+        // 4. Fallback por profundidade (para casos onde a URL muda totalmente mas a hierarquia lógica existe)
+        else {
+            const prevDepth = prev.split('/').filter(Boolean).length;
+            const currentDepth = curr.split('/').filter(Boolean).length;
 
-            if (currentDepth > prevDepth) {
-                newDir = 'forward'; // Entrando
-            } else if (currentDepth < prevDepth) {
-                newDir = 'back';    // Voltando
-            } else {
-                newDir = 'root';    // Mesmo nível mas não é menu principal? Trata como root ou forward suave
-            }
+            if (currentDepth > prevDepth) newDir = 'forward';
+            else if (currentDepth < prevDepth) newDir = 'back';
+            else newDir = 'root';
         }
 
         setDirection(newDir);
@@ -74,21 +83,23 @@ const MainLayout: React.FC = () => {
     // Variantes de animação refinadas
     const variants = {
         initial: (dir: string) => {
-            if (dir === 'forward') return { x: '100%', opacity: 1, position: 'absolute' };
-            if (dir === 'back') return { x: '-20%', opacity: 0.5, position: 'absolute' };
-            return { y: 100, opacity: 0, position: 'absolute' }; // Baixo para cima mais forte
+            if (dir === 'forward') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%' };
+            if (dir === 'back') return { x: '-20%', opacity: 0.5, position: 'absolute', width: '100%', height: '100%' };
+            return { y: 100, opacity: 0, position: 'absolute', width: '100%', height: '100%' };
         },
         animate: {
             x: 0,
             y: 0,
             opacity: 1,
-            position: 'absolute', // Garante que a página ativa ocupe o topo
-            transition: { duration: 0.4, ease: [0.32, 0.72, 0, 1] } // Curva iOS "Spring-like"
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            transition: { duration: 0.45, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] } // Spring mais lento e suave
         },
         exit: (dir: string) => {
-            if (dir === 'forward') return { x: '-20%', opacity: 0.5, position: 'absolute' };
-            if (dir === 'back') return { x: '100%', opacity: 1, zIndex: 50, position: 'absolute' };
-            return { opacity: 0, scale: 0.95, position: 'absolute' };
+            if (dir === 'forward') return { x: '-20%', opacity: 0.5, position: 'absolute', width: '100%', height: '100%' };
+            if (dir === 'back') return { x: '100%', opacity: 1, zIndex: 50, position: 'absolute', width: '100%', height: '100%' };
+            return { opacity: 0, scale: 0.95, position: 'absolute', width: '100%', height: '100%' };
         }
     };
 
