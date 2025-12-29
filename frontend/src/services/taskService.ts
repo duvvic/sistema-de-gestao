@@ -87,6 +87,7 @@ export async function createTask(data: Partial<Task>): Promise<number> {
     Riscos: data.risks || null,
     // Atenção: coluna no banco utiliza cedilha
     "Observações": data.notes || null,
+    attachment: data.attachment || null,
   };
 
   const { data: inserted, error } = await supabase
@@ -163,6 +164,11 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
   // Só atualiza observações se fornecidas
   if (data.notes !== undefined) {
     payload["Observações"] = data.notes || null;
+  }
+
+  // Só atualiza anexo se fornecido
+  if (data.attachment !== undefined) {
+    payload.attachment = data.attachment || null;
   }
 
   // Se não há nada para atualizar, retorna

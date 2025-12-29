@@ -234,9 +234,9 @@ export function useAppData(): AppData {
 
             // Campos de texto
             risks: row.Riscos || undefined,
-            notes: row["Observações"] || undefined,
+            notes: row["Observações"] || undefined, // Mapped to notes
+            attachment: row.attachment || undefined,
             description: undefined, // Não existe no banco atual
-            attachment: undefined, // Não existe no banco atual
             daysOverdue: (() => {
               if (!row.entrega_estimada) return 0;
 

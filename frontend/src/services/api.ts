@@ -59,7 +59,7 @@ export interface DbTaskRow {
   StatusTarefa: string | null;
   DiasAtraso: string | null;
   "Observações": string | null;
-  LinkEF: string | null;
+  attachment: string | null;
   inicio_previsto: string | null;
   inicio_real: string | null;
   entrega_estimada: string | null;
