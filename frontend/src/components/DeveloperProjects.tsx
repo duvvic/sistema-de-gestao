@@ -55,7 +55,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
           className="w-full mt-auto flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm"
         >
           <Clock className="w-4 h-4" />
-          Apontar Horas
+          Apontar Tarefa
         </button>
       )}
     </div>

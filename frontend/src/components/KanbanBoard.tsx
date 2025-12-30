@@ -1,6 +1,6 @@
 // components/KanbanBoard.tsx - Adaptado para Router
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
 import {
@@ -189,7 +189,7 @@ const KanbanCard = ({
             className="mt-2 w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-[11px] font-bold border border-purple-100 shadow-sm"
           >
             <Clock size={12} />
-            Apontar Horas
+            Apontar Tarefa
           </button>
         )}
       </div>
@@ -253,6 +253,7 @@ const KanbanColumn = ({
 /* ================== BOARD ================== */
 const KanbanBoard: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { currentUser } = useAuth();
   const { tasks, clients, projects, updateTask, deleteTask } = useDataController();
@@ -325,8 +326,21 @@ const KanbanBoard: React.FC = () => {
 
     if (newStatus && newStatus !== activeTask.status) {
       setHighlightedTaskId(activeId);
+
+      // Calcular novo progresso automático
+      let newProgress = activeTask.progress;
+      if (newStatus === 'Todo') newProgress = 10;
+      else if (newStatus === 'In Progress') newProgress = 30;
+      else if (newStatus === 'Review') newProgress = 80;
+      else if (newStatus === 'Done') newProgress = 100;
+
       // Atualizar via Controller
-      await updateTask(activeId, { status: newStatus });
+      await updateTask(activeId, {
+        status: newStatus,
+        progress: newProgress,
+        // Se concluiu, definir data de entrega real se não houver
+        ...(newStatus === 'Done' ? { actualDelivery: new Date().toISOString() } : {})
+      });
     }
   };
 
@@ -393,12 +407,14 @@ const KanbanBoard: React.FC = () => {
             />
           </div>
 
-          <button
-            className="bg-[#4c1d95] hover:bg-[#3b1675] text-white px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 font-bold text-sm whitespace-nowrap active:scale-95"
-            onClick={() => navigate('/tasks/new')}
-          >
-            + Nova Tarefa
-          </button>
+          {!location.pathname.includes('/developer/tasks') && isAdmin && (
+            <button
+              className="bg-[#4c1d95] hover:bg-[#3b1675] text-white px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 font-bold text-sm whitespace-nowrap active:scale-95"
+              onClick={() => navigate('/tasks/new')}
+            >
+              + Nova Tarefa
+            </button>
+          )}
         </div>
       </div>
 
