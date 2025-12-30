@@ -130,28 +130,44 @@ const TeamMemberDetail: React.FC = () => {
                         {displayTasks.map(task => {
                            const delayDays = getDelayDays(task);
                            const isDelayed = delayDays > 0;
+                           const handleCreateTimesheet = (e: React.MouseEvent) => {
+                              e.stopPropagation();
+                              navigate(`/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`);
+                           };
+
                            return (
-                              <div
-                                 key={task.id}
-                                 onClick={() => navigate(`/tasks/${task.id}`)}
-                                 className={`border p-4 rounded-xl flex justify-between items-center hover:shadow-md cursor-pointer transition-all group ${isDelayed ? 'bg-red-50 border-red-200 hover:border-red-300' : 'bg-white border-slate-200 hover:border-[#4c1d95]'}`}
-                              >
-                                 <div className="flex items-center gap-3">
-                                    {task.status === 'Done' ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Clock className={`w-5 h-5 ${isDelayed ? 'text-red-400' : 'text-slate-400'}`} />}
-                                    <div>
-                                       <p className={`font-semibold text-sm group-hover:text-[#4c1d95] ${isDelayed ? 'text-red-900' : 'text-slate-800'}`}>{task.title}</p>
-                                       <div className="flex gap-2 text-xs text-slate-500 mt-1">
-                                          <span className={`px-1.5 py-0.5 rounded border ${isDelayed ? 'bg-red-100 border-red-200 text-red-700' : 'bg-slate-50 border-slate-100'}`}>{task.status}</span>
-                                          <span>•</span>
-                                          <span className={`flex items-center gap-1 ${isDelayed ? 'text-red-600 font-bold' : ''}`}>
-                                             <Calendar className="w-3 h-3" />
-                                             {new Date(task.estimatedDelivery).toLocaleDateString()}
-                                             {isDelayed && ` (+${delayDays}d)`}
-                                          </span>
+                              <div key={task.id} className="space-y-2">
+                                 <div
+                                    onClick={() => navigate(`/tasks/${task.id}`)}
+                                    className={`border p-4 rounded-xl flex justify-between items-center hover:shadow-md cursor-pointer transition-all group ${isDelayed ? 'bg-red-50 border-red-200 hover:border-red-300' : 'bg-white border-slate-200 hover:border-[#4c1d95]'}`}
+                                 >
+                                    <div className="flex items-center gap-3">
+                                       {task.status === 'Done' ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Clock className={`w-5 h-5 ${isDelayed ? 'text-red-400' : 'text-slate-400'}`} />}
+                                       <div>
+                                          <p className={`font-semibold text-sm group-hover:text-[#4c1d95] ${isDelayed ? 'text-red-900' : 'text-slate-800'}`}>{task.title}</p>
+                                          <div className="flex gap-2 text-xs text-slate-500 mt-1">
+                                             <span className={`px-1.5 py-0.5 rounded border ${isDelayed ? 'bg-red-100 border-red-200 text-red-700' : 'bg-slate-50 border-slate-100'}`}>{task.status}</span>
+                                             <span>•</span>
+                                             <span className={`flex items-center gap-1 ${isDelayed ? 'text-red-600 font-bold' : ''}`}>
+                                                <Calendar className="w-3 h-3" />
+                                                {new Date(task.estimatedDelivery).toLocaleDateString()}
+                                                {isDelayed && ` (+${delayDays}d)`}
+                                             </span>
+                                          </div>
                                        </div>
                                     </div>
+                                    <div className={`text-xs font-bold ${isDelayed ? 'text-red-500' : 'text-slate-400'}`}>{task.progress}%</div>
                                  </div>
-                                 <div className={`text-xs font-bold ${isDelayed ? 'text-red-500' : 'text-slate-400'}`}>{task.progress}%</div>
+
+                                 {task.status !== 'Done' && (
+                                    <button
+                                       onClick={handleCreateTimesheet}
+                                       className="w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm"
+                                    >
+                                       <Clock className="w-4 h-4" />
+                                       Apontar Horas
+                                    </button>
+                                 )}
                               </div>
                            );
                         })}

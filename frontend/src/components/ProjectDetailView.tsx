@@ -214,59 +214,78 @@ interface TaskCardProps {
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
+  const navigate = useNavigate();
+
+  const handleCreateTimesheet = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`);
+  };
+
   return (
-    <button
-      onClick={onClick}
-      className="w-full bg-white border border-slate-200 rounded-lg p-3 hover:border-[#4c1d95] hover:shadow-md transition-all text-left group"
-    >
-      <div className="flex justify-between items-start gap-2">
-        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-[#4c1d95] flex-1">
-          {task.title}
-        </p>
-        {task.priority && (
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap ${task.priority === 'Critical' ? 'bg-red-100 text-red-700' :
-            task.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-              task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-green-100 text-green-700'
-            }`}>
-            {task.priority === 'Critical' ? 'Crit' : task.priority}
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 mt-3">
-        <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-[#4c1d95]"
-            style={{ width: `${task.progress || 0}%` }}
-          />
-        </div>
-        <span className="text-xs font-bold text-slate-600">{task.progress || 0}%</span>
-      </div>
-
-      {/* Rodapé com Responsável */}
-      <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-2">
-        <div className="flex items-center gap-2">
-          {task.developerAvatar ? (
-            <img src={task.developerAvatar} alt={task.developerName} className="w-5 h-5 rounded-full object-cover" />
-          ) : (
-            <div className="w-5 h-5 rounded-full bg-slate-200 text-[10px] flex items-center justify-center font-bold text-slate-600">
-              {task.developerName ? task.developerName.charAt(0).toUpperCase() : '?'}
-            </div>
+    <div className="space-y-2">
+      <button
+        onClick={onClick}
+        className="w-full bg-white border border-slate-200 rounded-lg p-3 hover:border-[#4c1d95] hover:shadow-md transition-all text-left group"
+      >
+        <div className="flex justify-between items-start gap-2">
+          <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-[#4c1d95] flex-1">
+            {task.title}
+          </p>
+          {task.priority && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap ${task.priority === 'Critical' ? 'bg-red-100 text-red-700' :
+              task.priority === 'High' ? 'bg-orange-100 text-orange-700' :
+                task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-green-100 text-green-700'
+              }`}>
+              {task.priority === 'Critical' ? 'Crit' : task.priority}
+            </span>
           )}
-          <span className="text-xs text-slate-500 truncate max-w-[100px]" title={task.developerName}>
-            {task.developerName?.split(' ')[0] || 'Sem Resp.'}
-          </span>
         </div>
 
-        {task.estimatedDelivery && (
-          <span className="text-[10px] text-slate-400 flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {new Date(task.estimatedDelivery).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
-          </span>
-        )}
-      </div>
-    </button>
+        <div className="flex items-center gap-2 mt-3">
+          <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#4c1d95]"
+              style={{ width: `${task.progress || 0}%` }}
+            />
+          </div>
+          <span className="text-xs font-bold text-slate-600">{task.progress || 0}%</span>
+        </div>
+
+        {/* Rodapé com Responsável */}
+        <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-2">
+          <div className="flex items-center gap-2">
+            {task.developerAvatar ? (
+              <img src={task.developerAvatar} alt={task.developerName} className="w-5 h-5 rounded-full object-cover" />
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-slate-200 text-[10px] flex items-center justify-center font-bold text-slate-600">
+                {task.developerName ? task.developerName.charAt(0).toUpperCase() : '?'}
+              </div>
+            )}
+            <span className="text-xs text-slate-500 truncate max-w-[100px]" title={task.developerName}>
+              {task.developerName?.split(' ')[0] || 'Sem Resp.'}
+            </span>
+          </div>
+
+          {task.estimatedDelivery && (
+            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {new Date(task.estimatedDelivery).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {task.status !== 'Done' && (
+        <button
+          onClick={handleCreateTimesheet}
+          className="w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm"
+        >
+          <Clock className="w-4 h-4" />
+          Apontar Horas
+        </button>
+      )}
+    </div>
   );
 };
 

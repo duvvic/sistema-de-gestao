@@ -307,64 +307,80 @@ const ClientDetailsView: React.FC = () => {
                   const project = projects.find(p => p.id === task.projectId);
                   const developerUser = users.find(u => u.id === task.developerId);
 
+                  const handleCreateTimesheet = (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    navigate(`/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`);
+                  };
+
                   return (
-                    <button
-                      key={task.id}
-                      onClick={() => navigate(`/tasks/${task.id}`)}
-                      className="bg-white border border-slate-200 rounded-xl p-4 hover:border-[#4c1d95] hover:shadow-md transition-all text-left group"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${task.status === 'Done' ? 'bg-green-100 text-green-700' :
-                          task.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                            task.status === 'Review' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-slate-100 text-slate-700'
-                          }`}>
-                          {task.status === 'Todo' ? 'A Fazer' :
-                            task.status === 'In Progress' ? 'Em Progresso' :
-                              task.status === 'Review' ? 'Revisão' : 'Concluído'}
-                        </span>
-                        {task.priority && (
-                          <span className={`text-[10px] font-bold ${task.priority === 'Critical' ? 'text-red-600' :
-                            task.priority === 'High' ? 'text-orange-600' : 'text-slate-400'
+                    <div key={task.id} className="space-y-2">
+                      <button
+                        onClick={() => navigate(`/tasks/${task.id}`)}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-4 hover:border-[#4c1d95] hover:shadow-md transition-all text-left group flex flex-col h-full"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${task.status === 'Done' ? 'bg-green-100 text-green-700' :
+                            task.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                              task.status === 'Review' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-slate-100 text-slate-700'
                             }`}>
-                            {task.priority === 'Critical' ? 'CRÍTICA' : task.priority}
+                            {task.status === 'Todo' ? 'A Fazer' :
+                              task.status === 'In Progress' ? 'Em Progresso' :
+                                task.status === 'Review' ? 'Revisão' : 'Concluído'}
                           </span>
-                        )}
-                      </div>
-
-                      <h4 className="font-semibold text-slate-800 group-hover:text-[#4c1d95] mb-1 line-clamp-2">
-                        {task.title}
-                      </h4>
-
-                      {project && (
-                        <div className="text-xs text-slate-500 mb-3 flex items-center gap-1">
-                          <Briefcase className="w-3 h-3" />
-                          {project.name}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-50 mt-auto">
-                        <div className="flex items-center gap-2">
-                          {developerUser?.avatarUrl ? (
-                            <img src={developerUser.avatarUrl} className="w-6 h-6 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
-                              {task.developer?.substring(0, 2).toUpperCase() || '?'}
-                            </div>
+                          {task.priority && (
+                            <span className={`text-[10px] font-bold ${task.priority === 'Critical' ? 'text-red-600' :
+                              task.priority === 'High' ? 'text-orange-600' : 'text-slate-400'
+                              }`}>
+                              {task.priority === 'Critical' ? 'CRÍTICA' : task.priority}
+                            </span>
                           )}
-                          <span className="text-xs text-slate-500 truncate max-w-[80px]">
-                            {task.developer || 'Sem resp.'}
-                          </span>
                         </div>
 
-                        {task.estimatedDelivery && (
-                          <div className="flex items-center gap-1 text-xs text-slate-400">
-                            <Clock className="w-3 h-3" />
-                            {new Date(task.estimatedDelivery).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
+                        <h4 className="font-semibold text-slate-800 group-hover:text-[#4c1d95] mb-1 line-clamp-2">
+                          {task.title}
+                        </h4>
+
+                        {project && (
+                          <div className="text-xs text-slate-500 mb-3 flex items-center gap-1">
+                            <Briefcase className="w-3 h-3" />
+                            {project.name}
                           </div>
                         )}
-                      </div>
-                    </button>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-50 mt-auto">
+                          <div className="flex items-center gap-2">
+                            {developerUser?.avatarUrl ? (
+                              <img src={developerUser.avatarUrl} className="w-6 h-6 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                                {task.developer?.substring(0, 2).toUpperCase() || '?'}
+                              </div>
+                            )}
+                            <span className="text-xs text-slate-500 truncate max-w-[80px]">
+                              {task.developer || 'Sem resp.'}
+                            </span>
+                          </div>
+
+                          {task.estimatedDelivery && (
+                            <div className="flex items-center gap-1 text-xs text-slate-400">
+                              <Clock className="w-3 h-3" />
+                              {new Date(task.estimatedDelivery).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+
+                      {task.status !== 'Done' && (
+                        <button
+                          onClick={handleCreateTimesheet}
+                          className="w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm"
+                        >
+                          <Clock className="w-4 h-4" />
+                          Apontar Horas
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>

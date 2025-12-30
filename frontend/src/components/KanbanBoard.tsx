@@ -79,6 +79,12 @@ const KanbanCard = ({
     return today > due;
   }, [task]);
 
+  const handleCreateTimesheet = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`;
+    onTaskClick('__NAVIGATE__:' + url);
+  };
+
   if (isDragging) {
     return (
       <div
@@ -93,96 +99,96 @@ const KanbanCard = ({
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className={`
-        relative group flex flex-col gap-3 p-4 rounded-xl border bg-white shadow-sm cursor-grab active:cursor-grabbing
-        transition-all duration-500 ease-out
-        ${isHighlighted
-          ? 'border-purple-500 ring-2 ring-purple-200 bg-purple-50 shadow-purple-100 scale-[1.02]'
-          : isDelayed
-            ? 'border-red-200 bg-red-50/30'
-            : 'bg-white border-slate-100 hover:border-purple-200 hover:shadow-md'
-        }
-        touch-none
-      `}
-      onClick={() => onTaskClick(task.id)}
+      className="space-y-2"
     >
-      <div className="flex justify-between items-start">
-        <div className="flex items-center gap-2 max-w-[85%]">
-          <div className="text-slate-300 hover:text-slate-500">
-            <GripVertical size={14} />
+      <div
+        {...attributes}
+        {...listeners}
+        className={`
+          relative group flex flex-col gap-3 p-4 rounded-xl border bg-white shadow-sm cursor-grab active:cursor-grabbing
+          transition-all duration-500 ease-out
+          ${isHighlighted
+            ? 'border-purple-500 ring-2 ring-purple-200 bg-purple-50 shadow-purple-100 scale-[1.02]'
+            : isDelayed
+              ? 'border-red-200 bg-red-50/30'
+              : 'bg-white border-slate-100 hover:border-purple-200 hover:shadow-md'
+          }
+          touch-none
+        `}
+        onClick={() => onTaskClick(task.id)}
+      >
+        <div className="flex justify-between items-start text-left">
+          <div className="flex items-center gap-2 max-w-[85%]">
+            <div className="text-slate-300 hover:text-slate-500">
+              <GripVertical size={14} />
+            </div>
+            {client?.logoUrl && (
+              <img src={client.logoUrl} className="w-4 h-4 rounded-sm object-contain" alt="" />
+            )}
+            <span className="text-[10px] uppercase font-bold text-slate-500 truncate">
+              {client?.name || 'Sem Empresa'}
+            </span>
           </div>
-          {client?.logoUrl && (
-            <img src={client.logoUrl} className="w-4 h-4 rounded-sm object-contain" alt="" />
+          {isDelayed && (
+            <div className="text-red-500" title="Atrasado">
+              <AlertCircle size={14} />
+            </div>
           )}
-          <span className="text-[10px] uppercase font-bold text-slate-500 truncate">
-            {client?.name || 'Sem Empresa'}
-          </span>
         </div>
-        {isDelayed && (
-          <div className="text-red-500" title="Atrasado">
-            <AlertCircle size={14} />
-          </div>
+
+        {isAdmin && onDelete && (
+          <button
+            onClick={(e) => onDelete(e, task)}
+            className="absolute top-2 right-2 p-1.5 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Trash2 size={14} />
+          </button>
         )}
-      </div>
 
-      {isAdmin && onDelete && (
-        <button
-          onClick={(e) => onDelete(e, task)}
-          className="absolute top-2 right-2 p-1.5 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Trash2 size={14} />
-        </button>
-      )}
-
-      <div className="flex">
-        <span className="text-[10px] font-bold tracking-wide uppercase text-[#4c1d95] bg-purple-50 px-2 py-1 rounded-md max-w-full truncate">
-          {project?.name || 'Geral'}
-        </span>
-      </div>
-
-      <h4 className="font-semibold text-slate-800 text-sm leading-snug line-clamp-2">
-        {task.title}
-      </h4>
-
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full ${isDelayed ? 'bg-red-500' : 'bg-[#4c1d95]'}`}
-            style={{ width: `${task.progress || 0}%` }}
-          />
+        <div className="flex text-left">
+          <span className="text-[10px] font-bold tracking-wide uppercase text-[#4c1d95] bg-purple-50 px-2 py-1 rounded-md max-w-full truncate">
+            {project?.name || 'Geral'}
+          </span>
         </div>
-        <span className="text-[10px] font-medium text-slate-500">{task.progress || 0}%</span>
-      </div>
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-1">
-        <div className="flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
-            <UserIcon size={10} />
+        <h4 className="font-semibold text-slate-800 text-sm leading-snug line-clamp-2 text-left">
+          {task.title}
+        </h4>
+
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full ${isDelayed ? 'bg-red-500' : 'bg-[#4c1d95]'}`}
+              style={{ width: `${task.progress || 0}%` }}
+            />
           </div>
-          <span className="text-[10px] text-slate-500 font-medium truncate max-w-[80px]">
-            {task.developer || 'N/A'}
-          </span>
+          <span className="text-[10px] font-medium text-slate-500">{task.progress || 0}%</span>
         </div>
-        <div className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md ${isDelayed ? 'bg-red-100 text-red-700' : 'bg-slate-50 text-slate-400'}`}>
-          <Calendar size={10} />
-          <span>
-            {task.estimatedDelivery
-              ? new Date(task.estimatedDelivery).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-              : '-'}
-          </span>
+
+        <div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-1">
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
+              <UserIcon size={10} />
+            </div>
+            <span className="text-[10px] text-slate-500 font-medium truncate max-w-[80px]">
+              {task.developer || 'N/A'}
+            </span>
+          </div>
+          <div className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md ${isDelayed ? 'bg-red-100 text-red-700' : 'bg-slate-50 text-slate-400'}`}>
+            <Calendar size={10} />
+            <span>
+              {task.estimatedDelivery
+                ? new Date(task.estimatedDelivery).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+                : '-'}
+            </span>
+          </div>
         </div>
       </div>
 
       {task.status !== 'Done' && (
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            const url = `/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`;
-            onTaskClick('__NAVIGATE__:' + url);
-          }}
-          className="mt-2 w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-[11px] font-bold border border-purple-100 shadow-sm"
+          onClick={handleCreateTimesheet}
+          className="w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-[11px] font-bold border border-purple-100 shadow-sm"
         >
           <Clock size={12} />
           Apontar Horas
