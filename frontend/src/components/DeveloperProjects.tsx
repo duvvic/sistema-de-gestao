@@ -8,6 +8,57 @@ import { ArrowLeft, Building2, FolderKanban, CheckSquare, Clock } from "lucide-r
 
 type ViewType = 'clients' | 'projects' | 'tasks';
 
+// Componente TaskCard
+interface TaskCardProps {
+  task: Task;
+  onClick: () => void;
+}
+
+const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
+  const navigate = useNavigate();
+
+  const handleCreateTimesheet = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`);
+  };
+
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-left hover:bg-white hover:border-[#4c1d95]/30 hover:shadow-md transition-all group w-full flex flex-col">
+      <div onClick={onClick} className="cursor-pointer mb-2">
+        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-[#4c1d95]">{task.title}</p>
+        <div className="flex items-center gap-2 mt-2">
+          <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#4c1d95]"
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
+          <span className="text-xs font-bold text-slate-600">{task.progress}%</span>
+        </div>
+        {task.priority && (
+          <span className={`text-xs mt-2 px-2 py-1 rounded-full font-medium inline-block ${task.priority === 'Critical' ? 'bg-red-100 text-red-700' :
+            task.priority === 'High' ? 'bg-orange-100 text-orange-700' :
+              task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-green-100 text-green-700'
+            }`}>
+            {task.priority}
+          </span>
+        )}
+      </div>
+
+      {task.status !== 'Done' && (
+        <button
+          onClick={handleCreateTimesheet}
+          className="w-full mt-auto flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm"
+        >
+          <Clock className="w-4 h-4" />
+          Apontar Horas
+        </button>
+      )}
+    </div>
+  );
+};
+
 const DeveloperProjects: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -290,57 +341,6 @@ const DeveloperProjects: React.FC = () => {
             )}
           </div>
         </div>
-      )}
-    </div>
-  );
-};
-
-// Componente TaskCard
-interface TaskCardProps {
-  task: Task;
-  onClick: () => void;
-}
-
-const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
-  const navigate = useNavigate();
-
-  const handleCreateTimesheet = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigate(`/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`);
-  };
-
-  return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-left hover:bg-white hover:border-[#4c1d95]/30 hover:shadow-md transition-all group w-full flex flex-col">
-      <div onClick={onClick} className="cursor-pointer mb-2">
-        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-[#4c1d95]">{task.title}</p>
-        <div className="flex items-center gap-2 mt-2">
-          <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#4c1d95]"
-              style={{ width: `${task.progress}%` }}
-            />
-          </div>
-          <span className="text-xs font-bold text-slate-600">{task.progress}%</span>
-        </div>
-        {task.priority && (
-          <span className={`text-xs mt-2 px-2 py-1 rounded-full font-medium inline-block ${task.priority === 'Critical' ? 'bg-red-100 text-red-700' :
-            task.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-              task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-green-100 text-green-700'
-            }`}>
-            {task.priority}
-          </span>
-        )}
-      </div>
-
-      {task.status !== 'Done' && (
-        <button
-          onClick={handleCreateTimesheet}
-          className="w-full mt-auto flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm"
-        >
-          <Clock className="w-4 h-4" />
-          Apontar Horas
-        </button>
       )}
     </div>
   );
