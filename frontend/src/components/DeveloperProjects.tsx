@@ -96,21 +96,21 @@ const DeveloperProjects: React.FC = () => {
   }, [projectTasks]);
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden p-8">
+    <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
 
       {/* VISTA 1: EMPRESAS/CLIENTES */}
       {currentView === 'clients' && (
-        <>
+        <div className="flex-1 flex flex-col p-8">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-800">Projetos</h1>
-            <p className="text-slate-500 mt-1">Todos os projetos da empresa</p>
+            <p className="text-slate-500 mt-1">Escolha um cliente para ver os projetos</p>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {projects.length === 0 ? (
+            {clients.filter(c => clientStats.has(c.id)).length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-400">
                 <Building2 className="w-12 h-12 mb-4 text-slate-300" />
-                <p>Nenhum projeto cadastrado.</p>
+                <p>Nenhum cliente vinculado encontrado.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -128,19 +128,23 @@ const DeveloperProjects: React.FC = () => {
                         className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-[#4c1d95]/30 transition-all text-left group"
                       >
                         <div className="flex items-start gap-4 mb-4">
-                          <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-100 p-2 flex items-center justify-center">
-                            <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
+                          <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-100 p-2 flex items-center justify-center overflow-hidden">
+                            {client.logoUrl ? (
+                              <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
+                            ) : (
+                              <Building2 className="w-8 h-8 text-slate-300" />
+                            )}
                           </div>
                           <div className="flex-1">
                             <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#4c1d95]">{client.name}</h3>
-                            <p className="text-sm text-slate-500 mt-1">{stats?.taskCount} tarefas</p>
+                            <p className="text-sm text-slate-500 mt-1">{stats?.projectCount} projetos vinculados</p>
                           </div>
                         </div>
 
                         <div className="pt-4 border-t border-slate-100 space-y-2">
                           <div className="flex items-center gap-2 text-sm text-slate-600">
-                            <FolderKanban className="w-4 h-4 text-[#4c1d95]" />
-                            {projects.filter(p => p.clientId === client.id).length} Projetos
+                            <CheckSquare className="w-4 h-4 text-[#4c1d95]" />
+                            {stats?.taskCount} tarefas vinculadas
                           </div>
                         </div>
                       </button>
@@ -149,35 +153,46 @@ const DeveloperProjects: React.FC = () => {
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {/* VISTA 2: PROJETOS DO CLIENTE */}
       {currentView === 'projects' && selectedClientId && (
-        <>
-          <div className="mb-6 flex items-center gap-4">
+        <div className="flex-1 flex flex-col">
+          {/* BARRA SUPERIOR PERSONALIZADA */}
+          <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-4 bg-slate-50">
             <button
               onClick={() => {
                 setCurrentView('clients');
                 setSelectedClientId(null);
               }}
-              className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+              className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-600"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-slate-800">Projetos</h1>
-              <p className="text-slate-500 mt-1">
-                {clients.find(c => c.id === selectedClientId)?.name}
-              </p>
+            <div className="flex items-center gap-4 flex-1">
+              <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 p-1.5 flex items-center justify-center overflow-hidden shadow-sm">
+                {clients.find(c => c.id === selectedClientId)?.logoUrl ? (
+                  <img src={clients.find(c => c.id === selectedClientId)?.logoUrl} alt="" className="w-full h-full object-contain" />
+                ) : (
+                  <Building2 className="w-6 h-6 text-slate-300" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-800">
+                  {clients.find(c => c.id === selectedClientId)?.name}
+                </h1>
+                <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Selecione um projeto</p>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-8">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 px-1">Projetos</h2>
             {clientProjects.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <FolderKanban className="w-12 h-12 mb-4 text-slate-300" />
-                <p>Nenhum projeto nesta empresa.</p>
+                <p>Nenhum projeto vinculado encontrado para este cliente.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -196,22 +211,23 @@ const DeveloperProjects: React.FC = () => {
                     >
                       <div className="mb-4">
                         <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#4c1d95]">{project.name}</h3>
-                        <p className="text-sm text-slate-500 mt-1">{projTasks.length} tarefas</p>
+                        <p className="text-sm text-slate-500 mt-1 line-clamp-1">{project.description || 'Sem descrição'}</p>
                       </div>
 
                       <div className="pt-4 border-t border-slate-100 space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-slate-600 flex items-center gap-2">
                             <CheckSquare className="w-4 h-4 text-green-500" />
-                            Concluídas
+                            Progresso
                           </span>
-                          <span className="font-bold text-green-600">{completedTasks}/{projTasks.length}</span>
+                          <span className="font-bold text-slate-800">{completedTasks}/{projTasks.length} tarefas</span>
                         </div>
-                        {project.status && (
-                          <div className="text-xs text-slate-500">
-                            Status: <span className="font-medium text-slate-700">{project.status}</span>
-                          </div>
-                        )}
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
+                          <div
+                            className="h-full bg-green-500 rounded-full"
+                            style={{ width: `${projTasks.length > 0 ? (completedTasks / projTasks.length) * 100 : 0}%` }}
+                          />
+                        </div>
                       </div>
                     </button>
                   );
@@ -219,87 +235,61 @@ const DeveloperProjects: React.FC = () => {
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {/* VISTA 3: TAREFAS DO PROJETO */}
       {currentView === 'tasks' && selectedProjectId && (
-        <>
-          <div className="mb-6 flex items-center gap-4">
+        <div className="flex-1 flex flex-col">
+          {/* BARRA SUPERIOR CUSTOMIZADA PARA TAREFAS */}
+          <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-4 bg-slate-50">
             <button
               onClick={() => {
                 setCurrentView('projects');
                 setSelectedProjectId(null);
               }}
-              className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+              className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-600"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-slate-800">
+              <h1 className="text-lg font-bold text-slate-800">
                 {projects.find(p => p.id === selectedProjectId)?.name}
               </h1>
-              <p className="text-slate-500 mt-1">Tarefas do projeto</p>
+              <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">
+                Minhas Tarefas
+              </p>
             </div>
             <button
-              className="px-4 py-2 bg-[#4c1d95] text-white rounded-xl font-bold shadow hover:bg-[#3b1675]"
-              onClick={() => navigate(`/tasks/new?project=${selectedProjectId}&client=${projects.find(p => p.id === selectedProjectId)?.clientId}`)}
+              className="px-6 py-2.5 bg-[#4c1d95] text-white rounded-xl font-bold shadow-lg hover:bg-[#3b1675] transition-all flex items-center gap-2 transform active:scale-95"
+              onClick={() => navigate(`/tasks/new?project=${selectedProjectId}&client=${selectedClientId}`)}
             >
-              + Nova Tarefa
+              <CheckSquare className="w-4 h-4" />
+              Criar Tarefa
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-8">
             {projectTasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <CheckSquare className="w-12 h-12 mb-4 text-slate-300" />
-                <p>Nenhuma tarefa neste projeto.</p>
+                <p>Nenhuma tarefa criada por você neste projeto.</p>
+                <button
+                  className="mt-4 text-[#4c1d95] font-bold hover:underline"
+                  onClick={() => navigate(`/tasks/new?project=${selectedProjectId}&client=${selectedClientId}`)}
+                >
+                  Criar sua primeira tarefa agora
+                </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* TODO */}
-                <div className="space-y-3">
-                  <h3 className="font-bold text-slate-700 text-sm">A Fazer ({projectTasksByStatus.Todo.length})</h3>
-                  <div className="space-y-2">
-                    {projectTasksByStatus.Todo.map(task => (
-                      <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-                    ))}
-                  </div>
-                </div>
-
-                {/* EM PROGRESSO */}
-                <div className="space-y-3">
-                  <h3 className="font-bold text-slate-700 text-sm">Em Progresso ({projectTasksByStatus.InProgress.length})</h3>
-                  <div className="space-y-2">
-                    {projectTasksByStatus.InProgress.map(task => (
-                      <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-                    ))}
-                  </div>
-                </div>
-
-                {/* REVISÃO */}
-                <div className="space-y-3">
-                  <h3 className="font-bold text-slate-700 text-sm">Revisão ({projectTasksByStatus.Review.length})</h3>
-                  <div className="space-y-2">
-                    {projectTasksByStatus.Review.map(task => (
-                      <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-                    ))}
-                  </div>
-                </div>
-
-                {/* CONCLUÍDAS */}
-                <div className="space-y-3">
-                  <h3 className="font-bold text-slate-700 text-sm">Concluídas ({projectTasksByStatus.Done.length})</h3>
-                  <div className="space-y-2">
-                    {projectTasksByStatus.Done.map(task => (
-                      <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-                    ))}
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {projectTasks.map(task => (
+                  <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
+                ))}
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
