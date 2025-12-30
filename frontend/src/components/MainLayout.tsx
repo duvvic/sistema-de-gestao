@@ -116,14 +116,14 @@ const MainLayout: React.FC = () => {
         },
         exit: (dir: string) => {
             // Forward: Sai pela esquerda (fundo), z-index baixo
-            if (dir === 'forward') return { x: '-20%', opacity: 0.8, position: 'absolute', width: '100%', height: '100%', zIndex: 0 };
+            if (dir === 'forward') return { x: '-20%', opacity: 0.8, position: 'absolute', width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' };
             // Back: Sai pela direita (frente), z-index alto
-            if (dir === 'back') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%', zIndex: 50 };
+            if (dir === 'back') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%', zIndex: 50, pointerEvents: 'none' };
 
-            if (dir === 'menu-down') return { y: '15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
-            if (dir === 'menu-up') return { y: '-15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
+            if (dir === 'menu-down') return { y: '15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' };
+            if (dir === 'menu-up') return { y: '-15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' };
 
-            return { opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
+            return { opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' };
         }
     };
 

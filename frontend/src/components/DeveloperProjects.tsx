@@ -23,8 +23,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
   };
 
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-left hover:bg-white hover:border-[#4c1d95]/30 hover:shadow-md transition-all group w-full flex flex-col">
-      <div onClick={onClick} className="cursor-pointer mb-2">
+    <div
+      onClick={onClick}
+      className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-left hover:bg-white hover:border-[#4c1d95]/30 hover:shadow-md transition-all group w-full flex flex-col cursor-pointer pointer-events-auto"
+    >
+      <div className="mb-2">
         <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-[#4c1d95]">{task.title}</p>
         <div className="flex items-center gap-2 mt-2">
           <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
@@ -170,13 +173,13 @@ const DeveloperProjects: React.FC = () => {
                   .map(client => {
                     const stats = clientStats.get(client.id);
                     return (
-                      <button
+                      <div
                         key={client.id}
                         onClick={() => {
                           setSelectedClientId(client.id);
                           setCurrentView('projects');
                         }}
-                        className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-[#4c1d95]/30 transition-all text-left group"
+                        className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-[#4c1d95]/30 transition-all text-left group cursor-pointer pointer-events-auto"
                       >
                         <div className="flex items-start gap-4 mb-4">
                           <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-100 p-2 flex items-center justify-center overflow-hidden">
@@ -198,7 +201,7 @@ const DeveloperProjects: React.FC = () => {
                             {stats?.taskCount} tarefas vinculadas
                           </div>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
               </div>
@@ -252,13 +255,13 @@ const DeveloperProjects: React.FC = () => {
                   const completedTasks = projTasks.filter(t => t.status === 'Done').length;
 
                   return (
-                    <button
+                    <div
                       key={project.id}
                       onClick={() => {
                         setSelectedProjectId(project.id);
                         setCurrentView('tasks');
                       }}
-                      className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-[#4c1d95]/30 transition-all text-left group"
+                      className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-[#4c1d95]/30 transition-all text-left group cursor-pointer pointer-events-auto"
                     >
                       <div className="mb-4">
                         <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#4c1d95]">{project.name}</h3>
@@ -280,7 +283,7 @@ const DeveloperProjects: React.FC = () => {
                           />
                         </div>
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
