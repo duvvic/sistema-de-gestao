@@ -23,7 +23,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task, Client, Project, Status } from '@/types';
-import { Calendar, User as UserIcon, AlertCircle, Search, Trash2, ArrowLeft, GripVertical } from 'lucide-react';
+import { Calendar, User as UserIcon, AlertCircle, Search, Trash2, ArrowLeft, GripVertical, Clock } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
 const STATUS_COLUMNS: { id: Status; title: string; color: string; bg: string; borderColor: string }[] = [
@@ -174,6 +174,20 @@ const KanbanCard = ({
           </span>
         </div>
       </div>
+
+      {task.status !== 'Done' && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const url = `/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`;
+            onTaskClick('__NAVIGATE__:' + url);
+          }}
+          className="mt-2 w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-[11px] font-bold border border-purple-100 shadow-sm"
+        >
+          <Clock size={12} />
+          Apontar Horas
+        </button>
+      )}
     </div>
   );
 };
@@ -398,7 +412,13 @@ const KanbanBoard: React.FC = () => {
               tasks={filteredTasks.filter(t => t.status === col.id)}
               clients={clients}
               projects={projects}
-              onTaskClick={(id) => navigate(`/tasks/${id}`)}
+              onTaskClick={(id) => {
+                if (id.startsWith('__NAVIGATE__:')) {
+                  navigate(id.replace('__NAVIGATE__:', ''));
+                } else {
+                  navigate(`/tasks/${id}`);
+                }
+              }}
               onDelete={handleDeleteClick}
               isAdmin={isAdmin}
               highlightedTaskId={highlightedTaskId}

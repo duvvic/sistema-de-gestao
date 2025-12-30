@@ -54,6 +54,7 @@ const Login: React.FC = () => {
     const [otpToken, setOtpToken] = useState('');
     const [loading, setLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [emailError, setEmailError] = useState(false);
 
     // Estados para visualização de senha
     const [showPass, setShowPass] = useState(false);
@@ -285,7 +286,7 @@ const Login: React.FC = () => {
 
     const handleFirstAccess = async () => {
         if (!email) {
-            alert('Informe seu e-mail para validar seu primeiro acesso.');
+            setEmailError(true);
             return;
         }
 
@@ -398,13 +399,33 @@ const Login: React.FC = () => {
                                     <input
                                         type="email"
                                         value={effectiveEmail}
-                                        onChange={(e) => mode === 'login' && setEmail(e.target.value)}
+                                        onChange={(e) => {
+                                            if (mode === 'login') {
+                                                const val = e.target.value;
+                                                setEmail(val);
+                                                if (val.length > 0) setEmailError(false);
+                                            }
+                                        }}
                                         disabled={mode !== 'login'}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#4c1d95] focus:bg-white outline-none transition-all text-slate-800 placeholder-slate-400 disabled:bg-slate-100 font-medium"
+                                        className={`w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 rounded-2xl focus:bg-white outline-none transition-all text-slate-800 placeholder-slate-400 disabled:bg-slate-100 font-medium ${emailError
+                                            ? 'border-red-500 focus:border-red-600'
+                                            : email.length > 0
+                                                ? 'border-green-500 focus:border-green-600'
+                                                : 'border-slate-100 focus:border-[#4c1d95]'
+                                            }`}
                                         placeholder="email@nic-labs.com.br"
                                         required
                                     />
                                 </div>
+                                {emailError && (
+                                    <motion.p
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="text-red-500 text-xs mt-2 font-bold ml-2"
+                                    >
+                                        Coloque seu email
+                                    </motion.p>
+                                )}
                             </motion.div>
 
                             {/* Token OTP */}
