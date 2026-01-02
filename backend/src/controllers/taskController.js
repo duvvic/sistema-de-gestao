@@ -1,89 +1,65 @@
+const taskService = require('../services/taskService');
+
 const getTasks = async (req, res) => {
     try {
         const { projectId, clientId, userId } = req.query;
-
-        // Start building the query
-        // req.supabase is the client authenticated as the user
-        let query = req.supabase.from('fato_tarefas').select('*');
-
-        if (projectId) {
-            query = query.eq('ID_Projeto', projectId);
-        }
-        if (clientId) {
-            query = query.eq('ID_Cliente', clientId);
-        }
-        if (userId) {
-            query = query.eq('ID_Colaborador', userId);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-            throw error;
-        }
-
-        res.json(data);
+        const tasks = await taskService.getAllTasks({ projectId, clientId, userId });
+        res.json(tasks);
     } catch (error) {
         console.error('Error fetching tasks:', error);
-        res.status(500).json({ error: 'Error fetching tasks' });
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+};
+
+const getTaskById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const task = await taskService.getTaskById(id);
+        if (!task) {
+            return res.status(404).json({ error: 'Task not found' });
+        }
+        res.json(task);
+    } catch (error) {
+        console.error('Error fetching task:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 };
 
 const createTask = async (req, res) => {
     try {
-        const taskData = req.body;
-        const { data, error } = await req.supabase
-            .from('fato_tarefas_v2')
-            .insert(taskData)
-            .select()
-            .single();
-
-        if (error) throw error;
-        res.status(201).json(data);
+        const newTask = await taskService.createTask(req.body);
+        res.status(201).json(newTask);
     } catch (error) {
         console.error('Error creating task:', error);
-        res.status(500).json({ error: 'Error creating task' });
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 };
 
 const updateTask = async (req, res) => {
     try {
         const { id } = req.params;
-        const updates = req.body;
-
-        const { data, error } = await req.supabase
-            .from('fato_tarefas_v2')
-            .update(updates)
-            .eq('id_tarefa_novo', id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        res.json(data);
+        const updatedTask = await taskService.updateTask(id, req.body);
+        res.json(updatedTask);
     } catch (error) {
         console.error('Error updating task:', error);
-        res.status(500).json({ error: 'Error updating task' });
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 };
 
 const deleteTask = async (req, res) => {
     try {
         const { id } = req.params;
-        const { error } = await req.supabase
-            .from('fato_tarefas_v2')
-            .delete()
-            .eq('id_tarefa_novo', id);
-
-        if (error) throw error;
+        await taskService.deleteTask(id);
         res.status(204).send();
     } catch (error) {
         console.error('Error deleting task:', error);
-        res.status(500).json({ error: 'Error deleting task' });
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 };
 
 module.exports = {
     getTasks,
+    getTaskById,
     createTask,
     updateTask,
     deleteTask

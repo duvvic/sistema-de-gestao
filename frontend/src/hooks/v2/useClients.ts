@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchClients } from '@/services/api';
-import { supabase } from '@/services/supabaseClient';
+import { fetchClients, createClient } from '@/services/api';
 import { Client } from '@/types';
 
 export const useClients = () => {
@@ -15,18 +14,7 @@ export const useClients = () => {
     // Mutation para criar cliente
     const createClientMutation = useMutation({
         mutationFn: async (newClient: Partial<Client>) => {
-            const { data, error } = await supabase
-                .from('dim_clientes')
-                .insert([{
-                    NomeCliente: newClient.name,
-                    NewLogo: newClient.logoUrl,
-                    ativo: true
-                }])
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
+            return await createClient(newClient);
         },
         onSuccess: () => {
             // Invalida o cache e força um refetch
