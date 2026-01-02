@@ -2,7 +2,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDataController } from '@/controllers/useDataController';
+import { useTasks } from '@/hooks/v2/useTasks';
+import { useClients } from '@/hooks/v2/useClients';
+import { useProjects } from '@/hooks/v2/useProjects';
+import { useUsers } from '@/hooks/v2/useUsers';
 import { Task, Status, Priority, Impact } from '@/types';
 import { ArrowLeft, Save, Sparkles, Calendar, PieChart, Briefcase, Image as ImageIcon, User as UserIcon, StickyNote, AlertTriangle, ShieldAlert, CheckSquare } from 'lucide-react';
 import ImageEditor from './ImageEditor';
@@ -14,7 +17,11 @@ const TaskDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { tasks, clients, projects, users, createTask, updateTask } = useDataController();
+
+  const { tasks, createTask, updateTask } = useTasks();
+  const { clients } = useClients();
+  const { projects } = useProjects();
+  const { users } = useUsers();
 
   const isNew = !taskId || taskId === 'new';
   const task = !isNew ? tasks.find(t => t.id === taskId) : undefined;
@@ -131,7 +138,7 @@ const TaskDetail: React.FC = () => {
         await createTask(taskPayload);
         alert("Tarefa criada com sucesso!");
       } else if (taskId) {
-        await updateTask(taskId, taskPayload);
+        await updateTask({ taskId, updates: taskPayload });
         alert("Tarefa atualizada com sucesso!");
       }
 

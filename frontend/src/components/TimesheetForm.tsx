@@ -2,7 +2,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDataController } from '@/controllers/useDataController';
+import { useTasks } from '@/hooks/v2/useTasks';
+import { useClients } from '@/hooks/v2/useClients';
+import { useProjects } from '@/hooks/v2/useProjects';
+import { useUsers } from '@/hooks/v2/useUsers';
+import { useTimesheets } from '@/hooks/v2/useTimesheets';
 import { TimesheetEntry } from '@/types';
 import { ArrowLeft, Save, Clock, Trash2, User as UserIcon, Briefcase, CheckSquare, Calendar, AlertCircle } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
@@ -13,7 +17,12 @@ const TimesheetForm: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { users, clients, projects, tasks, timesheetEntries, createTimesheet, updateTimesheet, deleteTimesheet, updateTask } = useDataController();
+
+  const { users } = useUsers();
+  const { clients } = useClients();
+  const { projects } = useProjects();
+  const { tasks, updateTask } = useTasks();
+  const { timesheets: timesheetEntries, createTimesheet, updateTimesheet, deleteTimesheet } = useTimesheets();
 
   const isNew = !entryId || entryId === 'new';
   const initialEntry = !isNew ? timesheetEntries.find(e => e.id === entryId) : null;
@@ -155,14 +164,14 @@ const TimesheetForm: React.FC = () => {
     try {
       // Update task progress if needed
       if (progressToUpdate !== undefined && entry.taskId) {
-        await updateTask(entry.taskId, { progress: progressToUpdate });
+        await updateTask({ taskId: entry.taskId, updates: { progress: progressToUpdate } });
       }
 
       if (isNew) {
         await createTimesheet(entry);
         alert("Apontamento criado com sucesso!");
       } else {
-        await updateTimesheet(entry);
+        await updateTimesheet({ ...entry, id: entry.id });
         alert("Apontamento atualizado!");
       }
 
@@ -179,7 +188,7 @@ const TimesheetForm: React.FC = () => {
     if (!pendingSave) return;
     // Mark as Done (100%)
     if (pendingSave.taskId) {
-      await updateTask(pendingSave.taskId, { progress: 100, status: 'Done', actualDelivery: new Date().toISOString() });
+      await updateTask({ taskId: pendingSave.taskId, updates: { progress: 100, status: 'Done', actualDelivery: new Date().toISOString() } });
     }
     await saveEntry(pendingSave);
     setCompletionModalOpen(false);

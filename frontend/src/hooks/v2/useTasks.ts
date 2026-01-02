@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchTasks, fetchUsers, DbTaskRow } from '@/services/api';
-import { supabase } from '@/services/supabaseClient';
+import { fetchTasks, fetchUsers, updateTask, deleteTask, createTask, DbTaskRow } from '@/services/api';
 import { Task, Status, Priority, Impact } from '@/types';
 
 // =====================================================
@@ -125,14 +124,9 @@ export const useTasks = (filters?: { projectId?: string; userId?: string; client
             if (updates.progress !== undefined) payload.Porcentagem = updates.progress;
             if (updates.title) payload.Afazer = updates.title;
             if (updates.actualDelivery) payload.entrega_real = updates.actualDelivery;
-            // Adicione outros campos conforme necessário
+            // Add other fields as necessary mapped to DB columns
 
-            const { error } = await supabase
-                .from('fato_tarefas_v2')
-                .update(payload)
-                .eq('id_tarefa_novo', Number(taskId)); // Usa o ID numérico do banco
-
-            if (error) throw error;
+            await updateTask(taskId, payload);
         },
         onMutate: async ({ taskId, updates }) => {
             await queryClient.cancelQueries({ queryKey: ['tasks'] });
@@ -158,12 +152,33 @@ export const useTasks = (filters?: { projectId?: string; userId?: string; client
 
     const deleteTaskMutation = useMutation({
         mutationFn: async (taskId: string) => {
-            const { error } = await supabase
-                .from('fato_tarefas_v2')
-                .delete()
-                .eq('id_tarefa_novo', Number(taskId));
+            await deleteTask(taskId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        }
+    });
 
-            if (error) throw error;
+    const createTaskMutation = useMutation({
+        mutationFn: async (taskData: Partial<Task>) => {
+            const payload: any = {
+                ...taskData,
+                Afazer: taskData.title,
+                ID_Projeto: Number(taskData.projectId),
+                ID_Cliente: Number(taskData.clientId),
+                StatusTarefa: taskData.status,
+                Prioridade: taskData.priority,
+                Impacto: taskData.impact,
+                Riscos: taskData.risks,
+                "Observações": taskData.notes,
+                attachment: taskData.attachment,
+                description: taskData.description,
+                entrega_estimada: taskData.estimatedDelivery,
+                ID_Colaborador: taskData.developerId ? Number(taskData.developerId) : null,
+                Porcentagem: taskData.progress
+            };
+
+            await createTask(payload);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -174,8 +189,9 @@ export const useTasks = (filters?: { projectId?: string; userId?: string; client
         tasks: tasksQuery.data || [],
         isLoading: tasksQuery.isLoading,
         isError: tasksQuery.isError,
+        isUpdating: updateTaskMutation.isPending || createTaskMutation.isPending,
+        createTask: createTaskMutation.mutateAsync,
         updateTask: updateTaskMutation.mutateAsync,
         deleteTask: deleteTaskMutation.mutateAsync,
-        isUpdating: updateTaskMutation.isPending,
     };
 };
