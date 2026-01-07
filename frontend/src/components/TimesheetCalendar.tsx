@@ -170,7 +170,7 @@ const TimesheetCalendar: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col p-6 md:p-8 overflow-hidden gap-6" style={{ backgroundColor: 'var(--bgApp)' }}>
+    <div className="h-full flex flex-col p-6 md:p-8 overflow-hidden gap-6" style={{ backgroundColor: 'var(--bg)' }}>
 
       {/* 1. SELEÇÃO DE EQUIPE (ADMIN) */}
       {isAdmin && (
@@ -178,11 +178,11 @@ const TimesheetCalendar: React.FC = () => {
           style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-              <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
-                <Users className="w-5 h-5" style={{ color: 'var(--brand)' }} />
+              <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                <Users className="w-5 h-5" style={{ color: 'var(--primary)' }} />
                 Visão da Equipe
               </h2>
-              <p className="text-xs font-medium mt-1" style={{ color: 'var(--textMuted)' }}>
+              <p className="text-xs font-medium mt-1" style={{ color: 'var(--muted)' }}>
                 Selecione um colaborador para visualizar o ponto
               </p>
             </div>
@@ -195,13 +195,13 @@ const TimesheetCalendar: React.FC = () => {
                             ${isDropdownOpen ? 'ring-2' : ''}
                         `}
                 style={{
-                  backgroundColor: isDropdownOpen ? 'var(--surface)' : 'var(--bgApp)',
-                  borderColor: isDropdownOpen ? 'var(--brand)' : 'var(--border)',
-                  boxShadow: isDropdownOpen ? '0 0 0 2px rgba(76, 29, 149, 0.1)' : 'none'
+                  backgroundColor: isDropdownOpen ? 'var(--surface)' : 'var(--surface-2)',
+                  borderColor: isDropdownOpen ? 'var(--primary)' : 'var(--border)',
+                  boxShadow: isDropdownOpen ? 'var(--shadow-md)' : 'none'
                 }}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                <Search className="w-5 h-5" style={{ color: 'var(--textMuted)' }} />
+                <Search className="w-5 h-5" style={{ color: 'var(--muted)' }} />
                 <input
                   type="text"
                   placeholder="Buscar colaborador..."
@@ -211,28 +211,28 @@ const TimesheetCalendar: React.FC = () => {
                   onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }}
                   onClick={(e) => e.stopPropagation()}
                 />
-                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--textMuted)' }} />
+                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--muted)' }} />
               </div>
 
               {/* Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 border rounded-xl shadow-xl max-h-[320px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200"
+                <div className="absolute top-full left-0 right-0 mt-2 border rounded-xl shadow-xl max-h-[320px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200 z-30"
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                   <div className="p-2 space-y-1">
                     {searchedUsers.length === 0 ? (
-                      <div className="p-4 text-center text-sm italic" style={{ color: 'var(--textMuted)' }}>Nenhum colaborador encontrado</div>
+                      <div className="p-4 text-center text-sm italic" style={{ color: 'var(--muted)' }}>Nenhum colaborador encontrado</div>
                     ) : (
                       searchedUsers.map(user => (
                         <button
                           key={user.id}
                           onClick={() => { setSelectedUserId(user.id); setIsDropdownOpen(false); setSearchTerm(''); }}
                           className={`
-                                                w-full flex items-center gap-3 p-3 rounded-lg transition-colors group
-                                            `}
+                                                 w-full flex items-center gap-3 p-3 rounded-lg transition-colors group
+                                             `}
                           style={{
-                            backgroundColor: user.id === selectedUserId ? 'var(--bgApp)' : 'transparent'
+                            backgroundColor: user.id === selectedUserId ? 'var(--surface-2)' : 'transparent'
                           }}
-                          onMouseEnter={(e) => { if (user.id !== selectedUserId) e.currentTarget.style.backgroundColor = 'var(--surfaceHover)' }}
+                          onMouseEnter={(e) => { if (user.id !== selectedUserId) e.currentTarget.style.backgroundColor = 'var(--surface-hover)' }}
                           onMouseLeave={(e) => { if (user.id !== selectedUserId) e.currentTarget.style.backgroundColor = 'transparent' }}
                         >
                           <div className="relative flex-shrink-0">
@@ -240,7 +240,7 @@ const TimesheetCalendar: React.FC = () => {
                               <img src={user.avatarUrl} className="w-9 h-9 rounded-full object-cover border" style={{ borderColor: 'var(--border)' }} alt="" />
                             ) : (
                               <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs border"
-                                style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--textMuted)' }}>
+                                style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
                                 {user.name.charAt(0)}
                               </div>
                             )}
@@ -249,15 +249,15 @@ const TimesheetCalendar: React.FC = () => {
                             )}
                           </div>
                           <div className="text-left flex-1 min-w-0">
-                            <p className={`text-sm font-bold truncate group-hover:text-[var(--brand)]`}
-                              style={{ color: user.id === selectedUserId ? 'var(--brand)' : 'var(--textTitle)' }}>
+                            <p className={`text-sm font-bold truncate group-hover:text-[var(--primary)]`}
+                              style={{ color: user.id === selectedUserId ? 'var(--primary)' : 'var(--text)' }}>
                               {user.name}
                             </p>
                             <p className={`text-[10px] font-medium truncate ${user.missing > 2 ? 'text-red-500' : 'text-emerald-600'}`}>
                               {user.missing > 2 ? `${user.missing} pendências` : 'Em dia'}
                             </p>
                           </div>
-                          {user.id === selectedUserId && <Check className="w-4 h-4" style={{ color: 'var(--brand)' }} />}
+                          {user.id === selectedUserId && <Check className="w-4 h-4" style={{ color: 'var(--primary)' }} />}
                         </button>
                       ))
                     )}
@@ -275,15 +275,15 @@ const TimesheetCalendar: React.FC = () => {
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--brand)' }}></div>
-              <p className="animate-pulse" style={{ color: 'var(--textMuted)' }}>Carregando calendário...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--primary)' }}></div>
+              <p className="animate-pulse" style={{ color: 'var(--muted)' }}>Carregando calendário...</p>
             </div>
           </div>
         ) : (
           <>
             {/* Header do Calendário */}
             <div className="px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 text-white flex-shrink-0"
-              style={{ background: 'linear-gradient(to right, var(--brand), var(--brandHover))' }}>
+              style={{ background: 'linear-gradient(to right, var(--primary), var(--primary-hover))' }}>
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10">
                   <Calendar className="w-5 h-5 text-white" />
@@ -292,7 +292,7 @@ const TimesheetCalendar: React.FC = () => {
                   <h2 className="text-lg font-bold flex items-center gap-2">
                     {isAdmin ? processedUsers.find(u => u.id === targetUserId)?.name || 'Usuário' : 'Minhas Horas'}
                   </h2>
-                  <div className="flex gap-4 text-xs font-medium text-purple-200">
+                  <div className="flex gap-4 text-xs font-medium text-white/70">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" /> Total: {selectedUserStats.totalHours.toFixed(1)}h
                     </span>
@@ -306,7 +306,7 @@ const TimesheetCalendar: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="flex bg-black/20 p-1 rounded-lg backdrop-blur-md">
                   <button onClick={navPrevMonth} className="p-1.5 hover:bg-white/10 rounded-md text-white transition-colors"><ChevronLeft className="w-5 h-5" /></button>
-                  <span className="px-3 font-bold text-sm flex items-center min-w-[100px] justify-center">{monthNames[month]} {year}</span>
+                  <span className="px-3 font-bold text-sm flex items-center min-w-[100px] justify-center text-white">{monthNames[month]} {year}</span>
                   <button
                     onClick={navNextMonth}
                     disabled={!canGoNext}
@@ -318,8 +318,8 @@ const TimesheetCalendar: React.FC = () => {
 
                 <button
                   onClick={() => navigate(`/timesheet/new?date=${new Date().toISOString().split('T')[0]}${targetUserId ? `&userId=${targetUserId}` : ''}`)}
-                  className="bg-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg transition-all flex items-center gap-2 hover:bg-purple-50"
-                  style={{ color: 'var(--brand)' }}
+                  className="bg-white px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 hover:bg-white/90"
+                  style={{ color: 'var(--primary)' }}
                 >
                   <Plus className="w-4 h-4" />
                   <span className="hidden sm:inline">Lançar</span>
@@ -329,10 +329,10 @@ const TimesheetCalendar: React.FC = () => {
 
             {/* Grid Days Header (Sticky) */}
             <div className="grid grid-cols-7 border-b flex-shrink-0 sticky top-0 z-10"
-              style={{ backgroundColor: 'var(--surfaceHover)', borderColor: 'var(--border)' }}>
+              style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
               {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((day, idx) => (
-                <div key={day} className={`py-3 text-center text-[11px] font-bold tracking-widest ${idx === 0 || idx === 6 ? 'text-red-500/70' : 'text-slate-500'}`}
-                  style={{ color: (idx === 0 || idx === 6) ? undefined : 'var(--textMuted)' }}>
+                <div key={day} className={`py-3 text-center text-[11px] font-bold tracking-widest`}
+                  style={{ color: (idx === 0 || idx === 6) ? 'var(--danger)' : 'var(--muted)' }}>
                   {day}
                 </div>
               ))}
@@ -343,7 +343,7 @@ const TimesheetCalendar: React.FC = () => {
               <div className="grid grid-cols-7 min-h-full auto-rows-fr gap-[1px] border-b" style={{ backgroundColor: 'var(--border)', borderColor: 'var(--border)' }}>
                 {/* Empty Slots */}
                 {Array.from({ length: firstDay }).map((_, i) => (
-                  <div key={`empty-${i}`} className="min-h-[100px]" style={{ backgroundColor: 'var(--bgApp)' }}></div>
+                  <div key={`empty-${i}`} className="min-h-[100px]" style={{ backgroundColor: 'var(--surface-2)', opacity: 0.5 }}></div>
                 ))}
 
                 {/* Days */}
@@ -365,14 +365,15 @@ const TimesheetCalendar: React.FC = () => {
                                         p-2 relative cursor-pointer min-h-[120px] transition-all group hover:z-10 hover:shadow-xl
                                     `}
                       style={{
-                        backgroundColor: isToday ? 'var(--brandHover)' : (isWeekend ? 'var(--surfaceHover)' : 'var(--surface)')
+                        backgroundColor: isToday ? 'var(--primary-soft)' : (isWeekend ? 'var(--surface-2)' : 'var(--surface)')
                       }}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${isToday ? 'bg-[#4c1d95] text-white shadow-md ring-2 ring-purple-200' : 'text-slate-500 group-hover:text-slate-800'}`}
+                        <span className={`text-sm font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors`}
                           style={{
-                            backgroundColor: isToday ? 'var(--brand)' : undefined,
-                            color: isToday ? 'white' : 'var(--textMuted)'
+                            backgroundColor: isToday ? 'var(--primary)' : 'transparent',
+                            color: isToday ? 'white' : 'var(--muted)',
+                            boxShadow: isToday ? 'var(--shadow-md)' : 'none'
                           }}>
                           {d}
                         </span>
@@ -396,16 +397,16 @@ const TimesheetCalendar: React.FC = () => {
                               style={{
                                 backgroundColor: 'var(--surface)',
                                 borderColor: 'var(--border)',
-                                color: 'var(--textMuted)'
+                                color: 'var(--text)'
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--brand)';
-                                e.currentTarget.style.color = 'var(--brand)';
-                                e.currentTarget.style.backgroundColor = 'var(--surfaceHover)';
+                                e.currentTarget.style.borderColor = 'var(--primary)';
+                                e.currentTarget.style.color = 'var(--primary)';
+                                e.currentTarget.style.backgroundColor = 'var(--surface-hover)';
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.borderColor = 'var(--border)';
-                                e.currentTarget.style.color = 'var(--textMuted)';
+                                e.currentTarget.style.color = 'var(--text)';
                                 e.currentTarget.style.backgroundColor = 'var(--surface)';
                               }}
                             >
@@ -416,7 +417,7 @@ const TimesheetCalendar: React.FC = () => {
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEntryToDelete(entry); setDeleteModalOpen(true); }}
                                 className="opacity-0 group-hover/item:opacity-100 transition-opacity hover:text-red-500"
-                                style={{ color: 'var(--textMuted)' }}
+                                style={{ color: 'var(--muted)' }}
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
@@ -427,8 +428,8 @@ const TimesheetCalendar: React.FC = () => {
 
                       {!hasEntries && !isWeekend && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
-                          <div className="bg-purple-50 p-2 rounded-full shadow-sm dark:bg-purple-900/40">
-                            <Plus className="w-5 h-5 text-purple-400" />
+                          <div className="bg-primary-soft p-2 rounded-full shadow-sm" style={{ backgroundColor: 'var(--primary-soft)' }}>
+                            <Plus className="w-5 h-5 text-primary" style={{ color: 'var(--primary)' }} />
                           </div>
                         </div>
                       )}

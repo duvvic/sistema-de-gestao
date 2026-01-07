@@ -123,12 +123,12 @@ const TeamList: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col rounded-2xl shadow-sm border overflow-hidden"
-      style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)' }}>
+      style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
       <div className="px-6 py-5 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sticky top-0 z-10"
         style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--textTitle)' }}>{showInactive ? 'Colaboradores Desligados' : 'Equipe'}</h1>
-          <p className="text-sm" style={{ color: 'var(--textMuted)' }}>{showInactive ? 'Colaboradores inativos' : 'Colaboradores, papéis e carga de tarefas'}</p>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>{showInactive ? 'Colaboradores Desligados' : 'Equipe'}</h1>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>{showInactive ? 'Colaboradores inativos' : 'Colaboradores, papéis e carga de tarefas'}</p>
         </div>
 
         <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
@@ -136,9 +136,9 @@ const TeamList: React.FC = () => {
             <button
               onClick={() => navigate('/admin/team/new')}
               className="px-4 py-2 text-white rounded-xl font-semibold text-sm shadow flex items-center gap-2 transition-colors"
-              style={{ backgroundColor: 'var(--brand)' }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brandHover)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--brand)'}
+              style={{ backgroundColor: 'var(--primary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
             >
               <Plus className="w-4 h-4" />
               Adicionar
@@ -149,9 +149,9 @@ const TeamList: React.FC = () => {
             <select
               value={selectedCargo}
               onChange={(e) => setSelectedCargo(e.target.value)}
-              className="w-full appearance-none pl-3 pr-9 py-2 rounded-xl border focus:ring-2 focus:ring-[#4c1d95] outline-none text-sm"
+              className="w-full appearance-none pl-3 pr-9 py-2 rounded-xl border focus:ring-2 focus:ring-[var(--ring)] outline-none text-sm shadow-sm"
               style={{
-                backgroundColor: 'var(--bgApp)',
+                backgroundColor: 'var(--surface-2)',
                 borderColor: 'var(--border)',
                 color: 'var(--text)'
               }}
@@ -159,19 +159,19 @@ const TeamList: React.FC = () => {
               <option value="Todos">Todos os cargos</option>
               {cargoOptions.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <Briefcase className="absolute right-3 top-2.5 w-4 h-4 pointer-events-none" style={{ color: 'var(--textMuted)' }} />
+            <Briefcase className="absolute right-3 top-2.5 w-4 h-4 pointer-events-none" style={{ color: 'var(--muted)' }} />
           </div>
 
           <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-2.5 w-4 h-4" style={{ color: 'var(--textMuted)' }} />
+            <Search className="absolute left-3 top-2.5 w-4 h-4" style={{ color: 'var(--muted)' }} />
             <input
               type="text"
               placeholder="Pesquisar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none text-sm"
+              className="w-full pl-9 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none text-sm shadow-sm"
               style={{
-                backgroundColor: 'var(--bgApp)',
+                backgroundColor: 'var(--surface-2)',
                 borderColor: 'var(--border)',
                 color: 'var(--text)'
               }}
@@ -183,17 +183,25 @@ const TeamList: React.FC = () => {
       {/* Status Filter Bar */}
       {!showInactive && (
         <div className="px-6 py-3 border-b flex gap-2 overflow-x-auto"
-          style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)' }}>
-          <button onClick={() => setStatusFilter('Todos')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors border`}
+          style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+          <button onClick={() => setStatusFilter('Todos')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors border shadow-sm`}
             style={{
-              backgroundColor: statusFilter === 'Todos' ? 'var(--brand)' : 'var(--surface)',
+              backgroundColor: statusFilter === 'Todos' ? 'var(--primary)' : 'var(--surface)',
               color: statusFilter === 'Todos' ? 'white' : 'var(--text)',
               borderColor: statusFilter === 'Todos' ? 'transparent' : 'var(--border)'
             }}>Todos</button>
-          <button onClick={() => setStatusFilter('Livre')} className={`px-3 py-1 rounded-lg text-xs font-bold border ${statusFilter === 'Livre' ? 'bg-green-500 text-white' : 'bg-white dark:bg-transparent text-green-600 dark:text-green-400'}`}
-            style={{ backgroundColor: statusFilter === 'Livre' ? undefined : 'var(--surface)', borderColor: 'var(--border)' }}>Livres</button>
-          <button onClick={() => setStatusFilter('Ocupado')} className={`px-3 py-1 rounded-lg text-xs font-bold border ${statusFilter === 'Ocupado' ? 'bg-amber-500 text-white' : 'bg-white dark:bg-transparent text-amber-600 dark:text-amber-400'}`}
-            style={{ backgroundColor: statusFilter === 'Ocupado' ? undefined : 'var(--surface)', borderColor: 'var(--border)' }}>Ocupados</button>
+          <button onClick={() => setStatusFilter('Livre')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border shadow-sm transition-colors`}
+            style={{
+              backgroundColor: statusFilter === 'Livre' ? 'var(--success)' : 'var(--surface)',
+              color: statusFilter === 'Livre' ? 'white' : 'var(--text)',
+              borderColor: statusFilter === 'Livre' ? 'transparent' : 'var(--border)'
+            }}>Livres</button>
+          <button onClick={() => setStatusFilter('Ocupado')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border shadow-sm transition-colors`}
+            style={{
+              backgroundColor: statusFilter === 'Ocupado' ? 'var(--warning)' : 'var(--surface)',
+              color: statusFilter === 'Ocupado' ? 'white' : 'var(--text)',
+              borderColor: statusFilter === 'Ocupado' ? 'transparent' : 'var(--border)'
+            }}>Ocupados</button>
         </div>
       )}
 
@@ -201,12 +209,12 @@ const TeamList: React.FC = () => {
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--brand)' }}></div>
-              <p className="animate-pulse" style={{ color: 'var(--textMuted)' }}>Carregando equipe...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--primary)' }}></div>
+              <p className="animate-pulse" style={{ color: 'var(--muted)' }}>Carregando equipe...</p>
             </div>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="flex items-center justify-center h-full" style={{ color: 'var(--textMuted)' }}>
+          <div className="flex items-center justify-center h-full" style={{ color: 'var(--muted)' }}>
             <div className="text-center">
               <UserIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
               <p className="text-lg">Nenhum colaborador encontrado</p>
@@ -229,13 +237,13 @@ const TeamList: React.FC = () => {
                     backgroundColor: 'var(--surface)',
                     borderColor: 'var(--border)'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand)'}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
                   onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
                   onClick={() => navigate(`/admin/team/${user.id}`)}
                 >
                   <div className="flex items-center gap-4 mb-4">
                     <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 border-white shadow-sm overflow-hidden font-bold text-xl"
-                      style={{ backgroundColor: 'var(--bgApp)', color: 'var(--textMuted)' }}>
+                      style={{ backgroundColor: 'var(--surface-2)', color: 'var(--muted)' }}>
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                       ) : (
@@ -243,14 +251,14 @@ const TeamList: React.FC = () => {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-base font-bold truncate" style={{ color: 'var(--textTitle)' }}>{user.name}</h3>
+                      <h3 className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{user.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase`}
-                          style={{ backgroundColor: 'var(--bgApp)', color: 'var(--text)' }}>
+                          style={{ backgroundColor: 'var(--primary-soft)', color: 'var(--primary)' }}>
                           {user.role === 'admin' ? 'Admin' : 'Time'}
                         </span>
                         {user.cargo && (
-                          <p className="text-xs font-semibold truncate" style={{ color: 'var(--brand)' }}>{user.cargo}</p>
+                          <p className="text-xs font-semibold truncate" style={{ color: 'var(--primary)' }}>{user.cargo}</p>
                         )}
                       </div>
                     </div>
@@ -258,22 +266,22 @@ const TeamList: React.FC = () => {
 
                   <div className="space-y-2 text-sm mb-4" style={{ color: 'var(--text)' }}>
                     <div className="flex items-center gap-2 text-xs">
-                      <Mail className="w-3.5 h-3.5" style={{ color: 'var(--textMuted)' }} />
+                      <Mail className="w-3.5 h-3.5" style={{ color: 'var(--muted)' }} />
                       <span className="truncate">{user.email}</span>
                     </div>
 
                     <div className="flex flex-wrap gap-2 text-xs font-semibold mt-2">
                       {delayedTasks.length > 0 && (
-                        <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-100 flex items-center gap-1 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800">
+                        <span className="bg-red-50 text-red-600 px-2.5 py-1 rounded-full border border-red-100 flex items-center gap-1 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800">
                           <AlertCircle className="w-3 h-3" /> {delayedTasks.length} atrasos
                         </span>
                       )}
                       {userActiveTasks.length === 0 ? (
-                        <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded-full border border-green-100 flex items-center gap-1 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800">
+                        <span className="bg-green-50 text-green-600 px-2.5 py-1 rounded-full border border-green-100 flex items-center gap-1 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800">
                           <CheckSquare className="w-3 h-3" /> Livre
                         </span>
                       ) : (
-                        <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full border border-amber-100 flex items-center gap-1 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800">
+                        <span className="bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full border border-amber-100 flex items-center gap-1 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800">
                           <AlertCircle className="w-3 h-3" /> {userActiveTasks.length} tarefas
                         </span>
                       )}
@@ -284,16 +292,16 @@ const TeamList: React.FC = () => {
                     style={{ borderColor: 'var(--border)' }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/admin/team/${user.id}/edit`); }}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg"
-                      style={{ color: 'var(--brand)' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surfaceHover)'}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                      style={{ color: 'var(--primary)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                       Editar
                     </button>
                     <button
                       onClick={(e) => handleDeleteClick(e, user)}
-                      className="text-xs font-bold text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                      className="text-xs font-bold text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     >
                       Excluir
                     </button>

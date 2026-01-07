@@ -102,76 +102,98 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="h-full flex flex-col rounded-2xl shadow-md border overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
       {/* Header */}
-      <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-4 bg-white sticky top-0 z-10">
-        <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+      <div className="px-8 py-6 border-b flex items-center justify-between sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-4">
-          <img src={client.logoUrl} alt={client.name} className="w-12 h-12 rounded-lg object-contain bg-slate-50 border border-slate-200 p-1" />
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">{client.name} - Resumo de Horas</h1>
-            <p className="text-sm text-slate-500">Total Acumulado: <span className="font-bold text-[#4c1d95]">{totalClientHours.toFixed(1)}h</span></p>
+          <button
+            onClick={onBack}
+            className="p-2 rounded-full transition-colors"
+            style={{ color: 'var(--muted)' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl border p-1 flex items-center justify-center bg-white shadow-sm">
+              <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>{client.name} - Resumo de Horas</h1>
+              <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>
+                Total Acumulado: <span className="font-black" style={{ color: 'var(--primary)' }}>{totalClientHours.toFixed(1)}h</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
+      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8" style={{ backgroundColor: 'var(--bg)' }}>
 
         {/* SEÇÃO: Colaboradores */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Users className="w-5 h-5 text-[#4c1d95]" />
+          <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider" style={{ color: 'var(--text)' }}>
+            <Users className="w-4 h-4" style={{ color: 'var(--primary)' }} />
             Colaboradores ({userStats.length})
           </h2>
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-3">
             {userStats.map(user => (
               <div
                 key={user.userId}
-                className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden"
+                className="rounded-2xl border shadow-sm overflow-hidden transition-all"
+                style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
               >
                 <button
                   onClick={() => toggleUserExpand(user.userId)}
-                  className="w-full px-4 py-3 flex justify-between items-center hover:bg-slate-100 transition-colors text-left"
+                  className="w-full px-5 py-4 flex justify-between items-center transition-colors text-left"
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <div>
-                    <p className="font-semibold text-slate-800">{user.userName}</p>
-                    <p className="text-xs text-slate-500">{user.entries.length} apontamentos</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm"
+                      style={{ backgroundColor: 'var(--primary)' }}>
+                      {user.userName.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold" style={{ color: 'var(--text)' }}>{user.userName}</p>
+                      <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{user.entries.length} apontamentos</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-[#4c1d95] text-lg">{user.totalHours.toFixed(1)}h</span>
+                  <div className="flex items-center gap-4">
+                    <span className="font-black text-xl" style={{ color: 'var(--primary)' }}>{user.totalHours.toFixed(1)}h</span>
                     {expandedUsers.has(user.userId) ? (
-                      <ChevronUp className="w-5 h-5 text-slate-400" />
+                      <ChevronUp className="w-5 h-5" style={{ color: 'var(--muted)' }} />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                      <ChevronDown className="w-5 h-5" style={{ color: 'var(--muted)' }} />
                     )}
                   </div>
                 </button>
 
                 {/* Expandido: Detalhes do Usuário */}
                 {expandedUsers.has(user.userId) && (
-                  <div className="bg-white border-t border-slate-200 p-4 space-y-3">
+                  <div className="border-t p-4 space-y-3 shadow-inner" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                     {user.entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
                       <div
                         key={entry.id}
-                        className="flex items-center justify-between text-sm p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer group"
+                        className="flex items-center justify-between text-sm p-3 rounded-xl border shadow-sm transition-all cursor-pointer group hover:scale-[1.01]"
+                        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                         onClick={() => onEditEntry(entry)}
                       >
-                        <div className="flex items-center gap-4 flex-1">
-                          <div className="flex items-center gap-1.5 w-24 text-slate-500">
+                        <div className="flex items-center gap-6 flex-1">
+                          <div className="flex items-center gap-2 w-28 font-bold" style={{ color: 'var(--muted)' }}>
                             <Calendar className="w-3.5 h-3.5" />
-                            {new Date(entry.date).toLocaleDateString('pt-BR')}
+                            <span className="text-[11px] font-mono">{new Date(entry.date).toLocaleDateString('pt-BR')}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 w-32 text-slate-500">
+                          <div className="flex items-center gap-2 w-36 font-bold" style={{ color: 'var(--muted)' }}>
                             <Clock className="w-3.5 h-3.5" />
-                            {entry.startTime} - {entry.endTime}
+                            <span className="text-[11px] font-mono">{entry.startTime} - {entry.endTime}</span>
                           </div>
-                          <span className="text-slate-600 italic truncate max-w-[250px]">{entry.description || '-'}</span>
+                          <span className="italic truncate max-w-[250px]" style={{ color: 'var(--text)' }}>{entry.description || '-'}</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-slate-700 w-16 text-right">{entry.totalHours.toFixed(1)}h</span>
-                          <Edit2 className="w-4 h-4 text-slate-300 group-hover:text-[#4c1d95]" />
+                        <div className="flex items-center gap-4">
+                          <span className="font-black w-16 text-right" style={{ color: 'var(--text)' }}>{entry.totalHours.toFixed(1)}h</span>
+                          <Edit2 className="w-4 h-4 transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--muted)' }} />
                         </div>
                       </div>
                     ))}
@@ -184,37 +206,46 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
 
         {/* SEÇÃO: Projetos */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-[#4c1d95]" />
+          <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider" style={{ color: 'var(--text)' }}>
+            <Briefcase className="w-4 h-4" style={{ color: 'var(--primary)' }} />
             Projetos ({projectStats.length})
           </h2>
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-3">
             {projectStats.map(project => (
               <div
                 key={project.projectId}
-                className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden"
+                className="rounded-2xl border shadow-sm overflow-hidden transition-all"
+                style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
               >
                 <button
                   onClick={() => toggleProjectExpand(project.projectId)}
-                  className="w-full px-4 py-3 flex justify-between items-center hover:bg-slate-100 transition-colors text-left"
+                  className="w-full px-5 py-4 flex justify-between items-center transition-colors text-left"
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <div>
-                    <p className="font-semibold text-slate-800">{project.projectName}</p>
-                    <p className="text-xs text-slate-500">{project.entries.length} apontamentos</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-[var(--primary)] shadow-sm border"
+                      style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-bold" style={{ color: 'var(--text)' }}>{project.projectName}</p>
+                      <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{project.entries.length} apontamentos</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-[#4c1d95] text-lg">{project.totalHours.toFixed(1)}h</span>
+                  <div className="flex items-center gap-4">
+                    <span className="font-black text-xl" style={{ color: 'var(--primary)' }}>{project.totalHours.toFixed(1)}h</span>
                     {expandedProjects.has(project.projectId) ? (
-                      <ChevronUp className="w-5 h-5 text-slate-400" />
+                      <ChevronUp className="w-5 h-5" style={{ color: 'var(--muted)' }} />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                      <ChevronDown className="w-5 h-5" style={{ color: 'var(--muted)' }} />
                     )}
                   </div>
                 </button>
 
                 {/* Expandido: Tarefas do Projeto */}
                 {expandedProjects.has(project.projectId) && (
-                  <div className="bg-white border-t border-slate-200 p-4 space-y-2">
+                  <div className="border-t p-4 space-y-3 shadow-inner" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                     {(() => {
                       // Agrupar apontamentos por tarefa
                       const taskGroups = Array.from(new Set(project.entries.map(e => e.taskId))).map((taskId: string) => {
@@ -230,51 +261,55 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                       }).sort((a, b) => b.totalHours - a.totalHours);
 
                       return taskGroups.map(taskGroup => (
-                        <div key={taskGroup.taskId} className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                        <div key={taskGroup.taskId} className="rounded-xl border shadow-sm overflow-hidden"
+                          style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                           <button
                             onClick={() => toggleTaskExpand(taskGroup.taskId)}
-                            className="w-full px-4 py-2.5 flex justify-between items-center hover:bg-slate-100 transition-colors text-left"
+                            className="w-full px-4 py-3 flex justify-between items-center transition-colors text-left"
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                           >
                             <div className="flex items-center gap-3">
-                              <CheckSquare className="w-4 h-4 text-purple-600" />
+                              <CheckSquare className="w-4 h-4" style={{ color: 'var(--primary)' }} />
                               <div>
-                                <p className="font-semibold text-slate-700 text-sm">{taskGroup.taskTitle}</p>
-                                <p className="text-xs text-slate-500">{taskGroup.entries.length} apontamentos</p>
+                                <p className="font-bold text-sm" style={{ color: 'var(--text)' }}>{taskGroup.taskTitle}</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{taskGroup.entries.length} apontamentos</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className="font-bold text-purple-600">{taskGroup.totalHours.toFixed(1)}h</span>
+                            <div className="flex items-center gap-4">
+                              <span className="font-black" style={{ color: 'var(--primary)' }}>{taskGroup.totalHours.toFixed(1)}h</span>
                               {expandedTasks.has(taskGroup.taskId) ? (
-                                <ChevronUp className="w-4 h-4 text-slate-400" />
+                                <ChevronUp className="w-4 h-4" style={{ color: 'var(--muted)' }} />
                               ) : (
-                                <ChevronDown className="w-4 h-4 text-slate-400" />
+                                <ChevronDown className="w-4 h-4" style={{ color: 'var(--muted)' }} />
                               )}
                             </div>
                           </button>
 
                           {/* Expandido: Apontamentos da Tarefa */}
                           {expandedTasks.has(taskGroup.taskId) && (
-                            <div className="bg-white border-t border-slate-200 p-3 space-y-2">
+                            <div className="border-t p-3 space-y-2 shadow-inner" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                               {taskGroup.entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
                                 <div
                                   key={entry.id}
-                                  className="flex items-center justify-between text-sm p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer group"
+                                  className="flex items-center justify-between text-sm p-3 rounded-xl border shadow-sm transition-all cursor-pointer group hover:scale-[1.01]"
+                                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                                   onClick={() => onEditEntry(entry)}
                                 >
-                                  <div className="flex items-center gap-4 flex-1">
-                                    <div className="text-slate-600 font-medium w-32">{entry.userName}</div>
-                                    <div className="flex items-center gap-1.5 w-24 text-slate-500">
+                                  <div className="flex items-center gap-6 flex-1">
+                                    <div className="font-bold w-36 truncate" style={{ color: 'var(--text)' }}>{entry.userName}</div>
+                                    <div className="flex items-center gap-2 w-28 font-bold" style={{ color: 'var(--muted)' }}>
                                       <Calendar className="w-3.5 h-3.5" />
-                                      {new Date(entry.date).toLocaleDateString('pt-BR')}
+                                      <span className="text-[11px] font-mono">{new Date(entry.date).toLocaleDateString('pt-BR')}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 w-32 text-slate-500">
+                                    <div className="flex items-center gap-2 w-36 font-bold" style={{ color: 'var(--muted)' }}>
                                       <Clock className="w-3.5 h-3.5" />
-                                      {entry.startTime} - {entry.endTime}
+                                      <span className="text-[11px] font-mono">{entry.startTime} - {entry.endTime}</span>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-3">
-                                    <span className="font-bold text-slate-700 w-16 text-right">{entry.totalHours.toFixed(1)}h</span>
-                                    <Edit2 className="w-4 h-4 text-slate-300 group-hover:text-[#4c1d95]" />
+                                  <div className="flex items-center gap-4">
+                                    <span className="font-black w-16 text-right" style={{ color: 'var(--text)' }}>{entry.totalHours.toFixed(1)}h</span>
+                                    <Edit2 className="w-4 h-4 transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--muted)' }} />
                                   </div>
                                 </div>
                               ))}

@@ -110,32 +110,37 @@ const ProjectForm: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col p-8">
+    <div className="h-full flex flex-col p-8" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Header */}
       <div className="mb-6 flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-[var(--surfaceHover)] rounded-full transition-colors"
+          className="p-2 hover:bg-[var(--surface-hover)] rounded-full transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-[var(--textMuted)]" />
+          <ArrowLeft className="w-5 h-5 text-[var(--muted)]" />
         </button>
-        <h1 className="text-2xl font-bold text-[var(--textTitle)]">
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
           {isEdit ? 'Editar Projeto' : 'Novo Projeto'}
         </h1>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="max-w-2xl space-y-6">
           {/* Cliente */}
           <div>
-            <label className="block text-sm font-medium text-[var(--text)] mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
               Cliente *
             </label>
             <select
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text)]"
+              className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent outline-none shadow-sm transition-all"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)'
+              }}
               required
               disabled={isEdit} // Não pode mudar cliente em edição
             >
@@ -150,14 +155,19 @@ const ProjectForm: React.FC = () => {
 
           {/* Nome do Projeto */}
           <div>
-            <label className="block text-sm font-medium text-[var(--text)] mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
               Nome do Projeto *
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text)]"
+              className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent outline-none shadow-sm transition-all"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)'
+              }}
               placeholder="Ex: Desenvolvimento do Website"
               required
             />
@@ -165,13 +175,18 @@ const ProjectForm: React.FC = () => {
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-[var(--text)] mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
               Status
             </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text)]"
+              className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent outline-none shadow-sm transition-all"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)'
+              }}
             >
               <option value="">Selecione um status</option>
               <option value="Planejamento">Planejamento</option>
@@ -184,12 +199,13 @@ const ProjectForm: React.FC = () => {
 
           {/* Membros do Projeto */}
           <div>
-            <label className="block text-sm font-medium text-[var(--text)] mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
               Membros do Projeto
             </label>
-            <div className="border border-[var(--border)] rounded-lg p-4 max-h-60 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3 custom-scrollbar">
+            <div className="border rounded-xl p-4 max-h-60 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3 custom-scrollbar shadow-inner"
+              style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
               {users.filter(u => u.active !== false).map(user => (
-                <label key={user.id} className="flex items-center gap-3 cursor-pointer hover:bg-[var(--surfaceHover)] p-2 rounded transition-colors group">
+                <label key={user.id} className="flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-hover)] p-2 rounded-lg transition-colors group">
                   <input
                     type="checkbox"
                     checked={selectedUsers.includes(user.id)}
@@ -200,10 +216,12 @@ const ProjectForm: React.FC = () => {
                         setSelectedUsers(prev => prev.filter(id => id !== user.id));
                       }
                     }}
-                    className="w-5 h-5 text-[var(--brand)] rounded border-[var(--border)] focus:ring-[var(--brand)] bg-[var(--bgApp)]"
+                    className="w-5 h-5 rounded border-[var(--border)] focus:ring-[var(--ring)]"
+                    style={{ color: 'var(--primary)', backgroundColor: 'var(--surface)' }}
                   />
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[var(--brand)] text-white flex items-center justify-center text-xs font-bold overflow-hidden">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden"
+                      style={{ backgroundColor: 'var(--primary)', color: 'white' }}>
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                       ) : (
@@ -211,14 +229,14 @@ const ProjectForm: React.FC = () => {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-[var(--textTitle)] group-hover:text-[var(--brand)] transition-colors">{user.name}</p>
-                      <p className="text-xs text-[var(--textMuted)] capitalize">{user.role}</p>
+                      <p className="text-sm font-medium transition-colors" style={{ color: 'var(--text)' }}>{user.name}</p>
+                      <p className="text-xs capitalize" style={{ color: 'var(--muted)' }}>{user.role}</p>
                     </div>
                   </div>
                 </label>
               ))}
             </div>
-            <p className="text-xs text-[var(--textMuted)] mt-2">
+            <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
               Selecione os colaboradores que trabalharão neste projeto.
             </p>
           </div>
@@ -228,14 +246,20 @@ const ProjectForm: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="px-6 py-3 border border-[var(--border)] text-[var(--text)] rounded-lg hover:bg-[var(--surfaceHover)]"
+              className="px-6 py-3 border rounded-xl font-bold transition-colors shadow-sm"
+              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--surface)'}
               disabled={loading}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-6 py-3 bg-[var(--brand)] text-white rounded-lg hover:bg-[var(--brandHover)] flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-3 text-white rounded-xl font-bold flex items-center gap-2 disabled:opacity-50 shadow-md transition-all transform active:scale-95"
+              style={{ backgroundColor: 'var(--primary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
               disabled={loading}
             >
               <Save className="w-4 h-4" />
