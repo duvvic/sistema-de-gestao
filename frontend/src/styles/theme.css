@@ -1,94 +1,137 @@
-/* Theme CSS Variables - Light & Dark Mode */
+/* ================================================
+   THEME SYSTEM - LIGHT & DARK MODE
+   ================================================ */
 
 :root {
-  /* =========================================
-     New Semantic Tokens (User Requested)
-     ========================================= */
-  /* Modo Claro - Original Layout */
-  --bg-app: #F6F7FB;
-  /* off-white de fundo */
-  --bg-surface: #FFFFFF;
-  /* cards/superfícies */
-  --bg-surface-hover: #F1F3F8;
-  --sidebar-bg: #FFFFFF;
-  /* sidebar clara */
+  /* LIGHT MODE - Original Design Restored */
 
-  --text-primary: #111827;
-  /* Títulos principais */
-  --text-default: #334155;
-  /* Textos padrão */
-  --text-muted: #64748B;
-  /* Textos secundários */
+  /* Backgrounds */
+  --bg: #F7F7FB;
+  /* off-white levemente arroxeado */
+  --surface: #FFFFFF;
+  /* cards */
+  --surface-2: #F3F4F8;
+  /* inputs/areas secundárias */
+  --surface-hover: #F5F6FF;
+  /* hover state */
 
-  --border: #E5E7EB;
-  /* Bordas suaves */
+  /* Sidebar */
+  --sidebar-bg: #4C1D95;
+  /* violet-900 */
+  --sidebar-bg-2: #5B21B6;
+  /* violet-800 (gradiente) */
 
-  /* Brand Colors (Mantendo a identidade) */
-  --brand: #4c1d95;
-  --brandHover: #3b1675;
-  --accentLight: #DDD6FE;
+  /* Primary Colors */
+  --primary: #4C1D95;
+  /* roxo corporativo */
+  --primary-hover: #3B1675;
+  /* hover */
+  --primary-soft: #EDE9FE;
+  /* violet-100 (backgrounds suaves) */
 
-  /* Status Colors */
+  /* Text */
+  --text: #0F172A;
+  /* slate-900 (títulos/principal) */
+  --text-2: #334155;
+  /* slate-700 (secundário) */
+  --muted: #64748B;
+  /* slate-500 (muted) */
+
+  /* Borders & Effects */
+  --border: #E2E8F0;
+  /* slate-200 */
+  --ring: rgba(76, 29, 149, 0.35);
+  /* focus ring */
+
+  /* Status Colors (same for both modes) */
   --success: #22C55E;
   --warning: #FACC15;
   --danger: #EF4444;
   --info: #38BDF8;
 
   /* Shadows */
-  --shadowCard: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadowCardHover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 
-  /* =========================================
-     Aliases for Backward Compatibility
-     (Maps old variable names to new ones)
-     ========================================= */
-  --bgApp: var(--bg-app);
+  /* Aliases for backward compatibility */
+  --bg-app: var(--bg);
+  --bg-surface: var(--surface);
+  --bg-surface-hover: var(--surface-hover);
+  --bgApp: var(--bg);
   --bgSidebar: var(--sidebar-bg);
-  --surface: var(--bg-surface);
-  --surfaceHover: var(--bg-surface-hover);
-  --textTitle: var(--text-primary);
-  --text: var(--text-default);
-  --textMuted: var(--text-muted);
+  --text-primary: var(--text);
+  --text-default: var(--text-2);
+  --text-muted: var(--muted);
+  --textTitle: var(--text);
+  --brand: var(--primary);
+  --brandHover: var(--primary-hover);
+  --accentLight: var(--primary-soft);
+  --shadowCard: var(--shadow);
+  --shadowCardHover: var(--shadow-lg);
+  --surfaceHover: var(--surface-hover);
 }
 
 html.dark {
-  /* =========================================
-     Dark Mode Palette (User Defined)
-     ========================================= */
-  --bg-app: #151025;
-  --bg-surface: #2C283B;
-  --bg-surface-hover: #3A354E;
+  /* DARK MODE - Mantendo paleta definida */
+
+  /* Backgrounds */
+  --bg: #151025;
+  --surface: #2C283B;
+  --surface-2: #252236;
+  --surface-hover: #3A354E;
+
+  /* Sidebar */
   --sidebar-bg: #252236;
+  --sidebar-bg-2: #1E1B2E;
 
-  --text-primary: #E8E7F0;
-  --text-default: #C5C2D9;
-  --text-muted: #9A9AA8;
+  /* Primary Colors */
+  --primary: #6D28D9;
+  --primary-hover: #7C3AED;
+  --primary-soft: rgba(109, 40, 217, 0.18);
 
+  /* Text */
+  --text: #E8E7F0;
+  --text-2: #C5C2D9;
+  --muted: #9A9AA8;
+
+  /* Borders & Effects */
   --border: #3E385C;
+  --ring: rgba(196, 181, 253, 0.25);
 
-  /* Brand Colors - Dark Mode */
-  --brand: #6D28D9;
-  --brandHover: #7C3AED;
-  --accentLight: #C4B5FD;
-
-  /* Shadows - Dark Mode */
-  --shadowCard: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-  --shadowCardHover: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  /* Shadows - mais fortes no dark */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
 }
 
-.ui-card {
-  @apply bg-surface border border-borderSubtle rounded-2xl shadow-sm;
-}
-
-.ui-card:hover {
-  background: var(--bg-surface-hover);
-}
+/* ================================================
+   UTILITY CLASSES
+   ================================================ */
 
 /* Base styles */
 body {
-  background-color: var(--bgApp);
-  color: var(--text);
+  background-color: var(--bg);
+  color: var(--text-2);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Card component */
+.ui-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.ui-card:hover {
+  background-color: var(--surface-hover);
+  box-shadow: var(--shadow-md);
 }
 
 /* Custom scrollbar */
@@ -98,7 +141,7 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -107,5 +150,5 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--textMuted);
+  background: var(--muted);
 }
