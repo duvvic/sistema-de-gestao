@@ -378,7 +378,7 @@ const TimesheetCalendar: React.FC = () => {
                           {d}
                         </span>
                         {hasEntries && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 shadow-sm dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800">
+                          <span className="text-[10px] font-bold text-white bg-emerald-600 px-2 py-0.5 rounded-full border border-emerald-600 shadow-sm">
                             {totalDayHours.toFixed(1)}h
                           </span>
                         )}
