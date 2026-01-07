@@ -293,35 +293,36 @@ const TimesheetAdminDashboard: React.FC = () => {
                 `}</style>
                <div className="flex flex-col md:flex-row gap-6 h-full min-h-[600px]">
                   {/* COLUNA: LIVRES */}
-                  <div className="status-column" style={{ backgroundColor: '#F0FDF4' }}>
+                  <div className="status-column" style={{ backgroundColor: 'var(--success-bg)' }}>
                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: 'var(--success)' }}>
                            <CheckSquare className="w-6 h-6" />
                         </div>
                         <div>
-                           <h3 className="font-bold text-emerald-900">Livres</h3>
-                           <p className="text-[10px] uppercase font-black tracking-widest text-emerald-600">Disponíveis</p>
+                           <h3 className="font-bold" style={{ color: 'var(--success-text)' }}>Livres</h3>
+                           <p className="text-[10px] uppercase font-black tracking-widest" style={{ color: 'var(--success-text)', opacity: 0.8 }}>Disponíveis</p>
                         </div>
                      </div>
 
                      {(() => {
                         const freeCollabs = collaboratorsStatus.filter(s => s.isUpToDate && tasks.filter(t => t.developerId === s.user.id && t.status !== 'Done').length === 0);
                         return freeCollabs.length === 0 ? (
-                           <div className="flex-1 flex items-center justify-center text-emerald-600/50 italic text-sm text-center px-4">
+                           <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4" style={{ color: 'var(--success-text)', opacity: 0.5 }}>
                               Nenhum colaborador livre
                            </div>
                         ) : (
                            <div className="flex flex-col gap-3 overflow-y-auto">
                               {freeCollabs.map(s => (
                                  <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
-                                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold border border-emerald-100 shadow-inner">
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
+                                       style={{ backgroundColor: 'var(--surface)', color: 'var(--success)', borderColor: 'var(--success-bg)' }}>
                                        {s.user.name.charAt(0)}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                       <p className="font-bold text-slate-800 truncate">{s.user.name}</p>
-                                       <p className="text-[10px] text-slate-500 truncate">{s.user.cargo || 'Desenvolvedor'}</p>
+                                       <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
+                                       <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
                                     </div>
-                                    <span className="text-xs font-black text-emerald-600">Disponível</span>
+                                    <span className="text-xs font-black" style={{ color: 'var(--success-text)' }}>Disponível</span>
                                  </div>
                               ))}
                            </div>
@@ -330,21 +331,21 @@ const TimesheetAdminDashboard: React.FC = () => {
                   </div>
 
                   {/* COLUNA: OCUPADOS */}
-                  <div className="status-column" style={{ backgroundColor: '#FFFBEB' }}>
+                  <div className="status-column" style={{ backgroundColor: 'var(--warning-bg)' }}>
                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-lg">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: 'var(--warning-text)' }}>
                            <Clock className="w-6 h-6" />
                         </div>
                         <div>
-                           <h3 className="font-bold text-amber-900">Ocupados</h3>
-                           <p className="text-[10px] uppercase font-black tracking-widest text-amber-600">Em atividade</p>
+                           <h3 className="font-bold" style={{ color: 'var(--warning-text)' }}>Ocupados</h3>
+                           <p className="text-[10px] uppercase font-black tracking-widest" style={{ color: 'var(--warning-text)', opacity: 0.8 }}>Em atividade</p>
                         </div>
                      </div>
 
                      {(() => {
                         const busyCollabs = collaboratorsStatus.filter(s => s.isUpToDate && tasks.filter(t => t.developerId === s.user.id && t.status !== 'Done').length > 0);
                         return busyCollabs.length === 0 ? (
-                           <div className="flex-1 flex items-center justify-center text-amber-600/50 italic text-sm text-center px-4">
+                           <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4" style={{ color: 'var(--warning-text)', opacity: 0.5 }}>
                               Nenhum colaborador ocupado
                            </div>
                         ) : (
@@ -353,16 +354,17 @@ const TimesheetAdminDashboard: React.FC = () => {
                                  const activeTasks = tasks.filter(t => t.developerId === s.user.id && t.status !== 'Done');
                                  return (
                                     <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
-                                       <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold border border-amber-100 shadow-inner">
+                                       <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
+                                          style={{ backgroundColor: 'var(--surface)', color: 'var(--warning-text)', borderColor: 'var(--warning-bg)' }}>
                                           {s.user.name.charAt(0)}
                                        </div>
                                        <div className="min-w-0 flex-1">
-                                          <p className="font-bold text-slate-800 truncate">{s.user.name}</p>
-                                          <p className="text-[10px] text-slate-500 truncate">{s.user.cargo || 'Desenvolvedor'}</p>
+                                          <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
+                                          <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
                                        </div>
                                        <div className="text-right">
-                                          <p className="text-sm font-black text-amber-600">{activeTasks.length}</p>
-                                          <p className="text-[8px] font-black uppercase text-slate-400">tarefas</p>
+                                          <p className="text-sm font-black" style={{ color: 'var(--warning-text)' }}>{activeTasks.length}</p>
+                                          <p className="text-[8px] font-black uppercase" style={{ color: 'var(--muted)' }}>tarefas</p>
                                        </div>
                                     </div>
                                  );
@@ -373,37 +375,38 @@ const TimesheetAdminDashboard: React.FC = () => {
                   </div>
 
                   {/* COLUNA: AUSENTES */}
-                  <div className="status-column" style={{ backgroundColor: '#FEF2F2' }}>
+                  <div className="status-column" style={{ backgroundColor: 'var(--danger-bg)' }}>
                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center text-white shadow-lg">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: 'var(--danger)' }}>
                            <AlertCircle className="w-6 h-6" />
                         </div>
                         <div>
-                           <h3 className="font-bold text-red-900">Ausentes</h3>
-                           <p className="text-[10px] uppercase font-black tracking-widest text-red-600">Sem apontamentos</p>
+                           <h3 className="font-bold" style={{ color: 'var(--danger-text)' }}>Ausentes</h3>
+                           <p className="text-[10px] uppercase font-black tracking-widest" style={{ color: 'var(--danger-text)', opacity: 0.8 }}>Sem apontamentos</p>
                         </div>
                      </div>
 
                      {(() => {
                         const absentCollabs = collaboratorsStatus.filter(s => !s.isUpToDate);
                         return absentCollabs.length === 0 ? (
-                           <div className="flex-1 flex items-center justify-center text-red-600/50 italic text-sm text-center px-4">
+                           <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4" style={{ color: 'var(--danger-text)', opacity: 0.5 }}>
                               Todos estão em dia!
                            </div>
                         ) : (
                            <div className="flex flex-col gap-3 overflow-y-auto">
                               {absentCollabs.map(s => (
                                  <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
-                                    <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center font-bold border border-red-100 shadow-inner">
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
+                                       style={{ backgroundColor: 'var(--surface)', color: 'var(--danger)', borderColor: 'var(--danger-bg)' }}>
                                        {s.user.name.charAt(0)}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                       <p className="font-bold text-slate-800 truncate">{s.user.name}</p>
-                                       <p className="text-[10px] text-slate-500 truncate">{s.user.cargo || 'Desenvolvedor'}</p>
+                                       <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
+                                       <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
                                     </div>
                                     <div className="text-right">
-                                       <p className="text-sm font-black text-red-600">{s.missingDays}</p>
-                                       <p className="text-[8px] font-black uppercase text-slate-400">dias faltando</p>
+                                       <p className="text-sm font-black" style={{ color: 'var(--danger)' }}>{s.missingDays}</p>
+                                       <p className="text-[8px] font-black uppercase" style={{ color: 'var(--muted)' }}>dias faltando</p>
                                     </div>
                                  </div>
                               ))}

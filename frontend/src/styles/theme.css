@@ -19,53 +19,77 @@
   --sidebar-bg-2: #5B21B6;
 
   /* Primary Colors */
-  --primary: #581C87;
-  /* Roxo um pouco mais profundo para labels */
-  --primary-hover: #4C1D95;
-  --primary-soft: #F5F3FF;
+  --primary: #4C1D95;
+  /* Roxo vibrante e escuro para contraste */
+  --primary-hover: #3B1675;
+  --primary-soft: #F3E8FF;
+  /* Roxo muito claro */
 
   /* Text Colors */
-  --text: #1E1B4B;
-  /* Azul marinho escuro para melhor legibilidade */
-  --text-2: #475569;
-  --muted: #94A3B8;
+  --text: #0F172A;
+  /* Slate 900 */
+  --text-2: #334155;
+  /* Slate 700 */
+  --muted: #64748B;
+  /* Slate 500 */
 
   /* Borders & Effects */
   --border: #E2E8F0;
   --ring: rgba(88, 28, 135, 0.2);
 
   /* Status Colors - Refined for labels (Light BG + Dark Text) */
-  --success: #10B981;
-  --success-bg: #D1FAE5;
-  --success-text: #065F46;
+  /* Status Colors - Refined for labels (Light BG + Dark Text) */
+  --success: #059669;
+  /* Darker green */
+  --success-bg: #dcfce7;
+  /* More visible green bg (green-100) */
+  --success-text: #064e3b;
+  /* Darker green text */
 
-  --warning-bg: #FEF3C7;
-  --warning-text: #92400E;
+  --warning-bg: #fef3c7;
+  /* amber-100 */
+  --warning-text: #78350f;
+  /* amber-900 */
 
-  --danger: #EF4444;
-  --danger-bg: #FEE2E2;
-  --danger-text: #991B1B;
+  --danger: #dc2626;
+  /* red-600 */
+  --danger-bg: #fee2e2;
+  /* red-100 */
+  --danger-text: #7f1d1d;
+  /* red-900 */
 
-  --info: #3B82F6;
-  --info-bg: #DBEAFE;
-  --info-text: #1E40AF;
+  --info: #2563eb;
+  /* blue-600 */
+  --info-bg: #dbeafe;
+  /* blue-100 */
+  --info-text: #1e3a8a;
+  /* blue-900 */
 
-  /* Kanban Specific Statuses */
-  --status-todo: #F1F5F9;
-  --status-progress: #EFF6FF;
-  --status-review: #FAF5FF;
-  --status-done: #F0FDF4;
+  /* Kanban Specific Statuses - More distinctive backgrounds */
+  --status-todo: #e2e8f0;
+  /* slate-200 - darker specific for column bg */
+  --status-progress: #dbeafe;
+  /* blue-100 */
+  --status-review: #f3e8ff;
+  /* purple-100 */
+  --status-done: #dcfce7;
+  /* green-100 */
 
   /* Shadows - Mais definidas para destacar cards do fundo */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 
   /* Aliases for backward compatibility */
   --bg-app: var(--bg);
+  --bgApp: var(--bg);
   --bg-surface: var(--surface);
+  --surfaceHover: var(--surface-hover);
   --text-primary: var(--text);
+  --textTitle: var(--text);
+  --textMuted: var(--muted);
   --brand: var(--primary);
+  --brandHover: var(--primary-hover);
 }
 
 html.dark {

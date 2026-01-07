@@ -107,7 +107,7 @@ const KanbanCard = ({
         style={{
           backgroundColor: isHighlighted ? 'var(--surface-hover)' : 'var(--surface)',
           borderColor: isHighlighted ? 'var(--primary)' : (isDelayed ? 'var(--danger)' : 'var(--border)'),
-          boxShadow: isHighlighted ? '0 0 0 2px var(--primary)' : 'var(--shadow-sm)',
+          boxShadow: isHighlighted ? '0 0 0 2px var(--primary)' : 'var(--shadow)',
           transform: isHighlighted ? 'scale(1.02)' : 'none'
         }}
         onClick={() => onTaskClick(task.id)}

@@ -253,9 +253,9 @@ const TeamList: React.FC = () => {
                     <div className="min-w-0">
                       <h3 className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{user.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase`}
-                          style={{ backgroundColor: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                          {user.role === 'admin' ? 'Admin' : 'Time'}
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase shadow-sm border`}
+                          style={{ backgroundColor: 'var(--primary-soft)', color: 'var(--primary)', borderColor: 'rgba(76, 29, 149, 0.1)' }}>
+                          {user.role === 'admin' ? 'Admin' : 'Equipe'}
                         </span>
                         {user.cargo && (
                           <p className="text-xs font-semibold truncate" style={{ color: 'var(--primary)' }}>{user.cargo}</p>

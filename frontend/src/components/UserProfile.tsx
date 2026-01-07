@@ -133,56 +133,7 @@ const UserProfile: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 h-px bg-slate-200"></div>
-                  <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">ou</span>
-                  <div className="flex-1 h-px bg-slate-200"></div>
-                </div>
 
-                <div className="flex justify-center">
-                  <input
-                    type="file"
-                    id="avatar-upload"
-                    accept="image/png, image/jpeg, image/jpg, image/webp"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file || !user) return;
-
-                      setLoading(true);
-                      try {
-                        const fileExt = file.name.split('.').pop();
-                        const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-                        const filePath = `avatars/${fileName}`;
-
-                        const { error: uploadError } = await supabase.storage
-                          .from('avatars')
-                          .upload(filePath, file);
-
-                        if (uploadError) throw uploadError;
-
-                        const { data: { publicUrl } } = supabase.storage
-                          .from('avatars')
-                          .getPublicUrl(filePath);
-
-                        setAvatarUrl(publicUrl);
-                        await saveAvatar(publicUrl);
-                      } catch (err: any) {
-                        alert("Erro no upload: " + (err.message || "Verifique se o bucket 'avatars' existe no Supabase."));
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                  />
-                  <label
-                    htmlFor="avatar-upload"
-                    className={`flex items-center gap-2 px-6 py-3 border-2 border-dashed rounded-2xl font-semibold hover:border-[#4c1d95] hover:text-[#4c1d95] hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all cursor-pointer ${loading ? 'opacity-50 pointer-events-none' : ''}`}
-                    style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--textMuted)' }}
-                  >
-                    <Camera className="w-5 h-5" />
-                    {loading ? 'Processando...' : 'Fazer Upload de Foto (PNG, JPG)'}
-                  </label>
-                </div>
               </div>
             </div>
           </div>
@@ -222,11 +173,13 @@ const UserProfile: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>Função</label>
-                <div className={`p-3 border rounded-xl font-medium ${user.role === 'admin'
-                  ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300'
-                  : 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
-                  }`}>
-                  {user.role === 'admin' ? '👑 Administrador' : '💼 Desenvolvedor'}
+                <div className="p-3 border rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-sm"
+                  style={{
+                    backgroundColor: 'var(--primary-soft)',
+                    color: 'var(--primary)',
+                    borderColor: 'rgba(76, 29, 149, 0.2)'
+                  }}>
+                  {user.role === 'admin' ? '👑 Administrador' : '💼 Equipe'}
                 </div>
               </div>
             </div>

@@ -169,7 +169,10 @@ const TeamMemberDetail: React.FC = () => {
                                  {task.status !== 'Done' && (
                                     <button
                                        onClick={handleCreateTimesheet}
-                                       className="w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
+                                       className="w-full flex items-center justify-center gap-2 py-2 rounded-lg transition-all text-xs font-black uppercase tracking-widest border shadow-sm"
+                                       style={{ backgroundColor: 'var(--primary-soft)', color: 'var(--primary)', borderColor: 'rgba(76, 29, 149, 0.2)' }}
+                                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary)'; e.currentTarget.style.color = 'white'; }}
+                                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-soft)'; e.currentTarget.style.color = 'var(--primary)'; }}
                                     >
                                        <Clock className="w-4 h-4" />
                                        Apontar Horas
@@ -226,8 +229,9 @@ const TeamMemberDetail: React.FC = () => {
             <div className="flex-1">
                <h1 className="text-xl font-bold text-white">{user.name}</h1>
                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className="text-xs font-bold px-2 py-0.5 bg-white/20 text-white rounded-full uppercase tracking-wider">
-                     {user.role === 'admin' ? 'Administrador' : 'Colaborador'}
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-sm border"
+                     style={{ backgroundColor: 'var(--primary-soft)', color: 'var(--primary)', borderColor: 'rgba(255, 255, 255, 0.3)' }}>
+                     {user.role === 'admin' ? 'Administrador' : 'Equipe'}
                   </span>
                   {user.cargo && (
                      <>
@@ -251,11 +255,15 @@ const TeamMemberDetail: React.FC = () => {
                      <div className="space-y-4">
                         <button
                            onClick={() => setActiveTab('projects')}
-                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'projects' ? 'bg-[#4c1d95] border-[#4c1d95] text-white shadow-lg scale-[1.02]' : 'hover:border-[#4c1d95]'}`}
-                           style={{ backgroundColor: activeTab === 'projects' ? undefined : 'var(--bgApp)', borderColor: activeTab === 'projects' ? undefined : 'var(--border)', color: activeTab === 'projects' ? 'white' : 'var(--textMuted)' }}
+                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'projects' ? 'shadow-lg scale-[1.02]' : ''}`}
+                           style={{
+                              backgroundColor: activeTab === 'projects' ? 'var(--primary)' : 'var(--surface)',
+                              borderColor: activeTab === 'projects' ? 'var(--primary)' : 'var(--border)',
+                              color: activeTab === 'projects' ? 'white' : 'var(--text)'
+                           }}
                         >
                            <div className="flex items-center gap-3">
-                              <Briefcase className={`w-5 h-5 ${activeTab === 'projects' ? 'text-white' : 'text-[#4c1d95]'}`} />
+                              <Briefcase className={`w-5 h-5 ${activeTab === 'projects' ? 'text-white' : 'text-[var(--primary)]'}`} />
                               <span className="text-sm font-bold">Projetos Vinculados</span>
                            </div>
                            <span className="font-black text-xl">{userProjects.length}</span>
@@ -263,8 +271,12 @@ const TeamMemberDetail: React.FC = () => {
 
                         <button
                            onClick={() => setActiveTab('tasks')}
-                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'tasks' ? 'bg-[#4c1d95] border-[#4c1d95] text-white shadow-lg scale-[1.02]' : 'hover:border-[#4c1d95]'}`}
-                           style={{ backgroundColor: activeTab === 'tasks' ? undefined : 'var(--bgApp)', borderColor: activeTab === 'tasks' ? undefined : 'var(--border)', color: activeTab === 'tasks' ? 'white' : 'var(--textMuted)' }}
+                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'tasks' ? 'shadow-lg scale-[1.02]' : ''}`}
+                           style={{
+                              backgroundColor: activeTab === 'tasks' ? 'var(--primary)' : 'var(--surface)',
+                              borderColor: activeTab === 'tasks' ? 'var(--primary)' : 'var(--border)',
+                              color: activeTab === 'tasks' ? 'white' : 'var(--text)'
+                           }}
                         >
                            <div className="flex items-center gap-3">
                               <Clock className={`w-5 h-5 ${activeTab === 'tasks' ? 'text-white' : 'text-blue-500'}`} />
