@@ -44,7 +44,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ initialImage, onSave, onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        style={{ backgroundColor: 'var(--surface)' }}>
         {/* Header */}
         <div className="bg-[#4c1d95] p-6 flex justify-between items-center">
           <div className="flex items-center gap-3 text-white">
@@ -60,12 +61,13 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ initialImage, onSave, onClose
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+        <div className="flex-1 overflow-y-auto p-6" style={{ backgroundColor: 'var(--bgApp)' }}>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
             {/* Left: Preview */}
             <div className="flex flex-col gap-4">
-              <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 min-h-[300px] flex items-center justify-center relative overflow-hidden group shadow-sm">
+              <div className="rounded-xl border-2 border-dashed min-h-[300px] flex items-center justify-center relative overflow-hidden group shadow-sm"
+                style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                 {currentImage ? (
                   <img
                     src={currentImage}
@@ -81,9 +83,9 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ initialImage, onSave, onClose
                 )}
 
                 {isLoading && (
-                  <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-10">
-                    <Loader2 className="w-10 h-10 text-[#4c1d95] animate-spin mb-2" />
-                    <p className="text-[#4c1d95] font-medium">Gemini is reimagining your image...</p>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center z-10" style={{ backgroundColor: 'var(--surface)' }}>
+                    <Loader2 className="w-10 h-10 animate-spin mb-2" style={{ color: 'var(--brand)' }} />
+                    <p className="font-medium" style={{ color: 'var(--brand)' }}>Gemini is reimagining your image...</p>
                   </div>
                 )}
               </div>
@@ -96,7 +98,11 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ initialImage, onSave, onClose
                     onChange={handleFileChange}
                     className="hidden"
                   />
-                  <div className="w-full bg-white border border-slate-200 text-slate-700 py-3 rounded-lg text-center cursor-pointer hover:bg-slate-50 transition-colors font-medium shadow-sm flex items-center justify-center gap-2">
+                  <div className="w-full border py-3 rounded-lg text-center cursor-pointer transition-colors font-medium shadow-sm flex items-center justify-center gap-2"
+                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surfaceHover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--surface)'}
+                  >
                     <Upload className="w-4 h-4" />
                     Upload Image
                   </div>
@@ -110,14 +116,21 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ initialImage, onSave, onClose
                       onChange={handleFileChange}
                       className="hidden"
                     />
-                    <div className="w-full bg-white border border-slate-200 text-slate-700 py-2 rounded-lg text-center cursor-pointer hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm">
+                    <div className="w-full border py-2 rounded-lg text-center cursor-pointer transition-colors text-sm font-medium shadow-sm"
+                      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surfaceHover)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--surface)'}
+                    >
                       Change Image
                     </div>
                   </label>
                   {initialImage !== currentImage && (
                     <button
                       onClick={() => setCurrentImage(initialImage || null)}
-                      className="flex-1 bg-white border border-slate-200 text-slate-700 py-2 rounded-lg text-center cursor-pointer hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
+                      className="flex-1 border py-2 rounded-lg text-center cursor-pointer transition-colors text-sm font-medium shadow-sm"
+                      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surfaceHover)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--surface)'}
                     >
                       Reset
                     </button>
@@ -129,8 +142,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ initialImage, onSave, onClose
             {/* Right: Controls */}
             <div className="flex flex-col gap-6">
               <div>
-                <h3 className="text-lg font-semibold text-slate-800 mb-2">Instructions</h3>
-                <p className="text-slate-600 text-sm mb-4">
+                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--textTitle)' }}>Instructions</h3>
+                <p className="text-sm mb-4" style={{ color: 'var(--textMuted)' }}>
                   Describe how you want to change the image using Gemini 2.5 Flash.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -144,7 +157,10 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ initialImage, onSave, onClose
                     <button
                       key={hint}
                       onClick={() => setPrompt(hint)}
-                      className="text-xs bg-indigo-50 text-[#4c1d95] px-3 py-1 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-100"
+                      className="text-xs px-3 py-1 rounded-full border transition-colors"
+                      style={{ backgroundColor: 'var(--bgApp)', color: 'var(--brand)', borderColor: 'var(--brand)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surfaceHover)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bgApp)'}
                     >
                       {hint}
                     </button>
@@ -155,7 +171,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ initialImage, onSave, onClose
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="E.g., 'Change the background to a beach' or 'Add a red hat'"
-                  className="w-full h-32 p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none resize-none shadow-sm text-slate-700"
+                  className="w-full h-32 p-4 rounded-xl border focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none resize-none shadow-sm"
+                  style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}
                 />
               </div>
 

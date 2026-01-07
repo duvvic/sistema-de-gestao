@@ -383,28 +383,28 @@ const Login: React.FC = () => {
     const effectiveEmail = (mode === 'set-password' || mode === 'otp-verification') && selectedUser ? selectedUser.email : email;
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
-            <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-8 space-y-8">
+        <div className="min-h-screen flex flex-col justify-center items-center p-4" style={{ backgroundColor: 'var(--bgApp)', color: 'var(--text)' }}>
+            <div className="w-full max-w-md rounded-2xl shadow-xl border p-8 space-y-8" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                 {/* Header */}
                 <div className="text-center space-y-2">
                     <div className="flex justify-center mb-4">
                         <img
                             src="https://nic-labs.com/wp-content/uploads/2024/04/Logo-com-fundo-branco-1.png"
                             alt="NIC Labs"
-                            className="h-20 w-auto object-contain"
+                            className="h-20 w-auto object-contain bg-white rounded-lg p-2"
                         />
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-800">
+                    <h2 className="text-2xl font-bold" style={{ color: 'var(--textTitle)' }}>
                         {mode === 'otp-verification' ? 'Verificação de Código' :
                             mode === 'set-password' ? 'Defina sua senha' : 'Bem-vindo de volta'}
                     </h2>
-                    <p className="text-slate-500 text-sm">
+                    <p className="text-sm" style={{ color: 'var(--textMuted)' }}>
                         {mode === 'otp-verification' ? 'Insira o token enviado para seu e-mail' :
                             mode === 'set-password' ? 'Crie sua senha para acessar o NIC Labs Manager.' :
                                 'Acesse sua conta para gerenciar projetos'}
                     </p>
                     {successMessage && mode === 'login' && (
-                        <div className="mt-4 px-4 py-2 rounded-lg bg-green-100 border border-green-200 text-green-700 text-sm font-semibold">
+                        <div className="mt-4 px-4 py-2 rounded-lg bg-green-100 border border-green-200 text-green-700 text-sm font-semibold dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
                             {successMessage}
                         </div>
                     )}
@@ -415,7 +415,7 @@ const Login: React.FC = () => {
                     <div className="space-y-4">
                         {/* E-mail */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">E-mail</label>
+                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--textTitle)' }}>E-mail</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                     <Mail className="h-5 w-5" />
@@ -425,7 +425,8 @@ const Login: React.FC = () => {
                                     value={effectiveEmail}
                                     onChange={(e) => mode === 'login' && setEmail(e.target.value)}
                                     disabled={mode !== 'login'}
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all text-slate-800 placeholder-slate-400 disabled:bg-slate-100"
+                                    className="w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all placeholder-slate-400 disabled:opacity-60"
+                                    style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}
                                     placeholder="seu@email.com"
                                     required
                                 />
@@ -435,7 +436,7 @@ const Login: React.FC = () => {
                         {/* Token OTP */}
                         {mode === 'otp-verification' && (
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1.5">Token de Verificação</label>
+                                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--textTitle)' }}>Token de Verificação</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                         <Key className="h-5 w-5" />
@@ -444,7 +445,8 @@ const Login: React.FC = () => {
                                         type="text"
                                         value={otpToken}
                                         onChange={(e) => setOtpToken(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all text-slate-800 placeholder-slate-400 font-mono tracking-widest text-center text-lg"
+                                        className="w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all placeholder-slate-400 font-mono tracking-widest text-center text-lg"
+                                        style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}
                                         placeholder="••••••"
                                         required
                                     />
@@ -455,7 +457,7 @@ const Login: React.FC = () => {
                         {/* Senha normal */}
                         {mode === 'login' && (
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1.5">Senha</label>
+                                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--textTitle)' }}>Senha</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                         <Lock className="h-5 h-5" />
@@ -464,7 +466,8 @@ const Login: React.FC = () => {
                                         type={showPass ? "text" : "password"}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full pl-10 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all text-slate-800 placeholder-slate-400"
+                                        className="w-full pl-10 pr-12 py-3 border rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all placeholder-slate-400"
+                                        style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}
                                         placeholder="••••••••"
                                     />
                                     <button
@@ -481,16 +484,16 @@ const Login: React.FC = () => {
                         {/* Definição de senha */}
                         {mode === 'set-password' && (
                             <>
-                                <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-1">
-                                    <p className="text-xs font-semibold text-purple-800 uppercase tracking-wider">Requisitos da senha:</p>
-                                    <ul className="text-xs text-purple-700 list-disc list-inside space-y-0.5">
+                                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-lg p-3 space-y-1">
+                                    <p className="text-xs font-semibold text-purple-800 dark:text-purple-300 uppercase tracking-wider">Requisitos da senha:</p>
+                                    <ul className="text-xs text-purple-700 dark:text-purple-400 list-disc list-inside space-y-0.5">
                                         <li>No mínimo 7 caracteres</li>
                                         <li>Deve conter letras e números</li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Nova senha</label>
+                                    <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--textTitle)' }}>Nova senha</label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                             <Lock className="h-5 h-5" />
@@ -499,7 +502,8 @@ const Login: React.FC = () => {
                                             type={showNewPass ? "text" : "password"}
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full pl-10 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all text-slate-800 placeholder-slate-400"
+                                            className="w-full pl-10 pr-12 py-3 border rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all placeholder-slate-400"
+                                            style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}
                                             placeholder="Defina uma senha"
                                         />
                                         <button
@@ -513,7 +517,7 @@ const Login: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirmar senha</label>
+                                    <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--textTitle)' }}>Confirmar senha</label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                             <Lock className="h-5 h-5" />
@@ -522,7 +526,8 @@ const Login: React.FC = () => {
                                             type={showConfirmPass ? "text" : "password"}
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full pl-10 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all text-slate-800 placeholder-slate-400"
+                                            className="w-full pl-10 pr-12 py-3 border rounded-xl focus:ring-2 focus:ring-[#4c1d95] focus:border-transparent outline-none transition-all placeholder-slate-400"
+                                            style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}
                                             placeholder="Repita a senha"
                                         />
                                         <button
@@ -560,6 +565,7 @@ const Login: React.FC = () => {
                                     setConfirmPassword('');
                                 }}
                                 className="text-sm font-medium text-slate-500 hover:underline flex items-center gap-1"
+                                style={{ color: 'var(--textMuted)' }}
                             >
                                 <ArrowRight className="w-4 h-4 rotate-180" />
                                 Voltar para login
@@ -584,7 +590,10 @@ const Login: React.FC = () => {
                             type="button"
                             onClick={handleFirstAccess}
                             disabled={loading}
-                            className="w-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+                            className="w-full border py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+                            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--textMuted)' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--surfaceHover)'; e.currentTarget.style.color = 'var(--text)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--surface)'; e.currentTarget.style.color = 'var(--textMuted)'; }}
                         >
                             Primeiro acesso
                         </button>
@@ -592,7 +601,7 @@ const Login: React.FC = () => {
                 </form>
             </div>
 
-            <p className="mt-8 text-center text-slate-400 text-sm">
+            <p className="mt-8 text-center text-sm" style={{ color: 'var(--textMuted)' }}>
                 © 2024 NIC Labs Manager. Todos os direitos reservados.
             </p>
         </div>

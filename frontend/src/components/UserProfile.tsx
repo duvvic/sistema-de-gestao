@@ -55,17 +55,21 @@ const UserProfile: React.FC = () => {
   if (!user) return <div className="p-8">Usuário não encontrado</div>;
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
-      <div className="px-8 py-6 border-b border-slate-200 bg-white flex items-center gap-4 sticky top-0 z-10">
+    <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--bgApp)' }}>
+      <div className="px-8 py-6 border-b flex items-center gap-4 sticky top-0 z-10"
+        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+          className="p-2 rounded-full transition-colors"
+          style={{ color: 'var(--textMuted)' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surfaceHover)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Meu Perfil</h1>
-          <p className="text-slate-500 text-sm">Gerencie suas informações pessoais</p>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--textTitle)' }}>Meu Perfil</h1>
+          <p className="text-sm" style={{ color: 'var(--textMuted)' }}>Gerencie suas informações pessoais</p>
         </div>
       </div>
 
@@ -73,15 +77,16 @@ const UserProfile: React.FC = () => {
         <div className="max-w-2xl mx-auto space-y-8">
 
           {/* Avatar Section */}
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-[#4c1d95]" />
+          <div className="p-8 rounded-2xl border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
+              <Camera className="w-5 h-5" style={{ color: 'var(--brand)' }} />
               Foto de Perfil
             </h2>
 
             <div className="flex flex-col items-center gap-6">
               <div className="relative">
-                <div className="w-32 h-32 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg text-4xl font-bold text-slate-300">
+                <div className="w-32 h-32 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-lg text-4xl font-bold"
+                  style={{ backgroundColor: 'var(--surfaceHover)', color: 'var(--textMuted)' }}>
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -102,7 +107,7 @@ const UserProfile: React.FC = () => {
 
               <div className="w-full space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">URL da Foto</label>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>URL da Foto</label>
                   <div className="flex gap-2">
                     <input
                       type="url"
@@ -112,7 +117,8 @@ const UserProfile: React.FC = () => {
                         setIsEditing(true);
                       }}
                       placeholder="https://exemplo.com/minha-foto.jpg"
-                      className="flex-1 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none"
+                      className="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none"
+                      style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}
                     />
                     {isEditing && (
                       <button
@@ -170,7 +176,8 @@ const UserProfile: React.FC = () => {
                   />
                   <label
                     htmlFor="avatar-upload"
-                    className={`flex items-center gap-2 px-6 py-3 bg-white border-2 border-dashed border-slate-300 rounded-2xl text-slate-600 font-semibold hover:border-[#4c1d95] hover:text-[#4c1d95] hover:bg-purple-50 transition-all cursor-pointer ${loading ? 'opacity-50 pointer-events-none' : ''}`}
+                    className={`flex items-center gap-2 px-6 py-3 border-2 border-dashed rounded-2xl font-semibold hover:border-[#4c1d95] hover:text-[#4c1d95] hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all cursor-pointer ${loading ? 'opacity-50 pointer-events-none' : ''}`}
+                    style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--textMuted)' }}
                   >
                     <Camera className="w-5 h-5" />
                     {loading ? 'Processando...' : 'Fazer Upload de Foto (PNG, JPG)'}
@@ -181,43 +188,43 @@ const UserProfile: React.FC = () => {
           </div>
 
           {/* User Info */}
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-              <UserIcon className="w-5 h-5 text-[#4c1d95]" />
+          <div className="p-8 rounded-2xl border shadow-sm space-y-6" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
+              <UserIcon className="w-5 h-5" style={{ color: 'var(--brand)' }} />
               Informações Pessoais
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Nome Completo</label>
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium">
+                <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>Nome Completo</label>
+                <div className="p-3 border rounded-xl font-medium" style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}>
                   {user.name}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-[#4c1d95]" /> Email
+                <label className="block text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                  <Mail className="w-4 h-4" style={{ color: 'var(--brand)' }} /> Email
                 </label>
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800">
+                <div className="p-3 border rounded-xl" style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}>
                   {user.email}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-[#4c1d95]" /> Cargo
+                <label className="block text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                  <Briefcase className="w-4 h-4" style={{ color: 'var(--brand)' }} /> Cargo
                 </label>
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800">
+                <div className="p-3 border rounded-xl" style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)', color: 'var(--text)' }}>
                   {user.cargo || 'Não informado'}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Função</label>
+                <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>Função</label>
                 <div className={`p-3 border rounded-xl font-medium ${user.role === 'admin'
-                  ? 'bg-purple-50 border-purple-200 text-purple-700'
-                  : 'bg-blue-50 border-blue-200 text-blue-700'
+                  ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300'
+                  : 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
                   }`}>
                   {user.role === 'admin' ? '👑 Administrador' : '💼 Desenvolvedor'}
                 </div>

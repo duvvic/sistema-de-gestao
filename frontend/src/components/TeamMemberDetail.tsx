@@ -85,8 +85,8 @@ const TeamMemberDetail: React.FC = () => {
          case 'projects':
             return (
                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
-                     <Briefcase className="w-5 h-5 text-[#4c1d95]" />
+                  <h3 className="text-lg font-bold flex items-center gap-2 mb-6" style={{ color: 'var(--textTitle)' }}>
+                     <Briefcase className="w-5 h-5" style={{ color: 'var(--brand)' }} />
                      Projetos Vinculados
                   </h3>
                   {userProjects.length > 0 ? (
@@ -95,14 +95,17 @@ const TeamMemberDetail: React.FC = () => {
                            <button
                               key={p.id}
                               onClick={() => navigate(`/admin/projects/${p.id}`)}
-                              className="bg-white border-2 border-slate-100 p-5 rounded-2xl hover:border-[#4c1d95] hover:shadow-lg transition-all text-left flex flex-col justify-between group h-32"
+                              className="border-2 p-5 rounded-2xl hover:shadow-lg transition-all text-left flex flex-col justify-between group h-32"
+                              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand)'}
+                              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
                            >
                               <div>
-                                 <h4 className="font-bold text-slate-800 group-hover:text-[#4c1d95] transition-colors">{p.name}</h4>
-                                 <p className="text-xs text-slate-500 mt-1 line-clamp-1">{p.description || 'Sem descrição'}</p>
+                                 <h4 className="font-bold transition-colors" style={{ color: 'var(--textTitle)' }}>{p.name}</h4>
+                                 <p className="text-xs mt-1 line-clamp-1" style={{ color: 'var(--textMuted)' }}>{p.description || 'Sem descrição'}</p>
                               </div>
                               <div className="flex items-center gap-2 mt-auto">
-                                 <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded uppercase">
+                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase" style={{ backgroundColor: 'var(--bgApp)', color: 'var(--text)' }}>
                                     {p.status || 'Ativo'}
                                  </span>
                               </div>
@@ -110,8 +113,8 @@ const TeamMemberDetail: React.FC = () => {
                         ))}
                      </div>
                   ) : (
-                     <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-3xl">
-                        <p className="text-slate-400">Nenhum projeto vinculado.</p>
+                     <div className="py-20 text-center border-2 border-dashed rounded-3xl" style={{ borderColor: 'var(--border)' }}>
+                        <p style={{ color: 'var(--textMuted)' }}>Nenhum projeto vinculado.</p>
                      </div>
                   )}
                </div>
@@ -121,7 +124,7 @@ const TeamMemberDetail: React.FC = () => {
             const displayTasks = activeTab === 'delayed' ? delayedTasks : userTasks;
             return (
                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
+                  <h3 className="text-lg font-bold flex items-center gap-2 mb-6" style={{ color: 'var(--textTitle)' }}>
                      {activeTab === 'delayed' ? <AlertCircle className="w-5 h-5 text-red-500" /> : <CheckCircle2 className="w-5 h-5 text-green-500" />}
                      {activeTab === 'delayed' ? 'Tarefas Atrasadas' : 'Total de Tarefas'}
                   </h3>
@@ -138,20 +141,21 @@ const TeamMemberDetail: React.FC = () => {
                            return (
                               <div
                                  key={task.id}
-                                 className={`border p-4 rounded-xl flex flex-col hover:shadow-md transition-all group ${isDelayed ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200 hover:border-[#4c1d95]'}`}
+                                 className={`border p-4 rounded-xl flex flex-col hover:shadow-md transition-all group ${isDelayed ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : 'hover:border-[#4c1d95]'}`}
+                                 style={{ backgroundColor: isDelayed ? undefined : 'var(--surface)', borderColor: isDelayed ? undefined : 'var(--border)' }}
                               >
                                  <div
                                     onClick={() => navigate(`/tasks/${task.id}`)}
                                     className="flex justify-between items-center cursor-pointer mb-3"
                                  >
                                     <div className="flex items-center gap-3">
-                                       {task.status === 'Done' ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Clock className={`w-5 h-5 ${isDelayed ? 'text-red-400' : 'text-slate-400'}`} />}
+                                       {task.status === 'Done' ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Clock className={`w-5 h-5 ${isDelayed ? 'text-red-400' : ''}`} style={{ color: isDelayed ? undefined : 'var(--textMuted)' }} />}
                                        <div>
-                                          <p className={`font-semibold text-sm group-hover:text-[#4c1d95] ${isDelayed ? 'text-red-900' : 'text-slate-800'}`}>{task.title}</p>
-                                          <div className="flex gap-2 text-xs text-slate-500 mt-1">
-                                             <span className={`px-1.5 py-0.5 rounded border ${isDelayed ? 'bg-red-100 border-red-200 text-red-700' : 'bg-slate-50 border-slate-100'}`}>{task.status}</span>
+                                          <p className={`font-semibold text-sm group-hover:text-[#4c1d95] ${isDelayed ? 'text-red-900 dark:text-red-300' : ''}`} style={{ color: isDelayed ? undefined : 'var(--textTitle)' }}>{task.title}</p>
+                                          <div className="flex gap-2 text-xs mt-1" style={{ color: 'var(--textMuted)' }}>
+                                             <span className={`px-1.5 py-0.5 rounded border ${isDelayed ? 'bg-red-100 border-red-200 text-red-700 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800' : ''}`} style={{ backgroundColor: isDelayed ? undefined : 'var(--bgApp)', borderColor: isDelayed ? undefined : 'var(--border)' }}>{task.status}</span>
                                              <span>•</span>
-                                             <span className={`flex items-center gap-1 ${isDelayed ? 'text-red-600 font-bold' : ''}`}>
+                                             <span className={`flex items-center gap-1 ${isDelayed ? 'text-red-600 dark:text-red-400 font-bold' : ''}`}>
                                                 <Calendar className="w-3 h-3" />
                                                 {new Date(task.estimatedDelivery).toLocaleDateString()}
                                                 {isDelayed && ` (+${delayDays}d)`}
@@ -159,13 +163,13 @@ const TeamMemberDetail: React.FC = () => {
                                           </div>
                                        </div>
                                     </div>
-                                    <div className={`text-xs font-bold ${isDelayed ? 'text-red-500' : 'text-slate-400'}`}>{task.progress}%</div>
+                                    <div className={`text-xs font-bold ${isDelayed ? 'text-red-500' : ''}`} style={{ color: isDelayed ? undefined : 'var(--textMuted)' }}>{task.progress}%</div>
                                  </div>
 
                                  {task.status !== 'Done' && (
                                     <button
                                        onClick={handleCreateTimesheet}
-                                       className="w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm"
+                                       className="w-full flex items-center justify-center gap-2 py-2 bg-purple-50 hover:bg-[#4c1d95] text-[#4c1d95] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 shadow-sm dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
                                     >
                                        <Clock className="w-4 h-4" />
                                        Apontar Horas
@@ -176,8 +180,8 @@ const TeamMemberDetail: React.FC = () => {
                         })}
                      </div>
                   ) : (
-                     <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-3xl">
-                        <p className="text-slate-400">Nenhuma tarefa encontrada.</p>
+                     <div className="py-20 text-center border-2 border-dashed rounded-3xl" style={{ borderColor: 'var(--border)' }}>
+                        <p style={{ color: 'var(--textMuted)' }}>Nenhuma tarefa encontrada.</p>
                      </div>
                   )}
                </div>
@@ -185,16 +189,16 @@ const TeamMemberDetail: React.FC = () => {
          case 'ponto':
             return (
                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
+                  <h3 className="text-lg font-bold flex items-center gap-2 mb-6" style={{ color: 'var(--textTitle)' }}>
                      <Timer className="w-5 h-5 text-orange-500" />
                      Apontamento de Horas (Ponto)
                   </h3>
-                  <div className="bg-orange-50 border border-orange-100 p-8 rounded-3xl text-center">
-                     <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-orange-100">
-                        <span className="text-3xl font-black text-orange-600">{missingPontoDays}</span>
+                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 p-8 rounded-3xl text-center">
+                     <div className="w-20 h-20 bg-white dark:bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-orange-100 dark:border-orange-800">
+                        <span className="text-3xl font-black text-orange-600 dark:text-orange-400">{missingPontoDays}</span>
                      </div>
-                     <h4 className="text-xl font-bold text-orange-900 mb-2">Dias pendentes no mês</h4>
-                     <p className="text-orange-700 text-sm max-w-sm mx-auto">
+                     <h4 className="text-xl font-bold text-orange-900 dark:text-orange-300 mb-2">Dias pendentes no mês</h4>
+                     <p className="text-orange-700 dark:text-orange-400 text-sm max-w-sm mx-auto">
                         Este colaborador ainda não realizou o apontamento de horas em {missingPontoDays} dias úteis do mês vigente.
                      </p>
                   </div>
@@ -204,9 +208,9 @@ const TeamMemberDetail: React.FC = () => {
    };
 
    return (
-      <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="h-full flex flex-col rounded-2xl shadow-sm border overflow-hidden" style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)' }}>
          {/* Header */}
-         <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-4 bg-gradient-to-r from-[#4c1d95] to-purple-600 sticky top-0 z-10">
+         <div className="px-8 py-6 border-b flex items-center gap-4 bg-gradient-to-r from-[#4c1d95] to-purple-600 sticky top-0 z-10" style={{ borderColor: 'var(--border)' }}>
             <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/20 rounded-full transition-colors text-white">
                <ArrowLeft className="w-5 h-5" />
             </button>
@@ -240,14 +244,15 @@ const TeamMemberDetail: React.FC = () => {
 
                {/* Sidebar: Resumo (Tabs) */}
                <div className="lg:col-span-4 space-y-6">
-                  <div className="bg-slate-50 rounded-3xl p-6 border border-slate-200">
-                     <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                  <div className="rounded-3xl p-6 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                     <h3 className="font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
                         Resumo
                      </h3>
                      <div className="space-y-4">
                         <button
                            onClick={() => setActiveTab('projects')}
-                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'projects' ? 'bg-[#4c1d95] border-[#4c1d95] text-white shadow-lg scale-[1.02]' : 'bg-white border-slate-100 text-slate-600 hover:border-[#4c1d95]'}`}
+                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'projects' ? 'bg-[#4c1d95] border-[#4c1d95] text-white shadow-lg scale-[1.02]' : 'hover:border-[#4c1d95]'}`}
+                           style={{ backgroundColor: activeTab === 'projects' ? undefined : 'var(--bgApp)', borderColor: activeTab === 'projects' ? undefined : 'var(--border)', color: activeTab === 'projects' ? 'white' : 'var(--textMuted)' }}
                         >
                            <div className="flex items-center gap-3">
                               <Briefcase className={`w-5 h-5 ${activeTab === 'projects' ? 'text-white' : 'text-[#4c1d95]'}`} />
@@ -258,7 +263,8 @@ const TeamMemberDetail: React.FC = () => {
 
                         <button
                            onClick={() => setActiveTab('tasks')}
-                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'tasks' ? 'bg-[#4c1d95] border-[#4c1d95] text-white shadow-lg scale-[1.02]' : 'bg-white border-slate-100 text-slate-600 hover:border-[#4c1d95]'}`}
+                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'tasks' ? 'bg-[#4c1d95] border-[#4c1d95] text-white shadow-lg scale-[1.02]' : 'hover:border-[#4c1d95]'}`}
+                           style={{ backgroundColor: activeTab === 'tasks' ? undefined : 'var(--bgApp)', borderColor: activeTab === 'tasks' ? undefined : 'var(--border)', color: activeTab === 'tasks' ? 'white' : 'var(--textMuted)' }}
                         >
                            <div className="flex items-center gap-3">
                               <Clock className={`w-5 h-5 ${activeTab === 'tasks' ? 'text-white' : 'text-blue-500'}`} />
@@ -269,7 +275,8 @@ const TeamMemberDetail: React.FC = () => {
 
                         <button
                            onClick={() => setActiveTab('delayed')}
-                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'delayed' ? 'bg-red-500 border-red-500 text-white shadow-lg scale-[1.02]' : 'bg-white border-slate-100 text-slate-600 hover:border-red-300'}`}
+                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'delayed' ? 'bg-red-500 border-red-500 text-white shadow-lg scale-[1.02]' : 'hover:border-red-300'}`}
+                           style={{ backgroundColor: activeTab === 'delayed' ? undefined : 'var(--bgApp)', borderColor: activeTab === 'delayed' ? undefined : 'var(--border)', color: activeTab === 'delayed' ? 'white' : 'var(--textMuted)' }}
                         >
                            <div className="flex items-center gap-3">
                               <AlertCircle className={`w-5 h-5 ${activeTab === 'delayed' ? 'text-white' : 'text-red-500'}`} />
@@ -280,7 +287,8 @@ const TeamMemberDetail: React.FC = () => {
 
                         <button
                            onClick={() => setActiveTab('ponto')}
-                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'ponto' ? 'bg-orange-500 border-orange-500 text-white shadow-lg scale-[1.02]' : 'bg-white border-slate-100 text-slate-600 hover:border-orange-300'}`}
+                           className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all duration-300 ${activeTab === 'ponto' ? 'bg-orange-500 border-orange-500 text-white shadow-lg scale-[1.02]' : 'hover:border-orange-300'}`}
+                           style={{ backgroundColor: activeTab === 'ponto' ? undefined : 'var(--bgApp)', borderColor: activeTab === 'ponto' ? undefined : 'var(--border)', color: activeTab === 'ponto' ? 'white' : 'var(--textMuted)' }}
                         >
                            <div className="flex items-center gap-3">
                               <Timer className={`w-5 h-5 ${activeTab === 'ponto' ? 'text-white' : 'text-orange-500'}`} />
@@ -293,7 +301,7 @@ const TeamMemberDetail: React.FC = () => {
                </div>
 
                {/* Right Side: Tab Content */}
-               <div className="lg:col-span-8 flex flex-col h-full bg-slate-50/50 rounded-3xl p-8 border border-slate-100 overflow-y-auto custom-scrollbar">
+               <div className="lg:col-span-8 flex flex-col h-full rounded-3xl p-8 border overflow-y-auto custom-scrollbar" style={{ backgroundColor: 'var(--bgApp)', borderColor: 'var(--border)' }}>
                   {renderContent()}
                </div>
 

@@ -151,7 +151,7 @@ const TeamList: React.FC = () => {
               onChange={(e) => setSelectedCargo(e.target.value)}
               className="w-full appearance-none pl-3 pr-9 py-2 rounded-xl border focus:ring-2 focus:ring-[#4c1d95] outline-none text-sm"
               style={{
-                backgroundColor: 'var(--surface)',
+                backgroundColor: 'var(--bgApp)',
                 borderColor: 'var(--border)',
                 color: 'var(--text)'
               }}
@@ -171,7 +171,7 @@ const TeamList: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#4c1d95] outline-none text-sm"
               style={{
-                backgroundColor: 'var(--surface)',
+                backgroundColor: 'var(--bgApp)',
                 borderColor: 'var(--border)',
                 color: 'var(--text)'
               }}
@@ -190,9 +190,9 @@ const TeamList: React.FC = () => {
               color: statusFilter === 'Todos' ? 'white' : 'var(--text)',
               borderColor: statusFilter === 'Todos' ? 'transparent' : 'var(--border)'
             }}>Todos</button>
-          <button onClick={() => setStatusFilter('Livre')} className={`px-3 py-1 rounded-lg text-xs font-bold border ${statusFilter === 'Livre' ? 'bg-green-500 text-white' : 'bg-white text-green-600'}`}
+          <button onClick={() => setStatusFilter('Livre')} className={`px-3 py-1 rounded-lg text-xs font-bold border ${statusFilter === 'Livre' ? 'bg-green-500 text-white' : 'bg-white dark:bg-transparent text-green-600 dark:text-green-400'}`}
             style={{ backgroundColor: statusFilter === 'Livre' ? undefined : 'var(--surface)', borderColor: 'var(--border)' }}>Livres</button>
-          <button onClick={() => setStatusFilter('Ocupado')} className={`px-3 py-1 rounded-lg text-xs font-bold border ${statusFilter === 'Ocupado' ? 'bg-amber-500 text-white' : 'bg-white text-amber-600'}`}
+          <button onClick={() => setStatusFilter('Ocupado')} className={`px-3 py-1 rounded-lg text-xs font-bold border ${statusFilter === 'Ocupado' ? 'bg-amber-500 text-white' : 'bg-white dark:bg-transparent text-amber-600 dark:text-amber-400'}`}
             style={{ backgroundColor: statusFilter === 'Ocupado' ? undefined : 'var(--surface)', borderColor: 'var(--border)' }}>Ocupados</button>
         </div>
       )}
