@@ -4,7 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Componentes adaptados
-import Login from '@/components/Login_New';
+import Login from '@/components/Login';
 import AdminDashboard from '@/components/AdminDashboard';
 import ClientDetailsView from '@/components/ClientDetailsView';
 import ClientForm from '@/components/ClientForm';
