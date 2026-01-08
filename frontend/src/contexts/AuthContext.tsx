@@ -24,29 +24,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const loadUser = async () => {
             console.log('[Auth] Iniciando loadUser...');
             try {
-                // Primeiro tenta carregar da sessão do Supabase com timeout
+                // Tenta recuperar sessão do Supabase (localStorage do browser)
                 const sessionPromise = supabase.auth.getSession();
+
+                // Opção: Aumentar timeout para conexão lenta ou remover se desnecessário. 
+                // Mantendo race para evitar hang eterno, mas tratando falha como logout.
                 let session = null;
-                let sessionError = null;
 
                 try {
                     const { data, error } = await Promise.race([
                         sessionPromise,
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000)) // Aumentado para 10s
                     ]) as any;
-                    session = data?.session;
-                    sessionError = error;
-                } catch (e) {
-                    console.warn('[Auth] Timeout de sessão detectado. Tentando recuperar via armazenamento local...');
-                }
 
-                if (sessionError) {
-                    console.error('[Auth] Erro ao buscar sessão:', sessionError);
+                    if (error) throw error;
+                    session = data?.session;
+                } catch (e) {
+                    console.warn('[Auth] Falha ou Timeout ao buscar sessão:', e);
+                    // Se falhar a verificação de sessão, não podemos confiar no sessionStorage
+                    // pois o token de acesso (JWT) estaria inválido/ausente.
                 }
 
                 if (session?.user) {
                     console.log('[Auth] Sessão encontrada para:', session.user.email);
-                    // Buscar dados completos do usuário
+
+                    // Buscar dados completos do usuário no banco
                     const { data: userData, error } = await supabase
                         .from('dim_colaboradores')
                         .select('*')
@@ -74,26 +76,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         console.warn('[Auth] Usuário não encontrado no banco de dados');
                         setCurrentUser(null);
                         sessionStorage.removeItem('currentUser');
-                        alert('Usuário não encontrado no banco. Faça login novamente.');
+                        await supabase.auth.signOut(); // Forçar logout limpo
                     }
                 } else {
-                    console.log('[Auth] Nenhuma sessão Supabase encontrada, tentando fallback...');
-                    // Fallback para sessionStorage
-                    const storedUser = sessionStorage.getItem('currentUser');
-                    if (storedUser) {
-                        console.log('[Auth] Usuário carregado do sessionStorage');
-                        setCurrentUser(JSON.parse(storedUser));
-                    } else {
-                        console.log('[Auth] Nenhum usuário encontrado no sessionStorage');
-                        setCurrentUser(null);
-                    }
+                    console.log('[Auth] Nenhuma sessão ativa encontrada.');
+                    // IMPORTANTE: Remover fallback para sessionStorage aqui. 
+                    // Se o Supabase não tem sessão, o sessionStorage tem apenas dados "visuais" sem token válido.
+                    setCurrentUser(null);
+                    sessionStorage.removeItem('currentUser');
                 }
             } catch (error) {
                 console.error('[Auth] Erro FATAL ao carregar usuário:', error);
                 setCurrentUser(null);
-                alert('Erro ao carregar usuário. Faça login novamente.');
+                sessionStorage.removeItem('currentUser');
             } finally {
-                console.log('[Auth] Finalizando loadUser, isLoading = false');
                 setIsLoading(false);
             }
         };
