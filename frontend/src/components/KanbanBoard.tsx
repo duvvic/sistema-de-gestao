@@ -380,13 +380,21 @@ const KanbanBoard: React.FC = () => {
       else if (newStatus === 'Review') newProgress = 80;
       else if (newStatus === 'Done') newProgress = 100;
 
-      // Atualizar via Controller
-      await updateTask(activeId, {
-        status: newStatus,
-        progress: newProgress,
-        // Se concluiu, definir data de entrega real se não houver
-        ...(newStatus === 'Done' ? { actualDelivery: new Date().toISOString() } : {})
-      });
+      try {
+        // Atualizar via Controller
+        await updateTask(activeId, {
+          status: newStatus,
+          progress: newProgress,
+          // Se concluiu, definir data de entrega real se não houver
+          ...(newStatus === 'Done' ? { actualDelivery: new Date().toISOString() } : {})
+        });
+      } catch (error) {
+        console.error("Erro ao mover tarefa:", error);
+        alert("Erro ao atualizar tarefa. Verifique sua conexão e tente novamente.");
+        // O estado não atualizou, então o card deve voltar sozinho ao renderizar novamente.
+        // Forçar atualização da lista para garantir sincronia
+        window.location.reload();
+      }
     }
   };
 

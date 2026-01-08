@@ -4,6 +4,9 @@
 import { useData } from '@/contexts/DataContext';
 import { Task, Project, Client, User, TimesheetEntry } from '@/types';
 import { supabase } from '@/services/supabaseClient';
+import * as clientService from '@/services/clientService';
+import * as projectService from '@/services/projectService';
+import * as taskService from '@/services/taskService';
 
 export const useDataController = () => {
     const {
@@ -19,6 +22,16 @@ export const useDataController = () => {
 
     // === CLIENT CONTROLLERS ===
 
+    // === CLIENT CONTROLLERS ===
+
+    // Imports estáticos já devem estar no topo do arquivo. 
+    // Vou remover a lógica de imports dinâmicos e usar as funções diretamente.
+    // Como não posso editar o topo do arquivo neste bloco, assumirei que o usuário editará os imports depois ou farei um replace global.
+    // ESPERA: A ferramenta replace_file_content permite substituir blocos. Vou substituir o CORPO do hook, mas preciso garantir os imports.
+    // Melhor usar multi_replace ou reescrever o arquivo com cuidado. 
+
+    // Vou usar multi_replace para garantir que os imports estejam lá.
+
     const getClientById = (id: string): Client | undefined => {
         return clients.find(c => c.id === id);
     };
@@ -28,8 +41,7 @@ export const useDataController = () => {
     };
 
     const createClient = async (clientData: Partial<Client>): Promise<string> => {
-        const { createClient: createClientDb } = await import('@/services/clientService');
-        const newId = await createClientDb(clientData as Client);
+        const newId = await clientService.createClient(clientData as Client);
 
         const { data: row } = await supabase
             .from('dim_clientes')
@@ -86,16 +98,14 @@ export const useDataController = () => {
     };
 
     const createProject = async (projectData: Partial<Project>): Promise<string> => {
-        const { createProject: createProjectDb } = await import('@/services/projectService');
-        const newId = await createProjectDb(projectData);
+        const newId = await projectService.createProject(projectData);
         const newProject = { ...projectData, id: String(newId) } as Project;
         setProjects(prev => [...prev, newProject]);
         return String(newId);
     };
 
     const updateProject = async (projectId: string, updates: Partial<Project>): Promise<void> => {
-        const { updateProject: updateProjectDb } = await import('@/services/projectService');
-        await updateProjectDb(projectId, updates);
+        await projectService.updateProject(projectId, updates);
         setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
     };
 
@@ -114,25 +124,19 @@ export const useDataController = () => {
     };
 
     const createTask = async (taskData: Partial<Task>): Promise<string> => {
-        const taskModule = await import('@/services/taskService');
-        const createTaskFn = (taskModule as any).createTask ?? (taskModule as any).default?.createTask ?? (taskModule as any).default;
-        const newId = await createTaskFn(taskData);
+        const newId = await taskService.createTask(taskData);
         const newTask = { ...taskData, id: String(newId) } as Task;
         setTasks(prev => [newTask, ...prev]);
         return String(newId);
     };
 
     const updateTask = async (taskId: string, updates: Partial<Task>): Promise<void> => {
-        const taskModule = await import('@/services/taskService');
-        const updateTaskFn = (taskModule as any).updateTask ?? (taskModule as any).default?.updateTask ?? (taskModule as any).default;
-        await updateTaskFn(taskId, updates);
+        await taskService.updateTask(taskId, updates);
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
     };
 
     const deleteTask = async (taskId: string): Promise<void> => {
-        const taskModule = await import('@/services/taskService');
-        const deleteTaskFn = (taskModule as any).deleteTask ?? (taskModule as any).default?.deleteTask ?? (taskModule as any).default;
-        await deleteTaskFn(taskId);
+        await taskService.deleteTask(taskId);
         setTasks(prev => prev.filter(t => t.id !== taskId));
     };
 
