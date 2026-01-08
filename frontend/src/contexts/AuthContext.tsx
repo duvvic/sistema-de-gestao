@@ -24,24 +24,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const loadUser = async () => {
             console.log('[Auth] Iniciando loadUser...');
             try {
-                // Tenta recuperar sessão do Supabase (localStorage do browser)
-                const sessionPromise = supabase.auth.getSession();
-
-                let session = null;
-
-                try {
-                    // Timeout reduzido para 2s para não travar quem usa login por senha
-                    const { data, error } = await Promise.race([
-                        sessionPromise,
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
-                    ]) as any;
-
-                    if (error) throw error;
-                    session = data?.session;
-                } catch (e) {
-                    // Silencioso: é normal falhar/timeout para quem usa senha customizada
-                    // console.warn('[Auth] Verificação de sessão Supabase: Off/Timeout. Usando modo senha.');
+                // Verifica sessão do Supabase sem timeout manual
+                const { data, error } = await supabase.auth.getSession();
+                if (error) {
+                    console.warn('[Auth] Erro ao verificar sessão Supabase:', error);
                 }
+                const session = data?.session;
 
                 if (session?.user) {
                     // === CAMINHO 1: Login via Supabase Auth (OTP/Magic Link) ===
