@@ -30,16 +30,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 let session = null;
 
                 try {
-                    // Timeout de segurança
+                    // Timeout reduzido para 2s para não travar quem usa login por senha
                     const { data, error } = await Promise.race([
                         sessionPromise,
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
                     ]) as any;
 
                     if (error) throw error;
                     session = data?.session;
                 } catch (e) {
-                    console.warn('[Auth] Falha ou Timeout ao buscar sessão Supabase (pode ser login customizado):', e);
+                    // Silencioso: é normal falhar/timeout para quem usa senha customizada
+                    // console.warn('[Auth] Verificação de sessão Supabase: Off/Timeout. Usando modo senha.');
                 }
 
                 if (session?.user) {
