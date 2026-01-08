@@ -62,22 +62,26 @@ const Login: React.FC = () => {
         setTimeout(() => setter(false), 1000);
     };
 
-    // Carregar usuários ao montar
+    // Carregar usuários ao montar e testar conexão
     useEffect(() => {
-        const loadUsers = async () => {
+        const init = async () => {
+            // Teste de conexão sugerido (Debug)
+            console.log('[Debug] Testando conexão com Supabase...');
+            const { data: dbTest, error: dbError } = await supabase.from('dim_projetos').select('ID_Projeto').limit(1);
+            console.log('[Debug] Resultado DB (dim_projetos):', { data: dbTest, error: dbError });
+
+            // Carregar usuários para cache (opcional, mantendo lógica existente)
             try {
                 const usersData = await fetchUsers();
                 if (usersData.length === 0) {
-                    console.warn('[Login] Aviso: Lista de usuários retornou vazia do banco.');
+                    console.warn('[Login] Aviso: Lista de usuários retornou vazia.');
                 }
-                console.log(`[Login] ${usersData.length} usuários carregados com sucesso.`);
                 setUsers(usersData);
             } catch (error) {
-                console.error('[Login] ERRO CRÍTICO ao carregar usuários:', error);
-                alert('Não foi possível conectar ao banco de dados para carregar os usuários. Verifique sua conexão.');
+                console.error('[Login] Erro ao carregar usuários:', error);
             }
         };
-        loadUsers();
+        init();
     }, []);
 
     // Redireciona se já estiver logado (somente no modo normal de login)
