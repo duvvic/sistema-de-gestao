@@ -23,77 +23,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         const loadUser = async () => {
             console.log('[Auth] Iniciando loadUser...');
+            // Tenta carregar sessão do Supabase com timeout curto (2s)
+            // Se a rede estiver lenta ou o cliente travar, pulamos para o fallback local
+            const sessionPromise = supabase.auth.getSession();
+            let session = null;
+
             try {
-                // Verifica sessão do Supabase sem timeout manual
-                const { data, error } = await supabase.auth.getSession();
-                if (error) {
-                    console.warn('[Auth] Erro ao verificar sessão Supabase:', error);
-                }
-                const session = data?.session;
+                const { data, error } = await Promise.race([
+                    sessionPromise,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+                ]) as any;
 
-                if (session?.user) {
-                    // === CAMINHO 1: Login via Supabase Auth (OTP/Magic Link) ===
-                    console.log('[Auth] Sessão Supabase encontrada:', session.user.email);
-
-                    const { data: userData } = await supabase
-                        .from('dim_colaboradores')
-                        .select('*')
-                        .eq('E-mail', session.user.email)
-                        .maybeSingle();
-
-                    if (userData) {
-                        const user: User = {
-                            id: String(userData.ID_Colaborador),
-                            name: userData.NomeColaborador,
-                            email: userData['E-mail'] || userData.email,
-                            role: userData.papel === 'Administrador' ? 'admin' : 'developer',
-                            avatarUrl: userData.avatar_url,
-                            cargo: userData.cargo,
-                            active: userData.ativo ?? true,
-                        };
-                        setCurrentUser(user);
-                        sessionStorage.setItem('currentUser', JSON.stringify(user));
-                    }
-                } else {
-                    // === CAMINHO 2: Login Customizado (Senha/Tabela) ===
-                    // Como o Login por senha NÃO cria sessão no Supabase (apenas verifica hash no banco),
-                    // dependemos exclusivamente do sessionStorage para persistir o login.
-
-                    console.log('[Auth] Nenhuma sessão Supabase ativa. Verificando fallback local...');
-                    const storedUser = sessionStorage.getItem('currentUser');
-
-                    if (storedUser) {
-                        console.log('[Auth] Usuário recuperado do armazenamento local (Login Customizado).');
-                        try {
-                            const parsedUser = JSON.parse(storedUser);
-                            setCurrentUser(parsedUser);
-                        } catch (err) {
-                            console.error('[Auth] Erro ao parsear usuário armazenado:', err);
-                            sessionStorage.removeItem('currentUser');
-                        }
-                    } else {
-                        console.log('[Auth] Nenhum usuário logado.');
-                        setCurrentUser(null);
-                    }
-                }
-            } catch (error) {
-                console.error('[Auth] Erro geral ao carregar usuário:', error);
-                // Não deslogar forçadamente aqui para não atrapalhar UX em erros transientes
-            } finally {
-                setIsLoading(false);
+                if (error) throw error;
+                session = data?.session;
+            } catch (e) {
+                // Timeout ou Erro: Prossegue para tentar recuperar do sessionStorage
+                // console.warn('[Auth] Sessão Supabase não detectada (Timeout/Erro). Verificando local.');
             }
-        };
 
-        loadUser();
-    }, []);
+            if (session?.user) {
+                // === CAMINHO 1: Login via Supabase Auth (OTP/Magic Link) ===
+                console.log('[Auth] Sessão Supabase encontrada:', session.user.email);
 
-    // Listener para mudanças de autenticação
-    useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_OUT') {
-                setCurrentUser(null);
-                sessionStorage.removeItem('currentUser');
-            } else if (event === 'SIGNED_IN' && session?.user) {
                 const { data: userData } = await supabase
                     .from('dim_colaboradores')
                     .select('*')
@@ -113,35 +64,94 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setCurrentUser(user);
                     sessionStorage.setItem('currentUser', JSON.stringify(user));
                 }
+            } else {
+                // === CAMINHO 2: Login Customizado (Senha/Tabela) ===
+                // Como o Login por senha NÃO cria sessão no Supabase (apenas verifica hash no banco),
+                // dependemos exclusivamente do sessionStorage para persistir o login.
+
+                console.log('[Auth] Nenhuma sessão Supabase ativa. Verificando fallback local...');
+                const storedUser = sessionStorage.getItem('currentUser');
+
+                if (storedUser) {
+                    console.log('[Auth] Usuário recuperado do armazenamento local (Login Customizado).');
+                    try {
+                        const parsedUser = JSON.parse(storedUser);
+                        setCurrentUser(parsedUser);
+                    } catch (err) {
+                        console.error('[Auth] Erro ao parsear usuário armazenado:', err);
+                        sessionStorage.removeItem('currentUser');
+                    }
+                } else {
+                    console.log('[Auth] Nenhum usuário logado.');
+                    setCurrentUser(null);
+                }
             }
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, []);
-
-    const login = (user: User) => {
-        setCurrentUser(user);
-        sessionStorage.setItem('currentUser', JSON.stringify(user));
+        } catch (error) {
+            console.error('[Auth] Erro geral ao carregar usuário:', error);
+            // Não deslogar forçadamente aqui para não atrapalhar UX em erros transientes
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const logout = () => {
-        setCurrentUser(null);
-        sessionStorage.removeItem('currentUser');
-        supabase.auth.signOut();
-    };
+    loadUser();
+}, []);
 
-    const updateUser = (user: User) => {
-        setCurrentUser(user);
-        sessionStorage.setItem('currentUser', JSON.stringify(user));
-    };
+// Listener para mudanças de autenticação
+useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+            setCurrentUser(null);
+            sessionStorage.removeItem('currentUser');
+        } else if (event === 'SIGNED_IN' && session?.user) {
+            const { data: userData } = await supabase
+                .from('dim_colaboradores')
+                .select('*')
+                .eq('E-mail', session.user.email)
+                .maybeSingle();
 
-    return (
-        <AuthContext.Provider value={{ currentUser, isLoading, login, logout, updateUser }}>
-            {children}
-        </AuthContext.Provider>
-    );
+            if (userData) {
+                const user: User = {
+                    id: String(userData.ID_Colaborador),
+                    name: userData.NomeColaborador,
+                    email: userData['E-mail'] || userData.email,
+                    role: userData.papel === 'Administrador' ? 'admin' : 'developer',
+                    avatarUrl: userData.avatar_url,
+                    cargo: userData.cargo,
+                    active: userData.ativo ?? true,
+                };
+                setCurrentUser(user);
+                sessionStorage.setItem('currentUser', JSON.stringify(user));
+            }
+        }
+    });
+
+    return () => {
+        subscription.unsubscribe();
+    };
+}, []);
+
+const login = (user: User) => {
+    setCurrentUser(user);
+    sessionStorage.setItem('currentUser', JSON.stringify(user));
+};
+
+const logout = () => {
+    setCurrentUser(null);
+    sessionStorage.removeItem('currentUser');
+    supabase.auth.signOut();
+};
+
+const updateUser = (user: User) => {
+    setCurrentUser(user);
+    sessionStorage.setItem('currentUser', JSON.stringify(user));
+};
+
+return (
+    <AuthContext.Provider value={{ currentUser, isLoading, login, logout, updateUser }}>
+        {children}
+    </AuthContext.Provider>
+);
 };
 
 export const useAuth = () => {
