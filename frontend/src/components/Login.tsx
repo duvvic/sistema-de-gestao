@@ -105,36 +105,28 @@ const Login: React.FC = () => {
         }
     };
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        console.log('[Login] Tentando login para:', email);
-
+    const handleLogin = async (event: React.FormEvent) => {
+        event.preventDefault();
         setLoading(true);
-
         try {
+            console.log('[Login] Tentando login para:', email);
             const { data, error } = await supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password,
             });
-
-            console.log('[Login] Resultado signIn:', { data, error });
+            console.log('[Login] signInWithPassword result:', { data, error });
 
             if (error) {
-                console.error('[Login] Erro:', error);
-                alert(error.message);
+                alert(error.message);  // Mostra “Invalid login credentials” ou “Email not confirmed”
                 return;
             }
 
-            // opcional: confirmar sessão atual
-            const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-            console.log('[Login] Session após login:', { sessionData, sessionErr });
-
-            // redirecionar
-            navigate('/'); // Ajustado para rota raiz, o AuthContext deve redirecionar com base na role depois
+            // OK! Redirecione para a área logada.
+            // Ajuste: Redirecionando para a raiz ('/') pois /html/index.html não existe na estrutura padrão Vite.
+            window.location.href = '/';
         } catch (err: any) {
             console.error('[Login] Exception:', err);
-            alert('Erro inesperado no login. Veja o console.');
+            alert('Erro inesperado no login');
         } finally {
             setLoading(false);
         }
