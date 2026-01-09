@@ -108,26 +108,43 @@ const Login: React.FC = () => {
     const handleLogin = async (event: React.FormEvent) => {
         event.preventDefault();
         setLoading(true);
+
         try {
             console.log('[Login] Tentando login para:', email);
-            const { data, error } = await supabase.auth.signInWithPassword({
+
+            // Timeout de 10 segundos para evitar loading infinito
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout: A requisição demorou muito')), 10000)
+            );
+
+            const loginPromise = supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password,
             });
+
+            const { data, error } = await Promise.race([loginPromise, timeoutPromise]) as any;
+
             console.log('[Login] signInWithPassword result:', { data, error });
 
             if (error) {
-                alert(error.message);  // Mostra “Invalid login credentials” ou “Email not confirmed”
+                console.error('[Login] Erro detalhado:', {
+                    message: error.message,
+                    status: error.status,
+                    code: error.code,
+                    name: error.name
+                });
+                alert(`Erro no login: ${error.message}`);
                 return;
             }
 
+            console.log('[Login] Login bem-sucedido! Redirecionando...');
             // OK! Redirecione para a área logada.
-            // Ajuste: Redirecionando para a raiz ('/') pois /html/index.html não existe na estrutura padrão Vite.
             window.location.href = '/';
         } catch (err: any) {
             console.error('[Login] Exception:', err);
-            alert('Erro inesperado no login');
+            alert(err.message || 'Erro inesperado no login');
         } finally {
+            console.log('[Login] Finalizando (setLoading false)');
             setLoading(false);
         }
     };
