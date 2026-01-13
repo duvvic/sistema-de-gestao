@@ -42,20 +42,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loadUserFromSession = useCallback(async (session: any) => {
         if (!session?.user?.email) {
+            console.log('[Auth] Sem e-mail na sessão, abortando carga de dados.');
             setCurrentUser(null);
             setAuthReady(true);
             setIsLoading(false);
             return;
         }
 
+        const emailToFind = session.user.email.trim().toLowerCase();
+        console.log('[Auth] Carregando dados do banco para:', emailToFind);
+
         try {
+            // Log antes da query
+            console.log('[Auth] Iniciando busca em dim_colaboradores...');
+
             const { data: userData, error: dbErr } = await supabase
                 .from('dim_colaboradores')
                 .select('*')
-                .eq('email', session.user.email.trim().toLowerCase()) // Busca pela nova coluna padronizada
+                .eq('email', emailToFind)
                 .maybeSingle();
 
-            if (dbErr) console.warn('[Auth] Erro ao buscar dim_colaboradores:', dbErr);
+            if (dbErr) {
+                console.error('[Auth] Erro na query de colaboradores:', dbErr);
+                throw dbErr;
+            }
+
+            console.log('[Auth] Resposta do banco recebida:', userData ? 'Usuário encontrado' : 'Usuário NÃO encontrado');
 
             if (userData) {
                 setCurrentUser(mapUserDataToUser(userData));
@@ -78,44 +90,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [mapUserDataToUser]);
 
     useEffect(() => {
-        // Timeout de segurança: se o Supabase travar por URL inválida, libera o sistema após 5s
+        console.log('[Auth] Inicializando AuthProvider...');
+
         const safetyTimeout = setTimeout(() => {
-            if (!authReady) {
-                console.warn('[Auth] Safety timeout atingido. Forçando authReady.');
-                setAuthReady(true);
-                setIsLoading(false);
-            }
+            setAuthReady(current => {
+                if (!current) {
+                    console.warn('[Auth] Safety timeout atingido! Forçando desbloqueio da UI.');
+                    setIsLoading(false);
+                    return true;
+                }
+                return current;
+            });
         }, 5000);
 
         // Carga inicial
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            console.log('[Auth] Sessão inicial:', session ? 'Encontrada' : 'Nenhuma');
-            loadUserFromSession(session);
-        }).catch(err => {
-            console.error('[Auth] Erro ao buscar sessão inicial:', err);
-            setAuthReady(true);
-            setIsLoading(false);
-        });
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                console.log('[Auth] Sessão recuperada:', session ? 'Sim' : 'Não');
+                return loadUserFromSession(session);
+            })
+            .catch(err => {
+                console.error('[Auth] Falha crítica ao iniciar sessão:', err);
+                setAuthReady(true);
+                setIsLoading(false);
+            });
 
-        // Listener de eventos do Supabase Auth
+        // Listener de eventos
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[Auth] Evento detectado:', event);
+            console.log('[Auth] Evento Supabase:', event);
 
             if (event === 'SIGNED_OUT') {
                 setCurrentUser(null);
                 setAuthReady(true);
                 setIsLoading(false);
-                return;
-            }
-
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-                if (session) {
-                    await loadUserFromSession(session);
-                } else {
-                    setCurrentUser(null);
-                    setAuthReady(true);
-                    setIsLoading(false);
-                }
+            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                await loadUserFromSession(session);
             }
         });
 
@@ -123,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             clearTimeout(safetyTimeout);
             subscription.unsubscribe();
         };
-    }, [loadUserFromSession, authReady]);
+    }, [loadUserFromSession]); // REMOVIDO authReady daqui para evitar loop
 
     const login = (user: User) => {
         setCurrentUser(user);
