@@ -53,21 +53,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('[Auth] Carregando dados do banco para:', emailToFind);
 
         try {
-            // Log antes da query
-            console.log('[Auth] Iniciando busca em dim_colaboradores...');
+            console.log('[Auth] Iniciando busca em dim_colaboradores (Timeout 4s)...');
 
-            const { data: userData, error: dbErr } = await supabase
-                .from('dim_colaboradores')
-                .select('*')
-                .eq('email', emailToFind)
-                .maybeSingle();
+            // Cria uma promessa que rejeita após 4 segundos
+            const queryTimeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Banco de dados não respondeu a tempo (Timeout)')), 4000)
+            );
 
-            if (dbErr) {
-                console.error('[Auth] Erro na query de colaboradores:', dbErr);
-                throw dbErr;
-            }
+            // Corre a query contra o timeout
+            const userData = await Promise.race([
+                supabase
+                    .from('dim_colaboradores')
+                    .select('*')
+                    .eq('email', emailToFind)
+                    .maybeSingle()
+                    .then(res => {
+                        if (res.error) throw res.error;
+                        return res.data;
+                    }),
+                queryTimeout
+            ]) as any;
 
-            console.log('[Auth] Resposta do banco recebida:', userData ? 'Usuário encontrado' : 'Usuário NÃO encontrado');
+            console.log('[Auth] Resposta recebida:', userData ? 'Usuário identificado' : 'Usuário não cadastrado no banco');
 
             if (userData) {
                 setCurrentUser(mapUserDataToUser(userData));
