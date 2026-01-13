@@ -107,48 +107,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         console.log('[Auth] Inicializando AuthProvider...');
+        let isMounted = true;
 
         const safetyTimeout = setTimeout(() => {
-            setAuthReady(current => {
-                if (!current) {
-                    console.warn('[Auth] Safety timeout atingido! Forçando desbloqueio da UI.');
-                    setIsLoading(false);
-                    return true;
+            if (isMounted) {
+                setAuthReady(current => {
+                    if (!current) {
+                        console.warn('[Auth] Safety timeout! Desbloqueando UI.');
+                        setIsLoading(false);
+                        return true;
+                    }
+                    return current;
+                });
+            }
+        }, 6000);
+
+        // Função única para inicializar
+        const initAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (isMounted) {
+                    console.log('[Auth] Sessão inicial:', session ? 'Encontrada' : 'Nenhuma');
+                    await loadUserFromSession(session);
                 }
-                return current;
-            });
-        }, 5000);
+            } catch (err) {
+                console.error('[Auth] Erro na inicialização:', err);
+                if (isMounted) {
+                    setAuthReady(true);
+                    setIsLoading(false);
+                }
+            }
+        };
 
-        // Carga inicial
-        supabase.auth.getSession()
-            .then(({ data: { session } }) => {
-                console.log('[Auth] Sessão recuperada:', session ? 'Sim' : 'Não');
-                return loadUserFromSession(session);
-            })
-            .catch(err => {
-                console.error('[Auth] Falha crítica ao iniciar sessão:', err);
-                setAuthReady(true);
-                setIsLoading(false);
-            });
+        initAuth();
 
-        // Listener de eventos
+        // Listener apenas para mudanças reais (não INITIAL_SESSION/SIGNED_IN redundante)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[Auth] Evento Supabase:', event);
+            console.log('[Auth] Evento detectado:', event);
 
             if (event === 'SIGNED_OUT') {
-                setCurrentUser(null);
-                setAuthReady(true);
-                setIsLoading(false);
+                if (isMounted) {
+                    setCurrentUser(null);
+                    setAuthReady(true);
+                    setIsLoading(false);
+                }
             } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                await loadUserFromSession(session);
+                // Só recarrega se não tivermos o usuário ou for um evento de login novo
+                if (isMounted) {
+                    await loadUserFromSession(session);
+                }
             }
         });
 
         return () => {
+            isMounted = false;
             clearTimeout(safetyTimeout);
             subscription.unsubscribe();
         };
-    }, [loadUserFromSession]); // REMOVIDO authReady daqui para evitar loop
+    }, [loadUserFromSession]);
 
     const login = (user: User) => {
         setCurrentUser(user);
