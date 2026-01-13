@@ -291,20 +291,43 @@ const TeamList: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  <div className="pt-3 border-t flex justify-end gap-2 transition-all"
                     style={{ borderColor: 'var(--border)' }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/admin/team/${user.id}/edit`); }}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                      style={{ color: 'var(--primary)' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
+                      style={{
+                        color: 'var(--primary)',
+                        backgroundColor: 'var(--surface-2)',
+                        borderColor: 'var(--border)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--primary)';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--surface-2)';
+                        e.currentTarget.style.color = 'var(--primary)';
+                      }}
                     >
                       Editar
                     </button>
                     <button
                       onClick={(e) => handleDeleteClick(e, user)}
-                      className="text-xs font-bold text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
+                      style={{
+                        color: 'var(--danger)',
+                        backgroundColor: 'var(--danger-bg)',
+                        borderColor: 'rgba(239, 68, 68, 0.2)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--danger)';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--danger-bg)';
+                        e.currentTarget.style.color = 'var(--danger)';
+                      }}
                     >
                       Excluir
                     </button>
