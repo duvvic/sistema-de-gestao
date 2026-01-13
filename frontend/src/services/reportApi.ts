@@ -105,28 +105,32 @@ export async function fetchReportPreview(filters: PreviewFilters): Promise<Repor
     if (filters.clientIds?.length) params.set('clientIds', filters.clientIds.join(','));
     if (filters.projectIds?.length) params.set('projectIds', filters.projectIds.join(','));
     if (filters.collaboratorIds?.length) params.set('collaboratorIds', filters.collaboratorIds.join(','));
-    if (filters.taskIds?.length) params.set('taskIds', filters.taskIds.map(String).join(','));
 
     return apiFetch(`/admin/report/preview?${params.toString()}`);
 }
 
-export async function upsertProjectCost(id_projeto: number, valor_projeto: number | null): Promise<void> {
-    await apiFetch('/admin/projects/cost', {
-        method: 'POST',
-        body: JSON.stringify({ id_projeto, valor_projeto }),
+export async function upsertProjectCost(id_projeto: number, budget: number | null): Promise<void> {
+    await apiFetch('/admin/report/project-budgets', {
+        method: 'PUT',
+        body: JSON.stringify({ budgets: [{ id_projeto, budget }] }),
     });
 }
 
 export async function exportReportExcel(filters: PreviewFilters): Promise<Blob> {
     const token = await getAccessToken();
+    const params = new URLSearchParams({
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+    });
+    if (filters.clientIds?.length) params.set('clientIds', filters.clientIds.join(','));
+    if (filters.projectIds?.length) params.set('projectIds', filters.projectIds.join(','));
+    if (filters.collaboratorIds?.length) params.set('collaboratorIds', filters.collaboratorIds.join(','));
 
-    const res = await fetch(`${API_BASE}/admin/report/export/excel`, {
-        method: 'POST',
+    const res = await fetch(`${API_BASE}/admin/report/excel?${params.toString()}`, {
+        method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(filters),
+        }
     });
 
     if (!res.ok) {
@@ -139,14 +143,19 @@ export async function exportReportExcel(filters: PreviewFilters): Promise<Blob> 
 
 export async function exportReportPowerBI(filters: PreviewFilters): Promise<Blob> {
     const token = await getAccessToken();
+    const params = new URLSearchParams({
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+    });
+    if (filters.clientIds?.length) params.set('clientIds', filters.clientIds.join(','));
+    if (filters.projectIds?.length) params.set('projectIds', filters.projectIds.join(','));
+    if (filters.collaboratorIds?.length) params.set('collaboratorIds', filters.collaboratorIds.join(','));
 
-    const res = await fetch(`${API_BASE}/admin/report/export/powerbi`, {
-        method: 'POST',
+    const res = await fetch(`${API_BASE}/admin/report/powerbi?${params.toString()}`, {
+        method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(filters),
+        }
     });
 
     if (!res.ok) {
