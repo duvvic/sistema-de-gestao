@@ -78,40 +78,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [mapUserDataToUser]);
 
     useEffect(() => {
+        // Timeout de segurança: se o Supabase travar por URL inválida, libera o sistema após 5s
+        const safetyTimeout = setTimeout(() => {
+            if (!authReady) {
+                console.warn('[Auth] Safety timeout atingido. Forçando authReady.');
+                setAuthReady(true);
+                setIsLoading(false);
+            }
+        }, 5000);
+
         // Carga inicial
         supabase.auth.getSession().then(({ data: { session } }) => {
+            console.log('[Auth] Sessão inicial:', session ? 'Encontrada' : 'Nenhuma');
             loadUserFromSession(session);
+        }).catch(err => {
+            console.error('[Auth] Erro ao buscar sessão inicial:', err);
+            setAuthReady(true);
+            setIsLoading(false);
         });
 
         // Listener de eventos do Supabase Auth
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[Auth] onAuthStateChange:', event);
+            console.log('[Auth] Evento detectado:', event);
 
             if (event === 'SIGNED_OUT') {
                 setCurrentUser(null);
                 setAuthReady(true);
+                setIsLoading(false);
                 return;
             }
 
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                await loadUserFromSession(session);
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                if (session) {
+                    await loadUserFromSession(session);
+                } else {
+                    setCurrentUser(null);
+                    setAuthReady(true);
+                    setIsLoading(false);
+                }
             }
         });
 
-        return () => subscription.unsubscribe();
-    }, [loadUserFromSession]);
+        return () => {
+            clearTimeout(safetyTimeout);
+            subscription.unsubscribe();
+        };
+    }, [loadUserFromSession, authReady]);
 
     const login = (user: User) => {
         setCurrentUser(user);
     };
 
     const logout = async () => {
-        await supabase.auth.signOut({ scope: 'global' });
-        setCurrentUser(null);
-        // Limpeza de cache local do Supabase
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('sb-')) localStorage.removeItem(key);
-        });
+        try {
+            await supabase.auth.signOut({ scope: 'global' });
+        } catch (err) {
+            console.error('[Auth] Erro ao deslogar do Supabase:', err);
+        } finally {
+            setCurrentUser(null);
+            // Limpeza radical de cache local
+            try {
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('sb-') || key.includes('supabase')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+            } catch (e) {
+                localStorage.clear();
+            }
+        }
     };
 
     const updateUser = (user: User) => {

@@ -42,11 +42,23 @@ const Login: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [otpToken, setOtpToken] = useState('');
     const [loading, setLoading] = useState(false);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [alertConfig, setAlertConfig] = useState<{ show: boolean, message: string, title?: string }>({
+        show: false,
+        message: '',
+        title: ''
+    });
 
     const [showPass, setShowPass] = useState(false);
     const [showNewPass, setShowNewPass] = useState(false);
     const [showConfirmPass, setShowConfirmPass] = useState(false);
+
+    const showAlert = (message: string, title: string = 'Aviso') => {
+        setAlertConfig({ show: true, message, title });
+    };
+
+    const closeAlert = () => {
+        setAlertConfig(prev => ({ ...prev, show: false }));
+    };
 
     const peekPassword = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
         setter(true);
@@ -86,7 +98,7 @@ const Login: React.FC = () => {
             if (dbError) throw dbError;
 
             if (!dbUser) {
-                alert('E-mail não encontrado. Verifique se digitou corretamente ou entre em contato com o administrador.');
+                showAlert('E-mail não encontrado. Verifique se digitou corretamente ou entre em contato com o administrador.', 'E-mail não encontrado');
                 setLoading(false);
                 return;
             }
@@ -103,9 +115,9 @@ const Login: React.FC = () => {
                 if (error.message.includes('Invalid login credentials')) {
                     // Se o usuário existe no banco mas falhou aqui, ou a senha está errada
                     // ou ele nunca criou uma senha no Auth.
-                    alert('Senha incorreta ou usuário sem senha. Se for seu primeiro login, clique em "Primeiro acesso" abaixo.');
+                    showAlert('Senha incorreta ou usuário sem senha. Se for seu primeiro login, clique em "Primeiro acesso" abaixo.', 'Falha no Login');
                 } else {
-                    alert(`Erro no login: ${error.message}`);
+                    showAlert(`Erro no login: ${error.message}`, 'Erro');
                 }
                 return;
             }
@@ -144,7 +156,7 @@ const Login: React.FC = () => {
 
             setMode('set-password');
         } catch (err: any) {
-            alert(err.message);
+            showAlert(err.message, 'Erro de Validação');
         } finally {
             setLoading(false);
         }
@@ -152,11 +164,11 @@ const Login: React.FC = () => {
 
     const handleCreatePassword = async () => {
         if (!newPassword || newPassword !== confirmPassword) {
-            alert('As senhas não conferem.');
+            showAlert('As senhas não conferem.', 'Erro de Senha');
             return;
         }
         if (newPassword.length < 7) {
-            alert('A senha deve ter no mínimo 7 caracteres.');
+            showAlert('A senha deve ter no mínimo 7 caracteres.', 'Senha Fraca');
             return;
         }
 
@@ -180,9 +192,9 @@ const Login: React.FC = () => {
             setMode('login');
             setEmail('');
             setPassword('');
-            setSuccessMessage('Senha definida com sucesso! Agora você pode entrar.');
+            showAlert('Senha definida com sucesso! Agora você pode entrar.', 'Sucesso!');
         } catch (err: any) {
-            alert('Erro ao definir senha: ' + err.message);
+            showAlert('Erro ao definir senha: ' + err.message, 'Erro');
         } finally {
             setLoading(false);
         }
@@ -190,7 +202,7 @@ const Login: React.FC = () => {
 
     const handleFindUser = async (modeName: string) => {
         if (!email) {
-            alert('Informe seu e-mail.');
+            showAlert('Informe seu e-mail corporativo.', 'Campo Obrigatório');
             return;
         }
         setLoading(true);
@@ -203,7 +215,7 @@ const Login: React.FC = () => {
                 .maybeSingle();
 
             if (!dbUser) {
-                alert('E-mail não encontrado em nossa base de colaboradores.');
+                showAlert('E-mail não encontrado em nossa base de colaboradores.', 'E-mail Inválido');
                 return;
             }
 
@@ -224,7 +236,7 @@ const Login: React.FC = () => {
             alert('Código enviado! Verifique seu e-mail.');
             setMode('otp-verification');
         } catch (err: any) {
-            alert('Falha: ' + err.message);
+            showAlert('Falha: ' + err.message, 'Erro de Conexão');
         } finally {
             setLoading(false);
         }
@@ -243,11 +255,6 @@ const Login: React.FC = () => {
                     <p className="text-[#64748b] text-sm mt-2">
                         {mode === 'login' ? 'Acesse com seu e-mail corporativo' : 'Siga as instruções para continuar'}
                     </p>
-                    {successMessage && mode === 'login' && (
-                        <div className="mt-4 p-3 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-100">
-                            {successMessage}
-                        </div>
-                    )}
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -348,6 +355,43 @@ const Login: React.FC = () => {
                     )}
                 </form>
             </div>
+
+            {/* Custom Alert Modal */}
+            {alertConfig.show && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+                        onClick={closeAlert}
+                    />
+
+                    {/* Modal Content */}
+                    <div className="relative w-full max-w-[380px] bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-8 text-center">
+                            <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-purple-600">
+                                <Key className="w-8 h-8" />
+                            </div>
+
+                            <h3 className="text-xl font-bold text-[#1e1b4b] mb-3">
+                                {alertConfig.title}
+                            </h3>
+
+                            <p className="text-slate-600 leading-relaxed text-sm">
+                                {alertConfig.message}
+                            </p>
+                        </div>
+
+                        <div className="px-6 pb-8">
+                            <button
+                                onClick={closeAlert}
+                                className="w-full py-4 bg-[#1e1b4b] text-white rounded-2xl font-bold hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

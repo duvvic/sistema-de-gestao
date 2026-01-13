@@ -132,9 +132,16 @@ const MainLayout: React.FC = () => {
         }
     };
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+    const handleLogout = async () => {
+        console.log('[MainLayout] Iniciando logout...');
+        try {
+            await logout();
+            console.log('[MainLayout] Logout concluído, redirecionando...');
+            navigate('/login', { replace: true });
+        } catch (error) {
+            console.error('[MainLayout] Erro crítico no logout:', error);
+            navigate('/login', { replace: true });
+        }
     };
 
     const isActive = (path: string) => {
