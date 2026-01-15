@@ -132,7 +132,7 @@ const Login: React.FC = () => {
             // Sucesso - o redirecionamento acontecerá pelo useEffect
         } catch (err: any) {
             console.error('[Login] Erro no login:', err);
-            showAlert(err.message || 'Erro inesperado no sistema de login', 'Falha no Acesso');
+            showAlert(`[V3] ${err.message || 'Erro inesperado no sistema de login'}`, 'Falha no Acesso');
         } finally {
             setLoading(false);
         }
