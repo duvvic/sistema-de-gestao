@@ -13,6 +13,7 @@ function hashPassword(password) {
  * body: { email, password }
  */
 router.post('/login', async (req, res) => {
+    console.log('[AuthBackend] Recebida tentativa de login para:', req.body.email);
     try {
         const { email, password } = req.body;
 

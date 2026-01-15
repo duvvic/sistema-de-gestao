@@ -97,13 +97,25 @@ const Login: React.FC = () => {
             console.log('[Login] Tentando login via backend para:', normalizedEmail);
 
             const apiUrl = import.meta.env.VITE_API_URL;
-            const response = await fetch(`${apiUrl}/auth/login`, {
+            const fullUrl = `${apiUrl}/auth/login`;
+            console.log('[Login] Chamando URL:', fullUrl);
+
+            const response = await fetch(fullUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: normalizedEmail, password })
             });
 
-            const data = await response.json();
+            console.log('[Login] Status da resposta:', response.status, response.statusText);
+
+            const responseText = await response.text();
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error('[Login] Erro ao parsear JSON. Resposta bruta:', responseText);
+                throw new Error('O servidor retornou uma resposta inválida (não JSON). Verifique o console.');
+            }
 
             if (!response.ok) {
                 throw new Error(data.error || 'Falha na autenticação');
