@@ -103,12 +103,13 @@ const Login: React.FC = () => {
                 body: JSON.stringify({ email: normalizedEmail, password })
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Falha na autenticação');
+                throw new Error(data.error || 'Falha na autenticação');
             }
 
-            const { user, session } = await response.json();
+            const { user, session } = data;
 
             // Usa a nova função que sincroniza tudo sem re-carregar do banco
             await loginWithSession(user, session);
