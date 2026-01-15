@@ -2,9 +2,16 @@ import { supabaseAuth } from '../config/supabaseAuth.js';
 import { supabaseAdmin } from '../config/supabaseAdmin.js';
 
 function getBearer(req) {
-    const h = req.headers.authorization || '';
-    const [type, token] = h.split(' ');
-    if (type?.toLowerCase() !== 'bearer' || !token) return null;
+    const auth = req.headers.authorization || req.headers.Authorization || '';
+    if (!auth) {
+        console.warn('[requireAdmin] No Authorization header found. Headers:', JSON.stringify(req.headers));
+        return null;
+    }
+    const [type, token] = auth.split(' ');
+    if (type?.toLowerCase() !== 'bearer' || !token) {
+        console.warn(`[requireAdmin] Invalid auth header format: "${auth}"`);
+        return null;
+    }
     return token;
 }
 

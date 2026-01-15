@@ -226,7 +226,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
       <div onClick={onClick} className="cursor-pointer">
         <div className="flex justify-between items-start gap-2">
           <p className="text-sm font-semibold text-[var(--textTitle)] truncate group-hover:text-[var(--brand)] flex-1">
-            {task.title}
+            {task.title || "(Sem título)"}
           </p>
           {task.priority && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap ${task.priority === 'Critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :

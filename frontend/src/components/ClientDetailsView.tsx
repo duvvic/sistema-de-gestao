@@ -196,6 +196,17 @@ const ClientDetailsView: React.FC = () => {
                   const projectTasks = tasks.filter(t => t.projectId === project.id);
                   const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
 
+                  // DEBUG TEMPORÁRIO
+                  if (project.id === '21') {
+                    console.log('[ClientDetailsView] Projeto 21:', {
+                      projectId: project.id,
+                      tasksTotal: tasks.length,
+                      projectTasksFound: projectTasks.length,
+                      firstTaskProjectId: tasks[0]?.projectId,
+                      typeOfProjectId: typeof tasks[0]?.projectId
+                    });
+                  }
+
                   return (
                     <button
                       key={project.id}
@@ -359,7 +370,7 @@ const ClientDetailsView: React.FC = () => {
                         </div>
 
                         <h4 className="font-semibold group-hover:text-[var(--brand)] mb-1 line-clamp-2" style={{ color: 'var(--textTitle)' }}>
-                          {task.title}
+                          {task.title || "(Sem título)"}
                         </h4>
 
                         {project && (

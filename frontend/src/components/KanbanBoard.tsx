@@ -41,7 +41,8 @@ const KanbanCard = ({
   onTaskClick,
   onDelete,
   isAdmin,
-  isHighlighted
+  isHighlighted,
+  users
 }: {
   task: Task;
   client?: Client;
@@ -50,6 +51,7 @@ const KanbanCard = ({
   onDelete?: (e: React.MouseEvent, t: Task) => void;
   isAdmin: boolean;
   isHighlighted?: boolean;
+  users: User[];
 }) => {
   const {
     attributes,
@@ -165,7 +167,7 @@ const KanbanCard = ({
         </div>
 
         <h4 className="font-semibold text-sm leading-snug line-clamp-2 text-left" style={{ color: 'var(--text)' }}>
-          {task.title}
+          {task.title || "(Sem título)"}
         </h4>
 
         <div className="flex items-center gap-2">
@@ -182,14 +184,39 @@ const KanbanCard = ({
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t mt-1" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full flex items-center justify-center border"
-              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
-              <UserIcon size={10} />
+          <div className="flex -space-x-1.5 overflow-hidden">
+            {/* Responsável Principal */}
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center border hover:z-10 transition-all cursor-help bg-white"
+              style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+              title={`Responsável: ${task.developer || 'N/A'}`}
+            >
+              <UserIcon size={12} />
             </div>
-            <span className="text-[10px] font-medium truncate max-w-[80px]" style={{ color: 'var(--muted)' }}>
-              {task.developer || 'N/A'}
-            </span>
+
+            {/* Colaboradores Extras */}
+            {(task.collaboratorIds || []).slice(0, 3).map(uid => {
+              const u = users.find(user => user.id === uid);
+              return (
+                <div
+                  key={uid}
+                  className="w-6 h-6 rounded-full flex items-center justify-center border hover:z-10 transition-all cursor-help bg-slate-50"
+                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                  title={`Colaborador: ${u?.name || uid}`}
+                >
+                  <UserIcon size={12} />
+                </div>
+              );
+            })}
+
+            {(task.collaboratorIds?.length || 0) > 3 && (
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center border bg-slate-100 text-[8px] font-bold"
+                style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+              >
+                +{task.collaboratorIds!.length - 3}
+              </div>
+            )}
           </div>
           <div className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md`}
             style={{
@@ -242,47 +269,57 @@ const KanbanColumn = ({
   onTaskClick,
   onDelete,
   isAdmin,
-  highlightedTaskId
+  highlightedTaskId,
+  users
 }: {
   col: typeof STATUS_COLUMNS[0];
   tasks: Task[];
   clients: Client[];
   projects: Project[];
   onTaskClick: (id: string) => void;
-  onDelete?: (e: React.MouseEvent, t: Task) => void;
+  onDelete: (e: React.MouseEvent, t: Task) => void;
   isAdmin: boolean;
-  highlightedTaskId?: string | null;
+  highlightedTaskId: string | null;
+  users: User[];
 }) => {
   const { setNodeRef } = useSortable({
     id: col.id,
-    data: { type: 'Column', column: col },
+    data: { type: 'Column', status: col.id },
   });
 
   return (
-    <div className={`flex flex-col flex-1 min-w-[300px] h-full rounded-2xl border p-4 shadow-sm transition-all`}
-      style={{ backgroundColor: col.bg, borderColor: 'var(--border)' }}>
-      <div className={`flex items-center justify-between mb-4 px-1`}>
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: col.badgeColor }}></div>
-          <h3 className="font-black text-xs uppercase tracking-widest" style={{ color: col.color || 'var(--text)' }}>{col.title}</h3>
-        </div>
-        <span className="px-2 py-0.5 rounded-md text-[10px] font-black shadow-sm border"
-          style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
+    <div
+      ref={setNodeRef}
+      className="flex-shrink-0 w-[320px] rounded-2xl flex flex-col h-full transition-all"
+      style={{
+        backgroundColor: col.bg,
+        border: '1px solid var(--border)'
+      }}
+    >
+      <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+        <h3 className="font-bold text-sm uppercase tracking-widest flex items-center gap-2" style={{ color: col.badgeColor }}>
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: col.badgeColor }} />
+          {col.title}
+        </h3>
+        <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+          style={{ backgroundColor: 'var(--bg)', color: col.badgeColor, border: '1px solid var(--border)' }}>
           {tasks.length}
         </span>
       </div>
-      <div ref={setNodeRef} className="flex-1 overflow-y-auto px-1 space-y-3 custom-scrollbar min-h-[100px]">
+
+      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 custom-scrollbar">
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          {tasks.map(task => (
+          {tasks.map((task) => (
             <KanbanCard
               key={task.id}
               task={task}
-              client={clients.find(c => c.id === task.clientId)}
-              project={projects.find(p => p.id === task.projectId)}
+              client={clients.find((c) => c.id === task.clientId)}
+              project={projects.find((p) => p.id === task.projectId)}
               onTaskClick={onTaskClick}
               onDelete={onDelete}
               isAdmin={isAdmin}
               isHighlighted={highlightedTaskId === task.id}
+              users={users}
             />
           ))}
         </SortableContext>
@@ -292,54 +329,72 @@ const KanbanColumn = ({
 };
 
 /* ================== BOARD ================== */
-const KanbanBoard: React.FC = () => {
+export const KanbanBoard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const { tasks, clients, projects, users, updateTask, deleteTask, loading } = useDataController();
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-  const [selectedDeveloperId, setSelectedDeveloperId] = useState<string>('');
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
-  const isAdmin = currentUser?.role === "admin";
-  const filteredClientId = searchParams.get('clientId');
+  // Filters from Query Params
+  const filteredClientId = searchParams.get('clientId') || searchParams.get('client');
+  const filteredProjectId = searchParams.get('projectId') || searchParams.get('project');
+  const filteredDeveloperId = searchParams.get('developerId') || searchParams.get('developer');
 
-  // Highlight
+  // New local state for additional filtering
+  const [selectedDeveloperId, setSelectedDeveloperId] = useState<string>(filteredDeveloperId || '');
+
+  // Reset local developer filter if query param clears
   useEffect(() => {
-    if (highlightedTaskId) {
+    setSelectedDeveloperId(filteredDeveloperId || '');
+  }, [filteredDeveloperId]);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      // 1. Core filters (Admin sees all, Dev sees own + collaborators)
+      const isOwner = t.developerId === currentUser?.id;
+      const isCollaborator = t.collaboratorIds?.includes(currentUser?.id || '');
+      const hasPermission = isAdmin || isOwner || isCollaborator;
+
+      if (!hasPermission) return false;
+
+      // 2. Client/Project context (from URL)
+      if (filteredClientId && t.clientId !== filteredClientId) return false;
+      if (filteredProjectId && t.projectId !== filteredProjectId) return false;
+
+      // 3. User Filter (from Select)
+      if (selectedDeveloperId) {
+        // Show task if selected user is owner OR collaborator
+        const isSelectedOwner = t.developerId === selectedDeveloperId;
+        const isSelectedCollaborator = t.collaboratorIds?.includes(selectedDeveloperId);
+        if (!isSelectedOwner && !isSelectedCollaborator) return false;
+      }
+
+      return true;
+    });
+  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId]);
+
+  const currentClient = useMemo(() => clients.find(c => c.id === filteredClientId), [clients, filteredClientId]);
+  const currentProject = useMemo(() => projects.find(p => p.id === filteredProjectId), [projects, filteredProjectId]);
+
+  // Highlight effect
+  useEffect(() => {
+    const highlightId = searchParams.get('highlight');
+    if (highlightId) {
+      setHighlightedTaskId(highlightId);
       const timer = setTimeout(() => setHighlightedTaskId(null), 3000);
       return () => clearTimeout(timer);
     }
-  }, [highlightedTaskId]);
+  }, [searchParams]);
 
-  // Filter
-  const filteredTasks = useMemo(() => {
-    return tasks.filter(t => {
-      // Se não for admin, mostrar apenas as tarefas do usuário logado
-      const userPermission = isAdmin || t.developerId === currentUser?.id;
-
-      // Filtro de colaborador selecionado (apenas para visualização)
-      const developerFilter = !selectedDeveloperId || t.developerId === selectedDeveloperId;
-
-      return userPermission &&
-        developerFilter &&
-        (!filteredClientId || t.clientId === filteredClientId) &&
-        (t.title.toLowerCase().includes(searchTerm.toLowerCase()));
-    });
-  }, [tasks, filteredClientId, searchTerm, isAdmin, currentUser, selectedDeveloperId]);
-
-  const currentClient = useMemo(() =>
-    filteredClientId ? clients.find(c => c.id === filteredClientId) : null
-    , [filteredClientId, clients]);
-
-  // Sensors
+  // DND Kit setup
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -355,24 +410,19 @@ const KanbanBoard: React.FC = () => {
 
     const activeId = active.id as string;
     const overId = over.id as string;
-    const activeTask = tasks.find(t => t.id === activeId);
 
+    const activeTask = tasks.find(t => t.id === activeId);
     if (!activeTask) return;
 
-    const isOverColumn = STATUS_COLUMNS.some(col => col.id === overId);
-    const overTask = tasks.find(t => t.id === overId);
-
-    let newStatus: Status | null = null;
-
-    if (isOverColumn) {
+    let newStatus: Status;
+    if (STATUS_COLUMNS.some(col => col.id === overId)) {
       newStatus = overId as Status;
-    } else if (tasks.some(t => t.id === overId) && overTask) {
-      newStatus = overTask.status;
+    } else {
+      const overTask = tasks.find(t => t.id === overId);
+      newStatus = overTask?.status as Status;
     }
 
-    if (newStatus && newStatus !== activeTask.status) {
-      setHighlightedTaskId(activeId);
-
+    if (activeTask.status !== newStatus) {
       // Calcular novo progresso automático
       let newProgress = activeTask.progress;
       if (newStatus === 'Todo') newProgress = 10;
@@ -445,61 +495,34 @@ const KanbanBoard: React.FC = () => {
             <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
               {currentClient ? (
                 <>
-                  {currentClient.logoUrl && (
-                    <img
-                      src={currentClient.logoUrl}
-                      alt={currentClient.name}
-                      className="w-8 h-8 rounded-lg object-contain p-1 border shadow-sm"
-                      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-                    />
-                  )}
-                  {currentClient.name}
+                  <span style={{ color: 'var(--muted)' }}>Tarefas de</span> {currentClient.name}
+                  {currentProject && <span className="opacity-40">/ {currentProject.name}</span>}
                 </>
-              ) : 'Quadro de Tarefas'}
+              ) : (
+                'Quadro Kanban'
+              )}
             </h1>
-            <p className="text-sm" style={{ color: 'var(--muted)' }}>
-              {currentClient ? 'Gerenciamento de entregas' : 'Visão geral de todas as tarefas'}
-            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-2.5 w-4 h-4" style={{ color: 'var(--muted)' }} />
-            <input
-              type="text"
-              placeholder="Buscar tarefas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none text-sm shadow-sm transition-all"
-              style={{
-                backgroundColor: 'var(--surface-2)',
-                borderColor: 'var(--border)',
-                color: 'var(--text)'
-              }}
-            />
-          </div>
-
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+          {/* Developer Filter Select */}
           {isAdmin && (
-            <div className="relative md:w-48">
+            <div className="relative min-w-[200px]">
               <select
                 value={selectedDeveloperId}
                 onChange={(e) => setSelectedDeveloperId(e.target.value)}
-                className="w-full pl-3 pr-8 py-2.5 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none text-sm shadow-sm transition-all appearance-none cursor-pointer"
-                style={{
-                  backgroundColor: 'var(--surface-2)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)'
-                }}
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border appearance-none outline-none transition-all shadow-sm font-medium text-sm"
+                style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
               >
-                <option value="">Todos os Colaboradores</option>
+                <option value="">Filtrar p/ Colaborador...</option>
                 {users.filter(u => u.active !== false).map(user => (
                   <option key={user.id} value={user.id}>
                     {user.name}
                   </option>
                 ))}
               </select>
-              <UserIcon className="absolute right-3 top-2.5 w-4 h-4 pointer-events-none" style={{ color: 'var(--muted)' }} />
+              <UserIcon className="absolute left-3 top-2.5 w-4 h-4 pointer-events-none" style={{ color: 'var(--muted)' }} />
             </div>
           )}
 
@@ -550,6 +573,7 @@ const KanbanBoard: React.FC = () => {
                 onDelete={handleDeleteClick}
                 isAdmin={isAdmin}
                 highlightedTaskId={highlightedTaskId}
+                users={users}
               />
             ))}
           </div>
@@ -567,6 +591,7 @@ const KanbanBoard: React.FC = () => {
                   project={projects.find(p => p.id === activeTask.projectId)}
                   onTaskClick={() => { }}
                   isAdmin={false}
+                  users={users}
                 />
               </div>
             ) : null}

@@ -250,7 +250,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                               className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 hover:shadow-md hover:border-[#d8b4fe] dark:hover:border-purple-800 transition-all cursor-pointer group"
                             >
                               <h4 className="font-semibold text-sm text-[var(--textTitle)] line-clamp-2 group-hover:text-[var(--brand)]">
-                                {task.title}
+                                {task.title || "(Sem título)"}
                               </h4>
                               <div className="mt-2 flex items-center justify-between text-xs text-[var(--textMuted)]">
                                 <span>{task.progress || 0}%</span>

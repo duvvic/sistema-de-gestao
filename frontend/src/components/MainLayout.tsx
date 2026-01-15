@@ -29,6 +29,7 @@ const MainLayout: React.FC = () => {
     // Definição dos menus (movido para cima para ser usado na lógica de animação do menu)
     const adminMenuItems = [
         { path: '/admin/clients', icon: Users, label: 'Clientes' },
+        { path: '/admin/projects', icon: Briefcase, label: 'Projetos' },
         { path: '/tasks', icon: CheckSquare, label: 'Tarefas' },
         { path: '/admin/team', icon: Users, label: 'Funcionários' },
         { path: '/admin/reports', icon: LayoutDashboard, label: 'Relatórios' }, // Usando LayoutDashboard ou BarChart3

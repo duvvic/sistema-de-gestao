@@ -228,6 +228,7 @@ export async function fetchTasks(): Promise<DbTaskRow[]> {
   }
 }
 
+
 // =====================================================
 // HELPER FUNCTIONS
 // =====================================================
@@ -279,3 +280,26 @@ export async function fetchTimesheets(): Promise<any[]> {
     return [];
   }
 }
+
+/**
+ * Busca todos os vínculos de colaboradores extras em tarefas
+ */
+export async function fetchTaskCollaborators(): Promise<{ taskId: string, userId: string }[]> {
+  try {
+    const { data, error } = await supabase
+      .from('tarefa_colaboradores')
+      .select('id_tarefa, id_colaborador');
+
+    if (error) throw error;
+
+    return (data || []).map(row => ({
+      taskId: String(row.id_tarefa),
+      userId: String(row.id_colaborador)
+    }));
+  } catch (err) {
+    console.error("[API] fetchTaskCollaborators error:", err);
+    return [];
+  }
+}
+
+

@@ -2,11 +2,22 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
-import { Plus, Briefcase, CheckSquare } from 'lucide-react';
+import { Plus, Briefcase, CheckSquare, LayoutGrid, List, Building2 } from 'lucide-react';
+
+type ViewMode = 'grid' | 'list';
 
 const AllProjectsView: React.FC = () => {
   const navigate = useNavigate();
   const { projects, clients, tasks, users, projectMembers, error, loading } = useDataController();
+  const [viewMode, setViewMode] = React.useState<ViewMode>(() => {
+    const saved = localStorage.getItem('project_view_mode_admin');
+    return (saved as ViewMode) || 'list';
+  });
+
+  const handleToggleViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('project_view_mode_admin', mode);
+  };
 
   return (
     <div className="h-full flex flex-col p-8">
@@ -21,16 +32,38 @@ const AllProjectsView: React.FC = () => {
           <p className="mt-1" style={{ color: 'var(--textMuted)' }}>{projects.length} projetos cadastrados</p>
         </div>
 
-        <button
-          onClick={() => navigate('/admin/projects/new')}
-          className="px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-colors shadow"
-          style={{ backgroundColor: 'var(--brand)' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brandHover)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--brand)'}
-        >
-          <Plus className="w-4 h-4" />
-          Novo Projeto
-        </button>
+        <div className="flex items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex bg-white/10 p-1 rounded-xl border mr-2" style={{ borderColor: 'var(--border)' }}>
+            <button
+              onClick={() => handleToggleViewMode('grid')}
+              className={`p-2 rounded-lg transition-all flex items-center gap-2 ${viewMode === 'grid' ? 'bg-[#4c1d95] text-white shadow-md' : 'text-muted hover:bg-white/5'}`}
+              title="Visualização em Blocos"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="text-xs font-bold hidden md:block">Blocos</span>
+            </button>
+            <button
+              onClick={() => handleToggleViewMode('list')}
+              className={`p-2 rounded-lg transition-all flex items-center gap-2 ${viewMode === 'list' ? 'bg-[#4c1d95] text-white shadow-md' : 'text-muted hover:bg-white/5'}`}
+              title="Visualização em Lista"
+            >
+              <List className="w-4 h-4" />
+              <span className="text-xs font-bold hidden md:block">Lista</span>
+            </button>
+          </div>
+
+          <button
+            onClick={() => navigate('/admin/projects/new')}
+            className="px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-colors shadow"
+            style={{ backgroundColor: 'var(--brand)' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brandHover)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--brand)'}
+          >
+            <Plus className="w-4 h-4" />
+            Novo Projeto
+          </button>
+        </div>
       </div>
 
       {/* Lista de Projetos */}
@@ -55,6 +88,97 @@ const AllProjectsView: React.FC = () => {
                 Criar primeiro projeto
               </button>
             </div>
+          </div>
+        ) : viewMode === 'list' ? (
+          /* MODO LISTA */
+          <div className="space-y-8 pb-10">
+            {clients
+              .filter(client => projects.some(p => p.clientId === client.id))
+              .map(client => {
+                const clientProjects = projects.filter(p => p.clientId === client.id);
+                return (
+                  <div key={client.id} className="space-y-4">
+                    {/* Linha do Cliente */}
+                    <div className="flex items-center gap-4 py-3 px-4 border-l-4 rounded-r-xl bg-white/5" style={{ borderColor: 'var(--brand)' }}>
+                      <div className="w-10 h-10 rounded-lg border p-1.5 flex items-center justify-center bg-white" style={{ borderColor: 'var(--border)' }}>
+                        {client.logoUrl ? (
+                          <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <Building2 className="w-6 h-6 text-slate-400" />
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg" style={{ color: 'var(--textTitle)' }}>{client.name}</h3>
+                        <p className="text-xs" style={{ color: 'var(--textMuted)' }}>{clientProjects.length} projetos vinculados</p>
+                      </div>
+                    </div>
+
+                    {/* Projetos do Cliente */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pl-4 md:pl-10">
+                      {clientProjects.map(project => {
+                        const projectTasks = tasks.filter(t => t.projectId === project.id);
+                        const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
+
+                        return (
+                          <button
+                            key={project.id}
+                            onClick={() => navigate(`/admin/projects/${project.id}`)}
+                            className="border-2 rounded-xl p-5 hover:shadow-lg transition-all text-left group"
+                            style={{
+                              backgroundColor: 'var(--surface)',
+                              borderColor: 'var(--border)'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand)'}
+                            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                          >
+                            <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)]" style={{ color: 'var(--textTitle)' }}>
+                              {project.name}
+                            </h3>
+
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
+                                <CheckSquare className="w-4 h-4 text-green-500" />
+                                <span>{doneTasks}/{projectTasks.length} tarefas concluídas</span>
+                              </div>
+                            </div>
+
+                            {/* Equipe do Projeto */}
+                            <div className="mt-4 pt-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+                              <div className="flex -space-x-2">
+                                {projectMembers
+                                  .filter(pm => pm.projectId === project.id)
+                                  .map(pm => {
+                                    const member = users.find(u => u.id === pm.userId);
+                                    if (!member) return null;
+                                    return (
+                                      <div
+                                        key={member.id}
+                                        className="w-7 h-7 rounded-full border-2 flex items-center justify-center overflow-hidden"
+                                        style={{
+                                          backgroundColor: 'var(--bgApp)',
+                                          borderColor: 'var(--surface)'
+                                        }}
+                                        title={member.name}
+                                      >
+                                        {member.avatarUrl ? (
+                                          <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <span className="text-[10px] font-bold" style={{ color: 'var(--textMuted)' }}>
+                                            {member.name.substring(0, 2).toUpperCase()}
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

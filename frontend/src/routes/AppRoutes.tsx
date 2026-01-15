@@ -95,6 +95,7 @@ const AppRoutes: React.FC = () => {
             >
                 {/* Dashboard Admin (Clientes) */}
                 <Route
+                    index
                     path="admin/clients"
                     element={
                         <ProtectedRoute requiredRole="admin">
@@ -150,7 +151,7 @@ const AppRoutes: React.FC = () => {
                     path="admin/projects"
                     element={
                         <ProtectedRoute requiredRole="admin">
-                            <AllProjectsView />
+                            <AllProjectsView key="all-projects-view" />
                         </ProtectedRoute>
                     }
                 />

@@ -98,11 +98,42 @@ export async function createTask(data: Partial<Task>): Promise<number> {
     .single();
 
   if (error) {
-
     throw error;
   }
 
-  return inserted.id_tarefa_novo;
+  const newTaskId = inserted.id_tarefa_novo;
+
+  // Insere colaboradores se houver
+  if (data.collaboratorIds && data.collaboratorIds.length > 0) {
+    await updateTaskCollaborators(newTaskId, data.collaboratorIds);
+  }
+
+  return newTaskId;
+}
+
+/**
+ * Helper para atualizar vínculos de colaboradores
+ */
+async function updateTaskCollaborators(taskId: number, collaboratorIds: string[]): Promise<void> {
+  // 1. Remove vínculos antigos
+  await supabase
+    .from('tarefa_colaboradores')
+    .delete()
+    .eq('id_tarefa', taskId);
+
+  // 2. Insere novos vínculos
+  if (collaboratorIds.length > 0) {
+    const inserts = collaboratorIds.map(id => ({
+      id_tarefa: taskId,
+      id_colaborador: Number(id)
+    }));
+
+    const { error } = await supabase
+      .from('tarefa_colaboradores')
+      .insert(inserts);
+
+    if (error) throw error;
+  }
 }
 
 // ===========================
@@ -189,6 +220,11 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
 
   if (error) {
     throw error;
+  }
+
+  // Atualiza colaboradores se fornecido
+  if (data.collaboratorIds !== undefined) {
+    await updateTaskCollaborators(Number(taskId), data.collaboratorIds);
   }
 }
 

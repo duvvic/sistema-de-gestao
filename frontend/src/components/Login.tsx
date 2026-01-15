@@ -32,7 +32,7 @@ async function hashPassword(password: string): Promise<string> {
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
-    const { login, currentUser, authReady } = useAuth();
+    const { login, loginWithSession, currentUser, authReady } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -42,6 +42,14 @@ const Login: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [otpToken, setOtpToken] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Carregar e-mail lembrado no monte
+    useEffect(() => {
+        const savedEmail = localStorage.getItem('remembered_email');
+        if (savedEmail) {
+            setEmail(savedEmail);
+        }
+    }, []);
     const [alertConfig, setAlertConfig] = useState<{ show: boolean, message: string, title?: string }>({
         show: false,
         message: '',
@@ -86,47 +94,32 @@ const Login: React.FC = () => {
 
         try {
             const normalizedEmail = email.trim().toLowerCase();
-            console.log('[Login] Tentando login para:', normalizedEmail);
+            console.log('[Login] Tentando login via backend para:', normalizedEmail);
 
-            // 1. Verifica se o e-mail existe na nossa base de colaboradores primeiro
-            const { data: dbUser, error: dbError } = await supabase
-                .from('dim_colaboradores')
-                .select('ID_Colaborador, email, "E-mail"')
-                .eq('email', normalizedEmail)
-                .maybeSingle();
-
-            if (dbError) throw dbError;
-
-            if (!dbUser) {
-                showAlert('E-mail não encontrado. Verifique se digitou corretamente ou entre em contato com o administrador.', 'E-mail não encontrado');
-                setLoading(false);
-                return;
-            }
-
-            // 2. Tenta fazer o login no Supabase Auth
-            await supabase.auth.signOut(); // Limpeza preventiva
-
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: normalizedEmail,
-                password,
+            const apiUrl = import.meta.env.VITE_API_URL;
+            const response = await fetch(`${apiUrl}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: normalizedEmail, password })
             });
 
-            if (error) {
-                if (error.message.includes('Invalid login credentials')) {
-                    // Se o usuário existe no banco mas falhou aqui, ou a senha está errada
-                    // ou ele nunca criou uma senha no Auth.
-                    showAlert('Senha incorreta ou usuário sem senha. Se for seu primeiro login, clique em "Primeiro acesso" abaixo.', 'Falha no Login');
-                } else {
-                    showAlert(`Erro no login: ${error.message}`, 'Erro');
-                }
-                return;
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Falha na autenticação');
             }
 
-            // Sucesso
-            navigate("/", { replace: true });
+            const { user, session } = await response.json();
+
+            // Usa a nova função que sincroniza tudo sem re-carregar do banco
+            await loginWithSession(user, session);
+
+            // Lembrar e-mail para o próximo acesso
+            localStorage.setItem('remembered_email', normalizedEmail);
+
+            // Sucesso - o redirecionamento acontecerá pelo useEffect
         } catch (err: any) {
-            console.error('[Login] Exception inesperada no login:', err);
-            alert(err.message || 'Erro inesperado no sistema de login');
+            console.error('[Login] Erro no login:', err);
+            showAlert(err.message || 'Erro inesperado no sistema de login', 'Falha no Acesso');
         } finally {
             setLoading(false);
         }
@@ -257,12 +250,13 @@ const Login: React.FC = () => {
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form id="login-form" onSubmit={handleSubmit} className="space-y-5">
                     <div>
                         <label className="block text-xs font-bold text-[#334155] mb-2 uppercase">E-mail</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                             <input
+                                id="email"
                                 type="email"
                                 name="email"
                                 value={effectiveEmail}
@@ -270,7 +264,7 @@ const Login: React.FC = () => {
                                 disabled={mode !== 'login'}
                                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-emerald-500 outline-none transition-all text-[#1e1b4b] font-medium"
                                 placeholder="nome@empresa.com"
-                                autoComplete="email"
+                                autoComplete="username email"
                                 required
                             />
                         </div>
@@ -282,10 +276,17 @@ const Login: React.FC = () => {
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                                 <input
+                                    id="password"
                                     type={showPass ? "text" : "password"}
                                     name="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSubmit(e as any);
+                                        }
+                                    }}
                                     className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-purple-500 outline-none transition-all text-[#1e1b4b] font-medium"
                                     placeholder="••••••••"
                                     autoComplete="current-password"

@@ -1,0 +1,41 @@
+﻿==> 1) Pegando access_token via Supabase Auth...
+OK: token obtido (primeiros 20 chars): eyJhbGciOiJIUzI1NiIs ...
+
+==> 2) Testando /preview
+Status: 500
+Response (first 500 chars): {"error":"invalid value \"nan\" for \"YYYY\""}
+
+==> 3) Testando /excel (baixando relatorio.xlsx)
+node : Erro ao baixar Excel: 500
+No linha:1 caractere:1
++ node test_api.js 2>&1 | Out-File -FilePath 
+test_output_utf8.txt -Enco ...
++ ~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Err 
+   o ao baixar Excel: 500:String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+==> 4) Testando /powerbi (JSON flat)
+Status: 500
+Response (first 500 chars): {"error":"invalid value \"nan\" for \"YYYY\""}
+
+==> 5) Salvando budget dos projetos (PUT /project-budgets)
+Status: 200
+Response: {
+  updated: 2,
+  results: [
+    { ID_Projeto: 6, NomeProjeto: 'P2P', budget: 45000 },
+    {
+      ID_Projeto: 7,
+      NomeProjeto: 'Shell Conversion ECC',
+      budget: 12500
+    }
+  ]
+}
+
+==> 6) Re-testando /preview
+Response (first 500 chars): {"error":"invalid value \"nan\" for \"YYYY\""}
+
+FIM.

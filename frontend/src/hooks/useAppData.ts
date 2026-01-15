@@ -19,6 +19,7 @@ import {
   fetchTasks,
   fetchUsers,
   fetchTimesheets,
+  fetchTaskCollaborators,
   DbTaskRow,
 } from "@/services/api";
 import { useAuth } from '@/contexts/AuthContext';
@@ -174,12 +175,12 @@ export function useAppData(): AppData {
 
         console.log('[useAppData] Carregando dados do banco...');
 
-        // Carrega todos os dados em paralelo
-        const [usersData, clientsData, projectsData, tasksData, membersRes] = await Promise.all([
+        const [usersData, clientsData, projectsData, tasksData, tasksCollaboratorsData, membersRes] = await Promise.all([
           fetchUsers(),
           fetchClients(),
           fetchProjects(),
           fetchTasks(),
+          fetchTaskCollaborators(),
           supabase.from('project_members').select('id_projeto, id_colaborador')
         ]);
 
@@ -202,9 +203,9 @@ export function useAppData(): AppData {
             developerName = developer?.name;
           }
 
-          return {
+          const mappedTask = {
             id: String(row.id_tarefa_novo),
-            title: row.Afazer || "(Sem título)",
+            title: (row.Afazer && row.Afazer !== 'null') ? row.Afazer : "(Sem título)",
             projectId: String(row.ID_Projeto),
             clientId: String(row.ID_Cliente),
 
@@ -213,6 +214,11 @@ export function useAppData(): AppData {
 
             // developerId é o ID para JOIN com User
             developerId: row.ID_Colaborador ? String(row.ID_Colaborador) : undefined,
+
+            // IDs dos colaboradores vinculados
+            collaboratorIds: (tasksCollaboratorsData || [])
+              .filter(tc => tc.taskId === String(row.id_tarefa_novo))
+              .map(tc => tc.userId),
 
             status: normalizeStatus(row.StatusTarefa),
 
@@ -260,6 +266,8 @@ export function useAppData(): AppData {
               return Math.ceil((now.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
             })(),
           };
+
+          return mappedTask;
         });
 
         // Buscar apontamentos (se houver)

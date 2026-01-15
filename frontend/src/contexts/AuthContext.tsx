@@ -7,7 +7,9 @@ interface AuthContextType {
     currentUser: User | null;
     isLoading: boolean;
     authReady: boolean;
+    isAdmin: boolean;
     login: (user: User) => void;
+    loginWithSession: (user: User, session: any) => Promise<void>;
     logout: () => void;
     updateUser: (user: User) => void;
 }
@@ -68,20 +70,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('[Auth] Carregando dados para:', emailToFind);
 
         try {
-            // Promessa de Timeout (15s para dar margem em conexões lentas)
+            // Promessa de Timeout (10s)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout de rede na carga do usuário')), 15000)
+                setTimeout(() => reject(new Error('Timeout de rede na carga do usuário')), 10000)
             );
 
             // Tenta buscar o usuário nas tabelas dim_colaboradores ou no fallback
-            const { data: userData, error: dbError } = await Promise.race([
+            const response = await Promise.race([
                 supabase
                     .from('dim_colaboradores')
                     .select('*')
-                    .or(`email.eq.${emailToFind}, "E-mail".eq.${emailToFind}`)
+                    .eq('email', emailToFind)
                     .maybeSingle(),
                 timeoutPromise as any
             ]);
+
+            const userProfile = response as any;
+            const dbError = userProfile.error;
+            const userData = userProfile.data;
 
             if (dbError) throw dbError;
 
@@ -91,23 +97,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 lastLoadedEmail.current = emailToFind;
             } else {
                 console.warn('[Auth] Usuário não encontrado no banco, usando perfil básico.');
+                const isVictor = emailToFind === 'victor.picoli@nic-labs.com.br';
                 setCurrentUser({
                     id: session.user.id,
                     name: session.user.email?.split('@')[0] || 'Usuário',
                     email: session.user.email,
-                    role: 'developer',
+                    role: isVictor ? 'admin' : 'developer',
                     active: true,
                 } as any);
                 lastLoadedEmail.current = emailToFind;
             }
         } catch (err: any) {
             console.error('[Auth] Falha ao carregar perfil completo:', err.message || err);
-            // Fallback para não bloquear o acesso do usuário
+            // Fallback para não bloquear o acesso
+            // SE for o email do Victor, força admin temporariamente para ele conseguir usar
+            const isVictor = emailToFind === 'victor.picoli@nic-labs.com.br';
             setCurrentUser({
                 id: session.user.id,
                 name: session.user.email?.split('@')[0] || 'Usuário',
                 email: session.user.email,
-                role: 'developer',
+                role: isVictor ? 'admin' : 'developer',
                 active: true,
             } as User);
         } finally {
@@ -175,9 +184,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [loadUserFromSession]);
 
     const login = (user: User) => {
+        if (user.email) {
+            lastLoadedEmail.current = normalizeEmail(user.email);
+        }
         setCurrentUser(user);
     };
 
+    const loginWithSession = async (user: User, session: any) => {
+        setIsLoading(true);
+        try {
+            console.log('[Auth] Login manual com sessão backend para:', user.email);
+
+            // 1. Marca como carregado ANTES de disparar o evento de auth
+            if (user.email) {
+                lastLoadedEmail.current = normalizeEmail(user.email);
+            }
+
+            // 2. Define o usuário no estado
+            setCurrentUser(user);
+
+            // 3. Sincroniza com o Supabase (isso vai disparar SIGNED_IN)
+            // Mas como lastLoadedEmail já está definido, loadUserFromSession vai pular o fetch
+            const { error: sessionErr } = await supabase.auth.setSession(session);
+            if (sessionErr) throw sessionErr;
+
+        } catch (err: any) {
+            console.error('[Auth] Erro ao sincronizar sessão:', err.message);
+            throw err;
+        } finally {
+            setAuthReady(true);
+            setIsLoading(false);
+        }
+    };
     const logout = async () => {
         try {
             await supabase.auth.signOut({ scope: 'global' });
@@ -185,19 +223,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('[Auth] Erro ao deslogar do Supabase:', err);
         } finally {
             setCurrentUser(null);
-            // Limpeza radical de cache local
-            try {
-                Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('sb-') || key.includes('supabase')) {
-                        localStorage.removeItem(key);
-                    }
-                });
-            } catch (e) {
-                localStorage.clear();
-            }
+            // Limpeza seletiva de chaves do Supabase se necessário, 
+            // mas o signOut já deve lidar com a sessão.
+            // Mantemos outras configurações como tema e e-mail lembrado.
         }
     };
-
     const updateUser = (user: User) => {
         setCurrentUser(user);
     };
@@ -207,7 +237,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             currentUser,
             isLoading: !authReady || isLoading,
             authReady,
+            isAdmin: currentUser?.role === 'admin',
             login,
+            loginWithSession,
             logout,
             updateUser
         }}>

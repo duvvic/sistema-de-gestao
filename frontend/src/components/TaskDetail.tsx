@@ -51,7 +51,8 @@ const TaskDetail: React.FC = () => {
     actualDelivery: '',
     priority: 'Medium',
     impact: 'Medium',
-    risks: ''
+    risks: '',
+    collaboratorIds: []
   });
 
   const [attachmentName, setAttachmentName] = useState<string | undefined>(undefined);
@@ -197,6 +198,9 @@ const TaskDetail: React.FC = () => {
     return <div className="p-8 text-center" style={{ color: 'var(--textMuted)' }}>Tarefa não encontrada.</div>;
   }
 
+  const canEdit = isAdmin || (task && task.developerId === currentUser?.id) || isNew;
+  const isCollaborator = !isNew && task && task.collaboratorIds?.includes(currentUser?.id || '');
+
   return (
     <div className="h-full flex flex-col rounded-2xl shadow-md border overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
       {/* Header */}
@@ -220,13 +224,19 @@ const TaskDetail: React.FC = () => {
                   <AlertTriangle className="w-3 h-3" /> Atrasada ({daysDelayed} dias)
                 </span>
               )}
+              {isCollaborator && !isAdmin && (
+                <span className="text-[10px] px-2.5 py-1 rounded-full font-bold flex items-center gap-1 uppercase tracking-wider"
+                  style={{ backgroundColor: 'var(--info-soft)', color: 'var(--info)' }}>
+                  <ShieldAlert className="w-3 h-3" /> Colaborador (Apenas Apontamento)
+                </span>
+              )}
             </h1>
             <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>
               {isNew ? 'Preencha os dados para iniciar' : `ID: #${task?.id.slice(0, 8)}`}
             </p>
           </div>
         </div>
-        {!isTaskCompleted && (
+        {!isTaskCompleted && canEdit && (
           <button
             onClick={handleSubmit}
             disabled={loading}
@@ -239,6 +249,7 @@ const TaskDetail: React.FC = () => {
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         )}
+
         {isTaskCompleted && (
           <div className="px-6 py-2.5 rounded-xl flex items-center gap-2 font-bold border shadow-sm"
             style={{ backgroundColor: 'var(--success-soft)', color: 'var(--success)', borderColor: 'var(--success)' }}>
@@ -485,6 +496,52 @@ const TaskDetail: React.FC = () => {
                   />
                 )}
               </div>
+
+              {/* Multiple Collaborators Selection */}
+              <div>
+                <label className="block text-xs font-bold mb-2 flex items-center gap-2 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
+                  <UserIcon className="w-4 h-4" /> Colaboradores Extras
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto p-3 border rounded-xl shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  {(() => {
+                    const projectMemberIds = projectMembers
+                      .filter(pm => pm.projectId === formData.projectId)
+                      .map(pm => pm.userId);
+
+                    const filteredUsers = users.filter(u =>
+                      u.active !== false &&
+                      projectMemberIds.includes(u.id) &&
+                      u.id !== formData.developerId // Não listar o dono
+                    );
+
+                    if (filteredUsers.length === 0) {
+                      return <p className="text-[10px] text-center py-2" style={{ color: 'var(--muted)' }}>Nenhum outro membro no projeto</p>;
+                    }
+
+                    return filteredUsers.map(u => (
+                      <label key={u.id} className="flex items-center gap-2 p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          disabled={!canEdit || isTaskCompleted}
+                          checked={formData.collaboratorIds?.includes(u.id) || false}
+                          onChange={(e) => {
+                            markDirty();
+                            const current = formData.collaboratorIds || [];
+                            if (e.target.checked) {
+                              setFormData({ ...formData, collaboratorIds: [...current, u.id] });
+                            } else {
+                              setFormData({ ...formData, collaboratorIds: current.filter(id => id !== u.id) });
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-xs" style={{ color: 'var(--text)' }}>{u.name}</span>
+                      </label>
+                    ));
+                  })()}
+                </div>
+                <p className="text-[9px] mt-1 italic" style={{ color: 'var(--muted)' }}>* Apenas membros do mesmo projeto podem ser adicionados.</p>
+              </div>
             </div>
 
             {/* Dates Block */}
@@ -510,7 +567,6 @@ const TaskDetail: React.FC = () => {
           </div>
         </div>
       </div>
-
 
       {showPrompt && (
         <ConfirmationModal

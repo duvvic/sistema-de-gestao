@@ -60,6 +60,7 @@ export interface Task {
   impact?: Impact;
   risks?: string;
   daysOverdue?: number;
+  collaboratorIds?: string[]; // IDs dos colaboradores vinculados
 }
 
 export interface TimesheetEntry {

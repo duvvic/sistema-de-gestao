@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
 import { Task, Project, Client } from "@/types";
-import { ArrowLeft, Building2, FolderKanban, CheckSquare, Clock } from "lucide-react";
+import { ArrowLeft, Building2, FolderKanban, CheckSquare, Clock, LayoutGrid, List } from "lucide-react";
 
 type ViewType = 'clients' | 'projects' | 'tasks';
+type ViewMode = 'grid' | 'list';
 
 // Componente TaskCard
 interface TaskCardProps {
@@ -71,8 +72,17 @@ const DeveloperProjects: React.FC = () => {
   const { tasks, projects, clients, projectMembers } = useDataController();
 
   const [currentView, setCurrentView] = useState<ViewType>('clients');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('project_view_mode');
+    return (saved as ViewMode) || 'list';
+  });
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  const handleToggleViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('project_view_mode', mode);
+  };
 
   // Filtra tarefas e projetos para o usuário logado
   const myTasks = useMemo(() => {
@@ -158,9 +168,33 @@ const DeveloperProjects: React.FC = () => {
       {/* VISTA 1: EMPRESAS/CLIENTES */}
       {currentView === 'clients' && (
         <div className="flex-1 flex flex-col p-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Projetos</h1>
-            <p className="mt-1" style={{ color: 'var(--text-muted)' }}>Escolha um cliente para ver os projetos</p>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Projetos</h1>
+              <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
+                {viewMode === 'list' ? 'Seus projetos agrupados por cliente' : 'Escolha um cliente para ver os projetos'}
+              </p>
+            </div>
+
+            {/* View Toggle */}
+            <div className="flex bg-white/10 p-1 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+              <button
+                onClick={() => handleToggleViewMode('grid')}
+                className={`p-2 rounded-lg transition-all flex items-center gap-2 ${viewMode === 'grid' ? 'bg-[#4c1d95] text-white shadow-md' : 'text-muted hover:bg-white/5'}`}
+                title="Visualização em Blocos"
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span className="text-xs font-bold hidden md:block">Blocos</span>
+              </button>
+              <button
+                onClick={() => handleToggleViewMode('list')}
+                className={`p-2 rounded-lg transition-all flex items-center gap-2 ${viewMode === 'list' ? 'bg-[#4c1d95] text-white shadow-md' : 'text-muted hover:bg-white/5'}`}
+                title="Visualização em Lista"
+              >
+                <List className="w-4 h-4" />
+                <span className="text-xs font-bold hidden md:block">Lista</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -169,7 +203,79 @@ const DeveloperProjects: React.FC = () => {
                 <Building2 className="w-12 h-12 mb-4" style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
                 <p>Nenhum cliente vinculado encontrado.</p>
               </div>
+            ) : viewMode === 'list' ? (
+              /* MODO LISTA AGRUPADO */
+              <div className="space-y-8">
+                {clients
+                  .filter(c => clientStats.has(c.id))
+                  .map(client => {
+                    const projectsOfClient = myProjects.filter(p => p.clientId === client.id);
+                    return (
+                      <div key={client.id} className="space-y-4">
+                        {/* Linha do Cliente */}
+                        <div className="flex items-center gap-4 py-3 px-4 border-l-4 rounded-r-xl bg-white/5" style={{ borderColor: 'var(--brand)' }}>
+                          <div className="w-10 h-10 rounded-lg border p-1.5 flex items-center justify-center bg-white" style={{ borderColor: 'var(--border)' }}>
+                            {client.logoUrl ? (
+                              <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
+                            ) : (
+                              <Building2 className="w-6 h-6 text-slate-400" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{client.name}</h3>
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{projectsOfClient.length} projetos</p>
+                          </div>
+                        </div>
+
+                        {/* Projetos do Cliente */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pl-4 md:pl-10">
+                          {projectsOfClient.map(project => {
+                            const projTasks = myTasks.filter(t => t.projectId === project.id);
+                            const completedTasks = projTasks.filter(t => t.status === 'Done').length;
+
+                            return (
+                              <div
+                                key={project.id}
+                                onClick={() => {
+                                  setSelectedClientId(client.id);
+                                  setSelectedProjectId(project.id);
+                                  setCurrentView('tasks');
+                                }}
+                                className="border rounded-2xl p-5 hover:shadow-lg transition-all text-left group cursor-pointer pointer-events-auto"
+                                style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}
+                                onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand)'}
+                                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                              >
+                                <div className="mb-3">
+                                  <h4 className="font-bold text-base group-hover:text-[#4c1d95]" style={{ color: 'var(--text-primary)' }}>{project.name}</h4>
+                                  <p className="text-xs mt-1 line-clamp-1" style={{ color: 'var(--text-muted)' }}>{project.description || 'Sem descrição'}</p>
+                                </div>
+
+                                <div className="pt-3 border-t space-y-2" style={{ borderColor: 'var(--border)' }}>
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-2" style={{ color: 'var(--text-default)' }}>
+                                      <CheckSquare className="w-3 h-3 text-green-500" />
+                                      Progresso
+                                    </span>
+                                    <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{completedTasks}/{projTasks.length}</span>
+                                  </div>
+                                  <div className="w-full h-1 rounded-full overflow-hidden mt-1" style={{ backgroundColor: 'var(--border)' }}>
+                                    <div
+                                      className="h-full bg-green-500 rounded-full"
+                                      style={{ width: `${projTasks.length > 0 ? (completedTasks / projTasks.length) * 100 : 0}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
             ) : (
+              /* MODO BLOCOS (CLIENTES) */
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {clients
                   .filter(c => clientStats.has(c.id))

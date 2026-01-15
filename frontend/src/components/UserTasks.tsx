@@ -284,7 +284,7 @@ const TaskColumn: React.FC<{
                 onClick={() => onTaskClick(task.id)}
                 className="w-full text-left"
               >
-                <p className="font-bold text-sm leading-tight group-hover:text-[var(--primary)] transition-colors" style={{ color: 'var(--text)' }}>{task.title}</p>
+                <p className="font-bold text-sm leading-tight group-hover:text-[var(--primary)] transition-colors" style={{ color: 'var(--text)' }}>{task.title || "(Sem título)"}</p>
 
                 <div className="text-[11px] mt-2 flex items-center gap-2" style={{ color: 'var(--muted)' }}>
                   <Calendar size={13} />
