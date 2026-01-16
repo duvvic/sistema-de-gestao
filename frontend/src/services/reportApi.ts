@@ -2,7 +2,7 @@
 import { supabase } from '@/services/supabaseClient';
 
 const getApiBase = () => {
-    let url = (import.meta as any).env?.VITE_API_URL?.toString()?.trim() || 'https://argilliferous-ingenuous-janiyah.ngrok-free.dev/api';
+    let url = (import.meta as any).env?.VITE_API_URL?.toString()?.trim() || 'https://dishes-ambien-dated-afternoon.trycloudflare.com/api';
     url = url.replace(/\/$/, ''); // Remove barra final
     if (!url.endsWith('/api')) {
         url += '/api';
