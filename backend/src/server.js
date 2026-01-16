@@ -12,21 +12,23 @@ dotenv.config();
 const app = express();
 
 app.use(express.json({ limit: "1mb" }));
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://sistema-de-gestao-b58.pages.dev'
+];
+
 app.use(
     cors({
         origin: function (origin, callback) {
-            // Allow requests with no origin (like mobile apps or curl requests)
             if (!origin) return callback(null, true);
-            const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', process.env.CORS_ORIGIN];
-            if (allowedOrigins.indexOf(origin) === -1 && String(process.env.CORS_ORIGIN) !== '*') {
-                // Se não estiver na lista, mas for desenvolvimento, vamos permitir para facilitar
-                // Mas o ideal é adicionar o 5173 na lista acima
+            if (allowedOrigins.includes(origin) || String(process.env.CORS_ORIGIN) === '*') {
                 return callback(null, true);
             }
-            return callback(null, true);
+            return callback(new Error('Not allowed by CORS'));
         },
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
         credentials: true
     })
 );

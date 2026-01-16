@@ -69,6 +69,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // Headers base
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
     };
 
     if (token) {
