@@ -12,20 +12,13 @@ dotenv.config();
 const app = express();
 
 app.use(express.json({ limit: "1mb" }));
-const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://sistema-de-gestao-b58.pages.dev'
-];
+// Logger simples para diagnosticar se as requisições estão chegando
+app.use((req, res, next) => {
+    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+    next();
+});
 
-app.use(
-    cors({
-        origin: true, // Reflete o origin da requisição (mais flexível que *)
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
-        credentials: true
-    })
-);
+app.use(cors()); // Aceita tudo por padrão para testes de produção
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
