@@ -56,7 +56,7 @@ const ClientDetailsView: React.FC = () => {
       {/* Header */}
       <div className="mb-6 flex items-center gap-4">
         <button
-          onClick={() => navigate('/admin/clients')}
+          onClick={() => navigate(-1)}
           className="p-2 rounded-full transition-colors hover:bg-white/10"
           style={{ color: 'var(--textMuted)' }}
         >
@@ -404,15 +404,7 @@ const ClientDetailsView: React.FC = () => {
                         </div>
                       </div>
 
-                      {task.status !== 'Done' && (
-                        <button
-                          onClick={handleCreateTimesheet}
-                          className="w-full flex items-center justify-center gap-2 py-2 bg-purple-50 dark:bg-purple-900/20 hover:bg-[#4c1d95] dark:hover:bg-purple-800 text-[#4c1d95] dark:text-purple-300 hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 dark:border-purple-800 shadow-sm"
-                        >
-                          <Clock className="w-4 h-4" />
-                          Apontar Horas
-                        </button>
-                      )}
+
                     </div>
                   );
                 })}

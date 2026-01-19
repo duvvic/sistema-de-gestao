@@ -21,15 +21,33 @@ export const normalizeEmail = (email: string | undefined | null): string => {
     return (email || '').trim().toLowerCase();
 };
 
+const USER_CACHE_KEY = 'nic_labs_user_profile';
+
 export function AuthProvider({ children }: PropsWithChildren) {
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(() => {
+        // Inicialização síncrona do cache para evitar "flash" de carregamento se possível
+        try {
+            const cached = localStorage.getItem(USER_CACHE_KEY);
+            return cached ? JSON.parse(cached) : null;
+        } catch {
+            return null;
+        }
+    });
     const [isLoading, setIsLoading] = useState(true);
-    const [authReady, setAuthReady] = useState(false);
+    const [authReady, setAuthReady] = useState(() => {
+        // Se temos cache, podemos dizer que estamos "prontos" para renderizar as rotas básicas.
+        // O loadUserFromSession vai atualizar o perfil em background.
+        try {
+            return !!localStorage.getItem(USER_CACHE_KEY);
+        } catch {
+            return false;
+        }
+    });
 
     const mapUserDataToUser = useCallback((userData: any): User => {
         const papel = String(userData.papel || '').trim().toLowerCase();
-        // admin se papel (case-insensitive) contém “admin” => 'admin' senão 'developer'
-        const role = papel.includes('admin') ? 'admin' : 'developer';
+        // admin se papel (case-insensitive) contém “admin” ou “administrador”
+        const role = (papel.includes('admin') || papel.includes('administrador')) ? 'admin' : 'developer';
 
         return {
             id: String(userData.ID_Colaborador),
@@ -37,7 +55,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             email: userData.email || userData['E-mail'],
             role: role,
             avatarUrl: userData.avatar_url,
-            cargo: userData.Cargo || userData.cargo, // Prioriza Cargo (Maiúsculo) do banco
+            cargo: userData.Cargo || userData.cargo,
             active: userData.ativo ?? true,
         } as User;
     }, []);
@@ -67,89 +85,116 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (loadingRef.current === emailToFind) return;
         loadingRef.current = emailToFind;
 
+        console.log(`[Auth] Buscando perfil para: ${emailToFind}...`);
+
         try {
-            // Promessa de Timeout (aumentado para 20s para conexões lentas)
+            // Tenta buscar o usuário nas tabelas dim_colaboradores buscando primeiro na coluna indexada 'email'
+            // O timeout agora é de 10s para ser mais ágil, e temos fallback
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout de rede na carga do usuário (20s)')), 20000)
+                setTimeout(() => reject(new Error('Timeout de rede (10s)')), 10000)
             );
 
-            // Tenta buscar o usuário nas tabelas dim_colaboradores buscando em ambas as colunas de e-mail
             const response = await Promise.race([
                 supabase
                     .from('dim_colaboradores')
                     .select('*')
-                    .or(`email.eq."${emailToFind}","E-mail".eq."${emailToFind}"`) // Aspas para garantir segurança no .or
+                    .or(`email.eq.${emailToFind},"E-mail".eq.${emailToFind}`)
                     .maybeSingle(),
                 timeoutPromise as any
             ]);
 
-            const userProfile = response as any;
-            const dbError = userProfile.error;
-            const userData = userProfile.data;
+            const { data: userData, error: dbError } = response as any;
 
             if (dbError) throw dbError;
 
             if (userData) {
                 const normalizedUser = mapUserDataToUser(userData);
                 setCurrentUser(normalizedUser);
+                localStorage.setItem(USER_CACHE_KEY, JSON.stringify(normalizedUser));
                 lastLoadedEmail.current = emailToFind;
+                console.log('[Auth] Perfil carregado com sucesso.');
             } else {
+                console.warn('[Auth] Usuário não encontrado no banco, usando fallback do Supabase.');
                 const isVictor = emailToFind === 'victor.picoli@nic-labs.com.br';
-                setCurrentUser({
+                const fallbackUser = {
                     id: session.user.id,
                     name: session.user.email?.split('@')[0] || 'Usuário',
                     email: session.user.email,
                     role: isVictor ? 'admin' : 'developer',
                     active: true,
-                } as any);
+                } as any;
+                setCurrentUser(fallbackUser);
+                localStorage.setItem(USER_CACHE_KEY, JSON.stringify(fallbackUser));
                 lastLoadedEmail.current = emailToFind;
             }
         } catch (err: any) {
-            console.error('[Auth] Falha ao carregar perfil completo:', err.message || err);
-            // Fallback para não bloquear o acesso
-            // SE for o email do Victor, força admin temporariamente para ele conseguir usar
-            const isVictor = emailToFind === 'victor.picoli@nic-labs.com.br';
-            setCurrentUser({
-                id: session.user.id,
-                name: session.user.email?.split('@')[0] || 'Usuário',
-                email: session.user.email,
-                role: isVictor ? 'admin' : 'developer',
-                active: true,
-            } as User);
+            console.error('[Auth] Erro ao carregar perfil:', err.message || err);
+
+            // Se já temos um currentUser (do cache), não fazemos nada, mantemos o que tem
+            if (!currentUser) {
+                const isVictor = emailToFind === 'victor.picoli@nic-labs.com.br';
+                const fallbackUser = {
+                    id: session.user.id,
+                    name: session.user.email?.split('@')[0] || 'Usuário',
+                    email: session.user.email,
+                    role: isVictor ? 'admin' : 'developer',
+                    active: true,
+                } as User;
+                setCurrentUser(fallbackUser);
+            }
         } finally {
             loadingRef.current = null;
             setAuthReady(true);
             setIsLoading(false);
         }
-    }, [mapUserDataToUser]);
+    }, [mapUserDataToUser, currentUser]);
 
     useEffect(() => {
         let isMounted = true;
 
-        // Timer de segurança para destravar a UI se nada acontecer em 20s
+        // Timer de segurança para destravar a UI se nada acontecer em 15s (reduzido de 20s)
         const safetyTimer = setTimeout(() => {
             if (isMounted) {
                 setAuthReady(ready => {
                     if (!ready) {
-                        console.warn('[Auth] Safety timeout atingido. Destravando interface.');
+                        console.warn('[Auth] Safety timeout atingido (15s). Destravando interface.');
                         setIsLoading(false);
                         return true;
                     }
                     return ready;
                 });
             }
-        }, 20000);
+        }, 15000);
 
         const init = async () => {
             try {
+                // getSession é geralmente rápido pois lê do localStorage local do Supabase
                 const { data: { session } } = await supabase.auth.getSession();
-                if (isMounted && session) {
-                    await loadUserFromSession(session);
-                } else if (isMounted) {
-                    setAuthReady(true);
-                    setIsLoading(false);
+
+                if (isMounted) {
+                    if (session) {
+                        // Se já temos o usuário do cache e o e-mail bate, libera a UI imediatamente
+                        const cachedEmail = currentUser?.email ? normalizeEmail(currentUser.email) : null;
+                        const sessionEmail = normalizeEmail(session.user.email);
+
+                        if (cachedEmail === sessionEmail) {
+                            console.log('[Auth] Usuário validado via cache, liberando interface...');
+                            setAuthReady(true);
+                            setIsLoading(false);
+                            // Atualiza em background sem dar await
+                            loadUserFromSession(session);
+                        } else {
+                            // Senão, carrega de forma bloqueante para garantir dados corretos
+                            await loadUserFromSession(session);
+                        }
+                    } else {
+                        // Sem sessão, libera a UI para mostrar tela de login
+                        setAuthReady(true);
+                        setIsLoading(false);
+                    }
                 }
             } catch (e) {
+                console.error('[Auth] Erro na inicialização:', e);
                 if (isMounted) {
                     setAuthReady(true);
                     setIsLoading(false);
@@ -161,13 +206,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (!isMounted) return;
+            console.log(`[Auth] Evento: ${event}`);
+
             if (event === 'SIGNED_OUT') {
                 lastLoadedEmail.current = null;
                 setCurrentUser(null);
+                localStorage.removeItem(USER_CACHE_KEY);
                 setAuthReady(true);
                 setIsLoading(false);
             } else if (session) {
-                await loadUserFromSession(session);
+                // Atualização silenciosa em background se já estivermos prontos
+                if (authReady) {
+                    loadUserFromSession(session);
+                } else {
+                    await loadUserFromSession(session);
+                }
             }
         });
 
@@ -177,6 +230,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             subscription.unsubscribe();
         };
     }, [loadUserFromSession]);
+
 
     const login = (user: User) => {
         if (user.email) {
@@ -193,8 +247,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
                 lastLoadedEmail.current = normalizeEmail(user.email);
             }
 
-            // 2. Define o usuário no estado
+            // 2. Define o usuário no estado e cache
             setCurrentUser(user);
+            localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
 
             // 3. Sincroniza com o Supabase (isso vai disparar SIGNED_IN)
             // Mas como lastLoadedEmail já está definido, loadUserFromSession vai pular o fetch
@@ -216,9 +271,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             console.error('[Auth] Erro ao deslogar do Supabase:', err);
         } finally {
             setCurrentUser(null);
-            // Limpeza seletiva de chaves do Supabase se necessário, 
-            // mas o signOut já deve lidar com a sessão.
-            // Mantemos outras configurações como tema e e-mail lembrado.
+            localStorage.removeItem(USER_CACHE_KEY);
         }
     };
     const updateUser = (user: User) => {

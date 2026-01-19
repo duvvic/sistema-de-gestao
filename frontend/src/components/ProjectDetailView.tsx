@@ -1,40 +1,66 @@
-// components/ProjectDetailView.tsx - Adaptado para Router
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
-import { ArrowLeft, Plus, Edit, CheckSquare, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, CheckSquare, Clock, Filter, Search, ChevronDown, Check } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ProjectDetailView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { projects, clients, tasks, users, projectMembers } = useDataController();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
 
   const project = projects.find(p => p.id === projectId);
   const client = project ? clients.find(c => c.id === project.clientId) : null;
 
-  const projectTasks = useMemo(() =>
-    tasks.filter(t => t.projectId === projectId),
-    [tasks, projectId]
-  );
+  const projectTasks = useMemo(() => {
+    const pTasks = tasks.filter(t => t.projectId === projectId);
 
-  // Helper para enriquecer tasks com dados do user
+    // Filtro para Developer / Standard (USER_REQUEST: só mostrar tarefas vinculadas a mim)
+    if (currentUser && currentUser.role !== 'admin') {
+      return pTasks.filter(t =>
+        t.developerId === currentUser.id ||
+        (t.collaboratorIds && t.collaboratorIds.includes(currentUser.id))
+      );
+    }
+
+    return pTasks;
+  }, [tasks, projectId, currentUser]);
+
+  // Helper para enriquecer tasks com dados do user e collaborators
   const getTaskWithUser = (task: any) => {
-    const user = users.find(u => u.id === task.developerId);
+    const dev = users.find(u => u.id === task.developerId);
+
+    // Mapear avatars dos colaboradores extras
+    const collaborators = (task.collaboratorIds || [])
+      .map((id: string) => users.find(u => u.id === id))
+      .filter(Boolean);
+
     return {
       ...task,
-      developerAvatar: user?.avatarUrl,
-      developerName: user?.name || task.developer
+      developerAvatar: dev?.avatarUrl,
+      developerName: dev?.name || task.developer,
+      collaborators: collaborators // Passar lista enriquecida
     };
   };
 
-  const tasksByStatus = useMemo(() => {
-    return {
-      Todo: projectTasks.filter(t => t.status === 'Todo').map(getTaskWithUser),
-      InProgress: projectTasks.filter(t => t.status === 'In Progress').map(getTaskWithUser),
-      Review: projectTasks.filter(t => t.status === 'Review').map(getTaskWithUser),
-      Done: projectTasks.filter(t => t.status === 'Done').map(getTaskWithUser),
-    };
-  }, [projectTasks, users]);
+  const [selectedStatus, setSelectedStatus] = React.useState<string>('Todos');
+  const [showStatusMenu, setShowStatusMenu] = React.useState(false);
+
+  const filteredTasks = useMemo(() => {
+    let t = projectTasks;
+    if (selectedStatus !== 'Todos') {
+      t = t.filter(task => task.status === selectedStatus);
+    }
+    // Sorting: Done last, then by Date
+    return t.sort((a, b) => {
+      if (a.status === 'Done' && b.status !== 'Done') return 1;
+      if (a.status !== 'Done' && b.status === 'Done') return -1;
+      return new Date(a.estimatedDelivery || '2099-12-31').getTime() - new Date(b.estimatedDelivery || '2099-12-31').getTime();
+    });
+  }, [projectTasks, selectedStatus]);
 
   if (!project) {
     return (
@@ -43,7 +69,7 @@ const ProjectDetailView: React.FC = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-[var(--textTitle)] mb-2">Projeto não encontrado</h2>
           <button
-            onClick={() => navigate('/admin/projects')}
+            onClick={() => navigate(isAdmin ? '/admin/projects' : '/developer/projects')}
             className="text-[var(--brand)] hover:underline"
           >
             Voltar para projetos
@@ -59,7 +85,7 @@ const ProjectDetailView: React.FC = () => {
       <div className="mb-6 flex items-center gap-4">
         {/* ... (manter igual) ... */}
         <button
-          onClick={() => navigate(`/admin/clients/${project.clientId}`)}
+          onClick={() => navigate(-1)}
           className="p-2 hover:bg-[var(--surfaceHover)] rounded-full transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-[var(--textMuted)]" />
@@ -85,9 +111,10 @@ const ProjectDetailView: React.FC = () => {
                   const member = users.find(u => u.id === pm.userId);
                   if (!member) return null;
                   return (
-                    <div
+                    <button
                       key={member.id}
-                      className="w-6 h-6 rounded-full border border-[var(--bgApp)] bg-[var(--surface)] flex items-center justify-center overflow-hidden"
+                      onClick={() => navigate(`/admin/team/${member.id}`)}
+                      className="w-6 h-6 rounded-full border border-[var(--bgApp)] bg-[var(--surface)] flex items-center justify-center overflow-hidden hover:z-10 hover:scale-110 transition-all cursor-pointer"
                       title={member.name}
                     >
                       {member.avatarUrl ? (
@@ -97,7 +124,7 @@ const ProjectDetailView: React.FC = () => {
                           {member.name.substring(0, 2).toUpperCase()}
                         </span>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
               {projectMembers.filter(pm => pm.projectId === projectId).length === 0 && (
@@ -107,13 +134,15 @@ const ProjectDetailView: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => navigate(`/admin/projects/${projectId}/edit`)}
-          className="px-4 py-2 border border-[var(--border)] text-[var(--text)] rounded-lg hover:bg-[var(--surfaceHover)] flex items-center gap-2"
-        >
-          <Edit className="w-4 h-4" />
-          Editar
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => navigate(`/admin/projects/${projectId}/edit`)}
+            className="px-4 py-2 border border-[var(--border)] text-[var(--text)] rounded-lg hover:bg-[var(--surfaceHover)] flex items-center gap-2"
+          >
+            <Edit className="w-4 h-4" />
+            Editar
+          </button>
+        )}
 
         <button
           onClick={() => navigate(`/tasks/new?project=${projectId}&client=${project?.clientId}`)}
@@ -133,73 +162,111 @@ const ProjectDetailView: React.FC = () => {
       )}
 
       {/* Tarefas por Status */}
-      <div className="flex-1 overflow-y-auto">
-        <h2 className="text-lg font-bold text-[var(--textTitle)] mb-4">Tarefas</h2>
+      {/* Controle e Filtros */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+        <div className="relative z-20">
+          <button
+            onClick={() => setShowStatusMenu(!showStatusMenu)}
+            className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl flex items-center gap-2 text-sm font-bold text-[var(--text)] min-w-[200px] justify-between shadow-sm"
+          >
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-[var(--textMuted)]" />
+              <span>
+                {(() => {
+                  const statusLabels: Record<string, string> = {
+                    'Todos': 'Todos os Status',
+                    'Todo': 'A Fazer',
+                    'In Progress': 'Em Progresso',
+                    'Review': 'Revisão',
+                    'Done': 'Concluído'
+                  };
+                  return statusLabels[selectedStatus] || selectedStatus;
+                })()}
+              </span>
+            </div>
+            <ChevronDown size={14} className={`transition-transform ${showStatusMenu ? 'rotate-180' : ''}`} />
+          </button>
 
-        {projectTasks.length === 0 ? (
+          <AnimatePresence>
+            {showStatusMenu && (
+              <>
+                <div className="fixed inset-0 z-[60]" onClick={() => setShowStatusMenu(false)} />
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute top-full left-0 mt-2 w-full min-w-[200px] bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl p-2 flex flex-col gap-1 z-[70]"
+                >
+                  {['Todos', 'Todo', 'In Progress', 'Review', 'Done'].map(status => {
+                    const statusLabels: Record<string, string> = {
+                      'Todos': 'Todos os Status',
+                      'Todo': 'A Fazer',
+                      'In Progress': 'Em Progresso',
+                      'Review': 'Revisão',
+                      'Done': 'Concluído'
+                    };
+
+                    const statusColors: Record<string, string> = {
+                      'Todos': 'bg-[var(--brand)]',
+                      'Todo': 'bg-slate-500',
+                      'In Progress': 'bg-blue-500',
+                      'Review': 'bg-amber-500',
+                      'Done': 'bg-emerald-500'
+                    };
+
+                    const label = statusLabels[status] || status;
+                    const colorClass = statusColors[status] || 'bg-gray-500';
+
+                    return (
+                      <button
+                        key={status}
+                        onClick={() => { setSelectedStatus(status); setShowStatusMenu(false); }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold transition-colors ${selectedStatus === status ? 'bg-[var(--surface-active)] text-[var(--brand)]' : 'text-[var(--textMuted)] hover:bg-[var(--surfaceHover)]'}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {status !== 'Todos' && (
+                            <div className={`w-2 h-2 rounded-full ${colorClass}`} />
+                          )}
+                          {label}
+                        </div>
+                        {selectedStatus === status && <Check size={14} className="text-[var(--brand)]" />}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <span className="text-sm font-medium text-[var(--textMuted)]">
+          {filteredTasks.length} tarefas encontradas
+        </span>
+      </div>
+
+      {/* Grid de Tarefas - Estilo Card 2.0 */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar pb-6">
+        {filteredTasks.length === 0 ? (
           <div className="text-center py-12 text-[var(--textMuted)]">
-            <CheckSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Nenhuma tarefa cadastrada</p>
-            <button
-              onClick={() => navigate(`/tasks/new?project=${projectId}&client=${project?.clientId}`)}
-              className="mt-4 text-[var(--brand)] hover:underline"
-            >
-              Criar primeira tarefa
-            </button>
+            <CheckSquare className="w-16 h-16 mx-auto mb-4 opacity-20" />
+            <p className="text-lg font-medium">Nenhuma tarefa encontrada</p>
+            {selectedStatus !== 'Todos' && (
+              <button onClick={() => setSelectedStatus('Todos')} className="text-[var(--brand)] text-sm font-bold mt-2 hover:underline">
+                Limpar filtros
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* A Fazer */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-[var(--text)] text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-                A Fazer ({tasksByStatus.Todo.length})
-              </h3>
-              <div className="space-y-2">
-                {tasksByStatus.Todo.map(task => (
-                  <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-                ))}
-              </div>
-            </div>
-
-            {/* Em Progresso */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-[var(--text)] text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                Em Progresso ({tasksByStatus.InProgress.length})
-              </h3>
-              <div className="space-y-2">
-                {tasksByStatus.InProgress.map(task => (
-                  <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-                ))}
-              </div>
-            </div>
-
-            {/* Revisão */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-[var(--text)] text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                Revisão ({tasksByStatus.Review.length})
-              </h3>
-              <div className="space-y-2">
-                {tasksByStatus.Review.map(task => (
-                  <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-                ))}
-              </div>
-            </div>
-
-            {/* Concluídas */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-[var(--text)] text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                Concluídas ({tasksByStatus.Done.length})
-              </h3>
-              <div className="space-y-2">
-                {tasksByStatus.Done.map(task => (
-                  <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-                ))}
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {filteredTasks.map(task => (
+              <TaskCard
+                key={task.id}
+                task={getTaskWithUser(task)}
+                project={project}
+                client={client || undefined}
+                onClick={() => navigate(`/tasks/${task.id}`)}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -213,7 +280,7 @@ interface TaskCardProps {
   onClick: () => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
+const TaskCard: React.FC<TaskCardProps & { project?: any, client?: any }> = ({ task, project, client, onClick }) => {
   const navigate = useNavigate();
 
   const handleCreateTimesheet = (e: React.MouseEvent) => {
@@ -221,67 +288,133 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
     navigate(`/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`);
   };
 
+  const statusConfig = {
+    'Todo': { label: 'A FAZER', bg: 'bg-slate-100 dark:bg-slate-900', text: 'text-slate-600 dark:text-slate-400' },
+    'In Progress': { label: 'EM PROGRESSO', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' },
+    'Review': { label: 'REVISÃO', bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400' },
+    'Done': { label: 'CONCLUÍDO', bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400' },
+  };
+
+  const status = statusConfig[task.status as keyof typeof statusConfig] || statusConfig['Todo'];
+
+  // Border Color Logic
+  const getBorderColor = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (task.status === 'Done') return '#10b981'; // Green
+
+    if (task.estimatedDelivery) {
+      const due = new Date(task.estimatedDelivery);
+      if (due < today) return '#ef4444'; // Red (Delayed)
+    }
+
+    if (task.status === 'In Progress') return '#f59e0b'; // Amber
+
+    return 'var(--border)'; // Default
+  };
+
+  const borderColor = getBorderColor();
+
   return (
-    <div className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 hover:border-[var(--brand)] hover:shadow-md transition-all text-left group">
-      <div onClick={onClick} className="cursor-pointer">
-        <div className="flex justify-between items-start gap-2">
-          <p className="text-sm font-semibold text-[var(--textTitle)] truncate group-hover:text-[var(--brand)] flex-1">
-            {task.title || "(Sem título)"}
-          </p>
-          {task.priority && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap ${task.priority === 'Critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
-              task.priority === 'High' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' :
-                task.priority === 'Medium' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                  'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-              }`}>
-              {task.priority === 'Critical' ? 'Crit' : task.priority}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 mt-3">
-          <div className="flex-1 h-1 bg-[var(--border)] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[var(--brand)]"
-              style={{ width: `${task.progress || 0}%` }}
-            />
-          </div>
-          <span className="text-xs font-bold text-[var(--textMuted)]">{task.progress || 0}%</span>
-        </div>
-
-        {/* Rodapé com Responsável */}
-        <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-2 pb-2">
-          <div className="flex items-center gap-2">
-            {task.developerAvatar ? (
-              <img src={task.developerAvatar} alt={task.developerName} className="w-5 h-5 rounded-full object-cover" />
-            ) : (
-              <div className="w-5 h-5 rounded-full bg-[var(--surfaceHover)] text-[10px] flex items-center justify-center font-bold text-[var(--textMuted)]">
-                {task.developerName ? task.developerName.charAt(0).toUpperCase() : '?'}
-              </div>
-            )}
-            <span className="text-xs text-[var(--textMuted)] truncate max-w-[100px]" title={task.developerName}>
-              {task.developerName?.split(' ')[0] || 'Sem Resp.'}
-            </span>
-          </div>
-
-          {task.estimatedDelivery && (
-            <span className="text-[10px] text-[var(--textMuted)] flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {new Date(task.estimatedDelivery).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
-            </span>
-          )}
-        </div>
+    <div
+      className="w-full bg-[var(--surface)] border rounded-2xl p-5 hover:shadow-xl transition-all text-left flex flex-col group h-full relative overflow-hidden"
+      style={{
+        borderColor: borderColor,
+        borderWidth: borderColor === 'var(--border)' ? '1px' : '2px',
+        boxShadow: borderColor !== 'var(--border)' ? `0 4px 6px -1px ${borderColor}20` : undefined
+      }}
+    >
+      {/* Header Badges */}
+      <div className="flex justify-between items-start mb-3">
+        <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${status.bg} ${status.text}`}>
+          {status.label}
+        </span>
+        {task.priority && (
+          <span className={`text-[10px] font-bold ${task.priority === 'Critical' ? 'text-red-500' :
+            task.priority === 'High' ? 'text-orange-500' :
+              task.priority === 'Medium' ? 'text-yellow-500' : 'text-slate-400'
+            }`}>
+            {task.priority}
+          </span>
+        )}
       </div>
 
-      {task.status !== 'Done' && (
-        <button
-          onClick={handleCreateTimesheet}
-          className="w-full mt-2 flex items-center justify-center gap-2 py-2 bg-purple-50 dark:bg-purple-900/20 hover:bg-[var(--brand)] text-[var(--brand)] hover:text-white rounded-lg transition-all text-xs font-bold border border-purple-100 dark:border-purple-800 shadow-sm"
-        >
-          <Clock className="w-4 h-4" />
-          Apontar Horas
-        </button>
-      )}
+      {/* Title */}
+      <div onClick={onClick} className="cursor-pointer">
+        <h3 className="text-base font-bold text-[var(--textTitle)] mb-1 leading-tight group-hover:text-[var(--brand)] transition-colors">
+          {task.title || "(Sem título)"}
+        </h3>
+
+        {/* Project Context */}
+        {(project || client) && (
+          <div className="flex items-center gap-1.5 text-[var(--textMuted)] mb-4">
+            <CheckSquare size={12} className="opacity-70" />
+            <span className="text-[11px] font-medium truncate">
+              {project?.name || client?.name}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Progress Bar */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex-1 h-1.5 bg-[var(--surface-2)] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${task.progress || 0}%`,
+              backgroundColor: task.status === 'Done' ? 'var(--success)' : 'var(--brand)'
+            }}
+          />
+        </div>
+        <span className="text-[10px] font-bold text-[var(--textMuted)]">{task.progress || 0}%</span>
+      </div>
+
+      <div className="mt-auto pt-4 border-t border-[var(--border)] flex flex-col gap-3">
+        {/* Footer Info */}
+        <div className="flex justify-between items-center">
+          <div className="flex -space-x-2">
+            {/* Developer Avatar */}
+            <div className="w-6 h-6 rounded-full bg-[var(--surface-2)] overflow-hidden border border-[var(--border)] z-10" title={`Responsável: ${task.developerName}`}>
+              {task.developerAvatar ? (
+                <img src={task.developerAvatar} className="w-full h-full object-cover" alt="" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[9px] font-bold text-[var(--textMuted)]">
+                  {task.developerName?.charAt(0) || '?'}
+                </div>
+              )}
+            </div>
+
+            {/* Collaborators Avatars */}
+            {task.collaborators?.map((col: any) => (
+              <div key={col.id} className="w-6 h-6 rounded-full bg-[var(--surface-2)] overflow-hidden border border-[var(--border)]" title={`Colaborador: ${col.name}`}>
+                {col.avatarUrl ? (
+                  <img src={col.avatarUrl} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[9px] font-bold text-[var(--textMuted)]">
+                    {col.name.charAt(0)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <span className="text-xs font-medium text-[var(--textMuted)] truncate max-w-[100px] ml-2">
+            {task.developerName?.split(' ')[0]}
+            {task.collaborators?.length > 0 && ` +${task.collaborators.length}`}
+          </span>
+        </div>
+
+        {task.estimatedDelivery && (
+          <div className="flex items-center gap-1.5 text-xs text-[var(--textMuted)] font-medium">
+            <Clock size={12} />
+            {new Date(task.estimatedDelivery).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
+          </div>
+        )}
+      </div>
+
+      {/* Action Button */}
+
     </div>
   );
 };

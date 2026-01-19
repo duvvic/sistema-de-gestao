@@ -3,16 +3,20 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
 import { Task } from '@/types';
-import { ArrowLeft, Calendar, CheckCircle2, Clock, Briefcase, AlertCircle, Timer } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle2, Clock, Briefcase, AlertCircle, Timer, Edit, Trash2 } from 'lucide-react';
+import ConfirmationModal from './ConfirmationModal';
+
+import TimesheetCalendar from './TimesheetCalendar';
 
 type ViewTab = 'projects' | 'tasks' | 'delayed' | 'ponto';
 
 const TeamMemberDetail: React.FC = () => {
    const { userId } = useParams<{ userId: string }>();
    const navigate = useNavigate();
-   const { users, tasks, projects, projectMembers, timesheetEntries } = useDataController();
+   const { users, tasks, projects, projectMembers, timesheetEntries, deleteUser } = useDataController();
 
    const [activeTab, setActiveTab] = useState<ViewTab>('projects');
+   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
    const user = users.find(u => u.id === userId);
 
@@ -63,6 +67,13 @@ const TeamMemberDetail: React.FC = () => {
       }
       return missingCount;
    }, [user, timesheetEntries]);
+
+   const handleDeleteUser = async () => {
+      if (user && deleteUser) {
+         await deleteUser(user.id);
+         navigate('/admin/team');
+      }
+   };
 
    if (!user) {
       return <div className="p-8">Colaborador não encontrado.</div>;
@@ -133,10 +144,6 @@ const TeamMemberDetail: React.FC = () => {
                         {displayTasks.map(task => {
                            const delayDays = getDelayDays(task);
                            const isDelayed = delayDays > 0;
-                           const handleCreateTimesheet = (e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              navigate(`/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`);
-                           };
 
                            return (
                               <div
@@ -166,18 +173,7 @@ const TeamMemberDetail: React.FC = () => {
                                     <div className={`text-xs font-bold ${isDelayed ? 'text-red-500' : ''}`} style={{ color: isDelayed ? undefined : 'var(--textMuted)' }}>{task.progress}%</div>
                                  </div>
 
-                                 {task.status !== 'Done' && (
-                                    <button
-                                       onClick={handleCreateTimesheet}
-                                       className="w-full flex items-center justify-center gap-2 py-2 rounded-lg transition-all text-xs font-black uppercase tracking-widest border shadow-sm"
-                                       style={{ backgroundColor: 'var(--primary-soft)', color: 'var(--primary)', borderColor: 'rgba(76, 29, 149, 0.2)' }}
-                                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary)'; e.currentTarget.style.color = 'white'; }}
-                                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-soft)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                                    >
-                                       <Clock className="w-4 h-4" />
-                                       Apontar Horas
-                                    </button>
-                                 )}
+                                 {/* Action removed */}
                               </div>
                            );
                         })}
@@ -190,23 +186,7 @@ const TeamMemberDetail: React.FC = () => {
                </div>
             );
          case 'ponto':
-            return (
-               <div className="space-y-4">
-                  <h3 className="text-lg font-bold flex items-center gap-2 mb-6" style={{ color: 'var(--textTitle)' }}>
-                     <Timer className="w-5 h-5 text-orange-500" />
-                     Apontamento de Horas (Ponto)
-                  </h3>
-                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 p-8 rounded-3xl text-center">
-                     <div className="w-20 h-20 bg-white dark:bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-orange-100 dark:border-orange-800">
-                        <span className="text-3xl font-black text-orange-600 dark:text-orange-400">{missingPontoDays}</span>
-                     </div>
-                     <h4 className="text-xl font-bold text-orange-900 dark:text-orange-300 mb-2">Dias pendentes no mês</h4>
-                     <p className="text-orange-700 dark:text-orange-400 text-sm max-w-sm mx-auto">
-                        Este colaborador ainda não realizou o apontamento de horas em {missingPontoDays} dias úteis do mês vigente.
-                     </p>
-                  </div>
-               </div>
-            );
+            return <TimesheetCalendar userId={user.id} embedded={true} />;
       }
    };
 
@@ -309,6 +289,29 @@ const TeamMemberDetail: React.FC = () => {
                            <span className="font-black text-xl">{missingPontoDays}</span>
                         </button>
                      </div>
+
+                     {/* Ações de Gestão */}
+                     <div className="pt-6 border-t mt-6 flex gap-3" style={{ borderColor: 'var(--border)' }}>
+                        <button
+                           onClick={() => navigate(`/admin/team/${user.id}/edit`)}
+                           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all border"
+                           style={{
+                              backgroundColor: 'var(--bgApp)',
+                              borderColor: 'var(--border)',
+                              color: 'var(--textTitle)'
+                           }}
+                        >
+                           <Edit className="w-4 h-4" />
+                           Editar
+                        </button>
+                        <button
+                           onClick={() => setDeleteModalOpen(true)}
+                           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30"
+                        >
+                           <Trash2 className="w-4 h-4" />
+                           Excluir
+                        </button>
+                     </div>
                   </div>
                </div>
 
@@ -319,6 +322,14 @@ const TeamMemberDetail: React.FC = () => {
 
             </div>
          </div>
+
+         <ConfirmationModal
+            isOpen={deleteModalOpen}
+            title="Excluir Colaborador"
+            message={`Tem certeza que deseja remover "${user.name}"?`}
+            onConfirm={handleDeleteUser}
+            onCancel={() => setDeleteModalOpen(false)}
+         />
       </div>
    );
 };

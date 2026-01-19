@@ -169,6 +169,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
                 onCreateTimesheetForTask={onCreateTimesheetForTask}
                 timesheetEntries={timesheetEntries}
                 currentUserId={user.id}
+                accentColor="#3b82f6"
               />
 
               <TaskColumn
@@ -180,6 +181,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
                 onCreateTimesheetForTask={onCreateTimesheetForTask}
                 timesheetEntries={timesheetEntries}
                 currentUserId={user.id}
+                accentColor="#ef4444"
               />
 
               <TaskColumn
@@ -191,6 +193,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
                 onCreateTimesheetForTask={onCreateTimesheetForTask}
                 timesheetEntries={timesheetEntries}
                 currentUserId={user.id}
+                accentColor="#10b981"
               />
             </div>
           )}
@@ -266,7 +269,8 @@ const TaskColumn: React.FC<{
   onCreateTimesheetForTask?: (task: Task) => void;
   timesheetEntries?: TimesheetEntry[];
   currentUserId?: string;
-}> = ({ title, tasks, clients, projects, onTaskClick, onCreateTimesheetForTask, timesheetEntries, currentUserId }) => {
+  accentColor?: string;
+}> = ({ title, tasks, clients, projects, onTaskClick, onCreateTimesheetForTask, timesheetEntries, currentUserId, accentColor }) => {
 
   return (
     <div className="flex-1 min-w-[320px] rounded-2xl border p-4 flex flex-col" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
@@ -278,8 +282,12 @@ const TaskColumn: React.FC<{
           const client = clients.find(c => c.id === task.clientId);
 
           return (
-            <div key={task.id} className="w-full transition border rounded-xl p-4 shadow-sm group hover:shadow-md"
-              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div key={task.id} className="w-full transition border rounded-xl p-4 shadow-sm group hover:shadow-md relative overflow-hidden"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: accentColor || 'var(--border)',
+                borderLeftWidth: accentColor ? '4px' : '1px'
+              }}>
               <button
                 onClick={() => onTaskClick(task.id)}
                 className="w-full text-left"

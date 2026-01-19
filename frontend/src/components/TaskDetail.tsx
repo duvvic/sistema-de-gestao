@@ -79,7 +79,7 @@ const TaskDetail: React.FC = () => {
       if (preSelectedClientId) newForm.clientId = preSelectedClientId;
       if (preSelectedProjectId) newForm.projectId = preSelectedProjectId;
 
-      if (isDeveloper && currentUser?.name) {
+      if (currentUser?.id) {
         newForm.developer = currentUser.name;
         newForm.developerId = currentUser.id;
       }
@@ -122,8 +122,9 @@ const TaskDetail: React.FC = () => {
         status: (formData.status as Status) || 'Todo',
         progress: Number(formData.progress) || 0,
         estimatedDelivery: formData.estimatedDelivery!,
-        developerId: formData.developerId || (isDeveloper ? currentUser?.id : undefined),
-        developer: formData.developer || (isDeveloper ? currentUser?.name : undefined)
+        // Garante que o responsável seja o usuário logado na criação
+        developerId: isNew ? currentUser?.id : formData.developerId,
+        developer: isNew ? currentUser?.name : formData.developer
       };
 
       if (isNew) {
@@ -285,7 +286,7 @@ const TaskDetail: React.FC = () => {
                     onChange={(e) => { markDirty(); setFormData({ ...formData, clientId: e.target.value, projectId: '' }); }}
                     className="w-full p-3 border rounded-xl outline-none transition-all disabled:opacity-60 shadow-sm focus:ring-2 focus:ring-[var(--ring)]"
                     style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                    disabled={!isNew && !isAdmin}
+                    disabled={!isNew}
                   >
                     <option value="">Selecione um cliente...</option>
                     {filteredClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -299,7 +300,7 @@ const TaskDetail: React.FC = () => {
                     onChange={(e) => { markDirty(); setFormData({ ...formData, projectId: e.target.value }); }}
                     className="w-full p-3 border rounded-xl outline-none transition-all disabled:opacity-60 shadow-sm focus:ring-2 focus:ring-[var(--ring)]"
                     style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                    disabled={!formData.clientId || (!isNew && !isAdmin)}
+                    disabled={!formData.clientId || !isNew}
                   >
                     <option value="">{formData.clientId ? 'Selecione um projeto...' : 'Selecione um cliente primeiro'}</option>
                     {formData.clientId && filteredProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -319,7 +320,7 @@ const TaskDetail: React.FC = () => {
                   placeholder="Ex: Criar Wireframes da Home"
                   className="w-full p-4 text-lg font-bold border rounded-xl outline-none shadow-sm transition-all disabled:opacity-60 focus:ring-2 focus:ring-[var(--ring)]"
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                  disabled={isTaskCompleted}
+                  disabled={!isNew || isTaskCompleted}
                   required
                 />
               </div>
@@ -349,7 +350,7 @@ const TaskDetail: React.FC = () => {
                   placeholder="Ex: Aguardando aprovação do cliente"
                   className="w-full p-3 border rounded-xl outline-none transition-all disabled:opacity-60 shadow-sm focus:ring-2 focus:ring-[var(--ring)]"
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                  disabled={isTaskCompleted}
+                  disabled={!isNew || isTaskCompleted}
                 />
               </div>
 
@@ -371,13 +372,15 @@ const TaskDetail: React.FC = () => {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
-                        <button
-                          type="button"
-                          onClick={() => { setFormData({ ...formData, attachment: '' }); setAttachmentName(undefined); markDirty(); }}
-                          className="bg-red-500 text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-red-600 transition-all transform active:scale-95"
-                        >
-                          Remover
-                        </button>
+                        {isNew && !isTaskCompleted && (
+                          <button
+                            type="button"
+                            onClick={() => { setFormData({ ...formData, attachment: '' }); setAttachmentName(undefined); markDirty(); }}
+                            className="bg-red-500 text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-red-600 transition-all transform active:scale-95"
+                          >
+                            Remover
+                          </button>
+                        )}
                       </div>
                     </>
                   ) : (
@@ -385,15 +388,19 @@ const TaskDetail: React.FC = () => {
                       <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" style={{ color: 'var(--muted)' }} />
                       <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Nenhum anexo disponível</p>
                       <div className="mt-5 flex items-center justify-center gap-3">
-                        <label className="text-sm font-bold hover:opacity-80 cursor-pointer px-4 py-2 rounded-xl transition-all shadow-sm border border-[var(--border)]" style={{ color: 'var(--primary)', backgroundColor: 'var(--surface)' }}>
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            onChange={(e) => handleFileChange(e.target.files?.[0])}
-                            className="hidden"
-                          />
-                          Fazer upload
-                        </label>
+                        {isNew && !isTaskCompleted ? (
+                          <label className="text-sm font-bold hover:opacity-80 cursor-pointer px-4 py-2 rounded-xl transition-all shadow-sm border border-[var(--border)]" style={{ color: 'var(--primary)', backgroundColor: 'var(--surface)' }}>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              onChange={(e) => handleFileChange(e.target.files?.[0])}
+                              className="hidden"
+                            />
+                            Fazer upload
+                          </label>
+                        ) : (
+                          <p className="text-xs text-[var(--muted)]">Upload indisponível</p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -466,35 +473,34 @@ const TaskDetail: React.FC = () => {
                 <label className="block text-xs font-bold mb-2 flex items-center gap-2 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
                   <UserIcon className="w-4 h-4" /> Responsável
                 </label>
-                {isAdmin ? (
-                  <select
-                    value={formData.developerId || ''}
-                    onChange={(e) => {
-                      markDirty();
-                      const selected = users.find(u => u.id === e.target.value);
-                      setFormData({
-                        ...formData,
-                        developerId: selected?.id || '',
-                        developer: selected?.name || '',
-                      });
-                    }}
-                    className="w-full p-3 border rounded-xl outline-none transition-all shadow-sm focus:ring-2 focus:ring-[var(--ring)]"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                  >
-                    <option value="">Selecione um responsável...</option>
-                    {users.filter(u => u.active !== false).map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={formData.developer || ''}
-                    readOnly
-                    className="w-full p-3 border rounded-xl outline-none opacity-60 shadow-sm"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                  />
-                )}
+                <div className="flex items-center group">
+                  {(() => {
+                    const dev = users.find(u => u.id === formData.developerId);
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/admin/team/${formData.developerId}`)}
+                          className="w-11 h-11 rounded-full border-2 border-[var(--primary)] p-0.5 flex items-center justify-center overflow-hidden z-10 bg-[var(--surface)] hover:ring-2 hover:ring-[var(--primary)] hover:ring-offset-2 transition-all active:scale-95 flex-shrink-0 shadow-lg"
+                        >
+                          {dev?.avatarUrl ? (
+                            <img src={dev.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                          ) : (
+                            <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-xs font-black">
+                              {formData.developer?.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </button>
+                        <div className="flex-1 -ml-4 pl-7 pr-4 py-2.5 rounded-r-2xl border border-l-0 shadow-sm transition-all group-hover:border-[var(--primary)]"
+                          style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                          <span className="text-sm font-black tracking-tight" style={{ color: 'var(--text)' }}>
+                            {formData.developer || 'Sem responsável'}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* Multiple Collaborators Selection */}
@@ -522,7 +528,7 @@ const TaskDetail: React.FC = () => {
                       <label key={u.id} className="flex items-center gap-2 p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer transition-colors">
                         <input
                           type="checkbox"
-                          disabled={!canEdit || isTaskCompleted}
+                          disabled={!(isAdmin || formData.developerId === currentUser?.id) || isTaskCompleted}
                           checked={formData.collaboratorIds?.includes(u.id) || false}
                           onChange={(e) => {
                             markDirty();
@@ -555,12 +561,13 @@ const TaskDetail: React.FC = () => {
                   type="date"
                   value={formData.estimatedDelivery}
                   onChange={(e) => { markDirty(); setFormData({ ...formData, estimatedDelivery: e.target.value }); }}
-                  className={`w-full p-3 border rounded-xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-[var(--ring)] transition-all`}
+                  className={`w-full p-3 border rounded-xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-[var(--ring)] transition-all disabled:opacity-60`}
                   style={{
                     backgroundColor: 'var(--surface)',
                     borderColor: daysDelayed > 0 ? 'var(--danger)' : 'var(--border)',
                     color: daysDelayed > 0 ? 'var(--danger)' : 'var(--text)'
                   }}
+                  disabled={isTaskCompleted}
                 />
               </div>
             </div>

@@ -68,7 +68,7 @@ const ClientForm: React.FC = () => {
       {/* Header */}
       <div className="mb-6 flex items-center gap-4">
         <button
-          onClick={() => navigate('/admin/clients')}
+          onClick={() => navigate(-1)}
           className="p-2 hover:bg-[var(--surfaceHover)] rounded-full transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-[var(--textMuted)]" />
@@ -176,7 +176,7 @@ const ClientForm: React.FC = () => {
           <div className="flex gap-3 pt-4">
             <button
               type="button"
-              onClick={() => navigate('/admin/clients')}
+              onClick={() => navigate(-1)}
               className="px-6 py-3 border border-[var(--border)] text-[var(--text)] rounded-lg hover:bg-[var(--surfaceHover)]"
               disabled={loading}
             >

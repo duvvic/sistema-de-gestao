@@ -5,15 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import {
     exportReportExcel,
     exportReportPowerBI,
-    fetchClients,
-    fetchCollaborators,
-    fetchProjects,
     fetchReportPreview,
     ProjectTotal,
     ReportPreviewResponse,
     ReportRow,
     upsertProjectCost,
 } from '@/services/reportApi';
+import { useData } from '@/contexts/DataContext';
 import {
     FileSpreadsheet,
     BarChart3,
@@ -160,6 +158,7 @@ const DateButton = ({ label, value, onChange }: { label: string, value: string, 
 const AdminFullReport: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser } = useAuth();
+    const { clients: ctxClients, projects: ctxProjects, users: ctxUsers, loading: dataLoading } = useData();
 
     // Estados de Filtros (sempre começam limpos)
     const [startDate, setStartDate] = useState(daysAgoISO(30));
@@ -178,10 +177,18 @@ const AdminFullReport: React.FC = () => {
     const [includeCost, setIncludeCost] = useState(false);
     const [includeHours, setIncludeHours] = useState(true);
 
-    // Opções
-    const [clientOptions, setClientOptions] = useState<{ id: number; name: string }[]>([]);
-    const [projectOptions, setProjectOptions] = useState<{ id: number; name: string; clientId: number }[]>([]);
-    const [collaboratorOptions, setCollaboratorOptions] = useState<{ id: number; name: string }[]>([]);
+    // Opções sincronizadas com o Contexto Global (Otimizado)
+    const clientOptions = useMemo(() =>
+        ctxClients.map(c => ({ id: Number(c.id), name: c.name })),
+        [ctxClients]);
+
+    const projectOptions = useMemo(() =>
+        ctxProjects.map(p => ({ id: Number(p.id), name: p.name, clientId: Number(p.clientId) })),
+        [ctxProjects]);
+
+    const collaboratorOptions = useMemo(() =>
+        ctxUsers.map(u => ({ id: Number(u.id), name: u.name })),
+        [ctxUsers]);
 
     // Estados da UI
     const [loading, setLoading] = useState(false);
@@ -229,28 +236,14 @@ const AdminFullReport: React.FC = () => {
 
     const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
-    // Carregar Opções
+    // Carregar Opções (Simplificado: apenas valida acesso)
     useEffect(() => {
         if (currentUser?.role !== 'admin') {
             navigate('/dashboard');
             return;
         }
-        const load = async () => {
-            try {
-                const [cls, cols, prjs] = await Promise.all([
-                    fetchClients(),
-                    fetchCollaborators(),
-                    fetchProjects()
-                ]);
-                setClientOptions(cls);
-                setCollaboratorOptions(cols);
-                setProjectOptions(prjs);
-            } catch (err) {
-                console.error('Load Error:', err);
-                addToast('Erro ao conectar com servidor. Verifique se o backend está rodando.', 'error');
-            }
-        };
-        load();
+        // Não é mais necessário fetchClients/Collaborators aqui!
+        // Eles já vêm do useData() de forma reativa.
     }, [currentUser, navigate]);
 
     // Lógica de Agrupamento Dinâmico (Flat Table)

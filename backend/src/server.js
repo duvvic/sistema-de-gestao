@@ -6,6 +6,7 @@ import adminUsersRouter from "./routes/adminUsers.js";
 import adminBaseRouter from "./routes/adminBase.js";
 import reportRoutes from "./routes/report.js";
 import authRoutes from "./routes/auth.js";
+import notesRoutes from "./routes/notes.js";
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminBaseRouter);
 app.use("/api/admin/report", reportRoutes);
 app.use("/api/admin/users", adminUsersRouter);
+app.use("/api/notes", notesRoutes);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`✅ Backend rodando na porta ${port}`));

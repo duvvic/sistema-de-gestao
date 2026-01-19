@@ -176,3 +176,21 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
 }
+
+.custom-scrollbar-thin::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}

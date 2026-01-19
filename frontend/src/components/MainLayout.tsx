@@ -1,5 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { ThemeContext } from '@/App';
+import HelpButton from './HelpButton';
 import { Outlet, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -12,7 +13,9 @@ import {
     Menu,
     X,
     Moon,
-    Sun
+    Sun,
+    GraduationCap,
+    StickyNote
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import logoImg from '@/assets/logo.png';
@@ -28,18 +31,20 @@ const MainLayout: React.FC = () => {
 
     // Definição dos menus (movido para cima para ser usado na lógica de animação do menu)
     const adminMenuItems = [
-        { path: '/admin/clients', icon: Users, label: 'Clientes' },
-        { path: '/admin/projects', icon: Briefcase, label: 'Projetos' },
+        { path: '/admin/clients', icon: Briefcase, label: 'Portfólio' },
         { path: '/tasks', icon: CheckSquare, label: 'Tarefas' },
         { path: '/admin/team', icon: Users, label: 'Funcionários' },
-        { path: '/admin/reports', icon: LayoutDashboard, label: 'Relatórios' }, // Usando LayoutDashboard ou BarChart3
+        { path: '/admin/reports', icon: LayoutDashboard, label: 'Relatórios' },
         { path: '/timesheet', icon: Clock, label: 'Folha de Ponto' },
+        { path: '/notes', icon: StickyNote, label: 'Notas' },
     ];
 
     const developerMenuItems = [
         { path: '/developer/projects', icon: Briefcase, label: 'Projetos' },
         { path: '/developer/tasks', icon: CheckSquare, label: 'Minhas Tarefas' },
         { path: '/timesheet', icon: Clock, label: 'Folha de Ponto' },
+        { path: '/developer/learning', icon: GraduationCap, label: 'Estudo' },
+        { path: '/notes', icon: StickyNote, label: 'Notas' },
     ];
 
     const menuItems = currentUser?.role === 'admin' ? adminMenuItems : developerMenuItems;
@@ -288,6 +293,9 @@ const MainLayout: React.FC = () => {
                     </motion.div>
                 </AnimatePresence>
             </div>
+
+            {/* Contextual Help System */}
+            <HelpButton />
         </div>
     );
 };

@@ -22,11 +22,13 @@ import TeamMemberDetail from '@/components/TeamMemberDetail';
 import UserForm from '@/components/UserForm';
 import UserProfile from '@/components/UserProfile';
 import AdminFullReport from '@/pages/admin/AdminFullReport';
+import Notes from '@/pages/Notes';
 
 // Componentes de Timesheet
 import TimesheetAdminDashboard from '@/components/TimesheetAdminDashboard';
 import TimesheetCalendar from '@/components/TimesheetCalendar';
 import TimesheetForm from '@/components/TimesheetForm';
+import LearningCenter from '@/components/LearningCenter';
 import ResetPassword from '@/components/ResetPassword';
 
 interface ProtectedRouteProps {
@@ -270,12 +272,32 @@ const AppRoutes: React.FC = () => {
                     }
                 />
 
+                {/* Detalhes do Projeto (Developer) */}
+                <Route
+                    path="developer/projects/:projectId"
+                    element={
+                        <ProtectedRoute>
+                            <ProjectDetailView />
+                        </ProtectedRoute>
+                    }
+                />
+
                 {/* Tarefas do Developer (Kanban já filtra por usuário) */}
                 <Route
                     path="developer/tasks"
                     element={
                         <ProtectedRoute>
                             <KanbanBoard />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Central de Estudos */}
+                <Route
+                    path="developer/learning"
+                    element={
+                        <ProtectedRoute>
+                            <LearningCenter />
                         </ProtectedRoute>
                     }
                 />
@@ -334,6 +356,16 @@ const AppRoutes: React.FC = () => {
                     element={
                         <ProtectedRoute>
                             <TimesheetForm />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Notas */}
+                <Route
+                    path="notes"
+                    element={
+                        <ProtectedRoute>
+                            <Notes />
                         </ProtectedRoute>
                     }
                 />

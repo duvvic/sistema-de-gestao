@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useDataController } from '@/controllers/useDataController';
 import { Client, Project, Task } from "@/types";
-import { Plus, Building2, ArrowDownAZ, Briefcase } from "lucide-react";
+import { Plus, Building2, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, ArrowUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type SortOption = 'recent' | 'alphabetical' | 'creation';
 
@@ -15,7 +16,37 @@ const AdminDashboard: React.FC = () => {
   const [clients, setClients] = useState(initialClients);
   const [projects, setProjects] = useState(initialProjects);
   const [tasks, setTasks] = useState(initialTasks);
-  const [sortBy, setSortBy] = useState<SortOption>('recent');
+  const [sortBy, setSortBy] = useState<SortOption>(() => (localStorage.getItem('admin_clients_sort_by') as SortOption) || 'recent');
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'late' | 'ongoing' | 'done'>('all');
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    setShowScrollTop(scrollTop > 400);
+  };
+
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('admin_clients_view_mode') as 'grid' | 'list') || 'grid';
+  });
+
+  const toggleViewMode = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('admin_clients_view_mode', mode);
+  };
+
+  const handleSortChange = (option: SortOption) => {
+    setSortBy(option);
+    localStorage.setItem('admin_clients_sort_by', option);
+    setShowSortMenu(false);
+  };
 
   // Atualizar quando os dados mudarem
   React.useEffect(() => {
@@ -76,9 +107,34 @@ const AdminDashboard: React.FC = () => {
     return new Date(Math.max(...dates.map(d => d.getTime())));
   };
 
-  // Ordenar clientes
-  const sortedClients = useMemo(() => {
-    return [...activeClients].sort((a, b) => {
+  // Filtrar e Ordenar clientes
+  const filteredSortedClients = useMemo(() => {
+    let result = [...activeClients];
+
+    // Aplicar Filtro de Status de Tarefa
+    if (taskStatusFilter !== 'all') {
+      result = result.filter(client => {
+        const clientTasks = safeTasks.filter(t => t.clientId === client.id);
+        if (taskStatusFilter === 'late') {
+          return clientTasks.some(t => {
+            if (t.status === 'Done') return false;
+            if (!t.estimatedDelivery) return false;
+            return new Date(t.estimatedDelivery) < new Date();
+          });
+        }
+        if (taskStatusFilter === 'ongoing') {
+          return clientTasks.some(t => t.status === 'In Progress');
+        }
+        if (taskStatusFilter === 'done') {
+          const clientProjects = safeProjects.filter(p => p.clientId === client.id);
+          return clientProjects.some(p => p.status === 'Concluído');
+        }
+        return true;
+      });
+    }
+
+    // Aplicar Ordenação
+    return result.sort((a, b) => {
       switch (sortBy) {
         case 'alphabetical':
           return a.name.localeCompare(b.name);
@@ -94,88 +150,110 @@ const AdminDashboard: React.FC = () => {
           return dateB.getTime() - dateA.getTime();
       }
     });
-  }, [activeClients, sortBy, safeTasks]);
+  }, [activeClients, sortBy, taskStatusFilter, safeTasks, safeProjects]);
 
   return (
     <div className="h-full flex flex-col p-8" style={{ backgroundColor: 'var(--bg)' }}>
 
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
-            <Building2 className="w-6 h-6" style={{ color: 'var(--primary)' }} />
-            Gerenciamento de Clientes
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
-            {activeClients.length} {activeClients.length === 1 ? 'cliente ativo' : 'clientes ativos'}
-          </p>
+      {/* NEW COMPACT HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-2xl bg-purple-600/10 border border-purple-500/20">
+            <Briefcase className="w-6 h-6 text-purple-500" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-white">Portfólio de Operações</h1>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+              {activeClients.length} Clientes Ativos • {safeProjects.length} Projetos
+            </p>
+          </div>
         </div>
 
-        <button
-          className="text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow transition-colors font-medium"
-          style={{ backgroundColor: 'var(--primary)' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-          onClick={() => navigate('/admin/clients/new')}
-        >
-          <Plus size={18} />
-          Novo Cliente
-        </button>
-      </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* BOTÃO ORDENAR (DROPDOWN) */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }}
+              className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 text-sm font-bold flex items-center gap-2 hover:bg-white/10 transition-all"
+            >
+              <ArrowDownAZ className="w-4 h-4 text-purple-400" />
+              <span>Ordenar: {sortBy === 'recent' ? 'Recentes' : sortBy === 'alphabetical' ? 'Alfabética' : 'Criação'}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showSortMenu ? 'rotate-180' : ''}`} />
+            </button>
 
-      {/* Aviso */}
-      <div className="mb-4 rounded-lg border px-3 py-2.5 flex items-start gap-2 shadow-sm"
-        style={{
-          backgroundColor: 'var(--primary-soft)',
-          borderColor: 'var(--border)',
-          color: 'var(--text)'
-        }}>
-        <div className="mt-0.5">
-          <Briefcase className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-        </div>
-        <div className="text-sm leading-relaxed">
-          Para criar um projeto, primeiro selecione o cliente e abra seus detalhes; lá o botão "+ Novo Projeto" já vem no contexto correto.
-        </div>
-      </div>
+            {showSortMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
+                <div className="absolute right-0 mt-2 w-48 bg-[#1e1b2e] border border-white/10 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden">
+                  <button onClick={() => handleSortChange('recent')} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${sortBy === 'recent' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
+                    Mais Recentes
+                  </button>
+                  <button onClick={() => handleSortChange('alphabetical')} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${sortBy === 'alphabetical' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
+                    Alfabética (A-Z)
+                  </button>
+                  <button onClick={() => handleSortChange('creation')} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${sortBy === 'creation' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
+                    Data de Criação
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
-      {/* FILTRO DE ORDENAÇÃO */}
-      <div className="flex items-center gap-3 mb-4">
-        <ArrowDownAZ className="w-5 h-5" style={{ color: 'var(--muted)' }} />
-        <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>Ordenar por:</span>
-        <div className="flex gap-2">
+          {/* BOTÃO FILTRAR (DROPDOWN) */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }}
+              className={`px-4 py-2.5 border rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${taskStatusFilter !== 'all' ? 'bg-purple-600/20 border-purple-500/50 text-purple-400' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}
+            >
+              <Filter className="w-4 h-4" />
+              <span>Status: {taskStatusFilter === 'all' ? 'Todos' : taskStatusFilter === 'late' ? 'Em Atraso' : taskStatusFilter === 'ongoing' ? 'Em Andamento' : 'Concluídos'}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showFilterMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
+                <div className="absolute right-0 mt-2 w-56 bg-[#1e1b2e] border border-white/10 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden">
+                  <button onClick={() => { setTaskStatusFilter('all'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'all' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
+                    Todos os Clientes
+                  </button>
+                  <button onClick={() => { setTaskStatusFilter('late'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'late' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:bg-white/5'}`}>
+                    <AlertCircle className="w-4 h-4" /> Em Atraso
+                  </button>
+                  <button onClick={() => { setTaskStatusFilter('ongoing'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'ongoing' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:bg-white/5'}`}>
+                    <Clock className="w-4 h-4" /> Em Andamento
+                  </button>
+                  <button onClick={() => { setTaskStatusFilter('done'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'done' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:bg-white/5'}`}>
+                    <CheckSquare className="w-4 h-4" /> Proj. Concluídos
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* VIEW TOGGLE */}
+          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+            <button
+              onClick={() => toggleViewMode('grid')}
+              className={`p-2 px-3 rounded-lg transition-all flex items-center gap-2 ${viewMode === 'grid' ? 'bg-white/10 text-white shadow-lg' : 'text-slate-500 hover:bg-white/5'}`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => toggleViewMode('list')}
+              className={`p-2 px-3 rounded-lg transition-all flex items-center gap-2 ${viewMode === 'list' ? 'bg-white/10 text-white shadow-lg' : 'text-slate-500 hover:bg-white/5'}`}
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+
           <button
-            onClick={() => setSortBy('recent')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border`}
-            style={{
-              backgroundColor: sortBy === 'recent' ? 'var(--primary)' : 'var(--surface)',
-              color: sortBy === 'recent' ? 'white' : 'var(--text)',
-              borderColor: sortBy === 'recent' ? 'transparent' : 'var(--border)'
-            }}
+            onClick={() => navigate('/admin/clients/new')}
+            className="ml-2 bg-purple-600 hover:bg-purple-500 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-purple-600/20 transition-all font-bold text-sm"
           >
-            Recentes
-          </button>
-          <button
-            onClick={() => setSortBy('alphabetical')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border`}
-            style={{
-              backgroundColor: sortBy === 'alphabetical' ? 'var(--primary)' : 'var(--surface)',
-              color: sortBy === 'alphabetical' ? 'white' : 'var(--text)',
-              borderColor: sortBy === 'alphabetical' ? 'transparent' : 'var(--border)'
-            }}
-          >
-            Alfabética
-          </button>
-          <button
-            onClick={() => setSortBy('creation')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border`}
-            style={{
-              backgroundColor: sortBy === 'creation' ? 'var(--primary)' : 'var(--surface)',
-              color: sortBy === 'creation' ? 'white' : 'var(--text)',
-              borderColor: sortBy === 'creation' ? 'transparent' : 'var(--border)'
-            }}
-          >
-            Data de Criação
+            <Plus size={18} />
+            Novo Cliente
           </button>
         </div>
       </div>
@@ -188,7 +266,7 @@ const AdminDashboard: React.FC = () => {
             <p className="animate-pulse" style={{ color: 'var(--muted)' }}>Carregando clientes...</p>
           </div>
         </div>
-      ) : sortedClients.length === 0 ? (
+      ) : filteredSortedClients.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center" style={{ color: 'var(--muted)' }}>
             <Building2 className="w-16 h-16 mx-auto mb-4 opacity-30" />
@@ -200,9 +278,13 @@ const AdminDashboard: React.FC = () => {
             </p>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto custom-scrollbar">
-          {sortedClients.map((client) => (
+      ) : viewMode === 'grid' ? (
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto custom-scrollbar"
+        >
+          {filteredSortedClients.map((client) => (
             <div
               key={client.id}
               className="group border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-[280px]"
@@ -214,7 +296,6 @@ const AdminDashboard: React.FC = () => {
               onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
               onClick={() => navigate(`/admin/clients/${client.id}`)}
             >
-              {/* LOGO */}
               <div className="w-full h-[180px] p-6 flex items-center justify-center border-b transition-all duration-300"
                 style={{
                   backgroundColor: 'var(--surface-hover)',
@@ -224,14 +305,10 @@ const AdminDashboard: React.FC = () => {
                   src={client.logoUrl}
                   alt={client.name}
                   className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                  onError={(e) =>
-                  (e.currentTarget.src =
-                    "https://placehold.co/200x200?text=Logo")
-                  }
+                  onError={(e) => (e.currentTarget.src = "https://placehold.co/200x200?text=Logo")}
                 />
               </div>
 
-              {/* INFO */}
               <div className="p-4 flex-1 flex flex-col justify-between" style={{ backgroundColor: 'var(--surface)' }}>
                 <div className="flex-1 flex flex-col justify-center">
                   <h2 className="text-sm font-bold mb-2 line-clamp-2 leading-tight transition-colors text-center group-hover:text-[var(--primary)]" style={{ color: 'var(--text)' }}>
@@ -242,16 +319,128 @@ const AdminDashboard: React.FC = () => {
                     <span className="font-semibold" style={{ color: 'var(--primary)' }}>
                       {safeProjects.filter((p) => p.clientId === client.id).length}
                     </span>
-                    <span>
-                      {safeProjects.filter((p) => p.clientId === client.id).length === 1 ? 'projeto' : 'projetos'}
-                    </span>
+                    <span>{safeProjects.filter((p) => p.clientId === client.id).length === 1 ? 'projeto' : 'projetos'}</span>
                   </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
+      ) : (
+        /* LIST VIEW IMPROVED (USER REQUEST) */
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pb-10"
+        >
+          {filteredSortedClients.map((client) => {
+            const clientProjects = safeProjects.filter(p => p.clientId === client.id);
+            const clientTasks = safeTasks.filter(t => t.clientId === client.id);
+
+            return (
+              <div key={client.id} className="space-y-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 rounded-2xl border bg-[#161129]/40 border-white/5 group hover:border-purple-500/30 transition-all">
+                  <div className="flex items-center gap-5">
+                    <div className="w-16 h-16 rounded-xl border border-white/10 bg-white p-2 flex items-center justify-center shadow-lg">
+                      <img
+                        src={client.logoUrl}
+                        alt={client.name}
+                        className="w-full h-full object-contain"
+                        onError={(e) => (e.currentTarget.src = "https://placehold.co/100x100?text=Logo")}
+                      />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black text-white tracking-tight">{client.name}</h2>
+                      <div className="flex items-center gap-2 text-sm text-slate-400 font-medium">
+                        <span>{clientProjects.length} {clientProjects.length === 1 ? 'projeto' : 'projetos'}</span>
+                        <span className="text-slate-600">•</span>
+                        <span>{clientTasks.length} {clientTasks.length === 1 ? 'tarefa' : 'tarefas'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-4 md:mt-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/clients/${client.id}/edit`); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl transition-all font-bold text-xs border border-white/5"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" /> Editar
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/clients/${client.id}/projects/new`); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600/90 hover:bg-purple-600 text-white rounded-xl transition-all font-bold text-xs shadow-lg shadow-purple-900/20"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Novo Projeto
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar-thin pl-2">
+                  {clientProjects.length === 0 ? (
+                    <div className="text-xs text-slate-500 italic py-4">Nenhum projeto cadastrado para este cliente.</div>
+                  ) : (
+                    clientProjects.map(project => {
+                      const projectTasks = safeTasks.filter(t => t.projectId === project.id);
+                      const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
+                      const progress = projectTasks.length > 0 ? Math.round((doneTasks / projectTasks.length) * 100) : 0;
+
+                      return (
+                        <motion.div
+                          whileHover={{ y: -4 }}
+                          key={project.id}
+                          onClick={() => navigate(`/admin/projects/${project.id}`)}
+                          className="min-w-[280px] max-w-[280px] bg-[#1a152d] border border-white/5 rounded-2xl p-5 cursor-pointer hover:border-purple-500/50 transition-all group/card shadow-lg"
+                        >
+                          <h4 className="font-bold text-white mb-3 line-clamp-1 group-hover/card:text-purple-400 transition-colors uppercase text-[11px] tracking-wider text-slate-400">{project.name}</h4>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+                              <span>Progresso</span>
+                              <span className="text-purple-400">{progress}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-purple-600 to-blue-500 transition-all duration-1000"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                                <CheckSquare className="w-3.5 h-3.5 text-purple-500" />
+                                <span>{doneTasks}/{projectTasks.length}</span>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter border ${project.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                }`}>
+                                {project.status || 'Ativo'}
+                              </span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
+
+      {/* FLOAT SCROLL TO TOP */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: 20 }}
+            onClick={scrollToTop}
+            className="fixed bottom-10 right-10 p-4 bg-purple-600 text-white rounded-full shadow-2xl hover:bg-purple-500 transition-all z-50 border border-white/10 group"
+          >
+            <ArrowUp className="w-6 h-6 group-hover:-translate-y-1 transition-transform" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -11,7 +11,12 @@ import {
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
-const TimesheetCalendar: React.FC = () => {
+interface TimesheetCalendarProps {
+  userId?: string;
+  embedded?: boolean;
+}
+
+const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded }) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { timesheetEntries, deleteTimesheet, tasks, users, loading } = useDataController();
@@ -26,7 +31,8 @@ const TimesheetCalendar: React.FC = () => {
   const [entryToDelete, setEntryToDelete] = useState<TimesheetEntry | null>(null);
 
   const isAdmin = currentUser?.role === 'admin';
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  // Use passed userId as initial state if provided
+  const [selectedUserId, setSelectedUserId] = useState<string>(userId || '');
 
   // Search States
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,12 +50,14 @@ const TimesheetCalendar: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Inicializar com usuário logado
+  // Update selectedUserId when prop changes
   useEffect(() => {
-    if (!selectedUserId && currentUser) {
+    if (userId) {
+      setSelectedUserId(userId);
+    } else if (!selectedUserId && currentUser) {
       setSelectedUserId(currentUser.id);
     }
-  }, [currentUser]);
+  }, [currentUser, userId]);
 
   // Data Helpers
   const year = currentDate.getFullYear();
@@ -170,10 +178,10 @@ const TimesheetCalendar: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col p-6 md:p-8 overflow-hidden gap-6" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className={`h-full flex flex-col ${embedded ? '' : 'p-6 md:p-8'} overflow-hidden gap-6`} style={{ backgroundColor: 'var(--bg)' }}>
 
       {/* 1. SELEÇÃO DE EQUIPE (ADMIN) */}
-      {isAdmin && (
+      {!embedded && isAdmin && (
         <div className="rounded-2xl shadow-sm border p-6 flex-shrink-0 z-20"
           style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">

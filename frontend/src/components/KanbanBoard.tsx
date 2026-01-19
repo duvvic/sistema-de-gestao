@@ -23,7 +23,23 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task, Client, Project, Status, User } from '@/types';
-import { Calendar, User as UserIcon, AlertCircle, Search, Trash2, ArrowLeft, GripVertical, Clock } from 'lucide-react';
+import {
+  Calendar,
+  User as UserIcon,
+  AlertCircle,
+  Search,
+  Trash2,
+  ArrowLeft,
+  GripVertical,
+  Clock,
+  ChevronDown,
+  Check,
+  Filter,
+  CheckSquare,
+  Plus,
+  Briefcase
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmationModal from './ConfirmationModal';
 
 const STATUS_COLUMNS: { id: Status; title: string; color: string; bg: string; badgeColor: string }[] = [
@@ -53,6 +69,7 @@ const KanbanCard = ({
   isHighlighted?: boolean;
   users: User[];
 }) => {
+  const navigate = useNavigate();
   const {
     attributes,
     listeners,
@@ -81,6 +98,11 @@ const KanbanCard = ({
     return today > due;
   }, [task]);
 
+  const isStudy = useMemo(() => {
+    const name = (project?.name || '').toLowerCase();
+    return name.includes('treinamento') || name.includes('capacitação');
+  }, [project]);
+
   const handleCreateTimesheet = (e: React.MouseEvent) => {
     e.stopPropagation();
     const url = `/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`;
@@ -108,25 +130,12 @@ const KanbanCard = ({
         `}
         style={{
           backgroundColor: isHighlighted ? 'var(--surface-hover)' : 'var(--surface)',
-          borderColor: isHighlighted ? 'var(--primary)' : (isDelayed ? 'var(--danger)' : 'var(--border)'),
+          borderColor: isHighlighted ? 'var(--primary)' : (isDelayed ? '#ef4444' : (isStudy ? '#3b82f6' : 'var(--border)')),
           boxShadow: isHighlighted ? '0 0 0 2px var(--primary)' : 'var(--shadow)',
-          transform: isHighlighted ? 'scale(1.02)' : 'none'
+          transform: isHighlighted ? 'scale(1.02)' : 'none',
+          borderTopWidth: (isDelayed || isStudy) ? '4px' : '1px'
         }}
         onClick={() => onTaskClick(task.id)}
-        onMouseEnter={(e) => {
-          if (!isHighlighted && !isDelayed) {
-            e.currentTarget.style.borderColor = 'var(--primary)';
-            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isHighlighted && !isDelayed) {
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-            e.currentTarget.style.transform = 'none';
-          }
-        }}
       >
         <div className="flex justify-between items-start text-left">
           <div className="flex items-center gap-2 max-w-[85%]">
@@ -186,26 +195,43 @@ const KanbanCard = ({
         <div className="flex items-center justify-between pt-2 border-t mt-1" style={{ borderColor: 'var(--border)' }}>
           <div className="flex -space-x-1.5 overflow-hidden">
             {/* Responsável Principal */}
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center border hover:z-10 transition-all cursor-help bg-white"
-              style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
-              title={`Responsável: ${task.developer || 'N/A'}`}
-            >
-              <UserIcon size={12} />
-            </div>
+            {(() => {
+              const dev = users.find(u => u.id === task.developerId);
+              return (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/admin/team/${dev?.id || task.developerId}`); }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center border hover:z-10 transition-all cursor-pointer bg-white overflow-hidden active:scale-95"
+                  style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                  title={`Responsável: ${dev?.name || task.developer || 'N/A'}`}
+                >
+                  {dev?.avatarUrl ? (
+                    <img src={dev.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserIcon size={12} />
+                  )}
+                </button>
+              );
+            })()}
 
             {/* Colaboradores Extras */}
             {(task.collaboratorIds || []).slice(0, 3).map(uid => {
               const u = users.find(user => user.id === uid);
               return (
-                <div
+                <button
                   key={uid}
-                  className="w-6 h-6 rounded-full flex items-center justify-center border hover:z-10 transition-all cursor-help bg-slate-50"
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/admin/team/${uid}`); }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center border hover:z-10 transition-all cursor-pointer bg-slate-50 overflow-hidden active:scale-95"
                   style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
                   title={`Colaborador: ${u?.name || uid}`}
                 >
-                  <UserIcon size={12} />
-                </div>
+                  {u?.avatarUrl ? (
+                    <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserIcon size={12} />
+                  )}
+                </button>
               );
             })}
 
@@ -233,7 +259,7 @@ const KanbanCard = ({
           </div>
         </div>
 
-        {task.status !== 'Done' && (
+        {task.status !== 'Done' && !isAdmin && (
           <button
             onClick={handleCreateTimesheet}
             className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg transition-all text-[11px] font-bold border shadow-sm"
@@ -290,7 +316,7 @@ const KanbanColumn = ({
   return (
     <div
       ref={setNodeRef}
-      className="flex-shrink-0 w-[320px] rounded-2xl flex flex-col h-full transition-all"
+      className="flex-1 min-w-[200px] rounded-2xl flex flex-col h-full transition-all"
       style={{
         backgroundColor: col.bg,
         border: '1px solid var(--border)'
@@ -340,6 +366,36 @@ export const KanbanBoard = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
+  const [showDevMenu, setShowDevMenu] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showOnlyDelayed, setShowOnlyDelayed] = useState(false);
+
+  // Auxiliar para detectar atraso
+  const isTaskDelayed = (t: Task) => {
+    if (t.status === 'Done') return false;
+    if (!t.estimatedDelivery) return false;
+    const parts = t.estimatedDelivery.split('-');
+    if (parts.length !== 3) return false;
+    const due = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today > due;
+  };
+
+  // Memo para identificar desenvolvedores com atrasos
+  const lateDevelopers = useMemo(() => {
+    const devMap = new Map<string, { user: User; count: number }>();
+    tasks.forEach(t => {
+      if (isTaskDelayed(t) && t.developerId) {
+        const u = users.find(user => user.id === t.developerId);
+        if (u) {
+          const existing = devMap.get(t.developerId) || { user: u, count: 0 };
+          devMap.set(t.developerId, { ...existing, count: existing.count + 1 });
+        }
+      }
+    });
+    return Array.from(devMap.values()).sort((a, b) => b.count - a.count);
+  }, [tasks, users]);
 
   // Filters from Query Params
   const filteredClientId = searchParams.get('clientId') || searchParams.get('client');
@@ -355,7 +411,7 @@ export const KanbanBoard = () => {
   }, [filteredDeveloperId]);
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
+    let result = tasks.filter((t) => {
       // 1. Core filters (Admin sees all, Dev sees own + collaborators)
       const isOwner = t.developerId === currentUser?.id;
       const isCollaborator = t.collaboratorIds?.includes(currentUser?.id || '');
@@ -369,15 +425,27 @@ export const KanbanBoard = () => {
 
       // 3. User Filter (from Select)
       if (selectedDeveloperId) {
-        // Show task if selected user is owner OR collaborator
         const isSelectedOwner = t.developerId === selectedDeveloperId;
         const isSelectedCollaborator = t.collaboratorIds?.includes(selectedDeveloperId);
         if (!isSelectedOwner && !isSelectedCollaborator) return false;
       }
 
+      // 4. Delayed Filter
+      if (showOnlyDelayed && !isTaskDelayed(t)) return false;
+
+      // 5. Global Search
+      if (searchTerm) {
+        const lowerSearch = searchTerm.toLowerCase();
+        return t.title.toLowerCase().includes(lowerSearch) ||
+          t.description?.toLowerCase().includes(lowerSearch) ||
+          t.developer?.toLowerCase().includes(lowerSearch);
+      }
+
       return true;
     });
-  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId]);
+
+    return result;
+  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId, showOnlyDelayed, searchTerm]);
 
   const currentClient = useMemo(() => clients.find(c => c.id === filteredClientId), [clients, filteredClientId]);
   const currentProject = useMemo(() => projects.find(p => p.id === filteredProjectId), [projects, filteredProjectId]);
@@ -440,10 +508,6 @@ export const KanbanBoard = () => {
         });
       } catch (error) {
         console.error("Erro ao mover tarefa:", error);
-        alert("Erro ao atualizar tarefa. Verifique sua conexão e tente novamente.");
-        // O estado não atualizou, então o card deve voltar sozinho ao renderizar novamente.
-        // Forçar atualização da lista para garantir sincronia
-        window.location.reload();
       }
     }
   };
@@ -496,34 +560,133 @@ export const KanbanBoard = () => {
               {currentClient ? (
                 <>
                   <span style={{ color: 'var(--muted)' }}>Tarefas de</span> {currentClient.name}
-                  {currentProject && <span className="opacity-40">/ {currentProject.name}</span>}
+                  {(currentProject || projects.find(p => p.id === filteredProjectId)) && <span className="opacity-40">/ {(currentProject || projects.find(p => p.id === filteredProjectId))?.name}</span>}
                 </>
               ) : (
-                'Quadro Kanban'
+                'Gestão de Tarefas'
               )}
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          {/* Developer Filter Select */}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Custom PREMIUM Developer Filter */}
           {isAdmin && (
-            <div className="relative min-w-[200px]">
-              <select
-                value={selectedDeveloperId}
-                onChange={(e) => setSelectedDeveloperId(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl border appearance-none outline-none transition-all shadow-sm font-medium text-sm"
-                style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            <div className="relative min-w-[240px]">
+              <button
+                type="button"
+                onClick={() => setShowDevMenu(!showDevMenu)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border transition-all shadow-lg group"
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)'
+                }}
               >
-                <option value="">Filtrar p/ Colaborador...</option>
-                {users.filter(u => u.active !== false).map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-              <UserIcon className="absolute left-3 top-2.5 w-4 h-4 pointer-events-none" style={{ color: 'var(--muted)' }} />
+                <div className="flex items-center gap-2 truncate">
+                  <div className="w-6 h-6 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {selectedDeveloperId ? (
+                      users.find(u => u.id === selectedDeveloperId)?.avatarUrl ? (
+                        <img src={users.find(u => u.id === selectedDeveloperId)?.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] font-black text-purple-400">
+                          {users.find(u => u.id === selectedDeveloperId)?.name.charAt(0).toUpperCase()}
+                        </span>
+                      )
+                    ) : (
+                      <UserIcon size={12} className="text-slate-400" />
+                    )}
+                  </div>
+                  <span className="text-sm font-bold truncate tracking-tight">
+                    {selectedDeveloperId ? users.find(u => u.id === selectedDeveloperId)?.name : 'Todos os Colaboradores'}
+                  </span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showDevMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {showDevMenu && (
+                  <>
+                    <div className="fixed inset-0 z-[60]" onClick={() => setShowDevMenu(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-full max-h-[400px] border rounded-2xl shadow-2xl z-[70] p-2 flex flex-col gap-1 overflow-hidden"
+                      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                    >
+                      <div className="p-2 relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Pesquisar nome..."
+                          className="w-full border rounded-lg pl-10 pr-4 py-2 text-xs outline-none focus:border-purple-500 transition-all font-bold"
+                          style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="overflow-y-auto flex-1 custom-scrollbar pr-1">
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedDeveloperId(''); setShowDevMenu(false); setSearchTerm(''); }}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${!selectedDeveloperId ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                        >
+                          <span>Todos os Colaboradores</span>
+                          {!selectedDeveloperId && <Check size={14} />}
+                        </button>
+
+                        <div className="h-px bg-white/5 my-1 mx-2" />
+
+                        {users
+                          .filter(u => u.active !== false && (searchTerm === '' || u.name.toLowerCase().includes(searchTerm.toLowerCase())))
+                          .filter(u => !showOnlyDelayed || lateDevelopers.some(ld => ld.user.id === u.id))
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map(user => (
+                            <button
+                              key={user.id}
+                              type="button"
+                              onClick={() => { setSelectedDeveloperId(user.id); setShowDevMenu(false); setSearchTerm(''); }}
+                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedDeveloperId === user.id ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                            >
+                              <div className="flex items-center gap-3 truncate">
+                                <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                  {user.avatarUrl ? (
+                                    <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-[10px] uppercase font-black">{user.name.charAt(0)}</span>
+                                  )}
+                                </div>
+                                <span className="truncate">{user.name}</span>
+                              </div>
+                              {selectedDeveloperId === user.id && <Check size={14} />}
+                            </button>
+                          ))}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
+          )}
+
+          {/* Botão Atrasados Toggle (Apenas Admin) */}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowOnlyDelayed(!showOnlyDelayed)}
+              className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all flex items-center gap-2 shadow-lg ${showOnlyDelayed ? 'bg-red-500 text-white border-red-400' : ''}`}
+              style={{
+                backgroundColor: showOnlyDelayed ? 'var(--danger)' : 'var(--surface)',
+                borderColor: showOnlyDelayed ? 'var(--danger)' : 'var(--border)',
+                color: showOnlyDelayed ? 'white' : 'var(--text)'
+              }}
+            >
+              <AlertCircle size={16} className={showOnlyDelayed ? 'animate-pulse' : ''} />
+              <span className="hidden sm:inline">{showOnlyDelayed ? 'Mostrando Atrasados' : 'Ver Atrasados'}</span>
+            </button>
           )}
 
           {!location.pathname.includes('/developer/tasks') && isAdmin && (
@@ -539,6 +702,53 @@ export const KanbanBoard = () => {
           )}
         </div>
       </div>
+
+      {/* NOVO: Lista de Avatares Atrasados */}
+      <AnimatePresence>
+        {showOnlyDelayed && lateDevelopers.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center gap-4 mb-6 p-4 bg-red-500/5 border border-red-500/20 rounded-2xl overflow-hidden"
+          >
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest text-red-400">Em Atraso</span>
+              <span className="text-xs text-slate-400 font-bold">{lateDevelopers.length} Colaboradores</span>
+            </div>
+            <div className="h-8 w-px bg-[var(--border)] mx-2" />
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar-thin">
+              {lateDevelopers.map(({ user, count }) => (
+                <button
+                  key={user.id}
+                  onClick={() => setSelectedDeveloperId(user.id)}
+                  className="flex-shrink-0 relative group"
+                  title={`Filtrar tarefas de ${user.name}`}
+                >
+                  <div className="w-12 h-12 rounded-full border-2 border-red-500/50 p-0.5 group-hover:border-red-500 transition-all duration-300 shadow-lg">
+                    <div className="w-full h-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-2)' }}>
+                      {user.avatarUrl ? (
+                        <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-sm font-black text-white bg-gradient-to-br from-red-600 to-amber-600">
+                          {user.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Badge de Contador */}
+                  <div className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 shadow-lg" style={{ borderColor: 'var(--bg)' }}>
+                    {count}
+                  </div>
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-[9px] px-1.5 py-0.5 rounded text-white whitespace-nowrap z-10">
+                    {user.name.split(' ')[0]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Kanban Area */}
       {loading ? (
@@ -556,26 +766,28 @@ export const KanbanBoard = () => {
           onDragEnd={onDragEnd}
         >
           <div className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4 px-2 custom-scrollbar h-full">
-            {STATUS_COLUMNS.map((col) => (
-              <KanbanColumn
-                key={col.id}
-                col={col}
-                tasks={filteredTasks.filter(t => t.status === col.id)}
-                clients={clients}
-                projects={projects}
-                onTaskClick={(id) => {
-                  if (id.startsWith('__NAVIGATE__:')) {
-                    navigate(id.replace('__NAVIGATE__:', ''));
-                  } else {
-                    navigate(`/tasks/${id}`);
-                  }
-                }}
-                onDelete={handleDeleteClick}
-                isAdmin={isAdmin}
-                highlightedTaskId={highlightedTaskId}
-                users={users}
-              />
-            ))}
+            {STATUS_COLUMNS
+              .filter(col => !showOnlyDelayed || col.id !== 'Done')
+              .map((col) => (
+                <KanbanColumn
+                  key={col.id}
+                  col={col}
+                  tasks={filteredTasks.filter(t => t.status === col.id)}
+                  clients={clients}
+                  projects={projects}
+                  onTaskClick={(id) => {
+                    if (id.startsWith('__NAVIGATE__:')) {
+                      navigate(id.replace('__NAVIGATE__:', ''));
+                    } else {
+                      navigate(`/tasks/${id}`);
+                    }
+                  }}
+                  onDelete={handleDeleteClick}
+                  isAdmin={isAdmin}
+                  highlightedTaskId={highlightedTaskId}
+                  users={users}
+                />
+              ))}
           </div>
 
           <DragOverlay dropAnimation={{
@@ -584,7 +796,7 @@ export const KanbanBoard = () => {
             }),
           }}>
             {activeTask ? (
-              <div className="w-[300px]">
+              <div className="w-[280px]">
                 <KanbanCard
                   task={activeTask}
                   client={clients.find(c => c.id === activeTask.clientId)}

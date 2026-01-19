@@ -155,6 +155,32 @@ export function useAppData(): AppData {
   const [error, setError] = useState<string | null>(null);
   const { currentUser, isLoading: authLoading } = useAuth();
 
+  // Helper de Cache
+  const CACHE_KEY = 'nic_labs_app_data';
+  const CACHE_VERSION = '1.2'; // Incrementado para garantir carregamento de avatarUrl
+
+  // Carregamento inicial do cache
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.version === CACHE_VERSION) {
+          setUsers(parsed.users || []);
+          setClients(parsed.clients || []);
+          setProjects(parsed.projects || []);
+          setTasks(parsed.tasks || []);
+          setTimesheetEntries(parsed.timesheetEntries || []);
+          setProjectMembers(parsed.projectMembers || []);
+          // Se temos cache, já podemos sinalizar que não estamos mais "travados"
+          setLoading(false);
+        }
+      }
+    } catch (e) {
+      console.warn('[useAppData] Erro ao carregar cache:', e);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -175,32 +201,32 @@ export function useAppData(): AppData {
 
         console.log('[useAppData] Carregando dados do banco...');
 
-        const [usersData, clientsData, projectsData, tasksData, tasksCollaboratorsData, membersRes] = await Promise.all([
+        const [usersData, clientsData, projectsData, tasksData, tasksCollaboratorsData, membersRes, rawTimesheets] = await Promise.all([
           fetchUsers(),
           fetchClients(),
           fetchProjects(),
           fetchTasks(),
           fetchTaskCollaborators(),
-          supabase.from('project_members').select('id_projeto, id_colaborador')
+          supabase.from('project_members').select('id_projeto, id_colaborador'),
+          fetchTimesheets()
         ]);
 
         if (!isMounted) return;
 
+        // Otimização: Criar Map de Usuários para Lookup O(1)
+        const userMap = new Map(usersData.map((u) => [u.id, u]));
+
         // =====================================================
         // MAPEAMENTO DE TAREFAS - CRÍTICO!
-        // O front-end usa task.developer como STRING (nome)
-        // Precisamos fazer o JOIN com dim_colaboradores
         // =====================================================
 
         const tasksMapped: Task[] = tasksData.map((row: DbTaskRow) => {
-          // Busca o nome do desenvolvedor pelo ID
+          // Busca o nome do desenvolvedor pelo ID usando Map
           let developerName: string | undefined = undefined;
 
           if (row.ID_Colaborador) {
-            const developer = usersData.find(
-              (u) => u.id === String(row.ID_Colaborador)
-            );
-            developerName = developer?.name;
+            const dev = userMap.get(String(row.ID_Colaborador));
+            developerName = dev?.name;
           }
 
           const mappedTask = {
@@ -208,61 +234,37 @@ export function useAppData(): AppData {
             title: (row.Afazer && row.Afazer !== 'null') ? row.Afazer : "(Sem título)",
             projectId: String(row.ID_Projeto),
             clientId: String(row.ID_Cliente),
-
-            // IMPORTANTE: developer é o NOME (string)
             developer: developerName,
-
-            // developerId é o ID para JOIN com User
             developerId: row.ID_Colaborador ? String(row.ID_Colaborador) : undefined,
-
-            // IDs dos colaboradores vinculados
-            collaboratorIds: (tasksCollaboratorsData || [])
-              .filter(tc => tc.taskId === String(row.id_tarefa_novo))
-              .map(tc => tc.userId),
-
+            // collaboratorIds será preenchido via Map abaixo
+            collaboratorIds: [],
             status: normalizeStatus(row.StatusTarefa),
-
-            // Datas
             estimatedDelivery: formatDate(row.entrega_estimada),
             actualDelivery: row.entrega_real || undefined,
             scheduledStart: row.inicio_previsto || undefined,
             actualStart: row.inicio_real || undefined,
-
-            // Progresso (0-100)
             progress: Math.min(100, Math.max(0, Number(row.Porcentagem) || 0)),
-
-            // Prioridade e Impacto
             priority: normalizePriority(row.Prioridade),
             impact: normalizeImpact(row.Impacto),
-
-            // Campos de texto
             risks: row.Riscos || undefined,
-            notes: row["Observações"] || undefined, // Mapped to notes
+            notes: row["Observações"] || undefined,
             attachment: row.attachment || undefined,
             description: row.description || undefined,
             daysOverdue: (() => {
               if (!row.entrega_estimada) return 0;
-
               const deadline = new Date(row.entrega_estimada);
               deadline.setHours(0, 0, 0, 0);
-
               const now = new Date();
               now.setHours(0, 0, 0, 0);
-
               const status = normalizeStatus(row.StatusTarefa);
-
               if (status === 'Done') {
                 if (row.entrega_real) {
                   const delivery = new Date(row.entrega_real);
                   delivery.setHours(0, 0, 0, 0);
                   return Math.ceil((delivery.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
                 }
-                return 0; // Se concluído sem data real, assume no prazo
+                return 0;
               }
-
-              // Se não concluído, atraso é (Hoje - Prazo)
-              // Se hoje > prazo, numero positivo (atrasado)
-              // Se hoje < prazo, numero negativo (adiantado)
               return Math.ceil((now.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
             })(),
           };
@@ -270,8 +272,21 @@ export function useAppData(): AppData {
           return mappedTask;
         });
 
-        // Buscar apontamentos (se houver)
-        const rawTimesheets = await fetchTimesheets();
+        // Map collaborators lookup is still O(N*M) above? 
+        // tasksCollaboratorsData is array. filter inside map is nested loop.
+        // Optimization: Pre-group collaborators by task.
+        const collaboratorsMap = new Map<string, string[]>();
+        (tasksCollaboratorsData || []).forEach(tc => {
+          if (!collaboratorsMap.has(tc.taskId)) collaboratorsMap.set(tc.taskId, []);
+          collaboratorsMap.get(tc.taskId)?.push(tc.userId);
+        });
+
+        // Re-map tasks with optimized collaborators lookup
+        tasksMapped.forEach(t => {
+          t.collaboratorIds = collaboratorsMap.get(t.id) || [];
+        });
+
+        // Remover fetch sequencial de timesheets pois já está no Promise.all
 
         // Faz um mapeamento dos campos da tabela horas_trabalhadas para o formato do front
         const timesheetMapped: TimesheetEntry[] = (rawTimesheets || []).map((r: any) => ({
@@ -297,10 +312,24 @@ export function useAppData(): AppData {
         setTimesheetEntries(timesheetMapped);
 
         if (membersRes.data) {
-          setProjectMembers(membersRes.data.map((row: any) => ({
+          const membersMapped = membersRes.data.map((row: any) => ({
             projectId: String(row.id_projeto),
             userId: String(row.id_colaborador)
-          })));
+          }));
+          setProjectMembers(membersMapped);
+
+          // SALVAR NO CACHE
+          const cacheData = {
+            version: CACHE_VERSION,
+            timestamp: Date.now(),
+            users: usersData,
+            clients: clientsData,
+            projects: projectsData,
+            tasks: tasksMapped,
+            timesheetEntries: timesheetMapped,
+            projectMembers: membersMapped
+          };
+          localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
         }
 
       } catch (err) {

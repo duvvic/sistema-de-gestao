@@ -68,8 +68,12 @@ function mapImpactToDb(impact: string | undefined): string | null {
 // CREATE
 // ===========================
 export async function createTask(data: Partial<Task>): Promise<number> {
-  // Busca o ID do colaborador pelo nome (developer)
-  const collaboratorId = await getCollaboratorIdByName(data.developer);
+  // Prioriza o ID se disponível, senão busca pelo nome (legado/fallback)
+  let collaboratorId: number | null = data.developerId ? Number(data.developerId) : null;
+
+  if (!collaboratorId && data.developer) {
+    collaboratorId = await getCollaboratorIdByName(data.developer);
+  }
 
   const payload = {
     Afazer: data.title || "(Sem título)",
@@ -148,8 +152,11 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
     payload.Afazer = data.title;
   }
 
-  // Só busca e atualiza colaborador se fornecido
-  if (data.developer !== undefined) {
+  // Prioriza o ID se disponível
+  if (data.developerId !== undefined) {
+    payload.ID_Colaborador = data.developerId ? Number(data.developerId) : null;
+  } else if (data.developer !== undefined) {
+    // Fallback apenas se developer (nome) for enviado mas developerId não
     const collaboratorId = await getCollaboratorIdByName(data.developer);
     payload.ID_Colaborador = collaboratorId;
   }
