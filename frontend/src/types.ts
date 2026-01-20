@@ -25,6 +25,8 @@ export interface Client {
   active?: boolean;
   Criado?: string;
   Contrato?: string;
+  pais?: string;
+  contato_principal?: string;
 }
 
 export interface Project {
@@ -38,10 +40,12 @@ export interface Project {
   manager?: string;
   status?: string;
   active?: boolean;
+  valor_total_rs?: number;
 }
 
 export interface Task {
   id: string;
+  externalId?: string;
   title: string;
   projectId: string;
   clientId: string;
@@ -60,6 +64,9 @@ export interface Task {
   impact?: Impact;
   risks?: string;
   daysOverdue?: number;
+  em_testes?: boolean;
+  link_ef?: string;
+  id_tarefa_novo?: number;
   collaboratorIds?: string[]; // IDs dos colaboradores vinculados
 }
 

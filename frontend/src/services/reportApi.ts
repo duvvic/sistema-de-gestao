@@ -207,3 +207,29 @@ export async function exportReportPowerBI(filters: PreviewFilters): Promise<Blob
 
     return res.blob();
 }
+
+
+/**
+ * Realiza o upload da planilha mestre para sincronização no banco
+ */
+export async function syncExcel(file: File): Promise<{ message: string; details: any }> {
+    const token = await getAccessToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${API_BASE}/admin/sync/excel`, {
+        method: 'POST',
+        headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            'ngrok-skip-browser-warning': 'true',
+        },
+        body: formData
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Sync ${res.status}: ${text || res.statusText}`);
+    }
+
+    return res.json();
+}

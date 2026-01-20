@@ -3,81 +3,94 @@
    ================================================ */
 
 :root {
-  /* LIGHT MODE - Refined based on user feedback */
+  /* LIGHT MODE - Enhanced for Better Visibility */
 
-  /* Backgrounds */
-  --bg: #E2E8F0;
-  /* Cinza claro para destacar os cards brancos */
+  /* Backgrounds - More contrast between levels */
+  --bg: #F1F5F9;
+  /* Lighter gray to make white cards stand out more */
   --surface: #FFFFFF;
-  /* Cards brancos puros */
+  /* Pure white cards */
   --surface-2: #F8FAFC;
-  /* Áreas internas discretas */
-  --surface-hover: #F1F5F9;
+  /* Very light gray for nested areas */
+  --surface-hover: #E2E8F0;
+  /* Slightly darker on hover for clear feedback */
 
   /* Sidebar & Header */
   --sidebar-bg: #4C1D95;
   --sidebar-bg-2: #5B21B6;
 
   /* Primary Colors */
-  --primary: #4C1D95;
-  /* Roxo vibrante e escuro para contraste */
-  --primary-hover: #3B1675;
+  --primary: #6D28D9;
+  /* Vibrant purple with good contrast */
+  --primary-hover: #5B21B6;
   --primary-soft: #F3E8FF;
-  /* Roxo muito claro */
+  /* Very light purple */
 
-  /* Text Colors */
+  /* Text Colors - Darker for better readability */
   --text: #0F172A;
-  /* Slate 900 */
-  --text-2: #334155;
-  /* Slate 700 */
-  --muted: #64748B;
-  /* Slate 500 */
+  /* Slate 900 - Very dark for main text */
+  --text-2: #1E293B;
+  /* Slate 800 - Dark for secondary text */
+  --muted: #475569;
+  /* Slate 600 - Darker muted text for better visibility */
 
-  /* Borders & Effects */
-  --border: #E2E8F0;
-  --ring: rgba(88, 28, 135, 0.2);
+  /* Borders & Effects - More visible */
+  --border: #CBD5E1;
+  /* Slate 300 - More visible borders */
+  --ring: rgba(109, 40, 217, 0.3);
 
-  /* Status Colors - Refined for labels (Light BG + Dark Text) */
-  /* Status Colors - Refined for labels (Light BG + Dark Text) */
+  /* Status Colors - High contrast for light mode */
   --success: #059669;
-  /* Darker green */
-  --success-bg: #dcfce7;
-  /* More visible green bg (green-100) */
-  --success-text: #064e3b;
-  /* Darker green text */
+  /* Emerald 600 */
+  --success-bg: #D1FAE5;
+  /* Emerald 100 */
+  --success-text: #065F46;
+  /* Emerald 800 - Darker for better contrast */
 
-  --warning-bg: #fef3c7;
-  /* amber-100 */
-  --warning-text: #78350f;
-  /* amber-900 */
+  --warning-bg: #FEF3C7;
+  /* Amber 100 */
+  --warning-text: #92400E;
+  /* Amber 800 */
 
-  --danger: #dc2626;
-  /* red-600 */
-  --danger-bg: #fee2e2;
-  /* red-100 */
-  --danger-text: #7f1d1d;
-  /* red-900 */
+  --danger: #DC2626;
+  /* Red 600 */
+  --danger-bg: #FEE2E2;
+  /* Red 100 */
+  --danger-text: #991B1B;
+  /* Red 800 */
 
-  --info: #2563eb;
-  /* blue-600 */
-  --info-bg: #dbeafe;
-  /* blue-100 */
-  --info-text: #1e3a8a;
-  /* blue-900 */
+  --info: #2563EB;
+  /* Blue 600 */
+  --info-bg: #DBEAFE;
+  /* Blue 100 */
+  --info-text: #1E40AF;
+  /* Blue 800 */
 
-  /* Kanban Specific Statuses - More distinctive backgrounds */
-  --status-todo: #e2e8f0;
-  /* slate-200 - darker specific for column bg */
-  --status-progress: #dbeafe;
-  /* blue-100 */
-  --status-review: #f3e8ff;
-  /* purple-100 */
-  --status-done: #dcfce7;
-  /* green-100 */
+  /* Kanban Specific Statuses - Distinct and visible */
+  --status-todo: #F1F5F9;
+  /* Slate 100 - Light but visible */
+  --status-progress: #DBEAFE;
+  /* Blue 100 */
+  --status-review: #F3E8FF;
+  /* Purple 100 */
+  --status-done: #D1FAE5;
+  /* Emerald 100 */
 
-  /* Shadows - Mais definidas para destacar cards do fundo */
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  /* Notes Colors - Refined for Light Mode */
+  --note-yellow: #CA8A04;
+  --note-blue: #2563EB;
+  --note-purple: #7C3AED;
+  --note-orange: #EA580C;
+  --note-green: #16A34A;
+  --note-bg-yellow: rgba(234, 179, 8, 0.1);
+  --note-bg-blue: rgba(37, 99, 235, 0.1);
+  --note-bg-purple: rgba(124, 58, 237, 0.1);
+  --note-bg-orange: rgba(234, 88, 12, 0.1);
+  --note-bg-green: rgba(22, 163, 74, 0.1);
+
+  /* Shadows - More pronounced for depth */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.12), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 
   /* Aliases for backward compatibility */
@@ -131,6 +144,18 @@ html.dark {
   --status-progress: rgba(30, 58, 138, 0.25);
   --status-review: rgba(88, 28, 135, 0.25);
   --status-done: rgba(6, 78, 59, 0.25);
+
+  /* Notes Colors - Refined for Dark Mode */
+  --note-yellow: #FACC15;
+  --note-blue: #60A5FA;
+  --note-purple: #A78BFA;
+  --note-orange: #FB923C;
+  --note-green: #4ADE80;
+  --note-bg-yellow: rgba(250, 204, 21, 0.15);
+  --note-bg-blue: rgba(96, 165, 250, 0.15);
+  --note-bg-purple: rgba(167, 139, 250, 0.15);
+  --note-bg-orange: rgba(251, 146, 60, 0.15);
+  --note-bg-green: rgba(74, 222, 128, 0.15);
 }
 
 /* ================================================
@@ -140,7 +165,7 @@ html.dark {
 /* Base styles */
 body {
   background-color: var(--bg);
-  color: var(--text-2);
+  color: var(--text);
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -193,4 +218,83 @@ body {
 
 .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
+}
+
+/* ================================================
+   LIGHT MODE COLOR OVERRIDES
+   Fix hardcoded Tailwind colors for better visibility
+   ================================================ */
+
+/* Override slate-400 text (too light in light mode) */
+:root .text-slate-400 {
+  color: #475569 !important;
+  /* slate-600 - much more visible */
+}
+
+:root .text-slate-500 {
+  color: #334155 !important;
+  /* slate-700 - darker */
+}
+
+:root .text-gray-400 {
+  color: #4B5563 !important;
+  /* gray-600 */
+}
+
+:root .text-gray-500 {
+  color: #374151 !important;
+  /* gray-700 */
+}
+
+/* Keep dark mode as is */
+html.dark .text-slate-400,
+html.dark .text-gray-400 {
+  color: #94a3b8 !important;
+  /* Original slate-400 */
+}
+
+html.dark .text-slate-500,
+html.dark .text-gray-500 {
+  color: #64748b !important;
+  /* Original slate-500 */
+}
+
+/* Fix placeholder colors in light mode */
+:root .placeholder\:text-slate-400::placeholder {
+  color: #64748B !important;
+  /* slate-500 - more visible */
+}
+
+:root input::placeholder,
+:root textarea::placeholder {
+  color: #64748B !important;
+  /* slate-500 */
+  opacity: 0.8;
+}
+
+/* Ensure proper contrast for muted text in light mode */
+:root .opacity-50 {
+  opacity: 0.65 !important;
+  /* Slightly more visible */
+}
+
+:root .opacity-60 {
+  opacity: 0.75 !important;
+}
+
+:root .opacity-70 {
+  opacity: 0.80 !important;
+}
+
+/* Keep dark mode opacity as is */
+html.dark .opacity-50 {
+  opacity: 0.5 !important;
+}
+
+html.dark .opacity-60 {
+  opacity: 0.6 !important;
+}
+
+html.dark .opacity-70 {
+  opacity: 0.7 !important;
 }

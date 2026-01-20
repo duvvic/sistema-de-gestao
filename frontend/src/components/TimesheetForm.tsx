@@ -231,10 +231,20 @@ const TimesheetForm: React.FC = () => {
 
   const availableProjectsIds = React.useMemo(() => {
     if (isAdmin) return projects.map(p => p.id);
-    return projectMembers
+
+    // Projetos onde o usuário é membro oficial
+    const memberProjectIds = projectMembers
       .filter(pm => pm.userId === user?.id)
       .map(pm => pm.projectId);
-  }, [projectMembers, user, isAdmin, projects]);
+
+    // Projetos que contêm tarefas vinculadas ao usuário
+    const taskProjectIds = tasks
+      .filter(t => t.developerId === user?.id || t.collaboratorIds?.includes(user?.id || ''))
+      .map(t => t.projectId);
+
+    // Combinar ambos e remover duplicatas
+    return [...new Set([...memberProjectIds, ...taskProjectIds])];
+  }, [projectMembers, tasks, user, isAdmin, projects]);
 
   const availableProjects = projects.filter(p =>
     availableProjectsIds.includes(p.id) &&
@@ -249,7 +259,21 @@ const TimesheetForm: React.FC = () => {
 
   const filteredClients = clients.filter(c => availableClientIds.includes(c.id));
   const filteredProjects = availableProjects;
-  const filteredTasks = tasks.filter(t => !formData.projectId || t.projectId === formData.projectId);
+
+  // Filtrar tarefas: mostrar apenas as vinculadas ao usuário (exceto para admin)
+  const filteredTasks = tasks.filter(t => {
+    // Primeiro filtro: deve pertencer ao projeto selecionado (se houver)
+    if (formData.projectId && t.projectId !== formData.projectId) return false;
+
+    // Se for admin, mostra todas as tarefas do projeto
+    if (isAdmin) return true;
+
+    // Para usuários normais: mostrar apenas tarefas onde ele é desenvolvedor ou colaborador
+    const isTaskDeveloper = t.developerId === user?.id;
+    const isTaskCollaborator = t.collaboratorIds?.includes(user?.id || '');
+
+    return isTaskDeveloper || isTaskCollaborator;
+  });
 
   const isTaskLogMode = !!preSelectedTaskId;
   const canEnterTime = !!formData.clientId && !!formData.projectId && !!formData.taskId;

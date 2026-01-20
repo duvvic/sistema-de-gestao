@@ -150,7 +150,7 @@ const DeveloperProjects: React.FC = () => {
                       const getStatusColor = () => {
                         const now = new Date();
                         const hasDelay = myProjectTasks.some(t => {
-                          if (t.status === 'Done') return false;
+                          if (t.status === 'Done' || t.status === 'Review') return false;
                           if (!t.estimatedDelivery) return false;
                           // A data de entrega é string YYYY-MM-DD ou ISO. new Date resolve.
                           // Adicionando um dia de margem ou comparando estritamente.
@@ -269,7 +269,7 @@ const DeveloperProjects: React.FC = () => {
               const getStatusColor = () => {
                 const now = new Date();
                 const hasDelay = myProjectTasks.some(t => {
-                  if (t.status === 'Done') return false;
+                  if (t.status === 'Done' || t.status === 'Review') return false;
                   if (!t.estimatedDelivery) return false;
                   return new Date(t.estimatedDelivery) < now;
                 });

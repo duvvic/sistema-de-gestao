@@ -22,7 +22,7 @@ const TeamMemberDetail: React.FC = () => {
 
    // Helpers
    const getDelayDays = (task: Task) => {
-      if (task.status === 'Done') return 0;
+      if (task.status === 'Done' || task.status === 'Review') return 0;
       if (!task.estimatedDelivery) return 0;
       const today = new Date();
       today.setHours(0, 0, 0, 0);

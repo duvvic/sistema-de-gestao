@@ -117,7 +117,7 @@ const AdminDashboard: React.FC = () => {
         const clientTasks = safeTasks.filter(t => t.clientId === client.id);
         if (taskStatusFilter === 'late') {
           return clientTasks.some(t => {
-            if (t.status === 'Done') return false;
+            if (t.status === 'Done' || t.status === 'Review') return false;
             if (!t.estimatedDelivery) return false;
             return new Date(t.estimatedDelivery) < new Date();
           });
@@ -163,8 +163,8 @@ const AdminDashboard: React.FC = () => {
             <Briefcase className="w-6 h-6 text-purple-500" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-white">Portfólio de Operações</h1>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+            <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--text)' }}>Portfólio de Operações</h1>
+            <p className="text-xs font-bold uppercase tracking-widest mt-0.5" style={{ color: 'var(--muted)' }}>
               {activeClients.length} Clientes Ativos • {safeProjects.length} Projetos
             </p>
           </div>
@@ -175,7 +175,8 @@ const AdminDashboard: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }}
-              className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 text-sm font-bold flex items-center gap-2 hover:bg-white/10 transition-all"
+              className="px-4 py-2.5 border rounded-xl text-sm font-bold flex items-center gap-2 transition-all"
+              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
             >
               <ArrowDownAZ className="w-4 h-4 text-purple-400" />
               <span>Ordenar: {sortBy === 'recent' ? 'Recentes' : sortBy === 'alphabetical' ? 'Alfabética' : 'Criação'}</span>
@@ -185,7 +186,7 @@ const AdminDashboard: React.FC = () => {
             {showSortMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                <div className="absolute right-0 mt-2 w-48 bg-[#1e1b2e] border border-white/10 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}>
                   <button onClick={() => handleSortChange('recent')} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${sortBy === 'recent' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
                     Mais Recentes
                   </button>
@@ -204,7 +205,12 @@ const AdminDashboard: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }}
-              className={`px-4 py-2.5 border rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${taskStatusFilter !== 'all' ? 'bg-purple-600/20 border-purple-500/50 text-purple-400' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}
+              className="px-4 py-2.5 border rounded-xl text-sm font-bold flex items-center gap-2 transition-all"
+              style={{
+                backgroundColor: taskStatusFilter !== 'all' ? 'rgba(109, 40, 217, 0.2)' : 'var(--surface)',
+                borderColor: taskStatusFilter !== 'all' ? 'rgba(109, 40, 217, 0.5)' : 'var(--border)',
+                color: taskStatusFilter !== 'all' ? 'var(--primary)' : 'var(--text)'
+              }}
             >
               <Filter className="w-4 h-4" />
               <span>Status: {taskStatusFilter === 'all' ? 'Todos' : taskStatusFilter === 'late' ? 'Em Atraso' : taskStatusFilter === 'ongoing' ? 'Em Andamento' : 'Concluídos'}</span>
@@ -214,7 +220,7 @@ const AdminDashboard: React.FC = () => {
             {showFilterMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
-                <div className="absolute right-0 mt-2 w-56 bg-[#1e1b2e] border border-white/10 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}>
                   <button onClick={() => { setTaskStatusFilter('all'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'all' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
                     Todos os Clientes
                   </button>
@@ -233,16 +239,24 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* VIEW TOGGLE */}
-          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+          <div className="flex p-1 rounded-xl border" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
             <button
               onClick={() => toggleViewMode('grid')}
-              className={`p-2 px-3 rounded-lg transition-all flex items-center gap-2 ${viewMode === 'grid' ? 'bg-white/10 text-white shadow-lg' : 'text-slate-500 hover:bg-white/5'}`}
+              className="p-2 px-3 rounded-lg transition-all flex items-center gap-2"
+              style={{
+                backgroundColor: viewMode === 'grid' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'grid' ? 'white' : 'var(--muted)'
+              }}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => toggleViewMode('list')}
-              className={`p-2 px-3 rounded-lg transition-all flex items-center gap-2 ${viewMode === 'list' ? 'bg-white/10 text-white shadow-lg' : 'text-slate-500 hover:bg-white/5'}`}
+              className="p-2 px-3 rounded-lg transition-all flex items-center gap-2"
+              style={{
+                backgroundColor: viewMode === 'list' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'list' ? 'white' : 'var(--muted)'
+              }}
             >
               <List className="w-4 h-4" />
             </button>
@@ -339,9 +353,13 @@ const AdminDashboard: React.FC = () => {
 
             return (
               <div key={client.id} className="space-y-4">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 rounded-2xl border bg-[#161129]/40 border-white/5 group hover:border-purple-500/30 transition-all">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 rounded-2xl border group transition-all"
+                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                >
                   <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-xl border border-white/10 bg-white p-2 flex items-center justify-center shadow-lg">
+                    <div className="w-16 h-16 rounded-xl border bg-white p-2 flex items-center justify-center shadow-lg" style={{ borderColor: 'var(--border)' }}>
                       <img
                         src={client.logoUrl}
                         alt={client.name}
@@ -350,8 +368,8 @@ const AdminDashboard: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <h2 className="text-xl font-black text-white tracking-tight">{client.name}</h2>
-                      <div className="flex items-center gap-2 text-sm text-slate-400 font-medium">
+                      <h2 className="text-xl font-black tracking-tight" style={{ color: 'var(--text)' }}>{client.name}</h2>
+                      <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--muted)' }}>
                         <span>{clientProjects.length} {clientProjects.length === 1 ? 'projeto' : 'projetos'}</span>
                         <span className="text-slate-600">•</span>
                         <span>{clientTasks.length} {clientTasks.length === 1 ? 'tarefa' : 'tarefas'}</span>
@@ -362,7 +380,8 @@ const AdminDashboard: React.FC = () => {
                   <div className="flex items-center gap-3 mt-4 md:mt-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/admin/clients/${client.id}/edit`); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl transition-all font-bold text-xs border border-white/5"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-bold text-xs border"
+                      style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)', borderColor: 'var(--border)' }}
                     >
                       <Edit2 className="w-3.5 h-3.5" /> Editar
                     </button>
@@ -389,16 +408,17 @@ const AdminDashboard: React.FC = () => {
                           whileHover={{ y: -4 }}
                           key={project.id}
                           onClick={() => navigate(`/admin/projects/${project.id}`)}
-                          className="min-w-[280px] max-w-[280px] bg-[#1a152d] border border-white/5 rounded-2xl p-5 cursor-pointer hover:border-purple-500/50 transition-all group/card shadow-lg"
+                          className="min-w-[280px] max-w-[280px] border rounded-2xl p-5 cursor-pointer transition-all group/card shadow-lg"
+                          style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                         >
-                          <h4 className="font-bold text-white mb-3 line-clamp-1 group-hover/card:text-purple-400 transition-colors uppercase text-[11px] tracking-wider text-slate-400">{project.name}</h4>
+                          <h4 className="font-bold mb-3 line-clamp-1 transition-colors uppercase text-[11px] tracking-wider" style={{ color: 'var(--text)' }}>{project.name}</h4>
 
                           <div className="space-y-4">
-                            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
                               <span>Progresso</span>
                               <span className="text-purple-400">{progress}%</span>
                             </div>
-                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-2)' }}>
                               <div
                                 className="h-full bg-gradient-to-r from-purple-600 to-blue-500 transition-all duration-1000"
                                 style={{ width: `${progress}%` }}
@@ -406,7 +426,7 @@ const AdminDashboard: React.FC = () => {
                             </div>
 
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                              <div className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--muted)' }}>
                                 <CheckSquare className="w-3.5 h-3.5 text-purple-500" />
                                 <span>{doneTasks}/{projectTasks.length}</span>
                               </div>

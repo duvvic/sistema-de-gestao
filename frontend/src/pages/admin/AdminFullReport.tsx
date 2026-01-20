@@ -17,7 +17,7 @@ import {
     BarChart3,
     Search,
     Filter,
-    Calendar as CalendarIcon, // Renaming to avoid conflict if needed, though Calendar is fine
+    Calendar as CalendarIcon,
     Users,
     Briefcase,
     DollarSign,
@@ -35,7 +35,8 @@ import {
     User as UserIcon,
     Layers,
     X,
-    Check
+    Check,
+
 } from 'lucide-react';
 import { ToastContainer, ToastType } from '@/components/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -422,6 +423,7 @@ const AdminFullReport: React.FC = () => {
                     <p className="text-slate-500 font-medium text-sm mt-1">Gestão avançada de rentabilidade e alocação financeira por projeto.</p>
                 </div>
                 <div className="flex gap-3">
+
                     <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl transition-all font-bold text-sm border border-white/5">
                         <HelpCircle className="w-4 h-4" /> Ajuda Admin
                     </button>

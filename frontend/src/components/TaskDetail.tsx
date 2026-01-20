@@ -178,7 +178,7 @@ const TaskDetail: React.FC = () => {
   );
 
   const getDelayDays = () => {
-    if (formData.status === 'Done') return 0;
+    if (formData.status === 'Done' || formData.status === 'Review') return 0;
     if (!formData.estimatedDelivery) return 0;
 
     const today = new Date();

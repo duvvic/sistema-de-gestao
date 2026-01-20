@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
-import { Save, User as UserIcon, Mail, Briefcase, Trash2, Camera, ArrowLeft } from 'lucide-react';
+import { Save, User as UserIcon, Mail, Briefcase, Trash2, Camera, ArrowLeft, Zap } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 
 const UserProfile: React.FC = () => {
@@ -185,6 +185,29 @@ const UserProfile: React.FC = () => {
             </div>
           </div>
 
+          {/* Infra / Sincronização Section (Admin Only & Disabled) */}
+          {user.role === 'admin' && (
+            <div className="p-8 rounded-2xl border shadow-sm space-y-4 opacity-50 grayscale pointer-events-none select-none"
+              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
+                  <Zap className="w-5 h-5 text-amber-500" />
+                  Configuração de Infra: Sincronização
+                </h2>
+                <span className="px-3 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-[9px] font-black uppercase tracking-widest text-slate-500 border border-slate-300 dark:border-slate-700">
+                  Bloqueado
+                </span>
+              </div>
+              <p className="text-sm italic" style={{ color: 'var(--textMuted)' }}>
+                Esta função foi realocada temporariamente e encontra-se desativada por questões de infraestrutura.
+                Será reativada em um novo espaço dedicado em breve.
+              </p>
+              <div className="mt-4 p-4 border border-dashed rounded-xl flex items-center justify-center gap-2" style={{ borderColor: 'var(--border)' }}>
+                <div className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Acesso Restrito - Infra</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -50,6 +50,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
   }, [myTasks, filterProjectId]);
 
   const isTaskDelayed = (task: Task) => {
+    if (task.status === 'Done' || task.status === 'Review') return false;
     if (!task.estimatedDelivery) return false;
     if (task.actualDelivery) return false; // already done
     try {
@@ -69,7 +70,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
   // 3) Agrupar em 3 colunas: Em Progresso, Atrasadas, Concluídas
   // ================================
   const tasksByStatus = useMemo(() => {
-    const concluded = filteredTasks.filter(t => !!t.actualDelivery || t.status === 'Done');
+    const concluded = filteredTasks.filter(t => !!t.actualDelivery || t.status === 'Done' || t.status === 'Review');
     const delayed = filteredTasks.filter(t => !concluded.includes(t) && isTaskDelayed(t));
     const inProgress = filteredTasks.filter(t => !concluded.includes(t) && !delayed.includes(t));
 

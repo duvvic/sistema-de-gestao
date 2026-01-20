@@ -37,7 +37,7 @@ const TeamList: React.FC = () => {
 
   // Helpers
   const isTaskDelayed = (task: Task): boolean => {
-    if (task.status === 'Done') return false;
+    if (task.status === 'Done' || task.status === 'Review') return false;
     if (!task.estimatedDelivery) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);

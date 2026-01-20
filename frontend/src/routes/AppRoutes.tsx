@@ -22,6 +22,8 @@ import TeamMemberDetail from '@/components/TeamMemberDetail';
 import UserForm from '@/components/UserForm';
 import UserProfile from '@/components/UserProfile';
 import AdminFullReport from '@/pages/admin/AdminFullReport';
+import AdminSync from '@/pages/admin/AdminSync';
+
 import Notes from '@/pages/Notes';
 
 // Componentes de Timesheet
@@ -250,12 +252,24 @@ const AppRoutes: React.FC = () => {
                     }
                 />
 
+
+
                 {/* === RELATÓRIOS (ADMIN) === */}
                 <Route
                     path="admin/reports"
                     element={
                         <ProtectedRoute requiredRole="admin">
                             <AdminFullReport />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Sincronização Admin */}
+                <Route
+                    path="admin/sync"
+                    element={
+                        <ProtectedRoute requiredRole="admin">
+                            <AdminSync />
                         </ProtectedRoute>
                     }
                 />

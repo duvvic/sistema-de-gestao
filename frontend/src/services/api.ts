@@ -28,6 +28,8 @@ export interface DbClientRow {
   Criado?: string | null;
   Contrato?: string | null;
   Desativado?: string | null;
+  pais?: string | null;
+  contato_principal?: string | null;
 }
 
 // dim_projetos
@@ -42,6 +44,7 @@ export interface DbProjectRow {
   estimatedDelivery: string | null;
   manager: string | null;
   startDate: string | null;
+  valor_total_rs: number | null;
 }
 
 // fato_tarefas (ou fato_tarefas_view)
@@ -57,7 +60,6 @@ export interface DbTaskRow {
   Riscos: string | null;
   Porcentagem: number | null;
   StatusTarefa: string | null;
-  DiasAtraso: string | null;
   "Observações": string | null;
   attachment: string | null;
   description: string | null;
@@ -65,6 +67,9 @@ export interface DbTaskRow {
   inicio_real: string | null;
   entrega_estimada: string | null;
   entrega_real: string | null;
+  em_testes?: boolean | null;
+  link_ef?: string | null;
+  dias_atraso?: number | null;
 }
 
 // =====================================================
@@ -142,7 +147,7 @@ export async function fetchClients(): Promise<Client[]> {
   try {
     const { data, error } = await supabase
       .from("dim_clientes")
-      .select("ID_Cliente, NomeCliente, NewLogo, ativo, Criado, Contrato, Desativado");
+      .select("ID_Cliente, NomeCliente, NewLogo, ativo, Criado, Contrato, Desativado, Pais, contato_principal");
 
     if (error) {
       throw error;
@@ -158,6 +163,8 @@ export async function fetchClients(): Promise<Client[]> {
         name: row.NomeCliente || "Sem nome",
         logoUrl: row.NewLogo || "https://placehold.co/150?text=Logo",
         active: row.ativo ?? true,
+        pais: row.pais ?? null,
+        contato_principal: row.contato_principal ?? null,
       };
       clientBase.Criado = row.Criado ?? null;
       clientBase.Contrato = row.Contrato ?? null;
@@ -176,7 +183,7 @@ export async function fetchProjects(): Promise<Project[]> {
   try {
     const { data, error } = await supabase
       .from("dim_projetos")
-      .select("ID_Projeto, NomeProjeto, ID_Cliente, StatusProjeto, ativo, budget, description, estimatedDelivery, manager, startDate");
+      .select("ID_Projeto, NomeProjeto, ID_Cliente, StatusProjeto, ativo, budget, description, estimatedDelivery, manager, startDate, valor_total_rs");
 
     if (error) {
       throw error;
@@ -197,6 +204,7 @@ export async function fetchProjects(): Promise<Project[]> {
       estimatedDelivery: row.estimatedDelivery || undefined,
       manager: row.manager || undefined,
       startDate: row.startDate || undefined,
+      valor_total_rs: row.valor_total_rs || undefined,
     }));
   } catch (err) {
     throw err;
@@ -210,7 +218,7 @@ export async function fetchTasks(): Promise<DbTaskRow[]> {
   try {
     const { data, error } = await supabase
       .from("fato_tarefas")
-      .select('id_tarefa_novo, ID_Cliente, ID_Projeto, Afazer, ID_Colaborador, StatusTarefa, entrega_estimada, entrega_real, inicio_previsto, inicio_real, Porcentagem, Prioridade, Impacto, Riscos, "Observações", attachment, description')
+      .select('id_tarefa_novo, ID_Tarefa, ID_Cliente, ID_Projeto, Afazer, ID_Colaborador, StatusTarefa, entrega_estimada, entrega_real, inicio_previsto, inicio_real, Porcentagem, Prioridade, Impacto, Riscos, "Observações", attachment, description, em_testes, link_ef, dias_atraso')
       .order('id_tarefa_novo', { ascending: false })
       .limit(500);
 
@@ -259,6 +267,7 @@ export async function fetchTimesheets(): Promise<any[]> {
         ID_Colaborador,
         ID_Cliente,
         ID_Projeto,
+        ID_Tarefa,
         id_tarefa_novo,
         Data,
         Horas_Trabalhadas,

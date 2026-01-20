@@ -18,6 +18,7 @@ export async function createProject(data: Partial<Project>): Promise<number> {
     estimatedDelivery: data.estimatedDelivery || null,
     manager: data.manager || null,
     startDate: data.startDate || null,
+    valor_total_rs: data.valor_total_rs || null,
   };
 
   const { data: inserted, error } = await supabase
@@ -48,6 +49,7 @@ export async function updateProject(projectId: string, data: Partial<Project>): 
   if (data.estimatedDelivery !== undefined) payload.estimatedDelivery = data.estimatedDelivery;
   if (data.manager !== undefined) payload.manager = data.manager;
   if (data.startDate !== undefined) payload.startDate = data.startDate;
+  if (data.valor_total_rs !== undefined) payload.valor_total_rs = data.valor_total_rs;
 
   const { error } = await supabase
     .from("dim_projetos")

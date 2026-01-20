@@ -29,6 +29,8 @@ export async function createClient(data: Partial<Client>): Promise<number> {
     Criado: toDateStr(now),
   };
   if (contratoDateStr) payload.Contrato = contratoDateStr;
+  if (data.pais) payload.pais = data.pais;
+  if (data.contato_principal) payload.contato_principal = data.contato_principal;
 
   const { data: inserted, error } = await supabase
     .from("dim_clientes")
@@ -53,6 +55,8 @@ export async function updateClient(clientId: string, data: Partial<Client>): Pro
   if (data.name !== undefined) payload.NomeCliente = data.name;
   if (data.logoUrl !== undefined) payload.NewLogo = data.logoUrl;
   if (data.active !== undefined) payload.ativo = data.active;
+  if (data.pais !== undefined) payload.pais = data.pais;
+  if (data.contato_principal !== undefined) payload.contato_principal = data.contato_principal;
 
   const { error } = await supabase
     .from("dim_clientes")

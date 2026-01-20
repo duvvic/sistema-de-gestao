@@ -230,7 +230,8 @@ export function useAppData(): AppData {
           }
 
           const mappedTask = {
-            id: String(row.id_tarefa_novo),
+            id: String(row.id_tarefa_novo), // Usar o ID numérico como ID principal para consistência com o DB
+            externalId: row.ID_Tarefa || undefined,
             title: (row.Afazer && row.Afazer !== 'null') ? row.Afazer : "(Sem título)",
             projectId: String(row.ID_Projeto),
             clientId: String(row.ID_Cliente),
@@ -248,8 +249,9 @@ export function useAppData(): AppData {
             impact: normalizeImpact(row.Impacto),
             risks: row.Riscos || undefined,
             notes: row["Observações"] || undefined,
-            attachment: row.attachment || undefined,
-            description: row.description || undefined,
+            em_testes: !!row.em_testes,
+            link_ef: row.link_ef || undefined,
+            id_tarefa_novo: row.id_tarefa_novo,
             daysOverdue: (() => {
               if (!row.entrega_estimada) return 0;
               const deadline = new Date(row.entrega_estimada);
@@ -257,6 +259,10 @@ export function useAppData(): AppData {
               const now = new Date();
               now.setHours(0, 0, 0, 0);
               const status = normalizeStatus(row.StatusTarefa);
+
+              // Nova Lógica: Se estiver em Revisão, o atraso é ignorado (retorna 0)
+              if (status === 'Review') return 0;
+
               if (status === 'Done') {
                 if (row.entrega_real) {
                   const delivery = new Date(row.entrega_real);
@@ -288,21 +294,37 @@ export function useAppData(): AppData {
 
         // Remover fetch sequencial de timesheets pois já está no Promise.all
 
+        // Otimização: Criar Map de Tarefas para Lookup reverso de ID de Texto -> ID Numérico
+        const taskExternalMap = new Map(tasksData.filter(t => t.ID_Tarefa).map(t => [String(t.ID_Tarefa).toLowerCase(), String(t.id_tarefa_novo)]));
+
         // Faz um mapeamento dos campos da tabela horas_trabalhadas para o formato do front
-        const timesheetMapped: TimesheetEntry[] = (rawTimesheets || []).map((r: any) => ({
-          id: String(r.ID_Horas_Trabalhadas || crypto.randomUUID()),
-          userId: String(r.ID_Colaborador || ''),
-          userName: r.dim_colaboradores?.NomeColaborador || r.userName || '',
-          clientId: String(r.ID_Cliente || ''),
-          projectId: String(r.ID_Projeto || ''),
-          taskId: String(r.id_tarefa_novo || ''),
-          date: r.Data || (new Date()).toISOString().split('T')[0],
-          startTime: r.Hora_Inicio || '09:00',
-          endTime: r.Hora_Fim || '18:00',
-          totalHours: Number(r.Horas_Trabalhadas || 0),
-          lunchDeduction: !!r.Almoco_Deduzido,
-          description: r.Descricao || undefined,
-        }));
+        const timesheetMapped: TimesheetEntry[] = (rawTimesheets || []).map((r: any) => {
+          // Se não tiver o ID Numérico, tenta encontrar via ID de Texto da planilha
+          let taskId = String(r.id_tarefa_novo || '');
+          if (!taskId || taskId === 'null' || taskId === '0') {
+            const extId = String(r.ID_Tarefa || '').toLowerCase();
+            if (extId && taskExternalMap.has(extId)) {
+              taskId = taskExternalMap.get(extId)!;
+            } else {
+              taskId = String(r.ID_Tarefa || ''); // Fallback para o ID original se não achar vínculo
+            }
+          }
+
+          return {
+            id: String(r.ID_Horas_Trabalhadas || crypto.randomUUID()),
+            userId: String(r.ID_Colaborador || ''),
+            userName: r.dim_colaboradores?.NomeColaborador || r.userName || '',
+            clientId: String(r.ID_Cliente || ''),
+            projectId: String(r.ID_Projeto || ''),
+            taskId: taskId,
+            date: r.Data || (new Date()).toISOString().split('T')[0],
+            startTime: r.Hora_Inicio || '09:00',
+            endTime: r.Hora_Fim || '18:00',
+            totalHours: Number(r.Horas_Trabalhadas || 0),
+            lunchDeduction: !!r.Almoco_Deduzido,
+            description: r.Descricao || undefined,
+          };
+        });
 
         // Atualiza os states (retorna todos, filtragem no componente)
         setUsers(usersData);

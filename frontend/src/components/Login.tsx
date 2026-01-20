@@ -1,13 +1,13 @@
 // components/Login.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, Key, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Key, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { User } from '@/types';
 import { supabase } from '@/services/supabaseClient';
 import { useAuth, normalizeEmail } from '@/contexts/AuthContext';
 import { fetchUsers } from '@/services/api';
 
-type Mode = 'login' | 'set-password' | 'otp-verification';
+type Mode = 'login' | 'set-password' | 'otp-verification' | 'first-access';
 
 // Hash para user_credentials (legacy support)
 async function hashPassword(password: string): Promise<string> {
@@ -42,12 +42,33 @@ export default function Login() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [otpToken, setOtpToken] = useState('');
     const [loading, setLoading] = useState(false);
+    const [pendingRedirect, setPendingRedirect] = useState(false);
+
+    // Novas flags de UI interativa e fluxo por etapas
+    const [showForgot, setShowForgot] = useState(false);
+    const [showFirstAccess, setShowFirstAccess] = useState(false);
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+    const [showPasswordInput, setShowPasswordInput] = useState(false);
+    const [emailFound, setEmailFound] = useState(false);
+    const [knownEmails, setKnownEmails] = useState<string[]>([]);
+
+    const passwordRef = useRef<HTMLInputElement>(null);
+
+    // Carregar e-mails para auto-complete
+    useEffect(() => {
+        fetchUsers().then(users => {
+            const emails = users.map(u => u.email.toLowerCase());
+            setKnownEmails(emails);
+        }).catch(err => console.error("Erro ao carregar e-mails para autocomplete:", err));
+    }, []);
 
     // Carregar e-mail lembrado no monte
     useEffect(() => {
         const savedEmail = localStorage.getItem('remembered_email');
         if (savedEmail) {
             setEmail(savedEmail);
+            // Se já tem e-mail salvo, podemos tentar validar imediatamente após um pequeno delay para garantir que os e-mails conhecidos carregaram
+            setTimeout(() => handleEmailBlur(), 800);
         }
     }, []);
     const [alertConfig, setAlertConfig] = useState<{ show: boolean, message: string, title?: string }>({
@@ -55,6 +76,21 @@ export default function Login() {
         message: '',
         title: ''
     });
+
+    // Listener global para fechar alerta com a tecla Enter
+    useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.key === 'Enter' && alertConfig.show) {
+                closeAlert();
+            }
+        };
+
+        if (alertConfig.show) {
+            window.addEventListener('keydown', handleKeyPress);
+        }
+
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [alertConfig.show]);
 
     const [showPass, setShowPass] = useState(false);
     const [showNewPass, setShowNewPass] = useState(false);
@@ -66,11 +102,15 @@ export default function Login() {
 
     const closeAlert = () => {
         setAlertConfig(prev => ({ ...prev, show: false }));
+        if (pendingRedirect) {
+            const userToUse = currentUser || selectedUser;
+            const path = userToUse?.role === 'admin' ? '/admin/clients' : '/developer/projects';
+            navigate(path, { replace: true });
+        }
     };
 
-    const peekPassword = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
-        setter(true);
-        setTimeout(() => setter(false), 1000);
+    const togglePasswordVisibility = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
+        setter(prev => !prev);
     };
 
     // Redirecionamento baseado em Role
@@ -84,41 +124,115 @@ export default function Login() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Se estiver no modo login e o campo de senha ainda estiver oculto, valida o e-mail primeiro
+        if (mode === 'login' && !showPasswordInput && !showFirstAccess) {
+            await handleEmailBlur();
+            return;
+        }
+
         if (mode === 'login') await handleLogin();
+        else if (mode === 'first-access') await handleSendOtp();
         else if (mode === 'otp-verification') await handleVerifyOtp();
         else await handleCreatePassword();
     };
 
+    const handleEmailBlur = async () => {
+        let val = email.trim().toLowerCase();
+        if (!val) return;
+
+        // Auto-correção (.com -> .com.br)
+        if (val.endsWith('.com') && !val.includes('.com.br')) {
+            val = val + '.br';
+            setEmail(val);
+        }
+
+        if (mode !== 'login') return;
+
+        setIsCheckingEmail(true);
+        try {
+            const { data: colab } = await supabase
+                .from('dim_colaboradores')
+                .select('ID_Colaborador, email, NomeColaborador, papel')
+                .eq('email', val)
+                .maybeSingle();
+
+            if (!colab) {
+                setEmailFound(false);
+                setShowPasswordInput(false);
+                setShowFirstAccess(false);
+                return;
+            }
+
+            setEmailFound(true);
+
+            // Verifica se tem senha
+            const { data: cred } = await supabase
+                .from('user_credentials')
+                .select('colaborador_id')
+                .eq('colaborador_id', colab.ID_Colaborador)
+                .maybeSingle();
+
+            if (!cred) {
+                // Se não tem senha, dispara AUTOMATICAMENTE o primeiro acesso
+                setIsCheckingEmail(true);
+                setLoading(true);
+                try {
+                    // Envia OTP via Supabase
+                    const { error: otpErr } = await supabase.auth.signInWithOtp({
+                        email: val,
+                        options: { shouldCreateUser: true }
+                    });
+
+                    if (otpErr) throw otpErr;
+
+                    // Guarda dados temporários
+                    setSelectedUser({
+                        id: String(colab.ID_Colaborador),
+                        name: colab.NomeColaborador,
+                        email: colab.email,
+                        role: String(colab.papel || '').toLowerCase().includes('admin') ? 'admin' : 'developer'
+                    } as User);
+
+                    // Vai direto para verificação
+                    setMode('otp-verification');
+                    showAlert('Identificamos que este é seu primeiro acesso! Enviamos um código de segurança para seu e-mail.', 'Primeiro Acesso');
+                } catch (otpError: any) {
+                    console.error('Erro ao auto-enviar OTP:', otpError);
+                    setShowFirstAccess(true); // Fallback para botão manual se falhar
+                } finally {
+                    setLoading(false);
+                }
+            } else {
+                // Se tem senha, exibe o campo e foca
+                setShowPasswordInput(true);
+                setShowFirstAccess(false);
+                setTimeout(() => passwordRef.current?.focus(), 100);
+            }
+        } catch (e) {
+            console.warn('Erro ao validar e-mail:', e);
+        } finally {
+            setIsCheckingEmail(false);
+        }
+    };
+
     const handleLogin = async () => {
         setLoading(true);
-
         try {
             const normalizedEmail = email.trim().toLowerCase();
-
-            // Login direto pelo sistema de autenticação do Supabase
             const { data, error } = await supabase.auth.signInWithPassword({
                 email: normalizedEmail,
                 password: password,
             });
 
             if (error) {
-                // Se der erro 400 (senha inválida ou usuário não existe no Auth)
-                throw new Error(error.message === 'Invalid login credentials'
-                    ? 'E-mail ou senha incorretos.'
-                    : error.message);
+                setShowForgot(true);
+                throw new Error(error.message === 'Invalid login credentials' ? 'Senha incorreta.' : error.message);
             }
 
-            if (!data.session) {
-                throw new Error('Não foi possível estabelecer uma sessão de acesso.');
-            }
-
-            // Lembrar e-mail para o próximo acesso
             localStorage.setItem('remembered_email', normalizedEmail);
-
-            // O redirecionamento acontecerá automaticamente via useEffect
-            // no AuthContext.tsx quando ele detectar o evento SIGNED_IN
         } catch (err: any) {
-            showAlert(err.message || 'Erro inesperado no sistema de login', 'Falha no Acesso');
+            showAlert(err.message, 'Falha no Acesso');
         } finally {
             setLoading(false);
         }
@@ -179,12 +293,9 @@ export default function Login() {
                 }, { onConflict: 'colaborador_id' });
             }
 
-            // 3. Força logout e limpa formulário
-            await supabase.auth.signOut();
-            setMode('login');
-            setEmail('');
-            setPassword('');
-            showAlert('Senha definida com sucesso! Agora você pode entrar.', 'Sucesso!');
+            // 3. Define flag para redirecionamento após fechar o alerta
+            setPendingRedirect(true);
+            showAlert('Sua senha foi definida com sucesso! Entrando no sistema...', 'Sucesso!');
         } catch (err: any) {
             showAlert('Erro ao definir senha: ' + err.message, 'Erro');
         } finally {
@@ -192,32 +303,52 @@ export default function Login() {
         }
     };
 
-    const handleFindUser = async (modeName: string) => {
+    const handleFindUser = async (modeName: 'first' | 'forgot') => {
+        setMode('first-access');
+        setOtpToken('');
+        setNewPassword('');
+        setConfirmPassword('');
+        if (!email) {
+            const savedEmail = localStorage.getItem('remembered_email');
+            if (savedEmail) setEmail(savedEmail);
+        }
+    };
+
+    const handleSendOtp = async () => {
         if (!email) {
             showAlert('Informe seu e-mail corporativo.', 'Campo Obrigatório');
             return;
         }
+
         setLoading(true);
         try {
             const normalizedEmail = email.trim().toLowerCase();
-            const { data: dbUser } = await supabase
+
+            // 1. Validar se o usuário existe na base dim_colaboradores
+            const { data: dbUser, error: dbError } = await supabase
                 .from('dim_colaboradores')
                 .select('*')
                 .eq('email', normalizedEmail)
                 .maybeSingle();
 
+            if (dbError) throw dbError;
+
             if (!dbUser) {
-                showAlert('E-mail não encontrado em nossa base de colaboradores.', 'E-mail Inválido');
+                showAlert('E-mail não encontrado em nossa base de colaboradores. Verifique o endereço digitado.', 'E-mail Inválido');
                 return;
             }
 
-            // Envia OTP
+            // 2. Enviar OTP via Supabase
             const { error: otpErr } = await supabase.auth.signInWithOtp({
                 email: normalizedEmail,
-                options: { shouldCreateUser: true }
+                options: {
+                    shouldCreateUser: true, // Garante que o usuário exista no Auth do Supabase
+                }
             });
+
             if (otpErr) throw otpErr;
 
+            // 3. Guardar dados temporários do usuário para a próxima fase
             setSelectedUser({
                 id: String(dbUser.ID_Colaborador),
                 name: dbUser.NomeColaborador,
@@ -225,10 +356,12 @@ export default function Login() {
                 role: String(dbUser.papel || '').toLowerCase().includes('admin') ? 'admin' : 'developer'
             } as User);
 
-            alert('Código enviado! Verifique seu e-mail.');
+            // 4. Mudar para modo de verificação
             setMode('otp-verification');
+            showAlert('Código de segurança enviado! Verifique sua caixa de entrada.', 'E-mail Enviado');
         } catch (err: any) {
-            showAlert('Falha: ' + err.message, 'Erro de Conexão');
+            console.error('Erro ao enviar OTP:', err);
+            showAlert('Falha ao processar solicitação: ' + (err.message || 'Erro de conexão'), 'Erro');
         } finally {
             setLoading(false);
         }
@@ -237,47 +370,115 @@ export default function Login() {
     const effectiveEmail = (mode === 'set-password' || mode === 'otp-verification') && selectedUser ? selectedUser.email : email;
 
     return (
-        <div className="min-h-screen flex flex-col justify-center items-center p-4 relative font-sans" style={{ backgroundColor: '#130e24' }}>
-            <div className="w-full max-w-[420px] bg-white rounded-[2rem] shadow-2xl p-8 md:p-10 space-y-8 relative z-10">
+        <div className="min-h-screen flex flex-col justify-center items-center p-4 relative font-sans overflow-hidden bg-[#0f172a]">
+            {/* Elementos Decorativos de Fundo (Premium Effect) */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#312e81]/30 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0%,transparent_70%)]" />
+            </div>
+
+            <div className="w-full max-w-[420px] bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] p-8 md:p-12 space-y-10 relative z-10 border border-white/20">
                 <div className="text-center flex flex-col items-center">
-                    <img src="https://nic-labs.com/wp-content/uploads/2024/04/Logo-com-fundo-branco-1.png" alt="NIC Labs" className="h-16 w-auto mb-6" />
-                    <h2 className="text-[26px] font-extrabold text-[#1e1b4b]">
-                        {mode === 'login' ? 'Bem-vindo colaborador' : mode === 'otp-verification' ? 'Validação' : 'Nova Senha'}
+                    <div className="p-3 bg-slate-50 rounded-2xl mb-6 shadow-sm ring-1 ring-slate-100">
+                        <img src="https://nic-labs.com/wp-content/uploads/2024/04/Logo-com-fundo-branco-1.png" alt="NIC Labs" className="h-10 w-auto" />
+                    </div>
+                    <h2 className="text-[28px] font-black text-[#1e1b4b] tracking-tight leading-tight">
+                        {mode === 'login' ? 'Bem-vindo colaborador'
+                            : mode === 'first-access' ? 'Primeiro Acesso'
+                                : mode === 'otp-verification' ? 'Validação de Segurança'
+                                    : 'Nova Senha'}
                     </h2>
-                    <p className="text-[#64748b] text-sm mt-2">
-                        {mode === 'login' ? 'Acesse com seu e-mail corporativo' : 'Siga as instruções para continuar'}
+                    <p className="text-[#64748b] text-base mt-3 font-medium opacity-80">
+                        {mode === 'login' ? 'Acesse com seu e-mail corporativo'
+                            : mode === 'first-access' ? 'Informe seu e-mail para receber o código'
+                                : mode === 'otp-verification' ? 'Insira o código enviado por e-mail'
+                                    : 'Crie uma senha forte para sua conta'}
                     </p>
                 </div>
 
                 <form id="login-form" onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                        <label className="block text-xs font-bold text-[#334155] mb-2 uppercase">E-mail</label>
-                        <div className="relative">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            <input
-                                id="email"
-                                type="email"
-                                name="email"
-                                value={effectiveEmail}
-                                onChange={(e) => mode === 'login' && setEmail(e.target.value)}
-                                disabled={mode !== 'login'}
-                                className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-emerald-500 outline-none transition-all text-[#1e1b4b] font-medium"
-                                placeholder="nome@empresa.com"
-                                autoComplete="username email"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    {mode === 'login' && (
+                    {(mode === 'login' || mode === 'first-access') && (
                         <div>
-                            <label className="block text-xs font-bold text-[#334155] mb-2 uppercase">Senha</label>
+                            <label className="block text-xs font-bold text-[#334155] mb-2 uppercase">E-mail Corporativo</label>
+                            <div className="relative">
+                                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors ${emailFound ? 'text-emerald-500' : 'text-slate-400'}`} />
+                                <div className="relative flex items-center w-full">
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        name="email"
+                                        value={email}
+                                        onChange={(e) => {
+                                            setEmail(e.target.value);
+                                            if (showPasswordInput) setShowPasswordInput(false);
+                                            if (showFirstAccess) setShowFirstAccess(false);
+                                            if (emailFound) setEmailFound(false);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            const suggestion = email.length > 1 && mode === 'login'
+                                                ? knownEmails.find(ev => ev.startsWith(email.toLowerCase()) && ev !== email.toLowerCase())
+                                                : null;
+
+                                            if (e.key === 'Tab' && suggestion) {
+                                                e.preventDefault();
+                                                setEmail(suggestion);
+                                            }
+                                        }}
+                                        className={`w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 rounded-xl focus:border-purple-500 outline-none transition-all text-[#1e1b4b] font-medium
+                                            ${emailFound ? 'border-emerald-100' : 'border-slate-100'}`}
+                                        placeholder="nome@nic-labs.com.br"
+                                        autoComplete="off"
+                                        onBlur={handleEmailBlur}
+                                        required
+                                    />
+                                    {/* Sugestão visual (Ghost text) baseada em e-mails conhecidos */}
+                                    {(email.length > 1 && mode === 'login') && (
+                                        (() => {
+                                            const suggestion = knownEmails.find(ev => ev.startsWith(email.toLowerCase()) && ev !== email.toLowerCase());
+                                            if (!suggestion) return null;
+                                            return (
+                                                <div className="absolute left-12 py-3.5 pointer-events-none flex items-center overflow-hidden whitespace-nowrap">
+                                                    <span className="opacity-0">{email}</span>
+                                                    <span className="text-slate-300 font-medium">{suggestion.substring(email.length)}</span>
+                                                    <span className="ml-2 text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tighter">Tab</span>
+                                                </div>
+                                            );
+                                        })()
+                                    )}
+                                </div>
+                                {isCheckingEmail && (
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                        <Loader2 className="w-4 h-4 text-purple-600 animate-spin" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'otp-verification' && (
+                        <div>
+                            <label className="block text-xs font-bold text-[#334155] mb-2 uppercase">E-mail</label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 opacity-50" />
+                                <input
+                                    type="email"
+                                    value={effectiveEmail}
+                                    disabled
+                                    className="w-full pl-12 pr-4 py-3.5 bg-slate-100 border-2 border-slate-100 rounded-xl outline-none text-[#64748b] font-medium cursor-not-allowed"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'login' && showPasswordInput && (
+                        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                            <label className="block text-xs font-bold text-[#334155] mb-2 uppercase">Sua Senha</label>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                                 <input
-                                    id="password"
+                                    ref={passwordRef}
                                     type={showPass ? "text" : "password"}
-                                    name="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     onKeyDown={(e) => {
@@ -291,7 +492,7 @@ export default function Login() {
                                     autoComplete="current-password"
                                     required
                                 />
-                                <button type="button" onClick={() => peekPassword(setShowPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <button type="button" onClick={() => togglePasswordVisibility(setShowPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 p-2 hover:text-purple-600 transition-colors">
                                     {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                 </button>
                             </div>
@@ -299,16 +500,21 @@ export default function Login() {
                     )}
 
                     {mode === 'otp-verification' && (
-                        <div>
-                            <label className="block text-xs font-bold text-[#334155] mb-2 uppercase text-center">Código enviado ao e-mail</label>
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            <label className="block text-[10px] font-black text-purple-700 mb-4 px-2 uppercase tracking-[0.2em] text-center">Código de Verificação</label>
                             <input
                                 type="text"
                                 value={otpToken}
                                 onChange={(e) => setOtpToken(e.target.value)}
-                                className="w-full py-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-xl font-bold tracking-[0.5em] focus:border-purple-500 outline-none"
+                                className="w-full py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-3xl font-black tracking-[0.4em] focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none transition-all text-[#1e1b4b]"
                                 placeholder="000000"
+                                maxLength={6}
                                 required
+                                autoFocus
                             />
+                            <p className="text-center text-xs text-slate-400 mt-4 leading-relaxed">
+                                Enviado para <span className="text-slate-600 font-bold">{effectiveEmail}</span>
+                            </p>
                         </div>
                     )}
 
@@ -335,16 +541,34 @@ export default function Login() {
 
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="w-full bg-gradient-to-r from-[#4c1d95] to-[#6d28d9] text-white py-4 rounded-xl font-bold hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                        disabled={loading || isCheckingEmail}
+                        className="w-full bg-[#1e1b4b] hover:bg-[#2d2a6e] text-white py-5 rounded-2xl font-black text-base transition-all active:scale-[0.98] disabled:opacity-50 shadow-[0_10px_30px_rgba(30,27,75,0.25)] flex items-center justify-center gap-2 group"
                     >
-                        {loading ? 'Processando...' : mode === 'login' ? 'Entrar na plataforma' : 'Confirmar'}
+                        {loading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <>
+                                {mode === 'login' ? (showFirstAccess ? '✨ Primeiro Acesso' : (!showPasswordInput ? 'Continuar' : 'Entrar na plataforma')) :
+                                    mode === 'first-access' ? 'Enviar Código' :
+                                        mode === 'otp-verification' ? 'Verificar Acesso' :
+                                            'Concluir Cadastro'}
+                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                            </>
+                        )}
                     </button>
 
                     {mode === 'login' && (
-                        <div className="flex flex-col gap-4 text-center">
-                            <button type="button" onClick={() => handleFindUser('forgot')} className="text-sm font-bold text-purple-700 hover:underline">Esqueci minha senha</button>
-                            <button type="button" onClick={() => handleFindUser('first')} className="w-full py-4 border-2 border-slate-100 rounded-xl font-bold text-slate-600 hover:bg-slate-50">Primeiro acesso</button>
+                        <div className="flex flex-col gap-3 text-center">
+                            {showForgot && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleFindUser('forgot')}
+                                    className="text-sm font-bold text-purple-700 hover:underline animate-in fade-in slide-in-from-top-2 duration-300"
+                                >
+                                    Esqueci minha senha
+                                </button>
+                            )}
+
                         </div>
                     )}
 

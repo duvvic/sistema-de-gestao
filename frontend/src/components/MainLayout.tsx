@@ -15,7 +15,8 @@ import {
     Moon,
     Sun,
     GraduationCap,
-    StickyNote
+    StickyNote,
+    Zap
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import logoImg from '@/assets/logo.png';
@@ -33,16 +34,17 @@ const MainLayout: React.FC = () => {
     const adminMenuItems = [
         { path: '/admin/clients', icon: Briefcase, label: 'Portfólio' },
         { path: '/tasks', icon: CheckSquare, label: 'Tarefas' },
-        { path: '/admin/team', icon: Users, label: 'Funcionários' },
+        { path: '/admin/team', icon: Users, label: 'Colaboradores' },
         { path: '/admin/reports', icon: LayoutDashboard, label: 'Relatórios' },
-        { path: '/timesheet', icon: Clock, label: 'Folha de Ponto' },
+
+        { path: '/timesheet', icon: Clock, label: 'Timesheet' },
         { path: '/notes', icon: StickyNote, label: 'Notas' },
     ];
 
     const developerMenuItems = [
         { path: '/developer/projects', icon: Briefcase, label: 'Projetos' },
         { path: '/developer/tasks', icon: CheckSquare, label: 'Minhas Tarefas' },
-        { path: '/timesheet', icon: Clock, label: 'Folha de Ponto' },
+        { path: '/timesheet', icon: Clock, label: 'Timesheet' },
         { path: '/developer/learning', icon: GraduationCap, label: 'Estudo' },
         { path: '/notes', icon: StickyNote, label: 'Notas' },
     ];

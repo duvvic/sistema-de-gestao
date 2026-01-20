@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmationModal from './ConfirmationModal';
+import { TaskCreationModal } from './TaskCreationModal';
 
 const STATUS_COLUMNS: { id: Status; title: string; color: string; bg: string; badgeColor: string }[] = [
   { id: 'Todo', title: 'A Fazer', color: 'var(--text)', bg: 'var(--status-todo)', badgeColor: 'var(--muted)' },
@@ -88,7 +89,7 @@ const KanbanCard = ({
   };
 
   const isDelayed = useMemo(() => {
-    if (task.status === 'Done') return false;
+    if (task.status === 'Done' || task.status === 'Review') return false;
     if (!task.estimatedDelivery) return false;
     const parts = task.estimatedDelivery.split('-');
     if (parts.length !== 3) return false;
@@ -368,11 +369,13 @@ export const KanbanBoard = () => {
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const [showDevMenu, setShowDevMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showTaskCreationModal, setShowTaskCreationModal] = useState(false);
   const [showOnlyDelayed, setShowOnlyDelayed] = useState(false);
+  const [periodFilter, setPeriodFilter] = useState<'all' | '7' | '15' | '30'>('all');
 
   // Auxiliar para detectar atraso
   const isTaskDelayed = (t: Task) => {
-    if (t.status === 'Done') return false;
+    if (t.status === 'Done' || t.status === 'Review') return false;
     if (!t.estimatedDelivery) return false;
     const parts = t.estimatedDelivery.split('-');
     if (parts.length !== 3) return false;
@@ -433,7 +436,27 @@ export const KanbanBoard = () => {
       // 4. Delayed Filter
       if (showOnlyDelayed && !isTaskDelayed(t)) return false;
 
-      // 5. Global Search
+      // 5. Period Filter (based on task creation/update date)
+      if (periodFilter !== 'all') {
+        const daysAgo = parseInt(periodFilter);
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
+        cutoffDate.setHours(0, 0, 0, 0);
+
+        // Try to parse the task's estimated delivery or use a fallback
+        // Since we don't have a createdAt field visible, we'll use estimatedDelivery as a proxy
+        // Or we can filter based on whether the task was created recently
+        // For now, let's assume we want to show tasks with recent estimated delivery dates
+        if (t.estimatedDelivery) {
+          const parts = t.estimatedDelivery.split('-');
+          if (parts.length === 3) {
+            const taskDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            if (taskDate < cutoffDate) return false;
+          }
+        }
+      }
+
+      // 6. Global Search
       if (searchTerm) {
         const lowerSearch = searchTerm.toLowerCase();
         return t.title.toLowerCase().includes(lowerSearch) ||
@@ -445,7 +468,7 @@ export const KanbanBoard = () => {
     });
 
     return result;
-  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId, showOnlyDelayed, searchTerm]);
+  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId, showOnlyDelayed, periodFilter, searchTerm]);
 
   const currentClient = useMemo(() => clients.find(c => c.id === filteredClientId), [clients, filteredClientId]);
   const currentProject = useMemo(() => projects.find(p => p.id === filteredProjectId), [projects, filteredProjectId]);
@@ -569,6 +592,37 @@ export const KanbanBoard = () => {
           </div>
         </div>
 
+        {/* Period Filter Buttons */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs font-bold uppercase tracking-wider opacity-50 mr-2" style={{ color: 'var(--muted)' }}>
+            Período:
+          </span>
+          {[
+            { value: 'all' as const, label: 'Todas' },
+            { value: '7' as const, label: '7 dias' },
+            { value: '15' as const, label: '15 dias' },
+            { value: '30' as const, label: '30 dias' }
+          ].map(period => (
+            <button
+              key={period.value}
+              onClick={() => setPeriodFilter(period.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${periodFilter === period.value
+                ? 'shadow-md'
+                : 'opacity-60 hover:opacity-100'
+                }`}
+              style={{
+                backgroundColor: periodFilter === period.value ? 'var(--primary)' : 'var(--surface)',
+                color: periodFilter === period.value ? 'white' : 'var(--text)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: periodFilter === period.value ? 'var(--primary)' : 'var(--border)'
+              }}
+            >
+              {period.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-3 w-full md:w-auto">
           {/* Custom PREMIUM Developer Filter */}
           {isAdmin && (
@@ -648,7 +702,17 @@ export const KanbanBoard = () => {
                             <button
                               key={user.id}
                               type="button"
-                              onClick={() => { setSelectedDeveloperId(user.id); setShowDevMenu(false); setSearchTerm(''); }}
+                              onClick={() => {
+                                if (selectedDeveloperId === user.id) {
+                                  // Deselect if clicking on already selected user
+                                  setSelectedDeveloperId('');
+                                } else {
+                                  // Select the user
+                                  setSelectedDeveloperId(user.id);
+                                }
+                                setShowDevMenu(false);
+                                setSearchTerm('');
+                              }}
                               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedDeveloperId === user.id ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                             >
                               <div className="flex items-center gap-3 truncate">
@@ -689,19 +753,29 @@ export const KanbanBoard = () => {
             </button>
           )}
 
-          {!location.pathname.includes('/developer/tasks') && isAdmin && (
+
+
+          {/* Botão Nova Tarefa (Minhas Tarefas - Modal) */}
+          {location.pathname.includes('/developer/tasks') && (
             <button
               className="text-white px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 font-bold text-sm whitespace-nowrap active:scale-95"
               style={{ backgroundColor: 'var(--primary)' }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-              onClick={() => navigate('/tasks/new')}
+              onClick={() => setShowTaskCreationModal(true)}
             >
               + Nova Tarefa
             </button>
           )}
         </div>
       </div>
+
+      <TaskCreationModal
+        isOpen={showTaskCreationModal}
+        onClose={() => setShowTaskCreationModal(false)}
+        preSelectedClientId={filteredClientId || undefined}
+        preSelectedProjectId={filteredProjectId || undefined}
+      />
 
       {/* NOVO: Lista de Avatares Atrasados */}
       <AnimatePresence>
@@ -721,11 +795,22 @@ export const KanbanBoard = () => {
               {lateDevelopers.map(({ user, count }) => (
                 <button
                   key={user.id}
-                  onClick={() => setSelectedDeveloperId(user.id)}
+                  onClick={() => {
+                    if (selectedDeveloperId === user.id) {
+                      // Deselect if clicking on already selected user
+                      setSelectedDeveloperId('');
+                    } else {
+                      // Select the user
+                      setSelectedDeveloperId(user.id);
+                    }
+                  }}
                   className="flex-shrink-0 relative group"
                   title={`Filtrar tarefas de ${user.name}`}
                 >
-                  <div className="w-12 h-12 rounded-full border-2 border-red-500/50 p-0.5 group-hover:border-red-500 transition-all duration-300 shadow-lg">
+                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all duration-300 shadow-lg ${selectedDeveloperId === user.id
+                    ? 'border-red-500 ring-2 ring-red-500/50 scale-110'
+                    : 'border-red-500/50 group-hover:border-red-500'
+                    }`}>
                     <div className="w-full h-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-2)' }}>
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />

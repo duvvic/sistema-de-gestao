@@ -147,9 +147,14 @@ export const useDataController = () => {
     };
 
     const createTimesheet = async (entry: TimesheetEntry): Promise<void> => {
+        // Generate a unique ID for ID_Horas_Trabalhadas
+        // Using timestamp + random to ensure uniqueness
+        const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
+
         const { data, error } = await supabase
             .from('horas_trabalhadas')
             .insert({
+                ID_Horas_Trabalhadas: uniqueId,
                 ID_Colaborador: Number(entry.userId),
                 ID_Cliente: Number(entry.clientId),
                 ID_Projeto: Number(entry.projectId),

@@ -303,6 +303,7 @@ const TaskCard: React.FC<TaskCardProps & { project?: any, client?: any }> = ({ t
     today.setHours(0, 0, 0, 0);
 
     if (task.status === 'Done') return '#10b981'; // Green
+    if (task.status === 'Review') return 'var(--border)'; // Ignore delay
 
     if (task.estimatedDelivery) {
       const due = new Date(task.estimatedDelivery);
