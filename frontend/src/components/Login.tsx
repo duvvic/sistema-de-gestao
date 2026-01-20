@@ -507,8 +507,8 @@ export default function Login() {
                                 value={otpToken}
                                 onChange={(e) => setOtpToken(e.target.value)}
                                 className="w-full py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-3xl font-black tracking-[0.4em] focus:border-purple-600 focus:ring-4 focus:ring-purple-100 outline-none transition-all text-[#1e1b4b]"
-                                placeholder="000000"
-                                maxLength={6}
+                                placeholder="00000000"
+                                maxLength={8}
                                 required
                                 autoFocus
                             />
