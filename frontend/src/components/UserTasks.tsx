@@ -118,7 +118,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
         <div className="p-5 rounded-2xl border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>Em Progresso</div>
+              <div className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>Trabalhando</div>
               <div className="text-3xl font-black mt-2 text-blue-600">⚙️ {tasksByStatus.InProgress.length}</div>
             </div>
             <TrendingUp className="w-8 h-8 text-blue-300" />
@@ -162,7 +162,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
           {viewFilter === 'all' && (
             <div className="flex gap-4 h-full min-w-max md:min-w-0">
               <TaskColumn
-                title="Em Progresso"
+                title="Trabalhando"
                 tasks={tasksByStatus.InProgress}
                 clients={clients}
                 projects={projects}
@@ -236,7 +236,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
           {viewFilter === 'inprogress' && (
             <div className="grid grid-cols-1 gap-4">
               <div className="rounded-2xl border p-4" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <h3 className="font-bold mb-3" style={{ color: 'var(--text)' }}>Em Progresso</h3>
+                <h3 className="font-bold mb-3" style={{ color: 'var(--text)' }}>Trabalhando</h3>
                 <div className="space-y-3">
                   {tasksByStatus.InProgress.map(t => (
                     <button key={t.id} onClick={() => onTaskClick(t.id)} className="w-full text-left transition border rounded-xl p-4 shadow-sm"

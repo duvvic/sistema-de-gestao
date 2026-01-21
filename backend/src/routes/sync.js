@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
+import { randomUUID } from "crypto";
 import { supabaseAdmin } from "../config/supabaseAdmin.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 
@@ -19,11 +20,24 @@ async function syncTable(sheet, tableName, onConflict) {
         'idcliente': 'ID_Cliente',
         'idcolaborador': 'ID_Colaborador',
         'idcolaborado': 'ID_Colaborador',
+        'oqueprecisaserfeito': 'Afazer',    // Mapping based on user image -> DB "Afazer"
+        'statustaref': 'StatusTarefa',      // Mapping based on user image -> DB "StatusTarefa"
+        'contatoprincipal': 'contato_principal', // Fix for the 500 error
+        'inicioprevist': 'inicio_previsto',
+        'inicioreal': 'inicio_real',
+        'entregaestim': 'entrega_estimada',
+        'entregareal': 'entrega_real',
+        'porcentagem': 'Porcentagem',
+        'prioridade': 'Prioridade',
+        'impacto': 'Impacto',
+        'riscos': 'Riscos',
         'idhorastrabalhadas': 'ID_Horas_Trabalhadas',
         'idhorastrabalhada': 'ID_Horas_Trabalhadas',
         'horastrabalhadas': 'Horas_Trabalhadas',
         'horastrabalhada': 'Horas_Trabalhadas',
         'pais': 'Pais',
+        'nomeprojeto': 'NomeProjeto',
+        'nomecliente': 'NomeCliente',
         'email': 'email',
         'data': 'Data',
         'descricao': 'Descricao',
@@ -56,8 +70,6 @@ async function syncTable(sheet, tableName, onConflict) {
 
             if (dbField === 'Data') {
                 if (val instanceof Date) {
-                    // Usar métodos UTC para evitar que o fuso horário do servidor (ou ExcelJS) 
-                    // desloque a data para o dia anterior (ex: 2026-01-05 00:00 UTC -> 2026-01-04 21:00 BRT)
                     const y = val.getUTCFullYear();
                     const m = String(val.getUTCMonth() + 1).padStart(2, '0');
                     const d = String(val.getUTCDate()).padStart(2, '0');
@@ -76,6 +88,59 @@ async function syncTable(sheet, tableName, onConflict) {
             rowData[dbField] = val;
             hasData = true;
         });
+
+        // CRITICAL FIX: Se for horas_trabalhadas e não tiver ID, gera um UUID
+        if (hasData && tableName === 'horas_trabalhadas' && !rowData['ID_Horas_Trabalhadas']) {
+            rowData['ID_Horas_Trabalhadas'] = randomUUID();
+        }
+
+        // SAFETY: Remover colunas que não existem no banco para evitar erro
+        if (hasData && tableName === 'horas_trabalhadas') {
+            const ALLOWED = ['ID_Horas_Trabalhadas', 'Data', 'ID_Colaborador', 'ID_Cliente', 'ID_Projeto', 'ID_Tarefa', 'Horas_Trabalhadas', 'Hora_Inicio', 'Hora_Fim', 'Almoco_Deduzido', 'Descricao', 'id_tarefa_novo'];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) {
+                    delete rowData[key];
+                }
+            });
+        }
+
+        // SAFETY: Remover colunas extras para fato_tarefas
+        if (hasData && tableName === 'fato_tarefas') {
+            const ALLOWED = [
+                'ID_Tarefa', 'ID_Cliente', 'ID_Projeto', 'Afazer', 'ID_Colaborador',
+                'inicio_previsto', 'inicio_real', 'entrega_estimada', 'entrega_real',
+                'Prioridade', 'Impacto', 'Riscos', 'Porcentagem', 'StatusTarefa', 'id_tarefa_novo'
+            ];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) {
+                    delete rowData[key];
+                }
+            });
+        }
+
+        // SAFETY: dim_clientes
+        if (hasData && tableName === 'dim_clientes') {
+            const ALLOWED = ['ID_Cliente', 'NomeCliente', 'contato_principal', 'ativo', 'Contrato', 'Criado', 'NewLogo', 'Pais', 'Desativado'];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) delete rowData[key];
+            });
+        }
+
+        // SAFETY: dim_projetos
+        if (hasData && tableName === 'dim_projetos') {
+            const ALLOWED = ['ID_Projeto', 'ID_Cliente', 'NomeProjeto', 'StatusProjeto', 'budget', 'startDate', 'estimatedDelivery', 'manager', 'description', 'ativo', 'valor_total_rs'];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) delete rowData[key];
+            });
+        }
+
+        // SAFETY: dim_colaboradores
+        if (hasData && tableName === 'dim_colaboradores') {
+            const ALLOWED = ['ID_Colaborador', 'NomeColaborador', 'email', 'Cargo', 'papel', 'ativo', 'avatar_url', 'auth_user_id'];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) delete rowData[key];
+            });
+        }
 
         if (hasData) rows.push(rowData);
     });

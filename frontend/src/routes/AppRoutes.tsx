@@ -60,6 +60,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <>{children}</>;
 };
 
+import AdminMonitoringView from '@/components/AdminMonitoringView';
+
 const AppRoutes: React.FC = () => {
     const navigate = useNavigate();
 
@@ -73,9 +75,6 @@ const AppRoutes: React.FC = () => {
             <Route path="/" element={
                 <ProtectedRoute>
                     <Navigate to="/dashboard" replace />
-                    {/* A lógica de redirect real poderia ser mais complexa, mas vamos manter simples por enquanto. 
-                        O Dashboard do admin é /admin/dashboard? Não, vamos definir a rota /dashboard para redirecionar.
-                    */}
                 </ProtectedRoute>
             } />
 
@@ -97,6 +96,16 @@ const AppRoutes: React.FC = () => {
                     </ProtectedRoute>
                 }
             >
+                {/* NOVO: Dashboard de Monitoramento */}
+                <Route
+                    path="admin/monitoring"
+                    element={
+                        <ProtectedRoute requiredRole="admin">
+                            <AdminMonitoringView />
+                        </ProtectedRoute>
+                    }
+                />
+
                 {/* Dashboard Admin (Clientes) */}
                 <Route
                     index

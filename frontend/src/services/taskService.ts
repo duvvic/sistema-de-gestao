@@ -30,10 +30,10 @@ async function getCollaboratorIdByName(name: string | undefined): Promise<number
 function mapStatusToDb(status: string | undefined): string {
   switch (status) {
     case 'Done': return 'Concluído';
-    case 'In Progress': return 'Em Andamento';
-    case 'Review': return 'Revisão';
+    case 'In Progress': return 'Trabalhando';
+    case 'Review': return 'Teste';
     case 'Todo':
-    default: return 'A Fazer';
+    default: return 'Não Iniciado';
   }
 }
 

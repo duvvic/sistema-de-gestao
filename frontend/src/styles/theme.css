@@ -71,8 +71,8 @@
   /* Slate 100 - Light but visible */
   --status-progress: #DBEAFE;
   /* Blue 100 */
-  --status-review: #F3E8FF;
-  /* Purple 100 */
+  --status-review: #FEF3C7;
+  /* Amber 100 - Yellow for Teste */
   --status-done: #D1FAE5;
   /* Emerald 100 */
 
@@ -142,7 +142,8 @@ html.dark {
   /* Kanban Dark Mode - Deeper colors for column backgrounds */
   --status-todo: #1e1b2e;
   --status-progress: rgba(30, 58, 138, 0.25);
-  --status-review: rgba(88, 28, 135, 0.25);
+  --status-review: rgba(234, 179, 8, 0.15);
+  /* Yellow transparency */
   --status-done: rgba(6, 78, 59, 0.25);
 
   /* Notes Colors - Refined for Dark Mode */
@@ -297,4 +298,17 @@ html.dark .opacity-60 {
 
 html.dark .opacity-70 {
   opacity: 0.7 !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }

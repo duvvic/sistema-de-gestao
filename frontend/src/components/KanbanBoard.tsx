@@ -44,9 +44,9 @@ import ConfirmationModal from './ConfirmationModal';
 import { TaskCreationModal } from './TaskCreationModal';
 
 const STATUS_COLUMNS: { id: Status; title: string; color: string; bg: string; badgeColor: string }[] = [
-  { id: 'Todo', title: 'A Fazer', color: 'var(--text)', bg: 'var(--status-todo)', badgeColor: 'var(--muted)' },
-  { id: 'In Progress', title: 'Em Progresso', color: 'var(--info-text)', bg: 'var(--status-progress)', badgeColor: 'var(--info)' },
-  { id: 'Review', title: 'Revisão', color: 'var(--primary)', bg: 'var(--status-review)', badgeColor: 'var(--primary)' },
+  { id: 'Todo', title: 'Não Iniciado', color: 'var(--text)', bg: 'var(--status-todo)', badgeColor: 'var(--muted)' },
+  { id: 'In Progress', title: 'Trabalhando', color: 'var(--info-text)', bg: 'var(--status-progress)', badgeColor: 'var(--info)' },
+  { id: 'Review', title: 'Teste', color: 'var(--warning-text)', bg: 'var(--status-review)', badgeColor: 'var(--warning-text)' },
   { id: 'Done', title: 'Concluído', color: 'var(--success-text)', bg: 'var(--status-done)', badgeColor: 'var(--success)' },
 ];
 
@@ -131,10 +131,20 @@ const KanbanCard = ({
         `}
         style={{
           backgroundColor: isHighlighted ? 'var(--surface-hover)' : 'var(--surface)',
-          borderColor: isHighlighted ? 'var(--primary)' : (isDelayed ? '#ef4444' : (isStudy ? '#3b82f6' : 'var(--border)')),
+          borderColor: isHighlighted
+            ? 'var(--primary)'
+            : isDelayed
+              ? '#ef4444'
+              : task.status === 'Review'
+                ? 'var(--warning-text)'
+                : task.status === 'Done'
+                  ? 'var(--success)'
+                  : isStudy
+                    ? '#3b82f6'
+                    : 'var(--border)',
           boxShadow: isHighlighted ? '0 0 0 2px var(--primary)' : 'var(--shadow)',
           transform: isHighlighted ? 'scale(1.02)' : 'none',
-          borderTopWidth: (isDelayed || isStudy) ? '4px' : '1px'
+          borderTopWidth: (isDelayed || isStudy || task.status === 'Review' || task.status === 'Done') ? '4px' : '1px'
         }}
         onClick={() => onTaskClick(task.id)}
       >
@@ -297,7 +307,10 @@ const KanbanColumn = ({
   onDelete,
   isAdmin,
   highlightedTaskId,
-  users
+  users,
+  onLoadMore,
+  hasMore,
+  totalCount
 }: {
   col: typeof STATUS_COLUMNS[0];
   tasks: Task[];
@@ -308,6 +321,9 @@ const KanbanColumn = ({
   isAdmin: boolean;
   highlightedTaskId: string | null;
   users: User[];
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  totalCount?: number;
 }) => {
   const { setNodeRef } = useSortable({
     id: col.id,
@@ -330,7 +346,7 @@ const KanbanColumn = ({
         </h3>
         <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
           style={{ backgroundColor: 'var(--bg)', color: col.badgeColor, border: '1px solid var(--border)' }}>
-          {tasks.length}
+          {totalCount !== undefined ? totalCount : tasks.length}
         </span>
       </div>
 
@@ -350,6 +366,16 @@ const KanbanColumn = ({
             />
           ))}
         </SortableContext>
+        {onLoadMore && hasMore && (
+          <button
+            onClick={onLoadMore}
+            className="w-full py-2 mb-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all hover:bg-black/5 active:scale-95 flex items-center justify-center gap-2"
+            style={{ color: col.badgeColor }}
+          >
+            <Plus className="w-4 h-4" />
+            Carregar mais 10
+          </button>
+        )}
       </div>
     </div>
   );
@@ -372,6 +398,7 @@ export const KanbanBoard = () => {
   const [showTaskCreationModal, setShowTaskCreationModal] = useState(false);
   const [showOnlyDelayed, setShowOnlyDelayed] = useState(false);
   const [periodFilter, setPeriodFilter] = useState<'all' | '7' | '15' | '30'>('all');
+  const [doneLimit, setDoneLimit] = useState(10);
 
   // Auxiliar para detectar atraso
   const isTaskDelayed = (t: Task) => {
@@ -516,10 +543,7 @@ export const KanbanBoard = () => {
     if (activeTask.status !== newStatus) {
       // Calcular novo progresso automático
       let newProgress = activeTask.progress;
-      if (newStatus === 'Todo') newProgress = 10;
-      else if (newStatus === 'In Progress') newProgress = 30;
-      else if (newStatus === 'Review') newProgress = 80;
-      else if (newStatus === 'Done') newProgress = 100;
+      // Progress calculation removed to allow manual control only
 
       try {
         // Atualizar via Controller
@@ -853,26 +877,43 @@ export const KanbanBoard = () => {
           <div className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4 px-2 custom-scrollbar h-full">
             {STATUS_COLUMNS
               .filter(col => !showOnlyDelayed || col.id !== 'Done')
-              .map((col) => (
-                <KanbanColumn
-                  key={col.id}
-                  col={col}
-                  tasks={filteredTasks.filter(t => t.status === col.id)}
-                  clients={clients}
-                  projects={projects}
-                  onTaskClick={(id) => {
-                    if (id.startsWith('__NAVIGATE__:')) {
-                      navigate(id.replace('__NAVIGATE__:', ''));
-                    } else {
-                      navigate(`/tasks/${id}`);
-                    }
-                  }}
-                  onDelete={handleDeleteClick}
-                  isAdmin={isAdmin}
-                  highlightedTaskId={highlightedTaskId}
-                  users={users}
-                />
-              ))}
+              .map((col) => {
+                const columnTasks = filteredTasks.filter(t => t.status === col.id);
+                const isDone = col.id === 'Done';
+                const displayedTasks = isDone
+                  ? columnTasks
+                    .sort((a, b) => {
+                      const dateA = a.actualDelivery ? new Date(a.actualDelivery).getTime() : 0;
+                      const dateB = b.actualDelivery ? new Date(b.actualDelivery).getTime() : 0;
+                      return dateB - dateA;
+                    })
+                    .slice(0, doneLimit)
+                  : columnTasks;
+
+                return (
+                  <KanbanColumn
+                    key={col.id}
+                    col={col}
+                    tasks={displayedTasks}
+                    totalCount={isDone ? columnTasks.length : undefined}
+                    clients={clients}
+                    projects={projects}
+                    onTaskClick={(id) => {
+                      if (id.startsWith('__NAVIGATE__:')) {
+                        navigate(id.replace('__NAVIGATE__:', ''));
+                      } else {
+                        navigate(`/tasks/${id}`);
+                      }
+                    }}
+                    onDelete={handleDeleteClick}
+                    isAdmin={isAdmin}
+                    highlightedTaskId={highlightedTaskId}
+                    users={users}
+                    onLoadMore={isDone ? () => setDoneLimit(prev => prev + 10) : undefined}
+                    hasMore={isDone ? displayedTasks.length < columnTasks.length : false}
+                  />
+                );
+              })}
           </div>
 
           <DragOverlay dropAnimation={{

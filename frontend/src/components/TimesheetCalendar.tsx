@@ -19,12 +19,14 @@ interface TimesheetCalendarProps {
 const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded }) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { timesheetEntries, deleteTimesheet, tasks, users, loading } = useDataController();
+  const { timesheetEntries, deleteTimesheet, tasks, users, loading, clients, projects } = useDataController();
 
   // Safety checks
   const allEntries = timesheetEntries || [];
   const safeUsers = users || [];
   const safeTasks = tasks || [];
+  const safeClients = clients || [];
+  const safeProjects = projects || [];
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -395,23 +397,33 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                       <div className="space-y-1.5">
                         {dayEntries.map(entry => {
                           const task = safeTasks.find(t => t.id === entry.taskId);
-                          const title = task?.title || entry.description || 'Horas';
+                          const client = safeClients.find(c => c.id === entry.clientId);
+                          const project = safeProjects.find(p => p.id === entry.projectId);
+
+                          // Título Inteligente: Tarefa > Descrição > Projeto > "Horas Avulsas"
+                          let displayTitle = task?.title;
+                          if (!displayTitle) {
+                            if (entry.description) displayTitle = entry.description;
+                            else if (project) displayTitle = `${project.name} (S/ Tarefa)`;
+                            else displayTitle = 'Horas Avulsas';
+                          }
 
                           return (
                             <div
                               key={entry.id}
                               onClick={(e) => { e.stopPropagation(); navigate(`/timesheet/${entry.id}`); }}
-                              className="border shadow-sm rounded-md px-2 py-1.5 text-[10px] truncate transition-all flex justify-between items-center group/item"
+                              className="border shadow-sm rounded-md px-2 py-1.5 text-[10px] truncate transition-all flex justify-between items-center group/item flex-col items-start gap-0.5 h-auto"
                               style={{
-                                backgroundColor: 'var(--surface-2)', // Slightly darker than the day cell
+                                backgroundColor: 'var(--surface-2)',
                                 borderColor: 'var(--border)',
                                 color: 'var(--text)',
                                 boxShadow: 'var(--shadow-sm)'
                               }}
+                              title={`${client?.name || 'Cliente?'} - ${project?.name || 'Projeto?'}\n${entry.description || ''}`}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.borderColor = 'var(--primary)';
                                 e.currentTarget.style.color = 'var(--primary)';
-                                e.currentTarget.style.backgroundColor = 'var(--surface)'; // Highlight on hover
+                                e.currentTarget.style.backgroundColor = 'var(--surface)';
                                 e.currentTarget.style.boxShadow = 'var(--shadow-md)';
                               }}
                               onMouseLeave={(e) => {
@@ -421,17 +433,26 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                                 e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
                               }}
                             >
-                              <div className="flex items-center gap-2 truncate">
-                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${entry.totalHours >= 8 ? 'bg-emerald-400' : 'bg-purple-400'}`}></div>
-                                <span className="truncate font-medium">{title}</span>
+                              <div className="flex w-full justify-between items-center">
+                                <div className="flex items-center gap-2 truncate">
+                                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${entry.totalHours >= 8 ? 'bg-emerald-400' : 'bg-purple-400'}`}></div>
+                                  <span className="truncate font-medium">{displayTitle}</span>
+                                </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEntryToDelete(entry); setDeleteModalOpen(true); }}
+                                  className="opacity-0 group-hover/item:opacity-100 transition-opacity hover:text-red-500"
+                                  style={{ color: 'var(--muted)' }}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
                               </div>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setEntryToDelete(entry); setDeleteModalOpen(true); }}
-                                className="opacity-0 group-hover/item:opacity-100 transition-opacity hover:text-red-500"
-                                style={{ color: 'var(--muted)' }}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
+
+                              {/* Subtitle with Project/Client */}
+                              {(project || client) && (
+                                <div className="text-[9px] opacity-70 truncate w-full pl-3.5" style={{ color: 'var(--muted)' }}>
+                                  {project?.name || client?.name}
+                                </div>
+                              )}
                             </div>
                           );
                         })}

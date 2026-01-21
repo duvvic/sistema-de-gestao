@@ -426,9 +426,9 @@ const TaskDetail: React.FC = () => {
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
                   disabled={isTaskCompleted}
                 >
-                  <option value="Todo">A Fazer</option>
-                  <option value="In Progress">Em Progresso</option>
-                  <option value="Review">Revisão</option>
+                  <option value="Todo">Não Iniciado</option>
+                  <option value="In Progress">Trabalhando</option>
+                  <option value="Review">Teste</option>
                   <option value="Done">Concluído</option>
                 </select>
               </div>

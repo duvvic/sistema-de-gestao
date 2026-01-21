@@ -10,11 +10,11 @@ export default {
             colors: {
                 app: "var(--bg-app)",
                 surface: "var(--bg-surface)",
-                surfaceHover: "var(--bg-surface-hover)",
+                surfaceHover: "var(--surface-hover)",
                 sidebar: "var(--sidebar-bg)",
                 textPrimary: "var(--text-primary)",
-                textDefault: "var(--text-default)",
-                textMuted: "var(--text-muted)",
+                textDefault: "var(--text)",
+                textMuted: "var(--textMuted)",
                 borderSubtle: "var(--border)",
             }
         },

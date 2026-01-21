@@ -175,9 +175,9 @@ const ProjectDetailView: React.FC = () => {
                 {(() => {
                   const statusLabels: Record<string, string> = {
                     'Todos': 'Todos os Status',
-                    'Todo': 'A Fazer',
-                    'In Progress': 'Em Progresso',
-                    'Review': 'Revisão',
+                    'Todo': 'Não Iniciado',
+                    'In Progress': 'Trabalhando',
+                    'Review': 'Teste',
                     'Done': 'Concluído'
                   };
                   return statusLabels[selectedStatus] || selectedStatus;
@@ -200,9 +200,9 @@ const ProjectDetailView: React.FC = () => {
                   {['Todos', 'Todo', 'In Progress', 'Review', 'Done'].map(status => {
                     const statusLabels: Record<string, string> = {
                       'Todos': 'Todos os Status',
-                      'Todo': 'A Fazer',
-                      'In Progress': 'Em Progresso',
-                      'Review': 'Revisão',
+                      'Todo': 'Não Iniciado',
+                      'In Progress': 'Trabalhando',
+                      'Review': 'Teste',
                       'Done': 'Concluído'
                     };
 
@@ -289,10 +289,10 @@ const TaskCard: React.FC<TaskCardProps & { project?: any, client?: any }> = ({ t
   };
 
   const statusConfig = {
-    'Todo': { label: 'A FAZER', bg: 'bg-slate-100 dark:bg-slate-900', text: 'text-slate-600 dark:text-slate-400' },
-    'In Progress': { label: 'EM PROGRESSO', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' },
-    'Review': { label: 'REVISÃO', bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400' },
-    'Done': { label: 'CONCLUÍDO', bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400' },
+    'Todo': { label: 'NÃO INICIADO', bg: 'bg-[#F1F5F9] dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300' },
+    'In Progress': { label: 'TRABALHANDO', bg: 'bg-[#DBEAFE] dark:bg-blue-900/40', text: 'text-blue-700 dark:text-blue-300' },
+    'Review': { label: 'TESTE', bg: 'bg-[#FEF3C7] dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300' },
+    'Done': { label: 'CONCLUÍDO', bg: 'bg-[#D1FAE5] dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300' },
   };
 
   const status = statusConfig[task.status as keyof typeof statusConfig] || statusConfig['Todo'];
@@ -302,15 +302,13 @@ const TaskCard: React.FC<TaskCardProps & { project?: any, client?: any }> = ({ t
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (task.status === 'Done') return '#10b981'; // Green
-    if (task.status === 'Review') return 'var(--border)'; // Ignore delay
+    if (task.status === 'Done') return 'var(--success)'; // Green
+    if (task.status === 'Review') return 'var(--warning-text)'; // Yellow
 
     if (task.estimatedDelivery) {
       const due = new Date(task.estimatedDelivery);
       if (due < today) return '#ef4444'; // Red (Delayed)
     }
-
-    if (task.status === 'In Progress') return '#f59e0b'; // Amber
 
     return 'var(--border)'; // Default
   };

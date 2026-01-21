@@ -59,17 +59,17 @@ function normalizeStatus(raw: string | null): Status {
     return "Done";
   }
 
-  // Em andamento / In Progress
-  if (s.includes("andamento") || s.includes("progresso") || s.includes("progress") || s.includes("execu")) {
+  // Trabalhando / Em Andamento / In Progress
+  if (s.includes("trabalhando") || s.includes("andamento") || s.includes("progresso") || s.includes("progress") || s.includes("execu")) {
     return "In Progress";
   }
 
-  // Revisão / Review
-  if (s.includes("revis") || s.includes("review") || s.includes("valida")) {
+  // Teste / Revisão / Review
+  if (s.includes("teste") || s.includes("revis") || s.includes("review") || s.includes("valida")) {
     return "Review";
   }
 
-  // Padrão: A fazer / Todo
+  // Padrão: Não Iniciado / A fazer / Todo
   return "Todo";
 }
 
@@ -118,25 +118,30 @@ function formatDate(dateStr: string | null): string {
     return defaultDate.toISOString().split("T")[0];
   }
 
-  // Se já está no formato correto, retorna
+  // Se já está no formato YYYY-MM-DD, retorna direto (evita new Date() que aplica fuso)
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return dateStr;
   }
 
-  // Tenta parsear e formatar
+  // Se for ISO com tempo (T), pega só a primeira parte
+  if (dateStr.includes('T')) {
+    return dateStr.split('T')[0];
+  }
+
+  // Fallback: Tenta parsear mas compensando o fuso para UTC
   try {
     const date = new Date(dateStr);
     if (!isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
+      // Ajusta para o dia correto em UTC, ignorando o horario local
+      const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+      const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+      return adjustedDate.toISOString().split("T")[0];
     }
   } catch {
-    // Ignora erro de parse
+    // Ignora erro
   }
 
-  // Fallback
-  const defaultDate = new Date();
-  defaultDate.setDate(defaultDate.getDate() + 7);
-  return defaultDate.toISOString().split("T")[0];
+  return new Date().toISOString().split("T")[0];
 }
 
 // =====================================================
@@ -317,7 +322,7 @@ export function useAppData(): AppData {
             clientId: String(r.ID_Cliente || ''),
             projectId: String(r.ID_Projeto || ''),
             taskId: taskId,
-            date: r.Data || (new Date()).toISOString().split('T')[0],
+            date: r.Data ? (r.Data.includes('T') ? r.Data.split('T')[0] : r.Data) : formatDate(null),
             startTime: r.Hora_Inicio || '09:00',
             endTime: r.Hora_Fim || '18:00',
             totalHours: Number(r.Horas_Trabalhadas || 0),

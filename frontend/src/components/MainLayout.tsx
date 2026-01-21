@@ -16,7 +16,9 @@ import {
     Sun,
     GraduationCap,
     StickyNote,
-    Zap
+    Zap,
+    Activity,
+    RefreshCw
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import logoImg from '@/assets/logo.png';
@@ -32,10 +34,12 @@ const MainLayout: React.FC = () => {
 
     // Definição dos menus (movido para cima para ser usado na lógica de animação do menu)
     const adminMenuItems = [
+        { path: '/admin/monitoring', icon: Activity, label: 'Monitoramento' },
         { path: '/admin/clients', icon: Briefcase, label: 'Portfólio' },
         { path: '/tasks', icon: CheckSquare, label: 'Tarefas' },
         { path: '/admin/team', icon: Users, label: 'Colaboradores' },
         { path: '/admin/reports', icon: LayoutDashboard, label: 'Relatórios' },
+        { path: '/admin/sync', icon: RefreshCw, label: 'Sincronização' },
 
         { path: '/timesheet', icon: Clock, label: 'Timesheet' },
         { path: '/notes', icon: StickyNote, label: 'Notas' },
