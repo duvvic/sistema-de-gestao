@@ -200,7 +200,7 @@ const UserForm: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
                     className="w-full px-4 py-3 bg-[var(--bgApp)] border border-[var(--border)] rounded-xl focus:ring-2 focus:ring-[var(--brand)] outline-none transition-all text-[var(--text)]"
                   >
-                    <option value="">Selecione um cargo...</option>
+                    <option value="" disabled hidden>Selecione um cargo...</option>
                     {existingCargos.map(cargo => (
                       <option key={cargo} value={cargo}>{cargo}</option>
                     ))}
