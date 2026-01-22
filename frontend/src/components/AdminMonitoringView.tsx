@@ -60,8 +60,11 @@ const AdminMonitoringView: React.FC = () => {
     const { tasks: allTasks, projects: allProjects, users: allUsers, clients: allClients, loading } = useDataController();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [weather, setWeather] = useState<{ temp: number; icon: string } | null>(null);
-    const [notifications, setNotifications] = useState<Array<{ id: string; message: string; timestamp: number }>>([]);
+    const [notifications, setNotifications] = useState<Array<{ id: string; message: string; timestamp: number; priority: 'HIGH' | 'LOW' }>>([]);
     const [currentNotification, setCurrentNotification] = useState<{ message: string; id: string } | null>(null);
+    const lastNotificationEndTime = useRef<number>(0);
+    const rotationIndexRef = useRef<{ [key: string]: number }>({});
+    const lastRotationTime = useRef<number>(0);
 
     const handleFullScreen = () => {
         if (!document.fullscreenElement) {
@@ -121,71 +124,129 @@ const AdminMonitoringView: React.FC = () => {
     const allUsersMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
 
     // Adicionar notificação à fila (precisa estar antes do useEffect que a usa)
-    const addNotification = (message: string) => {
+    // Adicionar notificação à fila com prioridade
+    const addNotification = (message: string, priority: 'HIGH' | 'LOW' = 'HIGH') => {
         const id = `${Date.now()}-${Math.random()}`;
-        setNotifications(prev => [...prev, { id, message, timestamp: Date.now() }]);
+        setNotifications(prev => {
+            if (priority === 'HIGH') {
+                // Preempt: Coloca no início da fila de processamento (logo após a atual se houver)
+                return [{ id, message, timestamp: Date.now(), priority }, ...prev];
+            }
+            return [...prev, { id, message, timestamp: Date.now(), priority }];
+        });
     };
 
-    // Sistema de notificações em tempo real
+    // --- ROTATION & SCHEDULER SYSTEM ---
+    useEffect(() => {
+        const PERIOD_MESSAGES = [
+            { id: 'entrada_manha', range: [8, 0, 8, 30], messages: ["☀️ Bom dia, time!", "🚀 Sistemas iniciados e monitoramento ativo.", "📊 Painel de projetos atualizado.", "👀 Acompanhe suas atividades de hoje.", "⚙️ Ambientes operacionais.", "💡 Pequenos commits, grandes resultados."] },
+            { id: 'manha_tarefas', range: [8, 30, 12, 0], messages: ["📋 Não esqueça de criar sua tarefa antes de iniciar.", "🧠 Organize suas prioridades do dia.", "👀 Sistema monitorando operações.", "🔄 Atualizações do sistema aparecem aqui.", "📈 Projetos em andamento.", "⚠️ Tarefa criada = rastreabilidade garantida."] },
+            { id: 'almoco', range: [12, 0, 13, 0], messages: ["🍽️ Horário de almoço — bom descanso!", "☕ Pausa estratégica.", "😌 Recarregando energias.", "⏸️ Monitoramento segue ativo.", "📡 Sistemas estáveis.", "⏱️ Voltamos em breve."] },
+            { id: 'tarde_foco', range: [13, 0, 16, 0], messages: ["⚡ Atividades retomadas.", "👀 Sistema monitorando projetos.", "🧩 Hora de transformar tarefas em entregas.", "📊 Acompanhe o progresso no dashboard.", "🔧 Ambientes estáveis.", "🚀 Foco na entrega."] },
+            { id: 'apontamento_horas', range: [16, 0, 17, 30], messages: ["⏱️ Não esqueça de apontar suas horas.", "📌 Apontamento garante visibilidade.", "🕒 Último período para registrar horas.", "⚠️ Horas não apontadas impactam relatórios.", "📊 Confira se todas as tarefas estão registradas.", "✅ Feche o dia corretamente."] },
+            { id: 'fora_horario_noite', range: [17, 30, 23, 59], messages: ["🌙 Sistema em monitoramento automático.", "🛡️ Ambientes protegidos.", "📡 Monitoramento 24/7 ativo.", "⏱️ Atualizações críticas aparecerão aqui.", "🔒 Operação segura.", "😴 Fora do horário comercial."] },
+            { id: 'fora_horario_madruga', range: [0, 0, 7, 59], messages: ["🌙 Sistema em monitoramento automático.", "🛡️ Ambientes protegidos.", "📡 Monitoramento 24/7 ativo.", "⏱️ Atualizações críticas aparecerão aqui.", "🔒 Operação segura.", "😴 Fora do horário comercial."] }
+        ];
+
+        const runRotation = () => {
+            const now = new Date();
+            const hour = now.getHours();
+            const min = now.getMinutes();
+            const currentTimeInMinutes = hour * 60 + min;
+
+            // Encontrar período atual
+            const currentPeriod = PERIOD_MESSAGES.find(p => {
+                const start = p.range[0] * 60 + p.range[1];
+                const end = p.range[2] * 60 + p.range[3];
+                return currentTimeInMinutes >= start && currentTimeInMinutes <= end;
+            });
+
+            if (!currentPeriod) return;
+
+            // Regra Rotation: A cada 15 segundos se a fila estiver vazia
+            const nowTs = Date.now();
+            if (nowTs - lastRotationTime.current >= 15000) {
+                setNotifications(prev => {
+                    // Só agenda se a fila estiver realmente vazia e nada na tela
+                    if (prev.length === 0 && !currentNotification) {
+                        const idx = rotationIndexRef.current[currentPeriod.id] || 0;
+                        const msg = currentPeriod.messages[idx];
+
+                        // Atualiza índice para a próxima
+                        rotationIndexRef.current[currentPeriod.id] = (idx + 1) % currentPeriod.messages.length;
+                        lastRotationTime.current = Date.now();
+
+                        return [{ id: 'rot-' + Date.now(), message: msg, timestamp: Date.now(), priority: 'LOW' }];
+                    }
+                    return prev;
+                });
+            }
+        };
+
+        const timer = setInterval(runRotation, 5000); // Checa a cada 5s para precisão do trigger de 15s
+        return () => clearInterval(timer);
+    }, [currentNotification]);
+
+    // Sistema de notificações em tempo real (HIGH Priority)
     useEffect(() => {
         const channel = supabase
             .channel('monitoring_notifications')
-            // Tarefas concluídas
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'fato_tarefas',
-                filter: 'StatusTarefa=eq.Done'
-            }, (payload: any) => {
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fato_tarefas', filter: 'StatusTarefa=eq.Done' }, (payload: any) => {
                 const user = allUsersMap.get(String(payload.new.ID_Colaborador));
                 const taskName = payload.new.Afazer || 'Tarefa';
-                addNotification(`✅ ${user?.name || 'Colaborador'} finalizou: ${taskName}`);
+                addNotification(`✅ ${user?.name || 'Colaborador'} finalizou: ${taskName}`, 'HIGH');
             })
-            // Novos projetos
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'dim_projetos'
-            }, (payload: any) => {
-                const projectName = payload.new.NomeProjeto || 'Novo Projeto';
-                addNotification(`🚀 Projeto criado: ${projectName}`);
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dim_projetos' }, (payload: any) => {
+                addNotification(`🚀 Projeto criado: ${payload.new.NomeProjeto || 'Novo Projeto'}`, 'HIGH');
             })
-            // Novas tarefas
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'fato_tarefas'
-            }, (payload: any) => {
-                const taskName = payload.new.Afazer || 'Nova Tarefa';
-                addNotification(`📋 Tarefa criada: ${taskName}`);
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fato_tarefas' }, (payload: any) => {
+                addNotification(`📋 Tarefa criada: ${payload.new.Afazer || 'Nova Tarefa'}`, 'HIGH');
             })
-            // Novos clientes
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'dim_clientes'
-            }, (payload: any) => {
-                const clientName = payload.new.NomeCliente || 'Novo Cliente';
-                addNotification(`🏢 Cliente cadastrado: ${clientName}`);
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dim_clientes' }, (payload: any) => {
+                addNotification(`🏢 Cliente cadastrado: ${payload.new.NomeCliente || 'Novo Cliente'}`, 'HIGH');
             })
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [allUsersMap, addNotification]);
+    }, [allUsersMap]);
 
-    // Processar fila de notificações (mostrar uma por vez, 3 segundos cada)
+    // Processar fila de notificações (8s visível + 2s gap)
     useEffect(() => {
-        if (currentNotification || notifications.length === 0) return;
+        if (notifications.length === 0) return;
 
-        const next = notifications[0];
+        const now = Date.now();
+        const firstHighIndex = notifications.findIndex(n => n.priority === 'HIGH');
+        const hasHighQueued = firstHighIndex !== -1;
+
+        // Lógica de Preempt (Interrupção): 
+        // Se houver uma HIGH na fila e a atual for LOW, interrompe imediatamente.
+        if (currentNotification) {
+            const currentObj = notifications.find(n => n.id === currentNotification.id);
+            if (currentObj?.priority === 'LOW' && hasHighQueued) {
+                setCurrentNotification(null); // Gatilha re-render para pegar a HIGH
+                return;
+            }
+            return; // Continua exibindo a atual
+        }
+
+        // Regra de Gap: transition_gap_seconds = 2s
+        const timeSinceLast = now - lastNotificationEndTime.current;
+        if (timeSinceLast < 2000) {
+            return; // Aguarda o gap de 2s entre qualquer mensagem
+        }
+
+        const nextIndex = hasHighQueued ? firstHighIndex : 0;
+        const next = notifications[nextIndex];
+
         setCurrentNotification({ message: next.message, id: next.id });
 
         const timer = setTimeout(() => {
             setCurrentNotification(null);
             setNotifications(prev => prev.filter(n => n.id !== next.id));
-        }, 3000);
+            lastNotificationEndTime.current = Date.now();
+        }, 8000); // 8 segundos visível
 
         return () => clearTimeout(timer);
     }, [notifications, currentNotification]);
@@ -304,13 +365,13 @@ const AdminMonitoringView: React.FC = () => {
                         {currentNotification ? (
                             <motion.div
                                 key={currentNotification.id}
-                                initial={{ opacity: 0, y: -20 }}
+                                initial={{ opacity: 0, y: -40 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 20 }}
-                                transition={{ duration: 0.3 }}
-                                className="bg-purple-800/50 backdrop-blur-sm border border-purple-600 rounded-xl px-6 py-2 shadow-xl"
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.6, ease: "easeOut" }}
+                                className="bg-purple-800/80 backdrop-blur-md border border-purple-500/50 rounded-2xl px-10 py-3 shadow-2xl ring-1 ring-white/10"
                             >
-                                <span className="text-sm font-bold text-white">{currentNotification.message}</span>
+                                <span className="text-[15px] font-black text-white tracking-wide">{currentNotification.message}</span>
                             </motion.div>
                         ) : (
                             <motion.div
@@ -323,14 +384,16 @@ const AdminMonitoringView: React.FC = () => {
                         )}
                     </AnimatePresence>
 
-                    {/* Botão Tela Cheia (TV) */}
-                    <button
-                        onClick={handleFullScreen}
-                        className="ml-4 p-2 rounded-lg bg-purple-800/30 hover:bg-purple-700/50 text-purple-300 transition-colors border border-purple-700/50 group"
-                        title="Tela Cheia"
-                    >
-                        <Maximize className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    </button>
+                    {/* Botão Tela Cheia (TV) - Oculto se tiver token */}
+                    {!(new URLSearchParams(window.location.search).get('token') === 'xyz123') && (
+                        <button
+                            onClick={handleFullScreen}
+                            className="ml-4 p-2 rounded-lg bg-purple-800/30 hover:bg-purple-700/50 text-purple-300 transition-colors border border-purple-700/50 group"
+                            title="Tela Cheia"
+                        >
+                            <Maximize className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Hora e Data - Direita */}
