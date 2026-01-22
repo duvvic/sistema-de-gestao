@@ -62,9 +62,15 @@ const AdminMonitoringView: React.FC = () => {
     const [weather, setWeather] = useState<{ temp: number; icon: string } | null>(null);
     const [notifications, setNotifications] = useState<Array<{ id: string; message: string; timestamp: number; priority: 'HIGH' | 'LOW' }>>([]);
     const [currentNotification, setCurrentNotification] = useState<{ message: string; id: string } | null>(null);
+    const currentNotificationRef = useRef(currentNotification);
     const lastNotificationEndTime = useRef<number>(0);
     const rotationIndexRef = useRef<{ [key: string]: number }>({});
     const lastRotationTime = useRef<number>(0);
+
+    // Sincronizar ref
+    useEffect(() => {
+        currentNotificationRef.current = currentNotification;
+    }, [currentNotification]);
 
     const handleFullScreen = () => {
         if (!document.fullscreenElement) {
@@ -149,12 +155,14 @@ const AdminMonitoringView: React.FC = () => {
         ];
 
         const runRotation = () => {
+            // Se já tem algo na tela, não inicia nova rotação
+            if (currentNotificationRef.current) return;
+
             const now = new Date();
             const hour = now.getHours();
             const min = now.getMinutes();
             const currentTimeInMinutes = hour * 60 + min;
 
-            // Encontrar período atual
             const currentPeriod = PERIOD_MESSAGES.find(p => {
                 const start = p.range[0] * 60 + p.range[1];
                 const end = p.range[2] * 60 + p.range[3];
@@ -163,17 +171,16 @@ const AdminMonitoringView: React.FC = () => {
 
             if (!currentPeriod) return;
 
-            // Regra Rotation: A cada 15 segundos se a fila estiver vazia
             const nowTs = Date.now();
             if (nowTs - lastRotationTime.current >= 15000) {
                 setNotifications(prev => {
-                    // Só agenda se a fila estiver realmente vazia e nada na tela
-                    if (prev.length === 0 && !currentNotification) {
-                        const idx = rotationIndexRef.current[currentPeriod.id] || 0;
+                    // Só agenda se a fila estiver realmente vazia e nada na tela (via ref fresca)
+                    if (prev.length === 0 && !currentNotificationRef.current) {
+                        const periodKey = currentPeriod.id.includes('fora_horario') ? 'fora_horario' : currentPeriod.id;
+                        const idx = rotationIndexRef.current[periodKey] || 0;
                         const msg = currentPeriod.messages[idx];
 
-                        // Atualiza índice para a próxima
-                        rotationIndexRef.current[currentPeriod.id] = (idx + 1) % currentPeriod.messages.length;
+                        rotationIndexRef.current[periodKey] = (idx + 1) % currentPeriod.messages.length;
                         lastRotationTime.current = Date.now();
 
                         return [{ id: 'rot-' + Date.now(), message: msg, timestamp: Date.now(), priority: 'LOW' }];
@@ -183,9 +190,10 @@ const AdminMonitoringView: React.FC = () => {
             }
         };
 
-        const timer = setInterval(runRotation, 5000); // Checa a cada 5s para precisão do trigger de 15s
+        const timer = setInterval(runRotation, 2000);
+        runRotation();
         return () => clearInterval(timer);
-    }, [currentNotification]);
+    }, []);
 
     // Sistema de notificações em tempo real (HIGH Priority)
     useEffect(() => {
