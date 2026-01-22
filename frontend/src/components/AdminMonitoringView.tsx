@@ -371,24 +371,16 @@ const AdminMonitoringView: React.FC = () => {
                 {/* Notificações - Centro */}
                 <div className="flex-1 flex items-center justify-center px-8">
                     <AnimatePresence mode="wait">
-                        {currentNotification ? (
+                        {currentNotification && (
                             <motion.div
                                 key={currentNotification.id}
                                 initial={{ opacity: 0, y: -40 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.6, ease: "easeOut" }}
-                                className="bg-purple-800/80 backdrop-blur-md border border-purple-500/50 rounded-2xl px-10 py-3 shadow-2xl ring-1 ring-white/10"
+                                className="px-10 py-3"
                             >
                                 <span className="text-[15px] font-black text-white tracking-wide">{currentNotification.message}</span>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="text-xs font-bold text-purple-400 uppercase tracking-widest"
-                            >
-                                Sistema Monitorando...
                             </motion.div>
                         )}
                     </AnimatePresence>
