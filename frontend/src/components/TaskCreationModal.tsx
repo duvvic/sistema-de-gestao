@@ -95,7 +95,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
     });
 
     const filteredUsers = projectId
-        ? users.filter(u => u.active !== false && (isAdmin || projectMembers.some(pm => pm.projectId === projectId && pm.userId === u.id)))
+        ? users.filter(u => u.active !== false && projectMembers.some(pm => pm.projectId === projectId && pm.userId === u.id))
         : [];
 
 
@@ -208,12 +208,27 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                             </select>
                         </div>
 
-                        {/* Colaborador (Responsável Principal - Fixo: Usuário Atual) */}
+                        {/* Colaborador (Responsável Principal) */}
                         <div>
                             <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Responsável Principal</label>
-                            <div className="w-full p-2.5 border rounded-lg bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] font-medium text-sm opacity-70 cursor-not-allowed">
-                                {currentUser?.name || 'Seu Usuário'} (Você)
-                            </div>
+                            {isAdmin ? (
+                                <select
+                                    value={developerId}
+                                    onChange={(e) => setDeveloperId(e.target.value)}
+                                    className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
+                                >
+                                    <option value="">Selecione o Responsável...</option>
+                                    {filteredUsers
+                                        .map(u => (
+                                            <option key={u.id} value={u.id}>{u.name}</option>
+                                        ))
+                                    }
+                                </select>
+                            ) : (
+                                <div className="w-full p-2.5 border rounded-lg bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] font-medium text-sm opacity-70 cursor-not-allowed">
+                                    {currentUser?.name || 'Seu Usuário'} (Você)
+                                </div>
+                            )}
                         </div>
 
                         {/* Colaboradores Adicionais */}

@@ -103,9 +103,25 @@ export function mapDbTaskToTask(row: any, userMap?: Map<string, any>, projectNam
 
 function calculateDaysOverdue(estimated: string | null, actual: string | null, status: Status): number {
     if (!estimated) return 0;
-    if (status === 'Review') return 0;
 
-    // Use local midnight to avoid timezone shifts
+    // Status que não contam como 'em atraso' ativo na gestão
+    if (status === 'Review' || status === 'Done') {
+        if (status === 'Review') return 0;
+
+        // Se já está concluído, calculamos se FOI entregue com atraso
+        if (actual) {
+            const parseLocalDate = (dateStr: string) => {
+                const parts = dateStr.split('T')[0].split('-');
+                return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            };
+            const deadline = parseLocalDate(estimated);
+            const delivery = parseLocalDate(actual);
+            const diff = Math.floor((delivery.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
+            return diff > 0 ? diff : 0;
+        }
+        return 0;
+    }
+
     const parseLocalDate = (dateStr: string) => {
         const parts = dateStr.split('T')[0].split('-');
         return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
@@ -115,14 +131,10 @@ function calculateDaysOverdue(estimated: string | null, actual: string | null, s
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    if (status === 'Done') {
-        if (actual) {
-            const delivery = parseLocalDate(actual);
-            return Math.ceil((delivery.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
-        }
-        return 0;
-    }
-    return Math.ceil((now.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
+    // Só é considerado atraso se o dia de hoje FOR MAIOR que o dia da entrega
+    // Se hoje for 23 e a entrega for 23, diff será 0.
+    const diff = Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 0;
 }
 
 export function mapDbTimesheetToEntry(r: any, taskExternalMap?: Map<string, string>): TimesheetEntry {
@@ -144,8 +156,8 @@ export function mapDbTimesheetToEntry(r: any, taskExternalMap?: Map<string, stri
         projectId: String(r.ID_Projeto || ''),
         taskId: taskId,
         date: r.Data ? (r.Data.includes('T') ? r.Data.split('T')[0] : r.Data) : formatDate(null),
-        startTime: r.Hora_Inicio || '09:00',
-        endTime: r.Hora_Fim || '18:00',
+        startTime: r.Hora_Inicio || '',
+        endTime: r.Hora_Fim || '',
         totalHours: Number(r.Horas_Trabalhadas || 0),
         lunchDeduction: !!r.Almoco_Deduzido,
         description: r.Descricao || undefined,

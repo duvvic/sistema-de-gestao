@@ -14,7 +14,7 @@ const TaskDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentUser, isAdmin } = useAuth();
-  const { tasks, clients, projects, users, createTask, updateTask } = useDataController();
+  const { tasks, clients, projects, users, projectMembers, createTask, updateTask } = useDataController();
   const isDeveloper = !isAdmin;
 
   const isNew = !taskId || taskId === 'new';
@@ -102,9 +102,9 @@ const TaskDetail: React.FC = () => {
         status: (formData.status as Status) || 'Todo',
         progress: Number(formData.progress) || 0,
         estimatedDelivery: formData.estimatedDelivery!,
-        // Garante que o responsável seja o usuário logado na criação
-        developerId: isNew ? currentUser?.id : formData.developerId,
-        developer: isNew ? currentUser?.name : formData.developer
+        // Garante que o responsável seja o usuário logado na criação se nenhum for selecionado
+        developerId: formData.developerId || (isNew ? currentUser?.id : formData.developerId),
+        developer: formData.developer || (isNew ? currentUser?.name : formData.developer)
       };
 
       if (isNew) {
@@ -178,7 +178,6 @@ const TaskDetail: React.FC = () => {
   const selectedClient = clients.find(c => c.id === formData.clientId);
   const selectedProject = projects.find(p => p.id === formData.projectId);
 
-  const { projectMembers } = useDataController();
 
   const availableProjectsIds = React.useMemo(() => {
     if (isAdmin) return projects.map(p => p.id);
@@ -446,33 +445,59 @@ const TaskDetail: React.FC = () => {
                 <label className="block text-xs font-bold mb-2 flex items-center gap-2 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
                   <UserIcon className="w-4 h-4" /> Responsável
                 </label>
-                <div className="flex items-center group">
-                  {(() => {
-                    const dev = users.find(u => u.id === formData.developerId);
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/admin/team/${formData.developerId}`)}
-                          className="w-11 h-11 rounded-full border-2 border-[var(--primary)] p-0.5 flex items-center justify-center overflow-hidden z-10 bg-[var(--surface)] hover:ring-2 hover:ring-[var(--primary)] hover:ring-offset-2 transition-all active:scale-95 flex-shrink-0 shadow-lg"
-                        >
-                          {dev?.avatarUrl ? (
-                            <img src={dev.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
-                          ) : (
-                            <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-xs font-black">
-                              {formData.developer?.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </button>
-                        <div className="flex-1 -ml-4 pl-7 pr-4 py-2.5 rounded-r-2xl border border-l-0 shadow-sm transition-all group-hover:border-[var(--primary)]"
-                          style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                          <span className="text-sm font-black tracking-tight" style={{ color: 'var(--text)' }}>
-                            {formData.developer || 'Sem responsável'}
-                          </span>
-                        </div>
-                      </>
-                    );
-                  })()}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center group">
+                    {(() => {
+                      const dev = users.find(u => u.id === formData.developerId);
+                      return (
+                        <>
+                          <div
+                            className="w-11 h-11 rounded-full border-2 border-[var(--primary)] p-0.5 flex items-center justify-center overflow-hidden z-10 bg-[var(--surface)] shadow-lg"
+                          >
+                            {dev?.avatarUrl ? (
+                              <img src={dev.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                            ) : (
+                              <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-xs font-black">
+                                {formData.developer?.charAt(0).toUpperCase() || '?'}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 -ml-4 pl-7 pr-4 py-2.5 rounded-r-2xl border border-l-0 shadow-sm transition-all"
+                            style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                            <span className="text-sm font-black tracking-tight" style={{ color: 'var(--text)' }}>
+                              {formData.developer || 'Sem responsável'}
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {isAdmin && (
+                    <select
+                      value={formData.developerId || ''}
+                      onChange={(e) => {
+                        const selectedUser = users.find(u => u.id === e.target.value);
+                        markDirty();
+                        setFormData({
+                          ...formData,
+                          developerId: e.target.value,
+                          developer: selectedUser?.name || ''
+                        });
+                      }}
+                      className="w-full p-2.5 border rounded-xl text-xs font-bold shadow-sm outline-none focus:ring-2 focus:ring-[var(--ring)] transition-all"
+                      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                    >
+                      <option value="">Trocar responsável...</option>
+                      {users
+                        .filter(u => u.active !== false && projectMembers.some(pm => pm.projectId === formData.projectId && pm.userId === u.id))
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(u => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))
+                      }
+                    </select>
+                  )}
                 </div>
               </div>
 

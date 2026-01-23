@@ -139,9 +139,18 @@ const TimesheetForm: React.FC = () => {
     return minutes > 0 ? `${hours}h${minutes.toString().padStart(2, '0')}` : `${hours}h`;
   };
 
-  const totalHours = calculateTotalHours(formData.startTime || '00:00', formData.endTime || '00:00');
-  const adjustedTotalHours = deductLunch ? Math.max(0, totalHours - 1) : totalHours;
-  const timeDisplay = calculateTimeDisplay(formData.startTime || '00:00', formData.endTime || '00:00', deductLunch);
+  // Determine the display hours: if we have both times, calculate. Otherwise, use what's in the DB (formData.totalHours).
+  const hasTimes = !!formData.startTime && !!formData.endTime;
+
+  const totalHours = hasTimes
+    ? calculateTotalHours(formData.startTime!, formData.endTime!)
+    : (formData.totalHours || 0);
+
+  const adjustedTotalHours = hasTimes && deductLunch ? Math.max(0, totalHours - 1) : totalHours;
+
+  const timeDisplay = hasTimes
+    ? calculateTimeDisplay(formData.startTime!, formData.endTime!, deductLunch)
+    : `${formData.totalHours || 0}h`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -119,7 +119,7 @@ const AdminDashboard: React.FC = () => {
           return clientTasks.some(t => {
             if (t.status === 'Done' || t.status === 'Review') return false;
             if (!t.estimatedDelivery) return false;
-            return new Date(t.estimatedDelivery) < new Date();
+            return (t.daysOverdue ?? 0) > 0;
           });
         }
         if (taskStatusFilter === 'ongoing') {

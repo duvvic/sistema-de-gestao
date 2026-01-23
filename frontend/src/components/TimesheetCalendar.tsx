@@ -402,17 +402,7 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                 const dayEntries = currentEntries.filter(e => e.date === dateStr);
 
                 // Recalculate total hours to fix any inconsistencies
-                const totalDayHours = dayEntries.reduce((acc, entry) => {
-                  // Recalculate based on actual start/end times
-                  const [startH, startM] = (entry.startTime || '00:00').split(':').map(Number);
-                  const [endH, endM] = (entry.endTime || '00:00').split(':').map(Number);
-                  let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-                  if (diffMinutes < 0) diffMinutes += 24 * 60;
-                  if (entry.lunchDeduction) diffMinutes = Math.max(0, diffMinutes - 60);
-                  const calculatedHours = diffMinutes / 60;
-
-                  return acc + calculatedHours;
-                }, 0);
+                const totalDayHours = dayEntries.reduce((acc, entry) => acc + (entry.totalHours || 0), 0);
 
                 const hasEntries = dayEntries.length > 0;
                 const isToday = new Date().toISOString().split('T')[0] === dateStr;
