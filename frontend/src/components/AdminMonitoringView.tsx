@@ -59,7 +59,11 @@ const SectionHeader = ({ label, icon: Icon, colorClass }: { label: string, icon:
 const AdminMonitoringView: React.FC = () => {
     const { tasks: allTasks, projects: allProjects, users: allUsers, clients: allClients, loading } = useDataController();
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [weather, setWeather] = useState<{ temp: number; icon: string } | null>(null);
+    const [weather, setWeather] = useState<{
+        temp: number;
+        icon: string;
+        condition: string;
+    } | null>(null);
     const [notifications, setNotifications] = useState<Array<{ id: string; message: string; timestamp: number; priority: 'HIGH' | 'LOW' }>>([]);
     const [currentNotification, setCurrentNotification] = useState<{ message: string; id: string } | null>(null);
     const currentNotificationRef = useRef(currentNotification);
@@ -95,27 +99,40 @@ const AdminMonitoringView: React.FC = () => {
     useEffect(() => {
         const fetchWeather = async () => {
             try {
-                // Usando Open-Meteo API (gratuita, sem necessidade de API key)
+                // Latitude/Longitude de Sabará-MG: -19.8833, -43.8056
                 const response = await fetch(
-                    'https://api.open-meteo.com/v1/forecast?latitude=-19.8833&longitude=-43.8056&current_weather=true&timezone=America/Sao_Paulo'
+                    'https://api.open-meteo.com/v1/forecast?latitude=-19.8833&longitude=-43.8056&current=temperature_2m,weather_code&timezone=America/Sao_Paulo'
                 );
                 const data = await response.json();
-                if (data.current_weather) {
-                    const code = data.current_weather.weathercode;
-                    let iconUrl = '';
 
-                    // Mapeamento para Microsoft Fluent Emoji (Animated GIFs)
-                    // Mais grossos e expressivos, ideais para visualização em TV
-                    if (code <= 1) iconUrl = 'https://fonts.gstatic.com/s/e/notoemoji/latest/2600_fe0f/512.gif'; // Sol
-                    else if (code <= 3) iconUrl = 'https://fonts.gstatic.com/s/e/notoemoji/latest/1f324_fe0f/512.gif'; // Parcialmente nublado
-                    else if (code >= 95) iconUrl = 'https://fonts.gstatic.com/s/e/notoemoji/latest/26c8_fe0f/512.gif'; // Tempestade
-                    else if (code >= 51 || code === 80) iconUrl = 'https://fonts.gstatic.com/s/e/notoemoji/latest/1f327_fe0f/512.gif'; // Chuva forte
-                    else if (code >= 45 && code <= 48) iconUrl = 'https://fonts.gstatic.com/s/e/notoemoji/latest/1f32b_fe0f/512.gif'; // Névoa
-                    else iconUrl = 'https://fonts.gstatic.com/s/e/notoemoji/latest/2601_fe0f/512.gif'; // Nublado
+                if (data.current) {
+                    const code = data.current.weather_code;
+                    let iconUrl = '';
+                    let conditionText = 'Nublado';
+
+                    // Mapeamento de condições simplificado e mais preciso
+                    const mappings: any = {
+                        0: { text: 'Céu Limpo', gif: '2600_fe0f' },
+                        1: { text: 'Céu Limpo', gif: '2600_fe0f' },
+                        2: { text: 'Parcialmente Nublado', gif: '1f324_fe0f' },
+                        3: { text: 'Nublado', gif: '2601_fe0f' },
+                        45: { text: 'Nevoeiro', gif: '1f32b_fe0f' },
+                        48: { text: 'Nevoeiro', gif: '1f32b_fe0f' },
+                        51: { text: 'Chuvisco', gif: '1f327_fe0f' },
+                        61: { text: 'Chuva Leve', gif: '1f327_fe0f' },
+                        63: { text: 'Chuva', gif: '1f327_fe0f' },
+                        80: { text: 'Pancadas de Chuva', gif: '1f327_fe0f' },
+                        95: { text: 'Tempestade', gif: '26c8_fe0f' },
+                    };
+
+                    const match = mappings[code] || { text: 'Nublado', gif: '2601_fe0f' };
+                    conditionText = match.text;
+                    iconUrl = `https://fonts.gstatic.com/s/e/notoemoji/latest/${match.gif}/512.gif`;
 
                     setWeather({
-                        temp: Math.round(data.current_weather.temperature),
-                        icon: iconUrl
+                        temp: Math.round(data.current.temperature_2m),
+                        icon: iconUrl,
+                        condition: conditionText
                     });
                 }
             } catch (error) {
@@ -170,7 +187,7 @@ const AdminMonitoringView: React.FC = () => {
             if (!currentPeriod) return;
 
             const nowTs = Date.now();
-            if (nowTs - lastRotationTime.current >= 15000) {
+            if (nowTs - lastRotationTime.current >= 6000) {
                 // Se já tem algo na tela ou na fila, espera um pouco mais para não acumular
                 if (currentNotificationRef.current) return;
 
@@ -217,7 +234,7 @@ const AdminMonitoringView: React.FC = () => {
     useEffect(() => {
         if (!currentNotification) return;
 
-        const duration = 8000;
+        const duration = 5000;
         const timer = setTimeout(() => {
             const idToRemove = currentNotification.id;
             setCurrentNotification(null);
@@ -248,9 +265,9 @@ const AdminMonitoringView: React.FC = () => {
         // Regra de Gap: 2s entre mensagens
         const now = Date.now();
         const timeSinceLast = now - lastNotificationEndTime.current;
-        if (timeSinceLast < 2000) {
+        if (timeSinceLast < 1000) {
             // Re-checa em breve para não ficar parado
-            const retry = setTimeout(() => setNotifications(prev => [...prev]), 500);
+            const retry = setTimeout(() => setNotifications(prev => [...prev]), 300);
             return () => clearTimeout(retry);
         }
 
@@ -292,7 +309,8 @@ const AdminMonitoringView: React.FC = () => {
     const clientMap = useMemo(() => new Map(allClients.map(c => [c.id, c])), [allClients]);
     const projectMap = useMemo(() => new Map(allProjects.map(p => [p.id, p])), [allProjects]);
 
-    const isTaskDelayed = (task: Task) => (task.daysOverdue ?? 0) > 0;
+    const isTaskDelayed = (task: Task) => task.status !== 'Done' && task.status !== 'Review' && (task.progress || 0) < 100 && (task.daysOverdue ?? 0) > 0;
+    const isCollaboratorDelayed = (task: Task) => task.status !== 'Done' && task.status !== 'Review' && (task.progress || 0) < 100 && (task.daysOverdue ?? 0) > 0;
 
     const activeProjects = useMemo(() => {
         return allProjects.filter(p => {
@@ -306,22 +324,22 @@ const AdminMonitoringView: React.FC = () => {
         const members = filteredUsers.map(user => {
             const userTasks = allTasks.filter(t => t.developerId === user.id);
             const activeTasks = userTasks.filter(t => t.status === 'In Progress' || t.status === 'Review');
-            const delayedTasks = userTasks.filter(t => isTaskDelayed(t));
+            const delayedTasksForStatus = userTasks.filter(t => isCollaboratorDelayed(t));
             const hasStudy = userTasks.some(t => t.title.toLowerCase().includes('estudo'));
 
-            let status: 'LIVRE' | 'ESTUDANDO' | 'OCUPADO' | 'ATRASADO' = 'LIVRE';
-            if (delayedTasks.length > 0) status = 'ATRASADO';
+            let status: 'LIVRE' | 'ESTUDANDO' | 'TRABALHANDO' | 'ATRASADO' = 'LIVRE';
+            if (delayedTasksForStatus.length > 0) status = 'ATRASADO';
             else if (user.cargo?.toLowerCase().includes('estudo') || hasStudy) status = 'ESTUDANDO';
-            else if (activeTasks.length > 0) status = 'OCUPADO';
+            else if (activeTasks.length > 0) status = 'TRABALHANDO';
 
             return { ...user, boardStatus: status };
         });
 
-        return members.filter(m => m.boardStatus !== 'OCUPADO');
+        return members;
     }, [allUsers, allTasks]);
 
     if (loading) return (
-        <div className="h-screen flex items-center justify-center bg-white">
+        <div className="h-screen flex items-center justify-center bg-[#f5f3ff]">
             <div className="flex flex-col items-center gap-4">
                 <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Inicializando Sistemas...</span>
@@ -332,33 +350,27 @@ const AdminMonitoringView: React.FC = () => {
     const weekDay = currentTime.toLocaleDateString('pt-BR', { weekday: 'long' }).toUpperCase();
 
     return (
-        <div className="h-screen w-full bg-[#f8fafc] flex flex-col overflow-hidden font-sans text-slate-900 selection:bg-purple-100">
+        <div className="h-screen w-full bg-[#f5f3ff] flex flex-col overflow-hidden font-sans text-slate-900 selection:bg-purple-100">
 
             {/* --- BARRA INFORMATIVA --- */}
             <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-purple-800 px-8 py-2.5 flex items-center justify-between shrink-0 shadow-lg">
                 {/* Clima - Esquerda */}
-                <div className="flex items-center gap-4 min-w-[220px]">
+                <div className="flex items-center min-w-max">
                     {weather ? (
-                        <>
+                        <div className="flex items-center gap-4">
                             <div className="w-16 h-16 flex items-center justify-center filter drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]">
-                                <img
-                                    src={weather.icon}
-                                    alt="Clima"
-                                    className="w-full h-full object-contain scale-125"
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                        const parent = e.currentTarget.parentElement;
-                                        if (parent) parent.innerHTML = '<span class="text-3xl">☁️</span>';
-                                    }}
-                                />
+                                <img src={weather.icon} alt="Clima" className="w-full h-full object-contain scale-125" />
                             </div>
-                            <div className="flex flex-col -ml-1">
-                                <span className="text-3xl font-black text-white tabular-nums leading-none mb-1 drop-shadow-md">{weather.temp}°C</span>
-                                <span className="text-[10px] font-black text-purple-300 uppercase tracking-[0.2em] drop-shadow-sm leading-none">Sabará-MG</span>
+                            <div className="flex flex-col">
+                                <div className="flex items-start">
+                                    <span className="text-4xl font-black text-white tabular-nums leading-none drop-shadow-md">{weather.temp}</span>
+                                    <span className="text-lg font-bold text-purple-300 ml-1 mt-1 leading-none">°C</span>
+                                </div>
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] mt-1.5 opacity-80 leading-none">{weather.condition}</span>
                             </div>
-                        </>
+                        </div>
                     ) : (
-                        <div className="w-14 h-14 rounded-lg bg-purple-800/30 animate-pulse" />
+                        <div className="w-32 h-12 rounded-2xl bg-white/5 animate-pulse" />
                     )}
                 </div>
 
@@ -368,13 +380,15 @@ const AdminMonitoringView: React.FC = () => {
                         {currentNotification && (
                             <motion.div
                                 key={currentNotification.id}
-                                initial={{ opacity: 0, y: -40 }}
+                                initial={{ opacity: 0, y: -60 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.6, ease: "easeOut" }}
-                                className="px-10 py-3"
+                                exit={{ opacity: 0, y: 40 }}
+                                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                                className="px-12 py-3"
                             >
-                                <span className="text-[15px] font-black text-white tracking-wide">{currentNotification.message}</span>
+                                <span className="text-[18px] font-black text-white tracking-wide drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                    {currentNotification.message}
+                                </span>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -477,11 +491,12 @@ const AdminMonitoringView: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="text-sm font-black text-slate-800 uppercase leading-tight line-clamp-2 mb-1">{task.title}</h3>
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide truncate block">Cliente: {client?.name || 'Interno'}</span>
-                                                <span className="text-[9px] font-bold text-purple-600 uppercase tracking-wide truncate block">Projeto: {project?.name || 'N/A'}</span>
-                                            </div>
+                                            <h3 className="text-sm font-black text-slate-800 uppercase leading-tight line-clamp-2 mb-1">{task.title}</h3>
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide truncate block">Cliente: {client?.name || 'Interno'}</span>
+                                            <span className="text-[9px] font-bold text-purple-600 uppercase tracking-wide truncate block">
+                                                Projeto: {project?.name || 'N/A'}
+                                                {task.status !== 'Done' && task.estimatedDelivery && ` • Entrega: ${new Date(task.estimatedDelivery).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`}
+                                            </span>
 
                                             <div className="flex items-end justify-between mt-3">
                                                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -521,6 +536,34 @@ const AdminMonitoringView: React.FC = () => {
 
                                                 <div className="flex flex-col items-end gap-1 shrink-0 ml-4">
                                                     <span className={`text-2xl font-black tabular-nums leading-none ${delayed ? 'text-red-500' : 'text-purple-600'}`}>{task.progress}%</span>
+                                                    {(() => {
+                                                        if (task.status === 'Done') return null;
+
+                                                        const daysLate = task.daysOverdue || 0;
+
+                                                        // Se estiver atrasado (qualquer status exceto Done)
+                                                        if (daysLate > 0) {
+                                                            return <span className="text-[10px] font-black text-red-500 uppercase whitespace-nowrap">{daysLate} {daysLate === 1 ? 'dia' : 'dias'} de atraso</span>;
+                                                        }
+
+                                                        // Se não estiver atrasado, calcular dias restantes
+                                                        if (task.estimatedDelivery) {
+                                                            const parts = task.estimatedDelivery.split('-');
+                                                            const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                                                            const now = new Date();
+                                                            now.setHours(0, 0, 0, 0);
+                                                            const diff = Math.floor((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+                                                            if (diff >= 0) {
+                                                                return (
+                                                                    <span className={`text-[10px] font-black uppercase whitespace-nowrap ${diff === 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                                                                        {diff === 0 ? 'Entrega hoje!' : `Faltam ${diff} ${diff === 1 ? 'dia' : 'dias'}`}
+                                                                    </span>
+                                                                );
+                                                            }
+                                                        }
+                                                        return null;
+                                                    })()}
                                                 </div>
                                             </div>
 
@@ -641,13 +684,13 @@ const AdminMonitoringView: React.FC = () => {
                                 {[...teamStatus, ...teamStatus, ...teamStatus].map((member, idx) => { // Triplicated for infinite loop
                                     const colors: any = {
                                         'LIVRE': 'text-emerald-500 border-emerald-500 bg-emerald-50',
-                                        'OCUPADO': 'text-purple-500 border-purple-500 bg-purple-50',
+                                        'TRABALHANDO': 'text-purple-500 border-purple-500 bg-purple-50',
                                         'ESTUDANDO': 'text-blue-500 border-blue-500 bg-blue-50',
                                         'ATRASADO': 'text-red-500 border-red-500 bg-red-50'
                                     };
                                     const dotColors: any = {
                                         'LIVRE': 'bg-emerald-500',
-                                        'OCUPADO': 'bg-purple-500',
+                                        'TRABALHANDO': 'bg-purple-500',
                                         'ESTUDANDO': 'bg-blue-500',
                                         'ATRASADO': 'bg-red-500'
                                     };

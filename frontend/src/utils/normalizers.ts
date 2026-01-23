@@ -104,23 +104,8 @@ export function mapDbTaskToTask(row: any, userMap?: Map<string, any>, projectNam
 function calculateDaysOverdue(estimated: string | null, actual: string | null, status: Status): number {
     if (!estimated) return 0;
 
-    // Status que não contam como 'em atraso' ativo na gestão
-    if (status === 'Review' || status === 'Done') {
-        if (status === 'Review') return 0;
-
-        // Se já está concluído, calculamos se FOI entregue com atraso
-        if (actual) {
-            const parseLocalDate = (dateStr: string) => {
-                const parts = dateStr.split('T')[0].split('-');
-                return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-            };
-            const deadline = parseLocalDate(estimated);
-            const delivery = parseLocalDate(actual);
-            const diff = Math.floor((delivery.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
-            return diff > 0 ? diff : 0;
-        }
-        return 0;
-    }
+    // Status 'Done' não conta como 'em atraso' — desconsiderar completamente
+    if (status === 'Done') return 0;
 
     const parseLocalDate = (dateStr: string) => {
         const parts = dateStr.split('T')[0].split('-');

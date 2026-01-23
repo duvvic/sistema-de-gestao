@@ -92,7 +92,7 @@ const KanbanCard = ({
   };
 
   const isDelayed = useMemo(() => {
-    if (task.status === 'Done' || task.status === 'Review') return false;
+    if (task.status === 'Done' || task.status === 'Review' || (task.progress || 0) >= 100) return false;
     if (!task.estimatedDelivery) return false;
     const parts = task.estimatedDelivery.split('-');
     if (parts.length !== 3) return false;
@@ -270,7 +270,7 @@ const KanbanCard = ({
             }}>
             <Calendar size={10} />
             <span>
-              {task.estimatedDelivery
+              {(task.estimatedDelivery && task.status !== 'Done' && task.status !== 'Review')
                 ? new Date(task.estimatedDelivery).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
                 : '-'}
             </span>
@@ -412,7 +412,7 @@ export const KanbanBoard = () => {
 
   // Auxiliar para detectar atraso
   const isTaskDelayed = (t: Task) => {
-    if (t.status === 'Done' || t.status === 'Review') return false;
+    if (t.status === 'Done' || t.status === 'Review' || (t.progress || 0) >= 100) return false;
     if (!t.estimatedDelivery) return false;
     const parts = t.estimatedDelivery.split('-');
     if (parts.length !== 3) return false;

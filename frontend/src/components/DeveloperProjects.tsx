@@ -161,7 +161,7 @@ const DeveloperProjects: React.FC = () => {
                         if (hasDelay) return { borderColor: '#ef4444', shadowColor: 'rgba(239, 68, 68, 0.2)', borderWidth: '2px' };
 
                         const hasInProgress = myProjectTasks.some(t => t.status === 'In Progress');
-                        if (hasInProgress) return { borderColor: '#f59e0b', shadowColor: 'rgba(245, 158, 11, 0.2)', borderWidth: '2px' };
+                        if (hasInProgress) return { borderColor: '#9333ea', shadowColor: 'rgba(147, 51, 234, 0.2)', borderWidth: '2px' };
 
                         const isAllDone = myProjectTasks.length > 0 && myProjectTasks.every(t => t.status === 'Done');
                         if (isAllDone) return { borderColor: '#10b981', shadowColor: 'rgba(16, 185, 129, 0.2)', borderWidth: '2px' };
@@ -277,7 +277,7 @@ const DeveloperProjects: React.FC = () => {
                 if (hasDelay) return { borderColor: '#ef4444', shadowColor: 'rgba(239, 68, 68, 0.2)', borderWidth: '2px' };
 
                 const hasInProgress = myProjectTasks.some(t => t.status === 'In Progress');
-                if (hasInProgress) return { borderColor: '#f59e0b', shadowColor: 'rgba(245, 158, 11, 0.2)', borderWidth: '2px' };
+                if (hasInProgress) return { borderColor: '#9333ea', shadowColor: 'rgba(147, 51, 234, 0.2)', borderWidth: '2px' };
 
                 const isAllDone = myProjectTasks.length > 0 && myProjectTasks.every(t => t.status === 'Done');
                 if (isAllDone) return { borderColor: '#10b981', shadowColor: 'rgba(16, 185, 129, 0.2)', borderWidth: '2px' };
