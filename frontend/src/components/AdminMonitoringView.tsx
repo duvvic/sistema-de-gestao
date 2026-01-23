@@ -57,7 +57,7 @@ const SectionHeader = ({ label, icon: Icon, colorClass }: { label: string, icon:
 // --- Componente Principal ---
 
 const AdminMonitoringView: React.FC = () => {
-    const { tasks: allTasks, projects: allProjects, users: allUsers, clients: allClients, loading } = useDataController();
+    const { tasks: allTasks, projects: allProjects, users: allUsers, clients: allClients, loading, timesheetEntries: allTimesheets } = useDataController();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [weather, setWeather] = useState<{
         temp: number;
@@ -321,22 +321,55 @@ const AdminMonitoringView: React.FC = () => {
     }, [allProjects, allTasks]);
 
     const teamStatus = useMemo(() => {
-        const members = filteredUsers.map(user => {
-            const userTasks = allTasks.filter(t => t.developerId === user.id);
-            const activeTasks = userTasks.filter(t => t.status === 'In Progress' || t.status === 'Review');
-            const delayedTasksForStatus = userTasks.filter(t => isCollaboratorDelayed(t));
-            const hasStudy = userTasks.some(t => t.title.toLowerCase().includes('estudo'));
+        const now = new Date();
+        const hour = now.getHours();
+        const isAfter16h = hour >= 16;
+        const todayStr = now.toISOString().split('T')[0];
 
-            let status: 'LIVRE' | 'ESTUDANDO' | 'TRABALHANDO' | 'ATRASADO' = 'LIVRE';
-            if (delayedTasksForStatus.length > 0) status = 'ATRASADO';
-            else if (user.cargo?.toLowerCase().includes('estudo') || hasStudy) status = 'ESTUDANDO';
-            else if (activeTasks.length > 0) status = 'TRABALHANDO';
+        const members = filteredUsers.map(user => {
+            // Tarefas onde ele é o principal ou colaborador extra
+            const userTasks = allTasks.filter(t =>
+                t.developerId === user.id ||
+                (t.collaboratorIds && t.collaboratorIds.includes(user.id))
+            );
+
+            // Tarefas ativas: Não Iniciado (Todo) ou Trabalhando (In Progress)
+            const activeTasks = userTasks.filter(t => {
+                const s = (t.status || '').toLowerCase();
+                return s === 'todo' || s === 'in progress';
+            });
+
+            // Tarefas em atraso (entre as ativas)
+            const delayedTasksForStatus = activeTasks.filter(t => isCollaboratorDelayed(t));
+
+            // Check de estudo
+            const hasStudy = userTasks.some(t => t.title.toLowerCase().includes('estudo'));
+            const isStudyCargo = user.cargo?.toLowerCase().includes('estudo');
+
+            // Check de apontamento (pelo menos um registro no dia de hoje)
+            const hasTimesheetToday = allTimesheets.some(entry =>
+                entry.userId === user.id &&
+                entry.date === todayStr
+            );
+
+            let status: 'LIVRE' | 'ESTUDANDO' | 'TRABALHANDO' | 'APONTADO' | 'ATRASADO' = 'LIVRE';
+
+            // Hierarquia: Atrasado > Apontado (após 16h) > Trabalhando > Estudando > Livre
+            if (delayedTasksForStatus.length > 0) {
+                status = 'ATRASADO';
+            } else if (isAfter16h && hasTimesheetToday) {
+                status = 'APONTADO';
+            } else if (activeTasks.length > 0) {
+                status = 'TRABALHANDO';
+            } else if (isStudyCargo || hasStudy) {
+                status = 'ESTUDANDO';
+            }
 
             return { ...user, boardStatus: status };
         });
 
         return members;
-    }, [allUsers, allTasks]);
+    }, [allUsers, allTasks, allTimesheets]);
 
     if (loading) return (
         <div className="h-screen flex items-center justify-center bg-[#f5f3ff]">
@@ -686,13 +719,15 @@ const AdminMonitoringView: React.FC = () => {
                                         'LIVRE': 'text-emerald-500 border-emerald-500 bg-emerald-50',
                                         'TRABALHANDO': 'text-purple-500 border-purple-500 bg-purple-50',
                                         'ESTUDANDO': 'text-blue-500 border-blue-500 bg-blue-50',
-                                        'ATRASADO': 'text-red-500 border-red-500 bg-red-50'
+                                        'ATRASADO': 'text-red-500 border-red-500 bg-red-50',
+                                        'APONTADO': 'text-indigo-600 border-indigo-400 bg-indigo-50'
                                     };
                                     const dotColors: any = {
                                         'LIVRE': 'bg-emerald-500',
                                         'TRABALHANDO': 'bg-purple-500',
                                         'ESTUDANDO': 'bg-blue-500',
-                                        'ATRASADO': 'bg-red-500'
+                                        'ATRASADO': 'bg-red-500',
+                                        'APONTADO': 'bg-indigo-600'
                                     };
 
                                     return (
