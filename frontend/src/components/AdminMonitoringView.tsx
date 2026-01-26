@@ -24,7 +24,7 @@ import ThemeToggle from './ThemeToggle';
 
 // --- Sub-componentes Estilizados ---
 
-const Badge = ({ children, status }: { children: React.ReactNode, status: string }) => {
+const Badge = ({ children, status, className = "" }: { children: React.ReactNode, status: string, className?: string }) => {
     const colors: any = {
         'trabalhando': 'bg-purple-50 text-purple-600 border-purple-100',
         'teste': 'bg-amber-50 text-amber-600 border-amber-100',
@@ -39,7 +39,7 @@ const Badge = ({ children, status }: { children: React.ReactNode, status: string
     const colorClass = colors[key] || 'bg-slate-50 text-slate-600 border-slate-100';
 
     return (
-        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${colorClass}`}>
+        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${colorClass} ${className}`}>
             {children}
         </span>
     );
@@ -485,20 +485,20 @@ const AdminMonitoringView: React.FC = () => {
         <div className="h-screen w-full bg-[#f5f3ff] flex flex-col overflow-hidden font-sans text-slate-900 selection:bg-purple-100">
 
             {/* --- BARRA INFORMATIVA --- */}
-            <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-purple-800 px-8 h-[120px] flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
+            <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-purple-800 px-8 h-[85px] flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
                 {/* Clima - Esquerda */}
                 <div className="flex items-center min-w-max h-full">
                     {weather ? (
-                        <div className="flex items-center gap-6">
-                            <div className="w-20 h-20 flex items-center justify-center filter drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
-                                <img src={weather.icon} alt="Clima" className="w-full h-full object-contain scale-150" />
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 flex items-center justify-center filter drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                <img src={weather.icon} alt="Clima" className="w-full h-full object-contain scale-125" />
                             </div>
                             <div className="flex flex-col">
                                 <div className="flex items-start">
-                                    <span className="text-5xl font-black text-white tabular-nums leading-none drop-shadow-md">{weather.temp}</span>
-                                    <span className="text-xl font-bold text-purple-300 ml-1 mt-1 leading-none">°C</span>
+                                    <span className="text-3xl font-black text-white tabular-nums leading-none drop-shadow-md">{weather.temp}</span>
+                                    <span className="text-lg font-bold text-purple-300 ml-0.5 mt-0.5 leading-none">°C</span>
                                 </div>
-                                <span className="text-[12px] font-black text-white uppercase tracking-[0.2em] mt-1.5 opacity-80 leading-none">{weather.condition}</span>
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] mt-1 opacity-80 leading-none">{weather.condition}</span>
                             </div>
                         </div>
                     ) : (
@@ -558,7 +558,7 @@ const AdminMonitoringView: React.FC = () => {
             </header>
 
             {/* --- MAIN CONTENT --- */}
-            <main className="flex-1 p-8 flex flex-col gap-12 overflow-y-auto custom-scrollbar">
+            <main className="flex-1 p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
 
                 {/* Section 1: OPERAÇÕES EM EXECUÇÃO */}
                 {/* Section 1: OPERAÇÕES EM EXECUÇÃO (Snake Carousel) */}
@@ -574,7 +574,7 @@ const AdminMonitoringView: React.FC = () => {
                         );
                     })()}
 
-                    <div className="relative min-h-[500px]"> {/* Altura aumentada para comportar cards maiores */}
+                    <div className="relative min-h-[220px]">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={taskPage}
@@ -582,9 +582,9 @@ const AdminMonitoringView: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
                             >
-                                {tasksInProgress.slice(taskPage * 6, (taskPage + 1) * 6).map((task) => {
+                                {tasksInProgress.slice(taskPage * 4, (taskPage + 1) * 4).map((task) => {
                                     const dev = userMap.get(task.developerId || '');
                                     // Skip tasks assigned to non-filtered users (safety)
                                     if (!dev && task.developerId) return null;
@@ -611,10 +611,10 @@ const AdminMonitoringView: React.FC = () => {
                                         .filter(Boolean) as User[];
 
                                     return (
-                                        <div key={task.id} className={`bg-white border rounded-[1.8rem] p-5 relative flex flex-col group h-[230px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
-                                            <div className="flex justify-between items-start mb-3">
-                                                <Badge status={delayed ? 'atraso' : statusLabel.toLowerCase()}>{finalStatusLabel}</Badge>
-                                                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 p-2 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
+                                        <div key={task.id} className={`bg-white border rounded-[1.5rem] p-4 relative flex flex-col group h-[200px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <Badge status={delayed ? 'atraso' : statusLabel.toLowerCase()} className="text-[9px] py-0.5 px-2">{finalStatusLabel}</Badge>
+                                                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
                                                     <img
                                                         src={client?.logoUrl || 'https://placehold.co/100x100?text=Logo'}
                                                         className="w-full h-full object-contain"
@@ -622,40 +622,44 @@ const AdminMonitoringView: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="flex-1 flex flex-col justify-start gap-1">
-                                                <h3 className="text-[17px] font-bold text-slate-800 uppercase leading-snug line-clamp-2">{task.title}</h3>
+                                            <div className="flex-1 flex flex-col justify-start gap-1 min-w-0">
+                                                <h3 className="text-[15px] font-bold text-slate-800 uppercase leading-snug line-clamp-1">{task.title}</h3>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[11px] font-semibold text-slate-500 uppercase truncate tracking-tight">Cliente: {client?.name || 'Interno'}</span>
-                                                    <span className="text-[11px] font-bold text-purple-700 uppercase truncate tracking-tight">
-                                                        Projeto: {project?.name || 'N/A'}
-                                                        {task.status !== 'Done' && task.estimatedDelivery && (() => {
-                                                            const parts = task.estimatedDelivery.split('-');
-                                                            const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                                                            const formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-
-                                                            if (task.status === 'Review') return ` • Entrega: ${formattedDate}`;
-
-                                                            const now = new Date();
-                                                            now.setHours(0, 0, 0, 0);
-
-                                                            const diffTime = deadline.getTime() - now.getTime();
-                                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                                                            let countdown = '';
-                                                            if (diffDays < 0) countdown = 'Atrasado';
-                                                            else if (diffDays === 0) countdown = 'Hoje';
-                                                            else if (diffDays === 1) countdown = 'Amanhã';
-                                                            else if (diffDays <= 3) countdown = `Faltam ${diffDays}d`;
-
-                                                            return ` • Entrega: ${formattedDate}${countdown ? ` (${countdown})` : ''}`;
-                                                        })()}
+                                                    <span className="text-[10px] font-semibold text-slate-500 uppercase truncate">Cliente: {client?.name || 'Interno'}</span>
+                                                    <span className="text-[10px] font-bold text-purple-700 uppercase truncate">
+                                                        Proj: {project?.name || 'N/A'}
                                                     </span>
+                                                    {task.status !== 'Done' && task.estimatedDelivery && (
+                                                        <span className="text-[10px] font-black text-purple-600 uppercase flex items-center gap-1">
+                                                            {(() => {
+                                                                const parts = task.estimatedDelivery.split('-');
+                                                                const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                                                                const formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+                                                                if (task.status === 'Review') return `📅 ${formattedDate}`;
+
+                                                                const now = new Date();
+                                                                now.setHours(0, 0, 0, 0);
+
+                                                                const diffTime = deadline.getTime() - now.getTime();
+                                                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                                                let countdown = '';
+                                                                if (diffDays < 0) countdown = 'Atrasado';
+                                                                else if (diffDays === 0) countdown = 'Hoje';
+                                                                else if (diffDays === 1) countdown = 'Amanhã';
+                                                                else if (diffDays <= 3) countdown = `Faltam ${diffDays}d`;
+
+                                                                return `📅 ${formattedDate}${countdown ? ` • ${countdown}` : ''}`;
+                                                            })()}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            {/* Barra de Progresso Visual */}
-                                            <div className="mt-4 mb-2">
-                                                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            {/* Barra de Progresso Visual Compacta */}
+                                            <div className="mt-3 mb-1">
+                                                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
                                                     <div
                                                         className={`h-full transition-all duration-500 ${delayed ? 'bg-red-500' : 'bg-purple-600'}`}
                                                         style={{ width: `${task.progress}%` }}
@@ -663,11 +667,11 @@ const AdminMonitoringView: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-100">
-                                                <div className="flex items-center gap-3 min-w-0">
-                                                    <div className="flex -space-x-3">
+                                            <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-100">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="flex -space-x-2">
                                                         {/* Avatar Responsável */}
-                                                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm shrink-0 z-10 bg-white">
+                                                        <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm shrink-0 z-10 bg-white">
                                                             <img
                                                                 src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${task.developer}&background=f8fafc&color=475569`}
                                                                 className="w-full h-full object-cover"
@@ -679,7 +683,7 @@ const AdminMonitoringView: React.FC = () => {
                                                         {(extraCollaborators || []).slice(0, 3).map((collab) => (
                                                             <div
                                                                 key={collab.id}
-                                                                className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white"
+                                                                className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white"
                                                                 title={`Colaborador: ${collab.name}`}
                                                             >
                                                                 <img
@@ -691,16 +695,16 @@ const AdminMonitoringView: React.FC = () => {
                                                     </div>
 
                                                     <div className="flex flex-col min-w-0">
-                                                        <span className="text-[8px] font-black uppercase text-slate-400 leading-none">Equipe</span>
-                                                        <span className="text-[11px] font-bold text-slate-700 truncate max-w-[120px] leading-tight">
+                                                        <span className="text-[7px] font-black uppercase text-slate-400 leading-none">Equipe</span>
+                                                        <span className="text-[10px] font-bold text-slate-700 truncate max-w-[100px] leading-tight">
                                                             {dev?.name ? dev.name.split(' ')[0] : task.developer}
                                                             {extraCollaborators.length > 0 && ` +${extraCollaborators.length}`}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex flex-col items-end gap-1 shrink-0 ml-4">
-                                                    <span className={`text-2xl font-black tabular-nums leading-none ${delayed ? 'text-red-500' : 'text-purple-600'}`}>{task.progress}%</span>
+                                                <div className="flex flex-col items-end gap-0.5 shrink-0 ml-4">
+                                                    <span className={`text-xl font-black tabular-nums leading-none ${delayed ? 'text-red-500' : 'text-purple-600'}`}>{task.progress}%</span>
                                                     {(() => {
                                                         if (task.status === 'Done') return null;
                                                         const daysLate = task.daysOverdue || 0;
@@ -719,9 +723,9 @@ const AdminMonitoringView: React.FC = () => {
                     </div>
 
                     {/* Pagination Indicators */}
-                    {Math.ceil(tasksInProgress.length / 6) > 1 && (
+                    {Math.ceil(tasksInProgress.length / 4) > 1 && (
                         <div className="flex justify-center gap-2 mt-2">
-                            {Array.from({ length: Math.ceil(tasksInProgress.length / 6) }).map((_, idx) => (
+                            {Array.from({ length: Math.ceil(tasksInProgress.length / 4) }).map((_, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setTaskPage(idx)}
@@ -733,7 +737,7 @@ const AdminMonitoringView: React.FC = () => {
                 </section>
 
                 {/* Row 2: Projects and Team */}
-                <div className="flex flex-col gap-8 min-h-0 flex-1">
+                <div className="flex flex-col gap-4 min-h-0 flex-1">
 
                     {/* ECOSSISTEMA DE PROJETOS ATIVOS */}
                     {activeProjects.length > 0 && (
@@ -772,7 +776,7 @@ const AdminMonitoringView: React.FC = () => {
                                         const client = clientMap.get(proj.clientId || '');
 
                                         return (
-                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-[2rem] p-6 flex items-center justify-between shadow-md min-w-[380px] h-[110px] group hover:border-blue-300 transition-all">
+                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-md min-w-[320px] h-[90px] group hover:border-blue-300 transition-all">
                                                 <div className="flex items-center gap-5 min-w-0">
                                                     <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border border-slate-100 group-hover:border-blue-200 transition-all overflow-hidden p-2 shadow-sm">
                                                         {client?.logoUrl ? (
@@ -842,7 +846,7 @@ const AdminMonitoringView: React.FC = () => {
                                     };
 
                                     return (
-                                        <div key={`${member.id}-${idx}`} className="min-w-[280px] h-[140px] bg-white border border-slate-200 rounded-[2rem] p-5 flex flex-col justify-between shadow-md group hover:border-emerald-300 transition-all relative overflow-hidden">
+                                        <div key={`${member.id}-${idx}`} className="min-w-[240px] h-[115px] bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between shadow-md group hover:border-emerald-300 transition-all relative overflow-hidden">
                                             <div className="flex items-center gap-4 mb-3">
                                                 <div className="w-14 h-14 rounded-full p-0.5 border-2 border-slate-100 shadow-sm shrink-0">
                                                     <img
