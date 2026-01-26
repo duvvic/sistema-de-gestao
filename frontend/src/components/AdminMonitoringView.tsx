@@ -47,9 +47,9 @@ const Badge = ({ children, status, className = "" }: { children: React.ReactNode
 
 const SectionHeader = ({ label, icon: Icon, colorClass }: { label: string, icon: any, colorClass: string }) => (
     <div className="flex items-center gap-3 mb-4">
-        <div className={`w-1.5 h-6 rounded-full ${colorClass}`} />
-        <Icon className="w-4 h-4 text-slate-400" />
-        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{label}</h2>
+        <div className={`w-2 h-7 rounded-full ${colorClass}`} />
+        <Icon className="w-5 h-5 text-slate-400" />
+        <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">{label}</h2>
         <div className="h-[1px] flex-1 bg-slate-100 ml-4" />
     </div>
 );
@@ -388,7 +388,7 @@ const AdminMonitoringView: React.FC = () => {
     const tasksInProgress = tasksInProgressRaw;
 
     useEffect(() => {
-        const totalPages = Math.ceil(tasksInProgress.length / 6);
+        const totalPages = Math.ceil(tasksInProgress.length / 8);
         if (totalPages <= 1) return;
 
         const interval = setInterval(() => {
@@ -560,7 +560,6 @@ const AdminMonitoringView: React.FC = () => {
             {/* --- MAIN CONTENT --- */}
             <main className="flex-1 p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
 
-                {/* Section 1: OPERAÇÕES EM EXECUÇÃO */}
                 {/* Section 1: OPERAÇÕES EM EXECUÇÃO (Snake Carousel) */}
                 <section className="shrink-0 flex flex-col">
                     {(() => {
@@ -582,142 +581,142 @@ const AdminMonitoringView: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
+                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
                             >
-                                {tasksInProgress.slice(taskPage * 8, (taskPage + 1) * 8).map((task) => {
-                                    const dev = userMap.get(task.developerId || '');
-                                    // Skip tasks assigned to non-filtered users (safety)
-                                    if (!dev && task.developerId) return null;
+                                {(() => {
+                                    const itemsPerPage = 8;
+                                    const startIdx = taskPage * itemsPerPage;
+                                    const pageItems = tasksInProgress.slice(startIdx, startIdx + itemsPerPage);
 
-                                    const client = clientMap.get(task.clientId || '');
-                                    const project = projectMap.get(task.projectId || '');
-                                    const delayed = isTaskDelayed(task);
-                                    const isReview = task.status === 'Review';
-                                    const statusLabel = task.status === 'In Progress' ? 'Trabalhando' :
-                                        task.status === 'Review' ? 'Teste' :
-                                            (task.status as any) === 'Todo' ? 'Não Iniciado' : 'Concluído';
+                                    // PADDING: Se a página não estiver cheia e houver tarefas, preencher com o início da lista
+                                    const paddedItems = [...pageItems];
+                                    if (paddedItems.length > 0 && paddedItems.length < itemsPerPage) {
+                                        let i = 0;
+                                        while (paddedItems.length < itemsPerPage) {
+                                            paddedItems.push(tasksInProgress[i % tasksInProgress.length]);
+                                            i++;
+                                        }
+                                    }
 
-                                    const shadowClass = delayed
-                                        ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)] border-red-500 border-2'
-                                        : isReview
-                                            ? 'shadow-[0_0_20px_rgba(245,158,11,0.2)] border-amber-200'
-                                            : 'shadow-sm';
+                                    return paddedItems.map((task, idx) => {
+                                        const dev = userMap.get(task.developerId || '');
+                                        if (!dev && task.developerId) return null;
 
-                                    const finalStatusLabel = delayed ? `Atrasado` : statusLabel;
+                                        const client = clientMap.get(task.clientId || '');
+                                        const project = projectMap.get(task.projectId || '');
+                                        const delayed = isTaskDelayed(task);
+                                        const isReview = task.status === 'Review';
+                                        const statusLabel = task.status === 'In Progress' ? 'Trabalhando' :
+                                            task.status === 'Review' ? 'Teste' :
+                                                (task.status as any) === 'Todo' ? 'Não Iniciado' : 'Concluído';
 
-                                    // Obter colaboradores extras
-                                    const extraCollaborators = (task.collaboratorIds || [])
-                                        .map(id => userMap.get(id)) // Use userMap instead of allUsersMap to prevent error
-                                        .filter(Boolean) as User[];
+                                        const shadowClass = delayed
+                                            ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)] border-red-500 border-2'
+                                            : isReview
+                                                ? 'shadow-[0_0_20px_rgba(245,158,11,0.2)] border-amber-200'
+                                                : 'shadow-sm';
 
-                                    return (
-                                        <div key={task.id} className={`bg-white border rounded-2xl p-3 relative flex flex-col group h-[185px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <Badge status={delayed ? 'atraso' : statusLabel.toLowerCase()} className="text-[9px] py-0.5 px-2">{finalStatusLabel}</Badge>
-                                                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
-                                                    <img
-                                                        src={client?.logoUrl || 'https://placehold.co/100x100?text=Logo'}
-                                                        className="w-full h-full object-contain"
-                                                    />
+                                        const finalStatusLabel = delayed ? `Atrasado` : statusLabel;
+                                        const extraCollaborators = (task.collaboratorIds || [])
+                                            .map(id => userMap.get(id))
+                                            .filter(Boolean) as User[];
+
+                                        return (
+                                            <div key={`${task.id}-${idx}`} className={`bg-white border rounded-2xl p-4 relative flex flex-col group h-[200px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <Badge status={delayed ? 'atraso' : statusLabel.toLowerCase()} className="text-[9px] py-0.5 px-2">{finalStatusLabel}</Badge>
+                                                    <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
+                                                        <img
+                                                            src={client?.logoUrl || 'https://placehold.co/100x100?text=Logo'}
+                                                            className="w-full h-full object-contain"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="flex-1 flex flex-col justify-start gap-1 min-w-0">
-                                                <h3 className="text-[14px] font-bold text-slate-800 uppercase leading-snug line-clamp-1">{task.title}</h3>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[9px] font-semibold text-slate-500 uppercase truncate">Cliente: {client?.name || 'Interno'}</span>
-                                                    <span className="text-[9px] font-bold text-purple-700 uppercase truncate">
-                                                        Proj: {project?.name || 'N/A'}
-                                                    </span>
-                                                    {task.status !== 'Done' && task.estimatedDelivery && (
-                                                        <span className="text-[9px] font-black text-purple-600 uppercase flex items-center gap-1 mt-0.5">
-                                                            {(() => {
-                                                                const parts = task.estimatedDelivery.split('-');
-                                                                const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                                                                const formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-
-                                                                if (task.status === 'Review') return `📅 ${formattedDate}`;
-
-                                                                const now = new Date();
-                                                                now.setHours(0, 0, 0, 0);
-
-                                                                const diffTime = deadline.getTime() - now.getTime();
-                                                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                                                                let countdown = '';
-                                                                if (diffDays < 0) countdown = 'Atrasado';
-                                                                else if (diffDays === 0) countdown = 'Hoje';
-                                                                else if (diffDays === 1) countdown = 'Amanhã';
-                                                                else if (diffDays <= 3) countdown = `Faltam ${diffDays}d`;
-
-                                                                return `📅 ${formattedDate}${countdown ? ` • ${countdown}` : ''}`;
-                                                            })()}
+                                                <div className="flex-1 flex flex-col justify-start gap-1 min-w-0">
+                                                    <h3 className="text-[16px] font-bold text-slate-800 uppercase leading-snug line-clamp-1">{task.title}</h3>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[11px] font-semibold text-slate-500 uppercase truncate">Cliente: {client?.name || 'Interno'}</span>
+                                                        <span className="text-[11px] font-bold text-purple-700 uppercase truncate">
+                                                            Proj: {project?.name || 'N/A'}
                                                         </span>
-                                                    )}
+                                                        {task.status !== 'Done' && task.estimatedDelivery && (
+                                                            <span className="text-[11px] font-black text-purple-600 uppercase flex items-center gap-1 mt-0.5">
+                                                                {(() => {
+                                                                    const parts = task.estimatedDelivery.split('-');
+                                                                    const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                                                                    const formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+                                                                    if (task.status === 'Review') return `📅 ${formattedDate}`;
+
+                                                                    const now = new Date();
+                                                                    now.setHours(0, 0, 0, 0);
+
+                                                                    const diffTime = deadline.getTime() - now.getTime();
+                                                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                                                    let countdown = '';
+                                                                    if (diffDays < 0) countdown = 'Atrasado';
+                                                                    else if (diffDays === 0) countdown = 'Hoje';
+                                                                    else if (diffDays === 1) countdown = 'Amanhã';
+                                                                    else if (diffDays <= 3) countdown = `Faltam ${diffDays}d`;
+
+                                                                    return `📅 ${formattedDate}${countdown ? ` • ${countdown}` : ''}`;
+                                                                })()}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            {/* Barra de Progresso Visual Compacta */}
-                                            <div className="mt-2 mb-1">
-                                                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full transition-all duration-500 ${delayed ? 'bg-red-500' : 'bg-purple-600'}`}
-                                                        style={{ width: `${task.progress}%` }}
-                                                    />
+                                                {/* Barra de Progresso Visual Compacta */}
+                                                <div className="mt-2 mb-1">
+                                                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full transition-all duration-500 ${delayed ? 'bg-red-500' : 'bg-purple-600'}`}
+                                                            style={{ width: `${task.progress}%` }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="flex items-center justify-between mt-auto pt-1.5 border-t border-slate-100">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <div className="flex -space-x-1.5">
-                                                        {/* Avatar Responsável */}
-                                                        <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm shrink-0 z-10 bg-white">
-                                                            <img
-                                                                src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${task.developer}&background=f8fafc&color=475569`}
-                                                                className="w-full h-full object-cover"
-                                                                title={`Responsável: ${task.developer}`}
-                                                            />
-                                                        </div>
-
-                                                        {/* Avatares Colaboradores */}
-                                                        {(extraCollaborators || []).slice(0, 3).map((collab) => (
-                                                            <div
-                                                                key={collab.id}
-                                                                className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white"
-                                                                title={`Colaborador: ${collab.name}`}
-                                                            >
+                                                <div className="flex items-center justify-between mt-auto pt-1.5 border-t border-slate-100">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className="flex -space-x-1.5">
+                                                            <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm shrink-0 z-10 bg-white">
                                                                 <img
-                                                                    src={collab.avatarUrl || `https://ui-avatars.com/api/?name=${collab.name}&background=e0e7ff&color=6366f1`}
+                                                                    src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${task.developer}&background=f8fafc&color=475569`}
                                                                     className="w-full h-full object-cover"
                                                                 />
                                                             </div>
-                                                        ))}
+                                                            {(extraCollaborators || []).slice(0, 3).map((collab) => (
+                                                                <div key={collab.id} className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white">
+                                                                    <img src={collab.avatarUrl || `https://ui-avatars.com/api/?name=${collab.name}`} className="w-full h-full object-cover" />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="text-[7px] font-black uppercase text-slate-400 leading-none">Equipe</span>
+                                                            <span className="text-[10px] font-bold text-slate-700 truncate max-w-[100px] leading-tight">
+                                                                {dev?.name ? dev.name.split(' ')[0] : task.developer}
+                                                                {extraCollaborators.length > 0 && ` +${extraCollaborators.length}`}
+                                                            </span>
+                                                        </div>
                                                     </div>
-
-                                                    <div className="flex flex-col min-w-0">
-                                                        <span className="text-[7px] font-black uppercase text-slate-400 leading-none">Equipe</span>
-                                                        <span className="text-[10px] font-bold text-slate-700 truncate max-w-[100px] leading-tight">
-                                                            {dev?.name ? dev.name.split(' ')[0] : task.developer}
-                                                            {extraCollaborators.length > 0 && ` +${extraCollaborators.length}`}
-                                                        </span>
+                                                    <div className="flex flex-col items-end gap-0.5 shrink-0 ml-4">
+                                                        <span className={`text-xl font-black tabular-nums leading-none ${delayed ? 'text-red-500' : 'text-purple-600'}`}>{task.progress}%</span>
+                                                        {(() => {
+                                                            if (task.status === 'Done') return null;
+                                                            const daysLate = task.daysOverdue || 0;
+                                                            if (daysLate > 0) {
+                                                                return <span className="text-[9px] font-black text-red-500 uppercase whitespace-nowrap leading-none">{daysLate} dia{daysLate > 1 ? 's' : ''} de atraso</span>;
+                                                            }
+                                                            return null;
+                                                        })()}
                                                     </div>
-                                                </div>
-
-                                                <div className="flex flex-col items-end gap-0.5 shrink-0 ml-4">
-                                                    <span className={`text-xl font-black tabular-nums leading-none ${delayed ? 'text-red-500' : 'text-purple-600'}`}>{task.progress}%</span>
-                                                    {(() => {
-                                                        if (task.status === 'Done') return null;
-                                                        const daysLate = task.daysOverdue || 0;
-                                                        if (daysLate > 0) {
-                                                            return <span className="text-[9px] font-black text-red-500 uppercase whitespace-nowrap leading-none">{daysLate} dia{daysLate > 1 ? 's' : ''} de atraso</span>;
-                                                        }
-                                                        return null;
-                                                    })()}
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    });
+                                })()}
                             </motion.div>
                         </AnimatePresence>
                     </div>
@@ -776,9 +775,9 @@ const AdminMonitoringView: React.FC = () => {
                                         const client = clientMap.get(proj.clientId || '');
 
                                         return (
-                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-md min-w-[300px] h-[80px] group hover:border-blue-300 transition-all">
-                                                <div className="flex items-center gap-4 min-w-0">
-                                                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-slate-100 group-hover:border-blue-200 transition-all overflow-hidden p-1.5 shadow-sm">
+                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-md min-w-[360px] h-[95px] group hover:border-blue-300 transition-all">
+                                                <div className="flex items-center gap-5 min-w-0">
+                                                    <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center border border-slate-100 group-hover:border-blue-200 transition-all overflow-hidden p-1.5 shadow-sm">
                                                         {client?.logoUrl ? (
                                                             <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
                                                         ) : (
@@ -786,11 +785,11 @@ const AdminMonitoringView: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col min-w-0">
-                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{client?.name || 'Tecnologia'}</span>
-                                                        <span className="text-[15px] font-black text-slate-800 uppercase truncate max-w-[160px] tracking-tight leading-tight">{proj.name}</span>
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{client?.name || 'Tecnologia'}</span>
+                                                        <span className="text-[17px] font-black text-slate-800 uppercase truncate max-w-[200px] tracking-tight leading-tight">{proj.name}</span>
 
                                                         {/* Task Summary Metrics */}
-                                                        <div className="flex items-center gap-2 mt-1.5 overflow-hidden">
+                                                        <div className="flex items-center gap-3 mt-1.5 overflow-hidden">
                                                             {hasInProgress && (
                                                                 <div className="flex items-center gap-1 shrink-0">
                                                                     <div className="w-1 h-1 rounded-full bg-blue-500" />
@@ -846,9 +845,9 @@ const AdminMonitoringView: React.FC = () => {
                                     };
 
                                     return (
-                                        <div key={`${member.id}-${idx}`} className="min-w-[220px] h-[105px] bg-white border border-slate-200 rounded-2xl p-3 flex flex-col justify-between shadow-md group hover:border-emerald-300 transition-all relative overflow-hidden">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <div className="w-11 h-11 rounded-full p-0.5 border-2 border-slate-100 shadow-sm shrink-0">
+                                        <div key={`${member.id}-${idx}`} className="min-w-[270px] h-[125px] bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between shadow-md group hover:border-emerald-300 transition-all relative overflow-hidden">
+                                            <div className="flex items-center gap-4 mb-3">
+                                                <div className="w-13 h-13 rounded-full p-0.5 border-2 border-slate-100 shadow-sm shrink-0">
                                                     <img
                                                         src={member.avatarUrl || `https://ui-avatars.com/api/?name=${member.name}&background=f8fafc&color=475569`}
                                                         className="w-full h-full rounded-full object-cover"
@@ -860,8 +859,8 @@ const AdminMonitoringView: React.FC = () => {
                                                     />
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
-                                                    <h4 className="text-[13px] font-black text-slate-800 uppercase tracking-tight truncate leading-tight">{member.name}</h4>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">{member.cargo || 'Especialista'}</p>
+                                                    <h4 className="text-[15px] font-black text-slate-800 uppercase tracking-tight truncate leading-tight">{member.name}</h4>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{member.cargo || 'Especialista'}</p>
                                                 </div>
                                             </div>
 
