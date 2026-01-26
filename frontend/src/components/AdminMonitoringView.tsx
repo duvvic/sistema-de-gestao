@@ -388,15 +388,26 @@ const AdminMonitoringView: React.FC = () => {
     const tasksInProgress = tasksInProgressRaw;
 
     useEffect(() => {
-        const totalPages = Math.ceil(tasksInProgress.length / 8);
-        if (totalPages <= 1) return;
+        const totalPages = Math.ceil(tasksInProgress.length / 6);
+        if (totalPages <= 1) {
+            if (taskPage !== 0) setTaskPage(0);
+            return;
+        }
+
+        // Se a página atual ficar fora do range por mudança nos dados, reseta pra 0
+        if (taskPage >= totalPages) {
+            setTaskPage(0);
+        }
 
         const interval = setInterval(() => {
-            setTaskPage((prev) => (prev + 1) % totalPages);
+            setTaskPage((prev) => {
+                const newPage = (prev + 1) % totalPages;
+                return newPage;
+            });
         }, 10000);
 
         return () => clearInterval(interval);
-    }, [tasksInProgress.length]);
+    }, [tasksInProgress.length, taskPage]);
 
     const activeCargos = ['desenvolvedor', 'infraestrutura de ti'];
     const filteredUsers = useMemo(() =>
@@ -570,10 +581,10 @@ const AdminMonitoringView: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                             >
                                 {(() => {
-                                    const itemsPerPage = 8;
+                                    const itemsPerPage = 6;
                                     const startIdx = taskPage * itemsPerPage;
                                     const pageItems = tasksInProgress.slice(startIdx, startIdx + itemsPerPage);
 
@@ -595,26 +606,52 @@ const AdminMonitoringView: React.FC = () => {
                                         const project = projectMap.get(task.projectId || '');
                                         const delayed = isTaskDelayed(task);
                                         const isReview = task.status === 'Review';
+
+                                        // Lógica de Prazo
+                                        let isDueToday = false;
+                                        let countdownText = '';
+                                        let formattedDate = '';
+                                        if (task.estimatedDelivery) {
+                                            const parts = task.estimatedDelivery.split('-');
+                                            const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                                            formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+                                            const now = new Date();
+                                            now.setHours(0, 0, 0, 0);
+                                            const diffTime = deadline.getTime() - now.getTime();
+                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                            if (diffDays < 0) countdownText = 'Atrasado';
+                                            else if (diffDays === 0) {
+                                                countdownText = 'Hoje';
+                                                isDueToday = true;
+                                            }
+                                            else if (diffDays === 1) countdownText = 'Amanhã';
+                                            else if (diffDays <= 3) countdownText = `Faltam ${diffDays}d`;
+                                        }
+
                                         const statusLabel = task.status === 'In Progress' ? 'Trabalhando' :
                                             task.status === 'Review' ? 'Teste' :
                                                 (task.status as any) === 'Todo' ? 'Não Iniciado' : 'Concluído';
 
                                         const shadowClass = delayed
                                             ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)] border-red-500 border-2'
-                                            : isReview
-                                                ? 'shadow-[0_0_20px_rgba(245,158,11,0.2)] border-amber-200'
-                                                : 'shadow-sm';
+                                            : isDueToday
+                                                ? 'shadow-[0_0_30px_rgba(14,165,233,0.4)] border-sky-400 border-2 animate-glow'
+                                                : isReview
+                                                    ? 'shadow-[0_0_20px_rgba(245,158,11,0.2)] border-amber-200'
+                                                    : 'shadow-sm';
 
-                                        const finalStatusLabel = delayed ? `Atrasado` : statusLabel;
+                                        const finalStatusLabel = delayed ? `Atrasado` : isDueToday ? 'Entrega Hoje' : statusLabel;
                                         const extraCollaborators = (task.collaboratorIds || [])
                                             .map(id => userMap.get(id))
                                             .filter(Boolean) as User[];
 
                                         return (
-                                            <div key={`${task.id}-${idx}`} className={`bg-white border rounded-2xl p-4 relative flex flex-col group h-[225px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
+                                            <div key={`${task.id}-${idx}`} className={`bg-white border rounded-2xl p-5 relative flex flex-col group h-[225px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <Badge status={delayed ? 'atraso' : statusLabel.toLowerCase()} className="text-[9px] py-0.5 px-2">{finalStatusLabel}</Badge>
-                                                    <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
+                                                    <Badge status={delayed ? 'atraso' : isDueToday ? 'atraso' : statusLabel.toLowerCase()} className={`text-[10px] py-1 px-3 ${isDueToday ? 'bg-sky-50 text-sky-600 border-sky-100' : ''}`}>{finalStatusLabel}</Badge>
+                                                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 p-2 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
                                                         <img
                                                             src={client?.logoUrl || 'https://placehold.co/100x100?text=Logo'}
                                                             className="w-full h-full object-contain"
@@ -623,35 +660,22 @@ const AdminMonitoringView: React.FC = () => {
                                                 </div>
 
                                                 <div className="flex-1 flex flex-col justify-start gap-1 min-w-0">
-                                                    <h3 className="text-[16px] font-bold text-slate-800 uppercase leading-snug line-clamp-1">{task.title}</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-[18px] font-bold text-slate-800 uppercase leading-snug line-clamp-1 flex-1">{task.title}</h3>
+                                                        {isDueToday && (
+                                                            <div className="flex items-center gap-1 bg-sky-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-bounce shrink-0">
+                                                                <Zap size={10} /> HOJE
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <div className="flex flex-col gap-0.5">
-                                                        <span className="text-[11px] font-semibold text-slate-500 uppercase truncate">Cliente: {client?.name || 'Interno'}</span>
-                                                        <span className="text-[11px] font-bold text-purple-700 uppercase truncate">
+                                                        <span className="text-[12px] font-semibold text-slate-500 uppercase truncate">Cliente: {client?.name || 'Interno'}</span>
+                                                        <span className="text-[12px] font-bold text-purple-700 uppercase truncate">
                                                             Proj: {project?.name || 'N/A'}
                                                         </span>
                                                         {task.status !== 'Done' && task.estimatedDelivery && (
-                                                            <span className="text-[11px] font-black text-purple-600 uppercase flex items-center gap-1 mt-0.5">
-                                                                {(() => {
-                                                                    const parts = task.estimatedDelivery.split('-');
-                                                                    const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                                                                    const formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-
-                                                                    if (task.status === 'Review') return `📅 ${formattedDate}`;
-
-                                                                    const now = new Date();
-                                                                    now.setHours(0, 0, 0, 0);
-
-                                                                    const diffTime = deadline.getTime() - now.getTime();
-                                                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                                                                    let countdown = '';
-                                                                    if (diffDays < 0) countdown = 'Atrasado';
-                                                                    else if (diffDays === 0) countdown = 'Hoje';
-                                                                    else if (diffDays === 1) countdown = 'Amanhã';
-                                                                    else if (diffDays <= 3) countdown = `Faltam ${diffDays}d`;
-
-                                                                    return `📅 ${formattedDate}${countdown ? ` • ${countdown}` : ''}`;
-                                                                })()}
+                                                            <span className={`text-[12px] font-black uppercase flex items-center gap-1 mt-1 ${isDueToday ? 'text-sky-600' : 'text-purple-600'}`}>
+                                                                📅 {formattedDate}{countdownText ? ` • ${countdownText}` : ''}
                                                             </span>
                                                         )}
                                                     </div>
@@ -711,13 +735,13 @@ const AdminMonitoringView: React.FC = () => {
                     </div>
 
                     {/* Pagination Indicators */}
-                    {Math.ceil(tasksInProgress.length / 8) > 1 && (
+                    {Math.ceil(tasksInProgress.length / 6) > 1 && (
                         <div className="flex justify-center gap-2 mt-1">
-                            {Array.from({ length: Math.ceil(tasksInProgress.length / 8) }).map((_, idx) => (
+                            {Array.from({ length: Math.ceil(tasksInProgress.length / 6) }).map((_, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setTaskPage(idx)}
-                                    className={`h-1 rounded-full transition-all duration-300 ${taskPage === idx ? 'w-5 bg-purple-600' : 'w-1 bg-slate-200 hover:bg-purple-300'}`}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${taskPage === idx ? 'w-8 bg-purple-600' : 'w-2 bg-slate-200 hover:bg-purple-300'}`}
                                 />
                             ))}
                         </div>
@@ -875,6 +899,16 @@ const AdminMonitoringView: React.FC = () => {
                     @keyframes marquee-reverse {
                         0% { transform: translateX(-50%); }
                         100% { transform: translateX(0); } 
+                    }
+                    @keyframes glow {
+                        0%, 100% { box-shadow: 0 0 20px rgba(14, 165, 233, 0.2); border-color: rgba(56, 189, 248, 0.5); }
+                        50% { box-shadow: 0 0 35px rgba(14, 165, 233, 0.5); border-color: rgba(14, 165, 233, 1); }
+                    }
+                    .animate-glow {
+                        animation: glow 3s ease-in-out infinite;
+                    }
+                    .animate-pulse-subtle {
+                        animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
                     }
                     .animate-marquee {
                         animation: marquee 200s linear infinite; /* Super slow speed */
