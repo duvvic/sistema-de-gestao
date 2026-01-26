@@ -4,14 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useDataController } from '@/controllers/useDataController';
 import { Client, Project, Task } from "@/types";
-import { Plus, Building2, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, ArrowUp } from "lucide-react";
+import { Plus, Building2, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, ArrowUp, Trash2 } from "lucide-react";
+import ConfirmationModal from "./ConfirmationModal";
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
 
 type SortOption = 'recent' | 'alphabetical' | 'creation';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { clients: initialClients, projects: initialProjects, tasks: initialTasks, error, loading, users } = useDataController();
+  const { clients: initialClients, projects: initialProjects, tasks: initialTasks, error, loading, users, deleteProject } = useDataController();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
 
   const [clients, setClients] = useState(initialClients);
   const [projects, setProjects] = useState(initialProjects);
@@ -21,6 +25,7 @@ const AdminDashboard: React.FC = () => {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -408,9 +413,21 @@ const AdminDashboard: React.FC = () => {
                           whileHover={{ y: -4 }}
                           key={project.id}
                           onClick={() => navigate(`/admin/projects/${project.id}`)}
-                          className="min-w-[280px] max-w-[280px] border rounded-2xl p-5 cursor-pointer transition-all group/card shadow-lg"
+                          className="min-w-[280px] max-w-[280px] border rounded-2xl p-5 cursor-pointer transition-all group/card shadow-lg relative"
                           style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                         >
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProjectToDelete(project.id);
+                              }}
+                              className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all z-10 opacity-0 group-hover/card:opacity-100"
+                              title="Excluir Projeto"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                           <h4 className="font-bold mb-3 line-clamp-1 transition-colors uppercase text-[11px] tracking-wider" style={{ color: 'var(--text)' }}>{project.name}</h4>
 
                           <div className="space-y-4">
@@ -461,6 +478,24 @@ const AdminDashboard: React.FC = () => {
           </motion.button>
         )}
       </AnimatePresence>
+
+      <ConfirmationModal
+        isOpen={!!projectToDelete}
+        title="Excluir Projeto"
+        message="Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita."
+        onConfirm={async () => {
+          if (projectToDelete) {
+            try {
+              await deleteProject(projectToDelete);
+              setProjectToDelete(null);
+            } catch (err) {
+              console.error('Erro ao excluir projeto:', err);
+              alert('Erro ao excluir projeto.');
+            }
+          }
+        }}
+        onCancel={() => setProjectToDelete(null)}
+      />
     </div>
   );
 };

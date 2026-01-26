@@ -396,7 +396,6 @@ const TeamList: React.FC = () => {
                 >
                   {/* Indicador de Status Evidente (Linha lateral ou topo) */}
                   {(() => {
-                    const hasDelayed = userActiveTasks.some(isTaskDelayed);
                     const hasStudy = userActiveTasks.some(t => {
                       const p = projects.find(proj => proj.id === t.projectId);
                       const c = clients.find(cl => cl.id === p?.clientId);
@@ -404,12 +403,14 @@ const TeamList: React.FC = () => {
                       const isNicLabs = c?.name.toLowerCase().includes('nic-labs');
                       return isStudyProject && isNicLabs;
                     });
+                    const hasDelayed = userActiveTasks.some(t => isTaskDelayed(t) && t.status !== 'Review'); // Ignora Review para "Atrasado"
                     const hasInProgress = userActiveTasks.some(t => t.status === 'In Progress');
 
                     let statusType: 'atrasado' | 'estudando' | 'ocupado' | 'livre' | 'indisponível' = 'livre';
                     let statusLabel = 'Livre';
                     let accentColor = '#10b981'; // Verde
                     let accentBg = 'rgba(16, 185, 129, 0.1)';
+                    let textColor = '#047857'; // Verde Escuro para texto
 
                     const activeCargos = ['desenvolvedor', 'infraestrutura de ti'];
                     const isSystemCollaborator = activeCargos.includes(user.cargo?.toLowerCase() || '');
@@ -419,28 +420,32 @@ const TeamList: React.FC = () => {
                       statusLabel = 'N/A';
                       accentColor = 'var(--muted)';
                       accentBg = 'var(--surface-2)';
+                      textColor = 'var(--textMuted)';
                     } else if (hasDelayed) {
                       statusType = 'atrasado';
                       statusLabel = 'Atrasado';
                       accentColor = '#ef4444'; // Vermelho
                       accentBg = 'rgba(239, 68, 68, 0.1)';
+                      textColor = '#b91c1c'; // Vermelho Escuro
                     } else if (hasInProgress) {
                       statusType = 'ocupado';
                       statusLabel = 'Ocupado';
                       accentColor = '#f59e0b'; // Amarelo
                       accentBg = 'rgba(245, 158, 11, 0.1)';
+                      textColor = '#b45309'; // Laranja Escuro
                     } else if (hasStudy) {
                       statusType = 'estudando';
                       statusLabel = 'Estudando';
                       accentColor = '#3b82f6'; // Azul
                       accentBg = 'rgba(59, 130, 246, 0.1)';
+                      textColor = '#1d4ed8'; // Azul Escuro
                     }
 
                     return (
                       <>
                         <div className="absolute top-0 left-0 w-full h-1.5" style={{ backgroundColor: accentColor }} />
                         <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[9px] font-black uppercase tracking-widest text-white shadow-lg z-20"
-                          style={{ backgroundColor: accentColor }}>
+                          style={{ backgroundColor: accentColor }}> {/* Mantém fundo sólido para destaque no topo */}
                           {statusLabel}
                         </div>
 

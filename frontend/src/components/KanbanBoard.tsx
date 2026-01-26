@@ -270,9 +270,28 @@ const KanbanCard = ({
             }}>
             <Calendar size={10} />
             <span>
-              {(task.estimatedDelivery && task.status !== 'Done' && task.status !== 'Review')
-                ? new Date(task.estimatedDelivery).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-                : '-'}
+              {(() => {
+                if (task.status === 'Done') return '-';
+                if (!task.estimatedDelivery) return '-';
+
+                const parts = task.estimatedDelivery.split('-');
+                const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                const formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+                const now = new Date();
+                now.setHours(0, 0, 0, 0);
+
+                const diffTime = deadline.getTime() - now.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let countdown = '';
+                if (diffDays < 0) countdown = 'Atrasado';
+                else if (diffDays === 0) countdown = 'Hoje';
+                else if (diffDays === 1) countdown = 'Amanhã';
+                else if (diffDays <= 3) countdown = `Faltam ${diffDays}d`;
+
+                return countdown ? `${formattedDate} • ${countdown}` : formattedDate;
+              })()}
             </span>
           </div>
         </div>

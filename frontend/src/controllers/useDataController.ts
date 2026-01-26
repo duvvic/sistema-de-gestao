@@ -114,6 +114,11 @@ export const useDataController = () => {
         setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
     };
 
+    const deleteProject = async (projectId: string): Promise<void> => {
+        await projectService.deleteProject(projectId);
+        setProjects(prev => prev.filter(p => p.id !== projectId));
+    };
+
     // === TASK CONTROLLERS ===
 
     const getTaskById = (id: string): Task | undefined => {
@@ -288,7 +293,7 @@ export const useDataController = () => {
     return {
         clients, projects, tasks, users, timesheetEntries, projectMembers, loading, error,
         getClientById, getActiveClients, createClient, updateClient, deactivateClient, deleteClient,
-        getProjectById, getProjectsByClient, createProject, updateProject,
+        getProjectById, getProjectsByClient, createProject, updateProject, deleteProject,
         getTaskById, getTasksByProject, getTasksByUser, createTask, updateTask, deleteTask,
         getTimesheetsByUser, createTimesheet, updateTimesheet, deleteTimesheet,
         getUserById, getActiveUsers, createUser, updateUser, deleteUser,

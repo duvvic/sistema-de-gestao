@@ -1,14 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
-import { ArrowLeft, Plus, Edit, CheckSquare, Clock, Filter, Search, ChevronDown, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, CheckSquare, Clock, Filter, Search, ChevronDown, Check, Trash2 } from 'lucide-react';
+import ConfirmationModal from './ConfirmationModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ProjectDetailView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects, clients, tasks, users, projectMembers } = useDataController();
+  const { projects, clients, tasks, users, projectMembers, deleteProject, deleteTask } = useDataController();
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project' | 'task' } | null>(null);
   const { currentUser, isAdmin } = useAuth();
 
   const project = projects.find(p => p.id === projectId);
@@ -134,13 +136,22 @@ const ProjectDetailView: React.FC = () => {
         </div>
 
         {isAdmin && (
-          <button
-            onClick={() => navigate(`/admin/projects/${projectId}/edit`)}
-            className="px-4 py-2 border border-[var(--border)] text-[var(--text)] rounded-lg hover:bg-[var(--surfaceHover)] flex items-center gap-2"
-          >
-            <Edit className="w-4 h-4" />
-            Editar
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setItemToDelete({ id: projectId!, type: 'project' })}
+              className="p-2 border border-red-500/20 text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"
+              title="Excluir Projeto"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => navigate(`/admin/projects/${projectId}/edit`)}
+              className="px-4 py-2 border border-[var(--border)] text-[var(--text)] rounded-lg hover:bg-[var(--surfaceHover)] flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" />
+              Editar
+            </button>
+          </div>
         )}
 
         <button
@@ -264,11 +275,36 @@ const ProjectDetailView: React.FC = () => {
                 project={project}
                 client={client || undefined}
                 onClick={() => navigate(`/tasks/${task.id}`)}
+                isAdmin={isAdmin}
+                onDelete={() => setItemToDelete({ id: task.id, type: 'task' })}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!itemToDelete}
+        title={`Excluir ${itemToDelete?.type === 'project' ? 'Projeto' : 'Tarefa'}`}
+        message={`Tem certeza que deseja excluir esta ${itemToDelete?.type === 'project' ? 'projeto' : 'tarefa'}? Esta ação não pode ser desfeita.`}
+        onConfirm={async () => {
+          if (!itemToDelete) return;
+          try {
+            if (itemToDelete.type === 'project') {
+              await deleteProject(itemToDelete.id);
+              navigate(isAdmin ? '/admin/projects' : '/developer/projects');
+            } else {
+              await deleteTask(itemToDelete.id);
+            }
+            setItemToDelete(null);
+          } catch (err) {
+            console.error('Erro ao excluir:', err);
+            alert('Erro ao excluir item.');
+          }
+        }}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 };
@@ -277,9 +313,11 @@ const ProjectDetailView: React.FC = () => {
 interface TaskCardProps {
   task: any;
   onClick: () => void;
+  isAdmin?: boolean;
+  onDelete?: () => void;
 }
 
-const TaskCard: React.FC<TaskCardProps & { project?: any, client?: any }> = ({ task, project, client, onClick }) => {
+const TaskCard: React.FC<TaskCardProps & { project?: any, client?: any }> = ({ task, project, client, onClick, isAdmin, onDelete }) => {
   const navigate = useNavigate();
 
   const handleCreateTimesheet = (e: React.MouseEvent) => {
@@ -320,14 +358,28 @@ const TaskCard: React.FC<TaskCardProps & { project?: any, client?: any }> = ({ t
         <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${status.bg} ${status.text}`}>
           {status.label}
         </span>
-        {task.priority && (
-          <span className={`text-[10px] font-bold ${task.priority === 'Critical' ? 'text-red-500' :
-            task.priority === 'High' ? 'text-orange-500' :
-              task.priority === 'Medium' ? 'text-yellow-500' : 'text-slate-400'
-            }`}>
-            {task.priority}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {task.priority && (
+            <span className={`text-[10px] font-bold ${task.priority === 'Critical' ? 'text-red-500' :
+              task.priority === 'High' ? 'text-orange-500' :
+                task.priority === 'Medium' ? 'text-yellow-500' : 'text-slate-400'
+              }`}>
+              {task.priority}
+            </span>
+          )}
+          {isAdmin && onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1 px-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all opacity-0 group-hover:opacity-100"
+              title="Excluir Tarefa"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Title */}

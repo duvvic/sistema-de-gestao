@@ -77,7 +77,7 @@ const TeamMemberDetail: React.FC = () => {
       .map(pm => pm.projectId);
 
    const userProjects = projects.filter(p => linkedProjectIds.includes(p.id) && p.active !== false);
-   const delayedTasks = userTasks.filter(t => getDelayDays(t) > 0);
+   const delayedTasks = userTasks.filter(t => getDelayDays(t) > 0 && t.status !== 'Review'); // Ignora 'Review' (Teste)
    const totalTasks = userTasks.length;
 
    userTasks = [...userTasks].sort((a, b) => getTaskPriority(a) - getTaskPriority(b));
@@ -155,8 +155,31 @@ const TeamMemberDetail: React.FC = () => {
                                              <span>•</span>
                                              <span className={`flex items-center gap-1 ${isDelayed ? 'text-red-600 dark:text-red-400 font-bold' : ''}`}>
                                                 <Calendar className="w-3 h-3" />
-                                                {new Date(task.estimatedDelivery).toLocaleDateString()}
-                                                {isDelayed && ` (+${delayDays}d)`}
+                                                {(() => {
+                                                   if (task.status === 'Done') return '-';
+                                                   if (!task.estimatedDelivery) return '-';
+
+                                                   const parts = task.estimatedDelivery.split('-');
+                                                   const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                                                   const formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+                                                   // Se for review e estiver com delay, apenas mostra a data sem o aviso de atraso agressivo
+                                                   if (task.status === 'Review') return formattedDate;
+
+                                                   const now = new Date();
+                                                   now.setHours(0, 0, 0, 0);
+
+                                                   const diffTime = deadline.getTime() - now.getTime();
+                                                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                                   let countdown = '';
+                                                   if (diffDays < 0) countdown = 'Atrasado';
+                                                   else if (diffDays === 0) countdown = 'Hoje';
+                                                   else if (diffDays === 1) countdown = 'Amanhã';
+                                                   else if (diffDays <= 3) countdown = `Faltam ${diffDays}d`;
+
+                                                   return countdown ? `${formattedDate} • ${countdown}` : formattedDate;
+                                                })()}
                                              </span>
                                           </div>
                                        </div>

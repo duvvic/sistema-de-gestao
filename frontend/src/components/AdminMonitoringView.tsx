@@ -64,30 +64,30 @@ const AdminMonitoringView: React.FC = () => {
         icon: string;
         condition: string;
     } | null>(null);
-    const [notifications, setNotifications] = useState<Array<{ id: string; message: string; timestamp: number; priority: 'HIGH' | 'LOW' }>>([]);
-    const [currentNotification, setCurrentNotification] = useState<{ message: string; id: string } | null>(null);
+
+    // Notification System State
+    const [notifications, setNotifications] = useState<Array<{ id: string; message: string | React.ReactNode; timestamp: number; priority: 'HIGH' | 'LOW'; duration?: number }>>([]);
+    const [currentNotification, setCurrentNotification] = useState<{ message: string | React.ReactNode; id: string } | null>(null);
     const currentNotificationRef = useRef(currentNotification);
     const lastNotificationEndTime = useRef<number>(0);
     const rotationIndexRef = useRef<{ [key: string]: number }>({});
     const lastRotationTime = useRef<number>(0);
-    const processingRef = useRef(false);
+
+    // Data Refs for Stable Access in Intervals
+    const clientsRef = useRef(allClients);
+    const usersRef = useRef(allUsers);
+    const tasksRef = useRef(allTasks);
+
+    useEffect(() => {
+        clientsRef.current = allClients;
+        usersRef.current = allUsers;
+        tasksRef.current = allTasks;
+    }, [allClients, allUsers, allTasks]);
 
     // Sincronizar ref para acesso em intervalos
     useEffect(() => {
         currentNotificationRef.current = currentNotification;
     }, [currentNotification]);
-
-    const handleFullScreen = () => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch((e) => {
-                console.error(`Erro ao ativar tela cheia: ${e.message}`);
-            });
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
-    };
 
     // Atualizar hora a cada segundo
     useEffect(() => {
@@ -110,20 +110,19 @@ const AdminMonitoringView: React.FC = () => {
                     let iconUrl = '';
                     let conditionText = 'Nublado';
 
-                    // Mapeamento de condições simplificado e mais preciso
-                    // Mapeamento de condições simplificado e mais preciso
+                    // Mapeamento de condições expandido
                     const mappings: any = {
                         0: { text: 'Céu Limpo', hex: '2600' },
-                        1: { text: 'Céu Limpo', hex: '2600' },
+                        1: { text: 'Limpo', hex: '2600' },
                         2: { text: 'Parcialmente Nublado', hex: '1f324' },
                         3: { text: 'Nublado', hex: '2601' },
                         45: { text: 'Nevoeiro', hex: '1f32b' },
                         48: { text: 'Nevoeiro', hex: '1f32b' },
-                        51: { text: 'Chuvisco', hex: '1f327' },
-                        61: { text: 'Chuva Leve', hex: '1f327' },
+                        51: { text: 'Chuva Leve', hex: '1f327' },
+                        61: { text: 'Chuva', hex: '1f327' },
                         63: { text: 'Chuva', hex: '1f327' },
-                        80: { text: 'Pancadas de Chuva', hex: '1f327' },
-                        95: { text: 'Tempestade', hex: '26c8' },
+                        80: { text: 'Pancadas', hex: '1f327' },
+                        95: { text: 'Trovoada', hex: '26c8' },
                     };
 
                     const match = mappings[code] || { text: 'Nublado', hex: '2601' };
@@ -145,19 +144,27 @@ const AdminMonitoringView: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Criar mapa de usuários (precisa estar antes do useEffect de notificações)
-    const allUsersMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
+    const handleFullScreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch((e) => {
+                console.error(`Erro ao ativar tela cheia: ${e.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
 
-    // Adicionar notificação à fila (precisa estar antes do useEffect que a usa)
-    // Adicionar notificação à fila com prioridade
-    const addNotification = (message: string, priority: 'HIGH' | 'LOW' = 'HIGH') => {
+    // Adicionar notificação à fila
+    const addNotification = (message: string | React.ReactNode, priority: 'HIGH' | 'LOW' = 'HIGH', duration: number = 5000) => {
         const id = `${Date.now()}-${Math.random()}`;
         setNotifications(prev => {
+            const newNotif = { id, message, timestamp: Date.now(), priority, duration };
             if (priority === 'HIGH') {
-                // Preempt: Coloca no início da fila de processamento (logo após a atual se houver)
-                return [{ id, message, timestamp: Date.now(), priority }, ...prev];
+                return [newNotif, ...prev];
             }
-            return [...prev, { id, message, timestamp: Date.now(), priority }];
+            return [...prev, newNotif];
         });
     };
 
@@ -179,6 +186,38 @@ const AdminMonitoringView: React.FC = () => {
             const min = now.getMinutes();
             const currentTimeInMinutes = hour * 60 + min;
 
+            // 1. Injetar Tarefas para Entregar Hoje (Periodicamente)
+            // A cada 45 segundos (aproximadamente, baseado na chamada de 2s * 22 ticks)
+            const tick = Math.floor(Date.now() / 2000);
+            if (tick % 25 === 0) {
+                // Encontrar tarefas vencendo hoje
+                const todayStr = now.toISOString().split('T')[0];
+                const dueToday = tasksRef.current.filter(t => t.estimatedDelivery && t.estimatedDelivery.startsWith(todayStr) && t.status !== 'Done');
+
+                if (dueToday.length > 0) {
+                    const randomTask = dueToday[Math.floor(Math.random() * dueToday.length)];
+                    const dev = usersRef.current.find(u => u.id === randomTask.developerId);
+
+                    const msg = (
+                        <div className="flex items-center gap-4">
+                            <div className="flex -space-x-2">
+                                <div className="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden bg-white">
+                                    <img src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${dev?.name || 'Dev'}`} className="w-full h-full object-cover" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-300">ENTREGA HOJE</span>
+                                <span className="text-lg font-black text-white leading-none">{randomTask.title}</span>
+                                <span className="text-xs font-bold text-purple-300 mt-1">{dev?.name || 'Colaborador'}</span>
+                            </div>
+                        </div>
+                    );
+                    addNotification(msg, 'LOW', 6000);
+                    return; // Prioriza essa mensagem neste ciclo
+                }
+            }
+
+
             const currentPeriod = PERIOD_MESSAGES.find(p => {
                 const start = p.range[0] * 60 + p.range[1];
                 const end = p.range[2] * 60 + p.range[3];
@@ -189,7 +228,6 @@ const AdminMonitoringView: React.FC = () => {
 
             const nowTs = Date.now();
             if (nowTs - lastRotationTime.current >= 6000) {
-                // Se já tem algo na tela ou na fila, espera um pouco mais para não acumular
                 if (currentNotificationRef.current) return;
 
                 const periodKey = currentPeriod.id.includes('fora_horario') ? 'fora_horario' : currentPeriod.id;
@@ -211,15 +249,76 @@ const AdminMonitoringView: React.FC = () => {
         const channel = supabase
             .channel('monitoring_notifications')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fato_tarefas', filter: 'StatusTarefa=eq.Done' }, (payload: any) => {
-                const user = allUsersMap.get(String(payload.new.ID_Colaborador));
+                const user = usersRef.current.find(u => u.id === String(payload.new.ID_Colaborador));
                 const taskName = payload.new.Afazer || 'Tarefa';
                 addNotification(`✅ ${user?.name || 'Colaborador'} finalizou: ${taskName}`, 'HIGH');
             })
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dim_projetos' }, (payload: any) => {
-                addNotification(`🚀 Projeto criado: ${payload.new.NomeProjeto || 'Novo Projeto'}`, 'HIGH');
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dim_projetos' }, async (payload: any) => {
+                // Lookup client
+                const client = clientsRef.current.find(c => c.id === String(payload.new.ID_Cliente));
+
+                // Fetch members with a small delay to allow for member insertion
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                let members: User[] = [];
+                try {
+                    const { data: memberData } = await supabase
+                        .from('project_members')
+                        .select('id_colaborador')
+                        .eq('id_projeto', payload.new.ID_Projeto);
+
+                    if (memberData) {
+                        members = memberData.map((m: any) => usersRef.current.find(u => u.id === m.id_colaborador)).filter(Boolean) as User[];
+                    }
+                } catch (e) {
+                    console.error('Error fetching new project members', e);
+                }
+
+                const msg = (
+                    <div className="flex items-center gap-4">
+                        <div className="flex flex-col gap-1 flex-1">
+                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                                <Zap size={14} /> Novo Projeto Criado
+                            </span>
+                            <span className="text-xl font-black text-white">{payload.new.NomeProjeto || 'Novo Projeto'}</span>
+                            <span className="text-sm font-bold text-slate-300">Cliente: {client?.name || 'Cliente'}</span>
+                        </div>
+
+                        {members.length > 0 && (
+                            <div className="flex -space-x-3">
+                                {members.slice(0, 4).map(m => (
+                                    <div key={m.id} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 overflow-hidden shadow-lg">
+                                        <img src={m.avatarUrl || `https://ui-avatars.com/api/?name=${m.name}`} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                                {members.length > 4 && (
+                                    <div className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-xs font-bold text-white shadow-lg">
+                                        +{members.length - 4}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+
+                // Projeto novo: 10 segundos, mostrar uma vez (HIGH priority garante destaque)
+                addNotification(msg, 'HIGH', 10000);
             })
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fato_tarefas' }, (payload: any) => {
-                addNotification(`📋 Tarefa criada: ${payload.new.Afazer || 'Nova Tarefa'}`, 'HIGH');
+                const user = usersRef.current.find(u => u.id === String(payload.new.ID_Colaborador));
+                const taskName = payload.new.Afazer || 'Nova Tarefa';
+                const msg = (
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-xs border border-white/20">
+                            NEW
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-base font-bold text-white leading-tight">{taskName}</span>
+                            <span className="text-xs text-blue-300">Criada para {user?.name || 'Equipe'}</span>
+                        </div>
+                    </div>
+                );
+                addNotification(msg, 'HIGH', 5000);
             })
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dim_clientes' }, (payload: any) => {
                 addNotification(`🏢 Cliente cadastrado: ${payload.new.NomeCliente || 'Novo Cliente'}`, 'HIGH');
@@ -229,13 +328,16 @@ const AdminMonitoringView: React.FC = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [allUsersMap]);
+    }, []);
 
-    // 1. Timer para limpar a notificação atual
+    // 1. Timer para limpar a notificação atual (Dinâmico base na duration)
     useEffect(() => {
         if (!currentNotification) return;
 
-        const duration = 5000;
+        // @ts-ignore - duration vem do obj original no state, mas aqui é simplificado
+        const notifObj = notifications.find(n => n.id === currentNotification.id);
+        const duration = notifObj?.duration || 5000;
+
         const timer = setTimeout(() => {
             const idToRemove = currentNotification.id;
             setCurrentNotification(null);
@@ -244,18 +346,16 @@ const AdminMonitoringView: React.FC = () => {
         }, duration);
 
         return () => clearTimeout(timer);
-    }, [currentNotification?.id]);
+    }, [currentNotification?.id, notifications]);
 
     // 2. Gerenciador da Fila e Preempt
     useEffect(() => {
         const firstHighIndex = notifications.findIndex(n => n.priority === 'HIGH');
         const hasHighQueued = firstHighIndex !== -1;
 
-        // Lógica de Preempt: Se houver uma HIGH na fila e a atual for LOW, interrompe.
         if (currentNotification) {
             const currentObj = notifications.find(n => n.id === currentNotification.id);
             if (currentObj?.priority === 'LOW' && hasHighQueued) {
-                // Ao setar null, o useEffect de Timer é limpo e este effect rodará de novo no próximo ciclo
                 setCurrentNotification(null);
             }
             return;
@@ -263,11 +363,9 @@ const AdminMonitoringView: React.FC = () => {
 
         if (notifications.length === 0) return;
 
-        // Regra de Gap: 2s entre mensagens
         const now = Date.now();
         const timeSinceLast = now - lastNotificationEndTime.current;
         if (timeSinceLast < 1000) {
-            // Re-checa em breve para não ficar parado
             const retry = setTimeout(() => setNotifications(prev => [...prev]), 300);
             return () => clearTimeout(retry);
         }
@@ -387,24 +485,24 @@ const AdminMonitoringView: React.FC = () => {
         <div className="h-screen w-full bg-[#f5f3ff] flex flex-col overflow-hidden font-sans text-slate-900 selection:bg-purple-100">
 
             {/* --- BARRA INFORMATIVA --- */}
-            <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-purple-800 px-8 py-2.5 flex items-center justify-between shrink-0 shadow-lg">
+            <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-purple-800 px-8 h-[120px] flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
                 {/* Clima - Esquerda */}
-                <div className="flex items-center min-w-max">
+                <div className="flex items-center min-w-max h-full">
                     {weather ? (
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 flex items-center justify-center filter drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]">
-                                <img src={weather.icon} alt="Clima" className="w-full h-full object-contain scale-125" />
+                        <div className="flex items-center gap-6">
+                            <div className="w-20 h-20 flex items-center justify-center filter drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                <img src={weather.icon} alt="Clima" className="w-full h-full object-contain scale-150" />
                             </div>
                             <div className="flex flex-col">
                                 <div className="flex items-start">
-                                    <span className="text-4xl font-black text-white tabular-nums leading-none drop-shadow-md">{weather.temp}</span>
-                                    <span className="text-lg font-bold text-purple-300 ml-1 mt-1 leading-none">°C</span>
+                                    <span className="text-5xl font-black text-white tabular-nums leading-none drop-shadow-md">{weather.temp}</span>
+                                    <span className="text-xl font-bold text-purple-300 ml-1 mt-1 leading-none">°C</span>
                                 </div>
-                                <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] mt-1.5 opacity-80 leading-none">{weather.condition}</span>
+                                <span className="text-[12px] font-black text-white uppercase tracking-[0.2em] mt-1.5 opacity-80 leading-none">{weather.condition}</span>
                             </div>
                         </div>
                     ) : (
-                        <div className="w-32 h-12 rounded-2xl bg-white/5 animate-pulse" />
+                        <div className="w-32 h-14 rounded-2xl bg-white/5 animate-pulse" />
                     )}
                 </div>
 
@@ -476,7 +574,7 @@ const AdminMonitoringView: React.FC = () => {
                         );
                     })()}
 
-                    <div className="relative min-h-[430px]"> {/* Altura fixa para evitar pulos de layout */}
+                    <div className="relative min-h-[500px]"> {/* Altura aumentada para comportar cards maiores */}
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={taskPage}
@@ -484,7 +582,7 @@ const AdminMonitoringView: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                             >
                                 {tasksInProgress.slice(taskPage * 6, (taskPage + 1) * 6).map((task) => {
                                     const dev = userMap.get(task.developerId || '');
@@ -509,75 +607,95 @@ const AdminMonitoringView: React.FC = () => {
 
                                     // Obter colaboradores extras
                                     const extraCollaborators = (task.collaboratorIds || [])
-                                        .map(id => allUsersMap.get(id))
+                                        .map(id => userMap.get(id)) // Use userMap instead of allUsersMap to prevent error
                                         .filter(Boolean) as User[];
 
                                     return (
-                                        <div key={task.id} className={`bg-white border rounded-[1.5rem] p-5 relative flex flex-col justify-between group h-[200px] hover:border-purple-200 transition-all ${shadowClass}`}>
-                                            <div className="flex justify-between items-start mb-2">
+                                        <div key={task.id} className={`bg-white border rounded-[1.8rem] p-5 relative flex flex-col group h-[230px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
+                                            <div className="flex justify-between items-start mb-3">
                                                 <Badge status={delayed ? 'atraso' : statusLabel.toLowerCase()}>{finalStatusLabel}</Badge>
-                                                {/* Logo do Cliente no Topo Direito */}
-                                                <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 p-2 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all duration-300 shrink-0">
+                                                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 p-2 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
                                                     <img
                                                         src={client?.logoUrl || 'https://placehold.co/100x100?text=Logo'}
-                                                        className="w-full h-full object-contain transition-all duration-300"
+                                                        className="w-full h-full object-contain"
                                                     />
                                                 </div>
                                             </div>
 
-                                            <h3 className="text-sm font-black text-slate-800 uppercase leading-tight line-clamp-2 mb-1">{task.title}</h3>
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide truncate block">Cliente: {client?.name || 'Interno'}</span>
-                                            <span className="text-[9px] font-bold text-purple-600 uppercase tracking-wide truncate block">
-                                                Projeto: {project?.name || 'N/A'}
-                                                {task.status !== 'Done' && task.estimatedDelivery && ` • Entrega: ${new Date(task.estimatedDelivery).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`}
-                                            </span>
+                                            <div className="flex-1 flex flex-col justify-start gap-1">
+                                                <h3 className="text-[17px] font-bold text-slate-800 uppercase leading-snug line-clamp-2">{task.title}</h3>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-[11px] font-semibold text-slate-500 uppercase truncate tracking-tight">Cliente: {client?.name || 'Interno'}</span>
+                                                    <span className="text-[11px] font-bold text-purple-700 uppercase truncate tracking-tight">
+                                                        Projeto: {project?.name || 'N/A'}
+                                                        {task.status !== 'Done' && task.estimatedDelivery && (() => {
+                                                            const parts = task.estimatedDelivery.split('-');
+                                                            const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                                                            const formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
-                                            <div className="flex items-end justify-between mt-3">
-                                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                    {/* Desenvolvedor Responsável */}
-                                                    <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm shrink-0">
-                                                        <img
-                                                            src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${task.developer}&background=f8fafc&color=475569`}
-                                                            className="w-full h-full object-cover"
-                                                            onError={(e) => {
-                                                                const target = e.target as HTMLImageElement;
-                                                                target.onerror = null;
-                                                                target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(task.developer)}&background=f8fafc&color=475569`;
-                                                            }}
-                                                        />
+                                                            if (task.status === 'Review') return ` • Entrega: ${formattedDate}`;
+
+                                                            const now = new Date();
+                                                            now.setHours(0, 0, 0, 0);
+
+                                                            const diffTime = deadline.getTime() - now.getTime();
+                                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                                            let countdown = '';
+                                                            if (diffDays < 0) countdown = 'Atrasado';
+                                                            else if (diffDays === 0) countdown = 'Hoje';
+                                                            else if (diffDays === 1) countdown = 'Amanhã';
+                                                            else if (diffDays <= 3) countdown = `Faltam ${diffDays}d`;
+
+                                                            return ` • Entrega: ${formattedDate}${countdown ? ` (${countdown})` : ''}`;
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Barra de Progresso Visual */}
+                                            <div className="mt-4 mb-2">
+                                                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all duration-500 ${delayed ? 'bg-red-500' : 'bg-purple-600'}`}
+                                                        style={{ width: `${task.progress}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-100">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="flex -space-x-3">
+                                                        {/* Avatar Responsável */}
+                                                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm shrink-0 z-10 bg-white">
+                                                            <img
+                                                                src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${task.developer}&background=f8fafc&color=475569`}
+                                                                className="w-full h-full object-cover"
+                                                                title={`Responsável: ${task.developer}`}
+                                                            />
+                                                        </div>
+
+                                                        {/* Avatares Colaboradores */}
+                                                        {(extraCollaborators || []).slice(0, 3).map((collab) => (
+                                                            <div
+                                                                key={collab.id}
+                                                                className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white"
+                                                                title={`Colaborador: ${collab.name}`}
+                                                            >
+                                                                <img
+                                                                    src={collab.avatarUrl || `https://ui-avatars.com/api/?name=${collab.name}&background=e0e7ff&color=6366f1`}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            </div>
+                                                        ))}
                                                     </div>
 
-                                                    {/* Colaboradores Extras */}
-                                                    {extraCollaborators.length > 0 && (
-                                                        <div className="flex -space-x-2">
-                                                            {extraCollaborators.slice(0, 3).map((collab) => (
-                                                                <div
-                                                                    key={collab.id}
-                                                                    className="w-7 h-7 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0"
-                                                                    title={collab.name}
-                                                                >
-                                                                    <img
-                                                                        src={collab.avatarUrl || `https://ui-avatars.com/api/?name=${collab.name}&background=e0e7ff&color=6366f1`}
-                                                                        className="w-full h-full object-cover"
-                                                                        onError={(e) => {
-                                                                            const target = e.target as HTMLImageElement;
-                                                                            target.onerror = null;
-                                                                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(collab.name)}&background=e0e7ff&color=6366f1`;
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            ))}
-                                                            {extraCollaborators.length > 3 && (
-                                                                <div className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white shadow-sm flex items-center justify-center shrink-0">
-                                                                    <span className="text-[8px] font-black text-slate-600">+{extraCollaborators.length - 3}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex flex-col min-w-0 ml-1">
-                                                        <span className="text-[7px] font-black uppercase text-slate-400">Responsável</span>
-                                                        <span className="text-[10px] font-bold text-slate-700 truncate max-w-[100px]">{task.developer}</span>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-[8px] font-black uppercase text-slate-400 leading-none">Equipe</span>
+                                                        <span className="text-[11px] font-bold text-slate-700 truncate max-w-[120px] leading-tight">
+                                                            {dev?.name ? dev.name.split(' ')[0] : task.developer}
+                                                            {extraCollaborators.length > 0 && ` +${extraCollaborators.length}`}
+                                                        </span>
                                                     </div>
                                                 </div>
 
@@ -585,35 +703,14 @@ const AdminMonitoringView: React.FC = () => {
                                                     <span className={`text-2xl font-black tabular-nums leading-none ${delayed ? 'text-red-500' : 'text-purple-600'}`}>{task.progress}%</span>
                                                     {(() => {
                                                         if (task.status === 'Done') return null;
-
                                                         const daysLate = task.daysOverdue || 0;
-
-                                                        // Se estiver atrasado (qualquer status exceto Done)
                                                         if (daysLate > 0) {
-                                                            return <span className="text-[10px] font-black text-red-500 uppercase whitespace-nowrap">{daysLate} {daysLate === 1 ? 'dia' : 'dias'} de atraso</span>;
-                                                        }
-
-                                                        // Se não estiver atrasado, calcular dias restantes
-                                                        if (task.estimatedDelivery) {
-                                                            const parts = task.estimatedDelivery.split('-');
-                                                            const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                                                            const now = new Date();
-                                                            now.setHours(0, 0, 0, 0);
-                                                            const diff = Math.floor((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-                                                            if (diff >= 0) {
-                                                                return (
-                                                                    <span className={`text-[10px] font-black uppercase whitespace-nowrap ${diff === 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                                                                        {diff === 0 ? 'Entrega hoje!' : `Faltam ${diff} ${diff === 1 ? 'dia' : 'dias'}`}
-                                                                    </span>
-                                                                );
-                                                            }
+                                                            return <span className="text-[9px] font-black text-red-500 uppercase whitespace-nowrap leading-none">{daysLate} dia{daysLate > 1 ? 's' : ''} de atraso</span>;
                                                         }
                                                         return null;
                                                     })()}
                                                 </div>
                                             </div>
-
                                         </div>
                                     );
                                 })}

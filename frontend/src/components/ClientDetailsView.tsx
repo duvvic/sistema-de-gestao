@@ -2,15 +2,20 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
-import { ArrowLeft, Plus, Briefcase, CheckSquare, Clock, Edit, LayoutGrid, ListTodo, Filter } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { ArrowLeft, Plus, Briefcase, CheckSquare, Clock, Edit, LayoutGrid, ListTodo, Filter, Trash2 } from 'lucide-react';
+import ConfirmationModal from './ConfirmationModal';
 
 const ClientDetailsView: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { clients, projects, tasks, users, getClientById, projectMembers } = useDataController();
+  const { clients, projects, tasks, users, getClientById, projectMembers, deleteProject, deleteTask } = useDataController();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
 
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks'>('projects');
   const [selectedDeveloperId, setSelectedDeveloperId] = useState<string>('');
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project' | 'task' } | null>(null);
 
   const client = clientId ? getClientById(clientId) : null;
   const clientProjects = useMemo(() =>
@@ -208,15 +213,29 @@ const ClientDetailsView: React.FC = () => {
                   }
 
                   return (
-                    <button
+                    <div
                       key={project.id}
                       onClick={() => navigate(`/admin/projects/${project.id}`)}
-                      className="border-2 rounded-xl p-6 hover:shadow-lg transition-all text-left group"
+                      className="border-2 rounded-xl p-6 hover:shadow-lg transition-all text-left group relative"
                       style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                       onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand)'}
                       onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
                     >
-                      <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)] transition-colors" style={{ color: 'var(--textTitle)' }}>
+                      {/* Delete Project Button */}
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItemToDelete({ id: project.id, type: 'project' });
+                          }}
+                          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all z-10 opacity-0 group-hover:opacity-100"
+                          title="Excluir Projeto"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)] transition-colors pr-8" style={{ color: 'var(--textTitle)' }}>
                         {project.name}
                       </h3>
 
@@ -268,7 +287,7 @@ const ClientDetailsView: React.FC = () => {
                           )}
                         </div>
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -360,16 +379,31 @@ const ClientDetailsView: React.FC = () => {
                               task.status === 'In Progress' ? 'Em Progresso' :
                                 task.status === 'Review' ? 'Revisão' : 'Concluído'}
                           </span>
-                          {task.priority && (
-                            <span className={`text-[10px] font-bold ${task.priority === 'Critical' ? 'text-red-600 dark:text-red-400' :
-                              task.priority === 'High' ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 dark:text-slate-500'
-                              }`}>
-                              {task.priority === 'Critical' ? 'CRÍTICA' : task.priority}
-                            </span>
-                          )}
+
+                          <div className="flex items-center gap-2">
+                            {task.priority && (
+                              <span className={`text-[10px] font-bold ${task.priority === 'Critical' ? 'text-red-600 dark:text-red-400' :
+                                task.priority === 'High' ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 dark:text-slate-500'
+                                }`}>
+                                {task.priority === 'Critical' ? 'CRÍTICA' : task.priority}
+                              </span>
+                            )}
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setItemToDelete({ id: task.id, type: 'task' });
+                                }}
+                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                                title="Excluir Tarefa"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
-                        <h4 className="font-semibold group-hover:text-[var(--brand)] mb-1 line-clamp-2" style={{ color: 'var(--textTitle)' }}>
+                        <h4 className="font-semibold group-hover:text-[var(--brand)] mb-1 line-clamp-2 pr-4" style={{ color: 'var(--textTitle)' }}>
                           {task.title || "(Sem título)"}
                         </h4>
 
@@ -413,6 +447,27 @@ const ClientDetailsView: React.FC = () => {
           </div>
         )
       }
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!itemToDelete}
+        title={`Excluir ${itemToDelete?.type === 'project' ? 'Projeto' : 'Tarefa'}`}
+        message={`Tem certeza que deseja excluir esta ${itemToDelete?.type === 'project' ? 'projeto' : 'tarefa'}? Esta ação não pode ser desfeita.`}
+        onConfirm={async () => {
+          if (!itemToDelete) return;
+          try {
+            if (itemToDelete.type === 'project') {
+              await deleteProject(itemToDelete.id);
+            } else {
+              await deleteTask(itemToDelete.id);
+            }
+            setItemToDelete(null);
+          } catch (err) {
+            console.error('Erro ao excluir:', err);
+            alert('Erro ao excluir item.');
+          }
+        }}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div >
   );
 };
