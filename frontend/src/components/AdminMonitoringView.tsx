@@ -485,20 +485,20 @@ const AdminMonitoringView: React.FC = () => {
         <div className="h-screen w-full bg-[#f5f3ff] flex flex-col overflow-hidden font-sans text-slate-900 selection:bg-purple-100">
 
             {/* --- BARRA INFORMATIVA --- */}
-            <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-purple-800 px-8 h-[85px] flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
+            <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-purple-800 px-8 h-[65px] flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
                 {/* Clima - Esquerda */}
                 <div className="flex items-center min-w-max h-full">
                     {weather ? (
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 flex items-center justify-center filter drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
-                                <img src={weather.icon} alt="Clima" className="w-full h-full object-contain scale-125" />
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                <img src={weather.icon} alt="Clima" className="w-full h-full object-contain scale-110" />
                             </div>
                             <div className="flex flex-col">
                                 <div className="flex items-start">
-                                    <span className="text-3xl font-black text-white tabular-nums leading-none drop-shadow-md">{weather.temp}</span>
-                                    <span className="text-lg font-bold text-purple-300 ml-0.5 mt-0.5 leading-none">°C</span>
+                                    <span className="text-2xl font-black text-white tabular-nums leading-none drop-shadow-md">{weather.temp}</span>
+                                    <span className="text-sm font-bold text-purple-300 ml-0.5 mt-0.5 leading-none">°C</span>
                                 </div>
-                                <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] mt-1 opacity-80 leading-none">{weather.condition}</span>
+                                <span className="text-[8px] font-black text-white uppercase tracking-[0.2em] mt-0.5 opacity-80 leading-none">{weather.condition}</span>
                             </div>
                         </div>
                     ) : (
@@ -538,12 +538,12 @@ const AdminMonitoringView: React.FC = () => {
                 </div>
 
                 {/* Hora e Data - Direita */}
-                <div className="flex items-center gap-6 min-w-[320px] justify-end">
+                <div className="flex items-center gap-5 min-w-[280px] justify-end">
                     <div className="flex flex-col items-end">
-                        <span className="text-3xl font-black text-white tabular-nums tracking-tight leading-none">
+                        <span className="text-2xl font-black text-white tabular-nums tracking-tight leading-none">
                             {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </span>
-                        <span className="text-[8px] font-bold text-purple-300 uppercase tracking-wider mt-0.5 leading-none">HORÁRIO</span>
+                        <span className="text-[7px] font-bold text-purple-300 uppercase tracking-wider mt-0.5 leading-none">HORÁRIO</span>
                     </div>
                     <div className="w-[1px] h-8 bg-purple-700" />
                     <div className="flex flex-col items-end">
@@ -558,7 +558,7 @@ const AdminMonitoringView: React.FC = () => {
             </header>
 
             {/* --- MAIN CONTENT --- */}
-            <main className="flex-1 p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+            <main className="flex-1 p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
 
                 {/* Section 1: OPERAÇÕES EM EXECUÇÃO */}
                 {/* Section 1: OPERAÇÕES EM EXECUÇÃO (Snake Carousel) */}
@@ -574,7 +574,7 @@ const AdminMonitoringView: React.FC = () => {
                         );
                     })()}
 
-                    <div className="relative min-h-[220px]">
+                    <div className="relative min-h-[385px]">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={taskPage}
@@ -582,9 +582,9 @@ const AdminMonitoringView: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
                             >
-                                {tasksInProgress.slice(taskPage * 4, (taskPage + 1) * 4).map((task) => {
+                                {tasksInProgress.slice(taskPage * 8, (taskPage + 1) * 8).map((task) => {
                                     const dev = userMap.get(task.developerId || '');
                                     // Skip tasks assigned to non-filtered users (safety)
                                     if (!dev && task.developerId) return null;
@@ -611,7 +611,7 @@ const AdminMonitoringView: React.FC = () => {
                                         .filter(Boolean) as User[];
 
                                     return (
-                                        <div key={task.id} className={`bg-white border rounded-[1.5rem] p-4 relative flex flex-col group h-[200px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
+                                        <div key={task.id} className={`bg-white border rounded-2xl p-3 relative flex flex-col group h-[185px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
                                             <div className="flex justify-between items-start mb-2">
                                                 <Badge status={delayed ? 'atraso' : statusLabel.toLowerCase()} className="text-[9px] py-0.5 px-2">{finalStatusLabel}</Badge>
                                                 <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
@@ -623,14 +623,14 @@ const AdminMonitoringView: React.FC = () => {
                                             </div>
 
                                             <div className="flex-1 flex flex-col justify-start gap-1 min-w-0">
-                                                <h3 className="text-[15px] font-bold text-slate-800 uppercase leading-snug line-clamp-1">{task.title}</h3>
+                                                <h3 className="text-[14px] font-bold text-slate-800 uppercase leading-snug line-clamp-1">{task.title}</h3>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[10px] font-semibold text-slate-500 uppercase truncate">Cliente: {client?.name || 'Interno'}</span>
-                                                    <span className="text-[10px] font-bold text-purple-700 uppercase truncate">
+                                                    <span className="text-[9px] font-semibold text-slate-500 uppercase truncate">Cliente: {client?.name || 'Interno'}</span>
+                                                    <span className="text-[9px] font-bold text-purple-700 uppercase truncate">
                                                         Proj: {project?.name || 'N/A'}
                                                     </span>
                                                     {task.status !== 'Done' && task.estimatedDelivery && (
-                                                        <span className="text-[10px] font-black text-purple-600 uppercase flex items-center gap-1">
+                                                        <span className="text-[9px] font-black text-purple-600 uppercase flex items-center gap-1 mt-0.5">
                                                             {(() => {
                                                                 const parts = task.estimatedDelivery.split('-');
                                                                 const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
@@ -658,7 +658,7 @@ const AdminMonitoringView: React.FC = () => {
                                             </div>
 
                                             {/* Barra de Progresso Visual Compacta */}
-                                            <div className="mt-3 mb-1">
+                                            <div className="mt-2 mb-1">
                                                 <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
                                                     <div
                                                         className={`h-full transition-all duration-500 ${delayed ? 'bg-red-500' : 'bg-purple-600'}`}
@@ -667,9 +667,9 @@ const AdminMonitoringView: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-100">
+                                            <div className="flex items-center justify-between mt-auto pt-1.5 border-t border-slate-100">
                                                 <div className="flex items-center gap-2 min-w-0">
-                                                    <div className="flex -space-x-2">
+                                                    <div className="flex -space-x-1.5">
                                                         {/* Avatar Responsável */}
                                                         <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm shrink-0 z-10 bg-white">
                                                             <img
@@ -723,13 +723,13 @@ const AdminMonitoringView: React.FC = () => {
                     </div>
 
                     {/* Pagination Indicators */}
-                    {Math.ceil(tasksInProgress.length / 4) > 1 && (
-                        <div className="flex justify-center gap-2 mt-2">
-                            {Array.from({ length: Math.ceil(tasksInProgress.length / 4) }).map((_, idx) => (
+                    {Math.ceil(tasksInProgress.length / 8) > 1 && (
+                        <div className="flex justify-center gap-2 mt-1">
+                            {Array.from({ length: Math.ceil(tasksInProgress.length / 8) }).map((_, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setTaskPage(idx)}
-                                    className={`h-1.5 rounded-full transition-all duration-300 ${taskPage === idx ? 'w-6 bg-purple-600' : 'w-1.5 bg-slate-200 hover:bg-purple-300'}`}
+                                    className={`h-1 rounded-full transition-all duration-300 ${taskPage === idx ? 'w-5 bg-purple-600' : 'w-1 bg-slate-200 hover:bg-purple-300'}`}
                                 />
                             ))}
                         </div>
@@ -776,9 +776,9 @@ const AdminMonitoringView: React.FC = () => {
                                         const client = clientMap.get(proj.clientId || '');
 
                                         return (
-                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-md min-w-[320px] h-[90px] group hover:border-blue-300 transition-all">
-                                                <div className="flex items-center gap-5 min-w-0">
-                                                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border border-slate-100 group-hover:border-blue-200 transition-all overflow-hidden p-2 shadow-sm">
+                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-md min-w-[300px] h-[80px] group hover:border-blue-300 transition-all">
+                                                <div className="flex items-center gap-4 min-w-0">
+                                                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-slate-100 group-hover:border-blue-200 transition-all overflow-hidden p-1.5 shadow-sm">
                                                         {client?.logoUrl ? (
                                                             <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
                                                         ) : (
@@ -786,8 +786,8 @@ const AdminMonitoringView: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col min-w-0">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{client?.name || 'Tecnologia'}</span>
-                                                        <span className="text-[18px] font-black text-slate-800 uppercase truncate max-w-[180px] tracking-tight leading-tight">{proj.name}</span>
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{client?.name || 'Tecnologia'}</span>
+                                                        <span className="text-[15px] font-black text-slate-800 uppercase truncate max-w-[160px] tracking-tight leading-tight">{proj.name}</span>
 
                                                         {/* Task Summary Metrics */}
                                                         <div className="flex items-center gap-2 mt-1.5 overflow-hidden">
@@ -846,9 +846,9 @@ const AdminMonitoringView: React.FC = () => {
                                     };
 
                                     return (
-                                        <div key={`${member.id}-${idx}`} className="min-w-[240px] h-[115px] bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between shadow-md group hover:border-emerald-300 transition-all relative overflow-hidden">
-                                            <div className="flex items-center gap-4 mb-3">
-                                                <div className="w-14 h-14 rounded-full p-0.5 border-2 border-slate-100 shadow-sm shrink-0">
+                                        <div key={`${member.id}-${idx}`} className="min-w-[220px] h-[105px] bg-white border border-slate-200 rounded-2xl p-3 flex flex-col justify-between shadow-md group hover:border-emerald-300 transition-all relative overflow-hidden">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <div className="w-11 h-11 rounded-full p-0.5 border-2 border-slate-100 shadow-sm shrink-0">
                                                     <img
                                                         src={member.avatarUrl || `https://ui-avatars.com/api/?name=${member.name}&background=f8fafc&color=475569`}
                                                         className="w-full h-full rounded-full object-cover"
@@ -860,8 +860,8 @@ const AdminMonitoringView: React.FC = () => {
                                                     />
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
-                                                    <h4 className="text-[14px] font-black text-slate-800 uppercase tracking-tight truncate leading-tight">{member.name}</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{member.cargo || 'Especialista'}</p>
+                                                    <h4 className="text-[13px] font-black text-slate-800 uppercase tracking-tight truncate leading-tight">{member.name}</h4>
+                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">{member.cargo || 'Especialista'}</p>
                                                 </div>
                                             </div>
 
