@@ -120,38 +120,72 @@ const MainLayout: React.FC = () => {
     }, [location.pathname, menuItems, navType]);
 
     // Variantes de animação refinadas
+    // Variantes de animação premium estilo iOS Stacking (Impilhamento)
     const variants = {
         initial: (dir: string) => {
-            // Forward: Entra pela direita, z-index alto
-            if (dir === 'forward') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%', zIndex: 50 };
-            // Back: Entra pela esquerda (fundo), z-index baixo
-            if (dir === 'back') return { x: '-20%', opacity: 0.8, position: 'absolute', width: '100%', height: '100%', zIndex: 0 };
+            if (dir === 'forward') return {
+                x: '100%',
+                opacity: 1,
+                scale: 1,
+                zIndex: 50,
+                boxShadow: '20px 0 30px rgba(0,0,0,0.3)',
+                position: 'absolute' as const,
+                width: '100%',
+                height: '100%'
+            };
+            if (dir === 'back') return {
+                x: '-25%',
+                opacity: 0.9,
+                scale: 0.94,
+                zIndex: 0,
+                position: 'absolute' as const,
+                width: '100%',
+                height: '100%'
+            };
 
-            if (dir === 'menu-down') return { y: '-15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
-            if (dir === 'menu-up') return { y: '15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
+            if (dir === 'menu-down') return { y: '-10%', opacity: 0, scale: 0.98, position: 'absolute' as const, width: '100%', height: '100%', zIndex: 10 };
+            if (dir === 'menu-up') return { y: '10%', opacity: 0, scale: 0.98, position: 'absolute' as const, width: '100%', height: '100%', zIndex: 10 };
 
-            return { opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10 };
+            return { opacity: 0, scale: 0.98, position: 'absolute' as const, width: '100%', height: '100%', zIndex: 10 };
         },
         animate: {
             x: 0,
             y: 0,
             opacity: 1,
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-            zIndex: 10, // Base level
-            transition: { duration: 0.48, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] } // 5% mais lento (0.45 -> 0.48)
+            scale: 1,
+            zIndex: 10,
+            transition: {
+                duration: 0.45,
+                ease: [0.32, 0.72, 0, 1] as [number, number, number, number]
+            }
         },
         exit: (dir: string) => {
-            // Forward: Sai pela esquerda (fundo), z-index baixo
-            if (dir === 'forward') return { x: '-20%', opacity: 0.8, position: 'absolute', width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' };
-            // Back: Sai pela direita (frente), z-index alto
-            if (dir === 'back') return { x: '100%', opacity: 1, position: 'absolute', width: '100%', height: '100%', zIndex: 50, pointerEvents: 'none' };
+            if (dir === 'forward') return {
+                x: '-25%',
+                opacity: 0.8,
+                scale: 0.94,
+                zIndex: 0,
+                pointerEvents: 'none' as const,
+                position: 'absolute' as const,
+                width: '100%',
+                height: '100%'
+            };
+            if (dir === 'back') return {
+                x: '100%',
+                opacity: 1,
+                scale: 1,
+                zIndex: 50,
+                boxShadow: '20px 0 30px rgba(0,0,0,0.3)',
+                pointerEvents: 'none' as const,
+                position: 'absolute' as const,
+                width: '100%',
+                height: '100%'
+            };
 
-            if (dir === 'menu-down') return { y: '15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' };
-            if (dir === 'menu-up') return { y: '-15%', opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' };
+            if (dir === 'menu-down') return { y: '10%', opacity: 0, scale: 0.98, position: 'absolute' as const, width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' as const };
+            if (dir === 'menu-up') return { y: '-10%', opacity: 0, scale: 0.98, position: 'absolute' as const, width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' as const };
 
-            return { opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' };
+            return { opacity: 0, scale: 0.98, position: 'absolute' as const, width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' as const };
         }
     };
 
@@ -292,23 +326,25 @@ const MainLayout: React.FC = () => {
 
             </div>
 
-            {/* Main Content - iOS Navigation Wrapper */}
-            <div className="flex-1 overflow-hidden relative perspective-1000" style={{ backgroundColor: 'var(--bg)' }}>
-                <AnimatePresence custom={direction} mode="popLayout">
-                    <motion.div
-                        key={location.pathname}
-                        custom={direction}
-                        variants={variants}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        className="h-full w-full overflow-auto absolute top-0 left-0 shadow-2xl"
-                        style={{ backgroundColor: 'var(--bg)' }}
-                    // Adiciona sombra quando está "flutuando" na animação
-                    >
-                        <Outlet />
-                    </motion.div>
-                </AnimatePresence>
+            {/* Main Content - iOS Navigation Wrapper with Frame Padding */}
+            <div className="flex-1 overflow-hidden relative lg:p-4 md:p-3 p-0" style={{ background: 'var(--bg)' }}>
+                <div className="h-full w-full relative overflow-hidden rounded-t-[24px] lg:rounded-[32px] shadow-2xl border border-white/10 perspective-1000"
+                    style={{ backgroundColor: 'var(--bg)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                    <AnimatePresence custom={direction} mode="popLayout">
+                        <motion.div
+                            key={location.pathname}
+                            custom={direction}
+                            variants={variants}
+                            initial="initial"
+                            animate="animate"
+                            exit="exit"
+                            className="h-full w-full overflow-auto absolute top-0 left-0"
+                            style={{ backgroundColor: 'var(--bg)' }}
+                        >
+                            <Outlet />
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
             </div>
 
             {/* Contextual Help System */}

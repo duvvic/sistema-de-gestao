@@ -1,10 +1,9 @@
-// components/AdminDashboard.tsx - Versão adaptada para React Router
-import React, { useState, useMemo } from "react";
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useDataController } from '@/controllers/useDataController';
 import { Client, Project, Task } from "@/types";
-import { Plus, Building2, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, ArrowUp, Trash2, DollarSign, TrendingUp, BarChart, Users, PieChart } from "lucide-react";
+import { Plus, Building2, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, ArrowUp, Trash2, DollarSign, TrendingUp, BarChart, Users, PieChart, ArrowRight } from "lucide-react";
 import ConfirmationModal from "./ConfirmationModal";
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,12 +12,9 @@ type SortOption = 'recent' | 'alphabetical' | 'creation';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { clients: initialClients, projects: initialProjects, tasks: initialTasks, error, loading, users, deleteProject } = useDataController();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { clients, projects, tasks, error, loading, users, deleteProject } = useDataController();
   const { currentUser, isAdmin } = useAuth();
-
-  const [clients, setClients] = useState(initialClients);
-  const [projects, setProjects] = useState(initialProjects);
-  const [tasks, setTasks] = useState(initialTasks);
   const [sortBy, setSortBy] = useState<SortOption>(() => (localStorage.getItem('admin_clients_sort_by') as SortOption) || 'recent');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'late' | 'ongoing' | 'done'>('all');
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -52,18 +48,7 @@ const AdminDashboard: React.FC = () => {
     setShowSortMenu(false);
   };
 
-  // Atualizar quando os dados mudarem
-  React.useEffect(() => {
-    setClients(initialClients);
-  }, [initialClients]);
-
-  React.useEffect(() => {
-    setProjects(initialProjects);
-  }, [initialProjects]);
-
-  React.useEffect(() => {
-    setTasks(initialTasks);
-  }, [initialTasks]);
+  // Data handling moved to useDataController
 
   // Painel de debug
 
@@ -72,28 +57,12 @@ const AdminDashboard: React.FC = () => {
   const safeProjects = projects || [];
   const safeTasks = tasks || [];
 
-  // Realtime subscriptions
-  useSupabaseRealtime('dim_clientes', (payload) => {
-    if (payload.eventType === 'INSERT') setClients(prev => [...prev, payload.new]);
-    else if (payload.eventType === 'UPDATE') setClients(prev => prev.map(c => c.id === payload.new.id ? payload.new : c));
-    else if (payload.eventType === 'DELETE') setClients(prev => prev.filter(c => c.id !== payload.old.id));
-  });
+  // Realtime handling should be done in useDataController or hooks/useAppData to maintain normalization.
+  // Removing local broken realtime logic.
 
-  useSupabaseRealtime('dim_projetos', (payload) => {
-    if (payload.eventType === 'INSERT') setProjects(prev => [...prev, payload.new]);
-    else if (payload.eventType === 'UPDATE') setProjects(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
-    else if (payload.eventType === 'DELETE') setProjects(prev => prev.filter(p => p.id !== payload.old.id));
-  });
-
-  useSupabaseRealtime('fato_tarefas', (payload) => {
-    if (payload.eventType === 'INSERT') setTasks(prev => [...prev, payload.new]);
-    else if (payload.eventType === 'UPDATE') setTasks(prev => prev.map(t => t.id === payload.new.id ? payload.new : t));
-    else if (payload.eventType === 'DELETE') setTasks(prev => prev.filter(t => t.id !== payload.old.id));
-  });
-
-  // Separar clientes ativos
+  // Separar clientes ativos (Apenas Diretos: Nem parceiro, nem vinculado)
   const activeClients = useMemo(() =>
-    safeClients.filter(c => c.active !== false),
+    safeClients.filter(c => c.active !== false && c.tipo_cliente !== 'parceiro' && !c.partner_id),
     [safeClients]
   );
 
@@ -227,29 +196,39 @@ const AdminDashboard: React.FC = () => {
     };
   }, [safeProjects, safeTasks, portfolioTimesheets, users]);
 
-  const [activeTab, setActiveTab] = useState<'operacional' | 'executivo' | 'capacidade'>('operacional');
+  const activeTab = (searchParams.get('tab') as 'operacional' | 'executivo' | 'capacidade' | 'parceiros') || 'operacional';
+
+  const setActiveTab = (tab: string) => {
+    setSearchParams({ tab });
+  };
 
   return (
     <div className="h-full flex flex-col p-8" style={{ backgroundColor: 'var(--bg)' }}>
       {/* ABAS DE NAVEGAÇÃO SUPERIOR */}
-      <div className="flex gap-2 mb-8 bg-slate-100 dark:bg-slate-800/40 p-1 rounded-2xl w-fit border border-slate-200 dark:border-slate-700">
+      <div className="flex gap-2 mb-8 p-1 rounded-2xl w-fit border shadow-sm transition-colors" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
         <button
           onClick={() => setActiveTab('operacional')}
-          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'operacional' ? 'bg-white dark:bg-slate-700 shadow-sm text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'operacional' ? 'bg-[var(--surface)] shadow-md text-[var(--primary)]' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
         >
           Operacional
         </button>
         <button
           onClick={() => setActiveTab('executivo')}
-          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'executivo' ? 'bg-white dark:bg-slate-700 shadow-sm text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'executivo' ? 'bg-[var(--surface)] shadow-md text-[var(--primary)]' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
         >
           Executive Insights
         </button>
         <button
           onClick={() => setActiveTab('capacidade')}
-          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'capacidade' ? 'bg-white dark:bg-slate-700 shadow-sm text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'capacidade' ? 'bg-[var(--surface)] shadow-md text-[var(--primary)]' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
         >
           Quadro de Capacidade
+        </button>
+        <button
+          onClick={() => setActiveTab('parceiros')}
+          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'parceiros' ? 'bg-[var(--surface)] shadow-md text-[var(--primary)]' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
+        >
+          Parceiros
         </button>
       </div>
 
@@ -257,58 +236,60 @@ const AdminDashboard: React.FC = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 mb-10">
           {/* KPI ROW */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
-              <div className="flex justify-between mb-4">
-                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-2xl text-purple-600"><TrendingUp size={24} /></div>
-                <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md h-fit">ATUALIZADO</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="p-6 rounded-3xl border shadow-sm transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex justify-between mb-4">
+                  <div className="p-3 bg-purple-500/10 rounded-2xl text-[var(--primary)]"><TrendingUp size={24} /></div>
+                  <span className="text-[10px] font-black bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded-md h-fit">ATUALIZADO</span>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: 'var(--muted)' }}>Avanço do Portfólio</p>
+                <div className="flex items-end gap-2">
+                  <p className="text-3xl font-black" style={{ color: 'var(--text)' }}>{Math.round(executiveMetrics.globalProgress)}%</p>
+                  <span className="text-xs font-bold text-emerald-500 mb-1.5 flex items-center"><ArrowUp size={12} /> Real</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full mt-4 overflow-hidden" style={{ backgroundColor: 'var(--surface-2)' }}>
+                  <div className="h-full bg-[var(--primary)]" style={{ width: `${executiveMetrics.globalProgress}%` }} />
+                </div>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Avanço do Portfólio</p>
-              <div className="flex items-end gap-2">
-                <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{Math.round(executiveMetrics.globalProgress)}%</p>
-                <span className="text-xs font-bold text-emerald-500 mb-1.5 flex items-center"><ArrowUp size={12} /> Real</span>
-              </div>
-              <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full mt-4 overflow-hidden">
-                <div className="h-full bg-purple-500" style={{ width: `${executiveMetrics.globalProgress}%` }} />
-              </div>
-            </div>
 
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
-              <div className="flex justify-between mb-4">
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl text-emerald-600"><DollarSign size={24} /></div>
+              <div className="p-6 rounded-3xl border shadow-sm transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex justify-between mb-4">
+                  <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600"><DollarSign size={24} /></div>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: 'var(--muted)' }}>Custo Empenhado</p>
+                <p className="text-3xl font-black" style={{ color: 'var(--text)' }}>
+                  {executiveMetrics.totalCommitted.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+                <p className="text-[10px] font-bold mt-2" style={{ color: 'var(--muted)' }}>Valor acumulado em todos os projetos</p>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Custo Empenhado</p>
-              <p className="text-3xl font-black text-slate-700 dark:text-slate-200">
-                {executiveMetrics.totalCommitted.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </p>
-              <p className="text-[10px] font-bold text-slate-400 mt-2">Valor acumulado em todos os projetos</p>
-            </div>
 
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
-              <div className="flex justify-between mb-4">
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-2xl text-blue-600"><PieChart size={24} /></div>
+              <div className="p-6 rounded-3xl border shadow-sm transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex justify-between mb-4">
+                  <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-600"><PieChart size={24} /></div>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: 'var(--muted)' }}>Previsão de Resultado</p>
+                <p className={`text-3xl font-black ${executiveMetrics.totalEstimatedROI < 0 ? 'text-red-500' : 'text-[var(--text)]'}`}>
+                  {executiveMetrics.totalEstimatedROI.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+                <p className="text-[10px] font-bold mt-2" style={{ color: 'var(--muted)' }}>Margem Orçado x Real (Forecast)</p>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Previsão de Resultado</p>
-              <p className={`text-3xl font-black ${executiveMetrics.totalEstimatedROI < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                {executiveMetrics.totalEstimatedROI.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </p>
-              <p className="text-[10px] font-bold text-slate-400 mt-2">Margem Orçado x Real (Forecast)</p>
-            </div>
 
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
-              <div className="flex justify-between mb-4">
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl text-red-600"><AlertCircle size={24} /></div>
-                <span className="text-[10px] font-black bg-red-100 text-red-700 px-2 py-1 rounded-md h-fit">CRÍTICO</span>
+              <div className="p-6 rounded-3xl border shadow-sm transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex justify-between mb-4">
+                  <div className="p-3 bg-red-500/10 rounded-2xl text-red-600"><AlertCircle size={24} /></div>
+                  <span className="text-[10px] font-black bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 px-2 py-1 rounded-md h-fit">CRÍTICO</span>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: 'var(--muted)' }}>Alertas de Saúde</p>
+                <p className="text-3xl font-black" style={{ color: 'var(--text)' }}>{executiveMetrics.delayedTasksCount}</p>
+                <p className="text-[10px] font-bold mt-2" style={{ color: 'var(--muted)' }}>Tarefas com atraso no portfólio</p>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Alertas de Saúde</p>
-              <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{executiveMetrics.delayedTasksCount}</p>
-              <p className="text-[10px] font-bold text-slate-400 mt-2">Tarefas com atraso no portfólio</p>
             </div>
           </div>
 
           {/* FINANCE TABLE */}
-          <div className="bg-white dark:bg-slate-800 rounded-[32px] border border-slate-200 dark:border-slate-700 p-8 shadow-xl shadow-slate-200/50">
-            <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-3">
-              <DollarSign className="text-purple-500" /> Detalhamento Financeiro por Projeto
+          <div className="p-8 rounded-[32px] border shadow-xl transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h3 className="text-lg font-black mb-6 flex items-center gap-3" style={{ color: 'var(--text)' }}>
+              <DollarSign className="text-[var(--primary)]" /> Detalhamento Financeiro por Projeto
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -364,45 +345,45 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'capacidade' && executiveMetrics && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-          <div className="bg-white dark:bg-slate-800 rounded-[32px] border border-slate-200 dark:border-slate-700 p-8 shadow-xl">
+          <div className="p-8 rounded-[32px] border shadow-xl transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-3">
-                <Users className="text-purple-500" /> Mapa de Ocupação dos Recursos
+              <h3 className="text-xl font-black flex items-center gap-3" style={{ color: 'var(--text)' }}>
+                <Users className="text-[var(--primary)]" /> Mapa de Ocupação dos Recursos
               </h3>
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-[9px] font-bold uppercase text-slate-400">Excelente (&lt;80%)</span>
+                  <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--muted)' }}>Excelente (&lt;80%)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-amber-500" />
-                  <span className="text-[9px] font-bold uppercase text-slate-400">Alerta (80-100%)</span>
+                  <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--muted)' }}>Alerta (80-100%)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <span className="text-[9px] font-bold uppercase text-slate-400">Sobrecarga (&gt;100%)</span>
+                  <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--muted)' }}>Sobrecarga (&gt;100%)</span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {executiveMetrics.resourcesCapacity.map(res => (
-                <div key={res.id} className="p-5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 hover:shadow-lg transition-all">
+                <div key={res.id} className="p-5 rounded-2xl border transition-all hover:shadow-lg" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{res.name}</h4>
-                      <span className="text-[9px] font-black text-purple-500 uppercase tracking-tighter">{res.tower || 'Sem Torre'}</span>
+                      <h4 className="font-bold text-sm truncate" style={{ color: 'var(--text)' }}>{res.name}</h4>
+                      <span className="text-[9px] font-black text-[var(--primary)] uppercase tracking-tighter">{res.tower || 'Sem Torre'}</span>
                     </div>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${res.load > 100 ? 'bg-red-100 text-red-700' : res.load > 80 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${res.load > 100 ? 'bg-red-500/10 text-red-500' : res.load > 80 ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
                       {Math.round(res.load)}%
                     </span>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface)' }}>
                       <div className={`h-full transition-all duration-1000 ${res.load > 100 ? 'bg-red-500' : res.load > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(res.load, 100)}%` }} />
                     </div>
-                    <div className="flex justify-between text-[10px] font-black uppercase text-slate-400">
+                    <div className="flex justify-between text-[10px] font-black uppercase" style={{ color: 'var(--muted)' }}>
                       <span>Alocado: {res.assigned}h</span>
                       <span>Base: {res.capacity}h</span>
                     </div>
@@ -410,6 +391,87 @@ const AdminDashboard: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'parceiros' && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--surface)] p-6 rounded-3xl border border-[var(--border)] shadow-sm">
+            <div>
+              <h2 className="text-xl font-black text-[var(--text)]">Gestão de Parceiros</h2>
+              <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">Visualize parceiros e empresas vinculadas</p>
+            </div>
+            <button
+              onClick={() => navigate('/admin/clients/new?tipo=parceiro')}
+              className="bg-[var(--primary)] text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:opacity-90 transition-opacity whitespace-nowrap shadow-lg shadow-purple-500/20"
+            >
+              <Plus size={16} /> Novo Parceiro
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            {safeClients.filter(c => c.tipo_cliente === 'parceiro').length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 bg-[var(--surface)] rounded-[32px] border-2 border-dashed border-[var(--border)]">
+                <Briefcase size={40} className="text-[var(--muted)] mb-4 opacity-20" />
+                <p className="text-[var(--muted)] font-black uppercase text-[10px] tracking-widest">Nenhum parceiro cadastrado ainda</p>
+              </div>
+            ) : (
+              safeClients.filter(c => c.tipo_cliente === 'parceiro').map(partner => (
+                <div key={partner.id} className="bg-[var(--surface)] rounded-[32px] border border-[var(--border)] shadow-sm overflow-hidden transition-all hover:shadow-md">
+                  <div className="p-6 flex flex-col md:flex-row items-center justify-between bg-[var(--surface-2)]/50 border-b border-[var(--border)] gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center p-2 shadow-sm border border-[var(--border)]">
+                        <img src={partner.logoUrl || '/placeholder-logo.png'} alt={partner.name} className="max-w-full max-h-full object-contain" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-[var(--text)]">{partner.name}</h3>
+                        <span className="text-[9px] font-black uppercase text-[var(--primary)] bg-[var(--primary-soft)] px-2 py-0.5 rounded-md">PARCEIRO NIC-LABS</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-black text-[var(--muted)] uppercase tracking-tighter">
+                        {safeClients.filter(c => c.partner_id === partner.id).length} Empresas Vinculadas
+                      </span>
+                      <button
+                        onClick={() => navigate(`/admin/clients/${partner.id}`)}
+                        className="p-2 hover:bg-[var(--surface)] rounded-xl transition-colors border border-transparent hover:border-[var(--border)] text-[var(--text)]"
+                      >
+                        <TrendingUp size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {safeClients.filter(c => c.partner_id === partner.id).map(linkedCompany => (
+                        <div
+                          key={linkedCompany.id}
+                          onClick={() => navigate(`/admin/clients/${linkedCompany.id}`)}
+                          className="p-4 rounded-2xl border border-[var(--border)] hover:border-[var(--primary)] transition-all cursor-pointer group flex items-center gap-4 bg-[var(--surface)]"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-[var(--surface-2)] flex items-center justify-center p-2 border border-[var(--border)] group-hover:scale-105 transition-transform">
+                            <img src={linkedCompany.logoUrl || '/placeholder-logo.png'} alt={linkedCompany.name} className="max-w-full max-h-full object-contain opacity-80" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-black text-sm text-[var(--text)] truncate">{linkedCompany.name}</p>
+                            <p className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-tighter">Empresa Vinculada</p>
+                          </div>
+                          <ArrowRight size={14} className="text-[var(--muted)] opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => navigate(`/admin/clients/new?tipo=cliente_final&partnerId=${partner.id}`)}
+                        className="p-4 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] transition-all flex items-center justify-center gap-3 group"
+                      >
+                        <Plus size={18} className="text-[var(--muted)] group-hover:text-[var(--primary)]" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] group-hover:text-[var(--primary)]">Adicionar Empresa</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </motion.div>
       )}

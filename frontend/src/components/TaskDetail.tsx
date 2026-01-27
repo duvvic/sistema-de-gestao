@@ -540,7 +540,7 @@ const TaskDetail: React.FC = () => {
 
                       const filteredUsers = users.filter(u =>
                         u.active !== false &&
-                        (isAdmin || projectMemberIds.includes(u.id)) &&
+                        projectMemberIds.includes(u.id) &&
                         u.id !== formData.developerId // Não listar o dono
                       );
 
@@ -674,11 +674,12 @@ const TaskDetail: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black mb-2 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Consumido (Real)</label>
-                  <div className="w-full p-3 bg-slate-50 dark:bg-slate-800/50 border border-[var(--border)] rounded-xl text-sm font-black flex items-center justify-center gap-2">
+                  <div className="w-full p-3 border rounded-xl text-sm font-black flex items-center justify-center gap-2 shadow-sm transition-all"
+                    style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
                     <span className={actualHoursSpent > (formData.estimatedHours || 0) ? 'text-red-500' : 'text-emerald-500'}>
                       {actualHoursSpent}h
                     </span>
-                    <span className="text-[10px] opacity-40 font-normal">/ {formData.estimatedHours || 0}h</span>
+                    <span className="text-[10px] font-medium" style={{ color: 'var(--muted)' }}>/ {formData.estimatedHours || 0}h</span>
                   </div>
                 </div>
               </div>

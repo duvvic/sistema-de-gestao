@@ -110,40 +110,52 @@ const ClientDetailsView: React.FC = () => {
           <Edit className="w-4 h-4" />
           Editar
         </button>
-
-        <button
-          onClick={() => navigate(`/admin/clients/${clientId}/projects/new`)}
-          className="px-4 py-2 bg-[#4c1d95] text-white rounded-lg hover:bg-[#3b1675] flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Projeto
-        </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-6 border-b mb-6" style={{ borderColor: 'var(--border)' }}>
-        <button
-          onClick={() => setActiveTab('projects')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 transition-colors border-b-2`}
-          style={{
-            color: activeTab === 'projects' ? 'var(--brand)' : 'var(--textMuted)',
-            borderColor: activeTab === 'projects' ? 'var(--brand)' : 'transparent'
-          }}
-        >
-          <LayoutGrid className="w-4 h-4" />
-          Projetos
-        </button>
-        <button
-          onClick={() => setActiveTab('tasks')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 transition-colors border-b-2`}
-          style={{
-            color: activeTab === 'tasks' ? 'var(--brand)' : 'var(--textMuted)',
-            borderColor: activeTab === 'tasks' ? 'var(--brand)' : 'transparent'
-          }}
-        >
-          <ListTodo className="w-4 h-4" />
-          Tarefas
-        </button>
+      <div className="flex items-center justify-between border-b mb-6" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-6">
+          <button
+            onClick={() => setActiveTab('projects')}
+            className={`pb-3 text-sm font-bold flex items-center gap-2 transition-colors border-b-2`}
+            style={{
+              color: activeTab === 'projects' ? 'var(--brand)' : 'var(--textMuted)',
+              borderColor: activeTab === 'projects' ? 'var(--brand)' : 'transparent'
+            }}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Projetos
+          </button>
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className={`pb-3 text-sm font-bold flex items-center gap-2 transition-colors border-b-2`}
+            style={{
+              color: activeTab === 'tasks' ? 'var(--brand)' : 'var(--textMuted)',
+              borderColor: activeTab === 'tasks' ? 'var(--brand)' : 'transparent'
+            }}
+          >
+            <ListTodo className="w-4 h-4" />
+            Tarefas
+          </button>
+        </div>
+
+        {activeTab === 'projects' ? (
+          <button
+            onClick={() => navigate(`/admin/clients/${clientId}/projects/new`)}
+            className="mb-2 px-4 py-2 bg-[#4c1d95] text-white rounded-lg hover:bg-[#3b1675] flex items-center gap-2 transition-all shadow-md active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-sm font-bold">Novo Projeto</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate(`/tasks/new?client=${clientId}`)}
+            className="mb-2 px-4 py-2 bg-[#4c1d95] text-white rounded-lg hover:bg-[#3b1675] flex items-center gap-2 transition-all shadow-md active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-sm font-bold">Nova Tarefa</span>
+          </button>
+        )}
       </div>
 
       {/* Contract Info Stats */}
@@ -209,12 +221,6 @@ const ClientDetailsView: React.FC = () => {
               <div className="text-center py-12 text-slate-400">
                 <Briefcase className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Nenhum projeto cadastrado</p>
-                <button
-                  onClick={() => navigate(`/admin/clients/${clientId}/projects/new`)}
-                  className="mt-4 text-[#4c1d95] hover:underline"
-                >
-                  Criar primeiro projeto
-                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -350,12 +356,6 @@ const ClientDetailsView: React.FC = () => {
               <div className="text-center py-12 text-slate-400">
                 <CheckSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Nenhuma tarefa cadastrada para este cliente.</p>
-                <button
-                  onClick={() => navigate(`/tasks/new?client=${clientId}`)}
-                  className="mt-4 text-[#4c1d95] hover:underline"
-                >
-                  Criar primeira tarefa
-                </button>
               </div>
             ) : filteredTasks.length === 0 ? (
               <div className="text-center py-12 text-slate-400">

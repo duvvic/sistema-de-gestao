@@ -16,10 +16,12 @@ const UserForm: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [isManualCargo, setIsManualCargo] = useState(false);
+  const [isManualLevel, setIsManualLevel] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     cargo: '',
+    nivel: '',
     role: 'developer' as Role,
     active: true,
     avatarUrl: '',
@@ -35,6 +37,7 @@ const UserForm: React.FC = () => {
         name: initialUser.name,
         email: initialUser.email,
         cargo: initialUser.cargo || '',
+        nivel: initialUser.nivel || '',
         role: initialUser.role,
         active: initialUser.active !== false,
         avatarUrl: initialUser.avatarUrl || '',
@@ -68,6 +71,7 @@ const UserForm: React.FC = () => {
         NomeColaborador: formData.name,
         email: formData.email,
         Cargo: formData.cargo,
+        nivel: formData.nivel,
         role: formData.role.charAt(0).toUpperCase() + formData.role.slice(1),
         ativo: formData.active,
         avatar_url: formData.avatarUrl,
@@ -220,6 +224,91 @@ const UserForm: React.FC = () => {
                 )}
               </div>
 
+              {/* Nível (Condicional) */}
+              {(() => {
+                const cargoLower = formData.cargo.toLowerCase();
+                let options: string[] = [];
+                let showLevelField = false;
+                let isInfra = false;
+
+                if (cargoLower.includes('desenvolvedor') || cargoLower.includes('developer')) {
+                  options = ['Estagiário', 'Trainee', 'Júnior', 'Pleno', 'Sênior', 'Especialista'];
+                  showLevelField = true;
+                } else if (cargoLower.includes('administrador') || cargoLower.includes('admin')) {
+                  options = ['RH', 'Estagiário', 'Jovem Aprendiz', 'Assistente', 'Analista'];
+                  showLevelField = true;
+                } else if (cargoLower.includes('infra') || cargoLower.includes('ti')) {
+                  // Lógica Infra: checkbox Estágio
+                  isInfra = true;
+                  showLevelField = true;
+                }
+
+                if (!showLevelField) return null;
+
+                if (isInfra) {
+                  return (
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--text)] mb-2 flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-[var(--brand)]" />
+                        Nível
+                      </label>
+                      <div className="flex items-center gap-3 p-3 border rounded-xl bg-[var(--bgApp)] border-[var(--border)]">
+                        <input
+                          type="checkbox"
+                          id="infraIntern"
+                          checked={formData.nivel === 'Estagiário'}
+                          onChange={(e) => setFormData({ ...formData, nivel: e.target.checked ? 'Estagiário' : '' })}
+                          className="w-5 h-5 text-[var(--brand)] rounded focus:ring-[var(--brand)]"
+                        />
+                        <label htmlFor="infraIntern" className="text-sm text-[var(--text)]">Estágio</label>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Dropdown padrão para outros cargos permitidos
+
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-[var(--text)] flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-[var(--brand)]" />
+                        Nível
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsManualLevel(!isManualLevel)}
+                        className="text-xs font-bold text-[var(--brand)] hover:opacity-80 transition-opacity"
+                      >
+                        {isManualLevel ? 'Selecionar da lista' : '+ Criar novo nível'}
+                      </button>
+                    </div>
+
+                    {isManualLevel ? (
+                      <input
+                        type="text"
+                        value={formData.nivel}
+                        onChange={(e) => setFormData({ ...formData, nivel: e.target.value })}
+                        className="w-full px-4 py-3 bg-[var(--bgApp)] border border-[var(--border)] rounded-xl focus:ring-2 focus:ring-[var(--brand)] outline-none transition-all text-[var(--text)]"
+                        placeholder="Digite o novo nível..."
+                        autoFocus
+                      />
+                    ) : (
+                      <select
+                        value={formData.nivel}
+                        onChange={(e) => setFormData({ ...formData, nivel: e.target.value })}
+                        className="w-full px-4 py-3 bg-[var(--bgApp)] border border-[var(--border)] rounded-xl focus:ring-2 focus:ring-[var(--brand)] outline-none text-[var(--text)]"
+                      >
+                        <option value="" disabled hidden>Selecione...</option>
+                        {options.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Role (Permissão) */}
               <div>
                 <label className="block text-sm font-medium text-[var(--text)] mb-2 flex items-center gap-2">
@@ -268,9 +357,9 @@ const UserForm: React.FC = () => {
             </div>
 
             {/* Disponibilidade e Custos (Acesso Restrito) */}
-            <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                <Shield className="w-3 h-3" /> Dados Executivos (Restrito)
+            <div className="p-6 rounded-2xl border space-y-6 transition-all shadow-inner" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <h3 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--muted)' }}>
+                <Shield className="w-3 h-3 text-[var(--primary)]" /> Dados Executivos (Restrito)
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

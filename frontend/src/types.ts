@@ -18,6 +18,7 @@ export interface User {
   active?: boolean;
   tower?: string; // Torre de atuação
   hourlyCost?: number; // Custo hora
+  nivel?: string; // Nível de experiência
   dailyAvailableHours?: number; // Horas liberadas dia
   monthlyAvailableHours?: number; // Horas liberadas mês
 }
@@ -33,7 +34,8 @@ export interface Client {
   contato_principal?: string;
   cnpj?: string;
   telefone?: string;
-  tipo?: 'parceiro' | 'cliente_final';
+  tipo_cliente?: 'parceiro' | 'cliente_final';
+  partner_id?: string;
 }
 
 export interface Project {

@@ -26,8 +26,11 @@ const DeveloperProjects: React.FC = () => {
   const myTasks = React.useMemo(() => {
     if (!currentUser) return [];
     if (isAdmin) return tasks;
-    return tasks.filter(t => t.developerId === currentUser.id);
-  }, [tasks, currentUser]);
+    return tasks.filter(t =>
+      t.developerId === currentUser.id ||
+      (t.collaboratorIds && t.collaboratorIds.includes(currentUser.id))
+    );
+  }, [tasks, currentUser, isAdmin]);
 
   const myProjectIdsFromTasks = React.useMemo(() => new Set(myTasks.map(t => t.projectId)), [myTasks]);
 

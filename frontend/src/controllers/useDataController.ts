@@ -57,7 +57,8 @@ export const useDataController = () => {
                 active: row.ativo ?? true,
                 cnpj: row.cnpj,
                 telefone: row.telefone,
-                tipo: row.tipo_cliente
+                tipo_cliente: row.tipo_cliente,
+                partner_id: row.partner_id ? String(row.partner_id) : undefined
             };
             setClients(prev => [...prev, newClient]);
         }
@@ -70,7 +71,9 @@ export const useDataController = () => {
             .from('dim_clientes')
             .update({
                 NomeCliente: updates.name,
-                NewLogo: updates.logoUrl
+                NewLogo: updates.logoUrl,
+                tipo_cliente: updates.tipo_cliente,
+                partner_id: updates.partner_id ? Number(updates.partner_id) : null
             })
             .eq('ID_Cliente', Number(clientId));
 
@@ -234,6 +237,7 @@ export const useDataController = () => {
                 NomeColaborador: userData.name,
                 email: userData.email,
                 Cargo: userData.cargo,
+                nivel: userData.nivel,
                 role: userData.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : 'Resource', // Default role
                 ativo: userData.active ?? true
             }])
@@ -248,6 +252,7 @@ export const useDataController = () => {
         if (updates.name !== undefined) payload.NomeColaborador = updates.name;
         if (updates.email !== undefined) payload.email = updates.email;
         if (updates.cargo !== undefined) payload.Cargo = updates.cargo;
+        if (updates.nivel !== undefined) payload.nivel = updates.nivel;
         if (updates.role !== undefined) payload.role = updates.role.charAt(0).toUpperCase() + updates.role.slice(1);
         if (updates.active !== undefined) payload.ativo = updates.active;
         if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;

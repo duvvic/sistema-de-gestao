@@ -3,97 +3,77 @@
    ================================================ */
 
 :root {
-  /* LIGHT MODE - Enhanced for Better Visibility */
+  /* LIGHT MODE - Ultra Visibility & Premium Feel */
 
-  /* Backgrounds - More contrast between levels */
-  --bg: #F1F5F9;
-  /* Lighter gray to make white cards stand out more */
+  /* Backgrounds */
+  --bg: #F8FAFC;
+  /* Lighter, cleaner slate-50 */
   --surface: #FFFFFF;
   /* Pure white cards */
-  --surface-2: #F8FAFC;
-  /* Very light gray for nested areas */
+  --surface-2: #F1F5F9;
+  /* Slate-100 for nested or secondary areas */
   --surface-hover: #E2E8F0;
-  /* Slightly darker on hover for clear feedback */
 
   /* Sidebar & Header */
   --sidebar-bg: #4C1D95;
   --sidebar-bg-2: #5B21B6;
 
   /* Primary Colors */
-  --primary: #6D28D9;
-  /* Vibrant purple with good contrast */
-  --primary-hover: #5B21B6;
-  --primary-soft: #F3E8FF;
-  /* Very light purple */
+  --primary: #7C3AED;
+  /* Vibrant violet-600 */
+  --primary-hover: #6D28D9;
+  --primary-soft: #F5F3FF;
+  /* violet-50 */
 
-  /* Text Colors - Darker for better readability */
+  /* Text Colors - Max Legibility */
   --text: #0F172A;
-  /* Slate 900 - Very dark for main text */
-  --text-2: #1E293B;
-  /* Slate 800 - Dark for secondary text */
-  --muted: #475569;
-  /* Slate 600 - Darker muted text for better visibility */
+  /* Slate-900 */
+  --text-2: #334155;
+  /* Slate-700 */
+  --muted: #64748B;
+  /* Slate-500 - Stronger visibility */
 
-  /* Borders & Effects - More visible */
-  --border: #CBD5E1;
-  /* Slate 300 - More visible borders */
-  --ring: rgba(109, 40, 217, 0.3);
+  /* Borders & Effects */
+  --border: #E2E8F0;
+  /* Slate-200 for subtle borders */
+  --border-strong: #CBD5E1;
+  /* Slate-300 for clearer division */
+  --ring: rgba(124, 58, 237, 0.4);
 
-  /* Status Colors - High contrast for light mode */
-  --success: #059669;
-  /* Emerald 600 */
-  --success-bg: #D1FAE5;
-  /* Emerald 100 */
+  /* Status Colors (Optimized for Light Backgrounds) */
+  --success: #10B981;
+  /* Emerald-500 */
+  --success-bg: #ECFDF5;
   --success-text: #065F46;
-  /* Emerald 800 - Darker for better contrast */
 
-  --warning-bg: #FEF3C7;
-  /* Amber 100 */
+  --warning: #F59E0B;
+  /* Amber-500 */
+  --warning-bg: #FFFBEB;
   --warning-text: #92400E;
-  /* Amber 800 */
 
-  --danger: #DC2626;
-  /* Red 600 */
-  --danger-bg: #FEE2E2;
-  /* Red 100 */
+  --danger: #EF4444;
+  /* Red-500 */
+  --danger-bg: #FEF2F2;
   --danger-text: #991B1B;
-  /* Red 800 */
 
-  --info: #2563EB;
-  /* Blue 600 */
-  --info-bg: #DBEAFE;
-  /* Blue 100 */
+  --info: #3B82F6;
+  /* Blue-500 */
+  --info-bg: #EFF6FF;
   --info-text: #1E40AF;
-  /* Blue 800 */
 
-  /* Kanban Specific Statuses - Distinct and visible */
-  --status-todo: #F1F5F9;
-  /* Slate 100 - Light but visible */
-  --status-progress: #DBEAFE;
-  /* Blue 100 */
-  --status-review: #FEF3C7;
-  /* Amber 100 - Yellow for Teste */
-  --status-done: #D1FAE5;
-  /* Emerald 100 */
+  /* Kanban Columns */
+  --status-todo: #F8FAFC;
+  --status-progress: #EFF6FF;
+  --status-review: #FFFBEB;
+  --status-done: #ECFDF5;
 
-  /* Notes Colors - Refined for Light Mode */
-  --note-yellow: #CA8A04;
-  --note-blue: #2563EB;
-  --note-purple: #7C3AED;
-  --note-orange: #EA580C;
-  --note-green: #16A34A;
-  --note-bg-yellow: rgba(234, 179, 8, 0.1);
-  --note-bg-blue: rgba(37, 99, 235, 0.1);
-  --note-bg-purple: rgba(124, 58, 237, 0.1);
-  --note-bg-orange: rgba(234, 88, 12, 0.1);
-  --note-bg-green: rgba(22, 163, 74, 0.1);
+  /* Shadows - Cleaner & Lighter */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 
-  /* Shadows - More pronounced for depth */
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.12), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-
-  /* Aliases for backward compatibility */
+  /* Aliases */
   --bg-app: var(--bg);
   --bgApp: var(--bg);
   --bg-surface: var(--surface);

@@ -31,6 +31,8 @@ export interface DbClientRow {
   Desativado?: string | null;
   pais?: string | null;
   contato_principal?: string | null;
+  tipo_cliente?: 'parceiro' | 'cliente_final' | null;
+  partner_id?: number | null;
 }
 
 export interface DbProjectRow {
@@ -92,7 +94,7 @@ export async function fetchUsers(): Promise<User[]> {
     console.log("[API] Buscando users (v2-fix-role)...");
     const { data, error } = await supabase
       .from("dim_colaboradores")
-      .select("ID_Colaborador, NomeColaborador, Cargo, email, avatar_url, role, ativo, tower");
+      .select("ID_Colaborador, NomeColaborador, Cargo, email, avatar_url, role, ativo, tower, nivel");
 
     if (error) {
       console.error("[API] Erro Supabase:", error);
@@ -146,7 +148,7 @@ export async function fetchClients(): Promise<Client[]> {
   try {
     const { data, error } = await supabase
       .from("dim_clientes")
-      .select("ID_Cliente, NomeCliente, NewLogo, ativo, Criado, Contrato, Desativado, Pais, contato_principal");
+      .select("ID_Cliente, NomeCliente, NewLogo, ativo, Criado, Contrato, Desativado, Pais, contato_principal, tipo_cliente, partner_id");
 
     if (error) {
       throw error;
@@ -164,6 +166,8 @@ export async function fetchClients(): Promise<Client[]> {
         active: row.ativo ?? true,
         pais: row.pais ?? null,
         contato_principal: row.contato_principal ?? null,
+        tipo_cliente: (row.tipo_cliente as any) || 'cliente_final',
+        partner_id: row.partner_id ? String(row.partner_id) : undefined,
       };
       clientBase.Criado = row.Criado ?? null;
       clientBase.Contrato = row.Contrato ?? null;

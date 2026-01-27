@@ -71,7 +71,10 @@ const TeamMemberDetail: React.FC = () => {
    }
 
    // Logic
-   let userTasks = tasks.filter(t => t.developerId === user.id);
+   let userTasks = tasks.filter(t =>
+      t.developerId === user.id ||
+      (t.collaboratorIds && t.collaboratorIds.includes(user.id))
+   );
    const linkedProjectIds = projectMembers
       .filter(pm => pm.userId === user.id)
       .map(pm => pm.projectId);

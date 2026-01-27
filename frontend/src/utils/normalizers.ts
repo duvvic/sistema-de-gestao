@@ -199,6 +199,7 @@ export function mapDbUserToUser(row: any): User {
         role: normalizeUserRole(row.role),
         active: row.ativo !== false,
         tower: row.tower || row.torre || undefined,
+        nivel: row.nivel || undefined,
         hourlyCost: row.custo_hora ? Number(row.custo_hora) : undefined,
         dailyAvailableHours: row.horas_disponiveis_dia ? Number(row.horas_disponiveis_dia) : undefined,
         monthlyAvailableHours: row.horas_disponiveis_mes ? Number(row.horas_disponiveis_mes) : undefined,

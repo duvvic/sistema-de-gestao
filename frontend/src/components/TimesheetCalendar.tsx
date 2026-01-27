@@ -7,7 +7,7 @@ import { TimesheetEntry } from '@/types';
 import {
   ChevronLeft, ChevronRight, Plus, Clock, TrendingUp, Trash2,
   Users, AlertTriangle, CheckCircle, Calendar,
-  Search, ChevronDown, Check
+  Search, ChevronDown, Check, Coffee, PartyPopper, Flag, Gift, Sparkles, Heart, Hammer
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
@@ -44,8 +44,13 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
 
 
   // Use URL search param for userId if available, otherwise use prop or currentUser
+  // Use URL search param for userId if available, otherwise use memory (localStorage), prop or currentUser
   const queryUserId = searchParams.get('userId');
-  const [selectedUserId, setSelectedUserId] = useState<string>(queryUserId || userId || '');
+  const [selectedUserId, setSelectedUserId] = useState<string>(() => {
+    if (queryUserId) return queryUserId;
+    if (userId) return userId;
+    return localStorage.getItem('timesheet_last_selected_user_id') || '';
+  });
 
   // Search States
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,13 +74,20 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
       setSelectedUserId(userId);
     } else if (queryUserId) {
       setSelectedUserId(queryUserId);
-    } else if (!selectedUserId && currentUser) {
-      setSelectedUserId(currentUser.id);
+    } else if (!selectedUserId) {
+      // Fallback to memory or currentUser
+      const rememberedValue = localStorage.getItem('timesheet_last_selected_user_id');
+      if (rememberedValue) {
+        setSelectedUserId(rememberedValue);
+      } else if (currentUser) {
+        setSelectedUserId(currentUser.id);
+      }
     }
-  }, [currentUser, userId, queryUserId]);
+  }, [currentUser, userId, queryUserId, selectedUserId]);
 
   const handleUserSelect = (uid: string) => {
     setSelectedUserId(uid);
+    localStorage.setItem('timesheet_last_selected_user_id', uid);
     setSearchParams(prev => {
       prev.set('userId', uid);
       return prev;
@@ -102,6 +114,28 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
+  // Helper de Feriados Nacionais (Brasil 2025/2026)
+  const getHoliday = (d: number, m: number, y: number) => {
+    const dates: { [key: string]: { name: string, icon: any, color: string, bg: string } } = {
+      "1-0": { name: "Confraternização Universal", icon: PartyPopper, color: "#EAB308", bg: "rgba(234, 179, 8, 0.05)" }, // Yellow
+      "21-3": { name: "Tiradentes", icon: Sparkles, color: "#10B981", bg: "rgba(16, 185, 129, 0.05)" }, // Green
+      "1-4": { name: "Dia do Trabalho", icon: Hammer, color: "#EF4444", bg: "rgba(239, 68, 68, 0.05)" }, // Red
+      "7-8": { name: "Independência do Brasil", icon: Flag, color: "#F59E0B", bg: "rgba(245, 158, 11, 0.05)" }, // Amber/Gold
+      "12-9": { name: "Nossa Sra. Aparecida", icon: Heart, color: "#3B82F6", bg: "rgba(59, 130, 246, 0.05)" }, // Blue
+      "2-10": { name: "Finados", icon: Sparkles, color: "#64748B", bg: "rgba(100, 116, 139, 0.05)" }, // Slate
+      "15-10": { name: "Proclamação da República", icon: Flag, color: "#065F46", bg: "rgba(6, 95, 70, 0.05)" }, // Dark Green
+      "20-10": { name: "Consciência Negra", icon: Sparkles, color: "#7C2D12", bg: "rgba(124, 45, 18, 0.05)" }, // Brown/Rust
+      "25-11": { name: "Natal", icon: Gift, color: "#DC2626", bg: "rgba(220, 38, 38, 0.05)" } // Christmas Red
+    };
+    // Feriados móveis (Exemplo simplificado para 2026)
+    if (y === 2026) {
+      if (d === 3 && m === 3) return { name: "Sexta-feira Santa", icon: Heart, color: "#4F46E5", bg: "rgba(79, 70, 229, 0.05)" };
+      if (d === 5 && m === 3) return { name: "Páscoa", icon: PartyPopper, color: "#EC4899", bg: "rgba(236, 72, 153, 0.05)" };
+      if (d === 4 && m === 5) return { name: "Corpus Christi", icon: Sparkles, color: "#FBBF24", bg: "rgba(251, 191, 36, 0.05)" };
+    }
+    return dates[`${d}-${m}`];
+  };
+
   /* --- LÓGICA DE PENDÊNCIAS --- */
   const calculateDaysMissing = (uid: string) => {
     if (!uid) return 0;
@@ -126,8 +160,9 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
 
       const dayOfWeek = checkDate.getDay();
       const isWorkDay = dayOfWeek >= 1 && dayOfWeek <= 5;
+      const holiday = getHoliday(checkDate.getDate(), checkDate.getMonth(), checkDate.getFullYear());
 
-      if (isWorkDay && !workedDays.has(dStr)) {
+      if (isWorkDay && !workedDays.has(dStr) && !holiday) {
         missing++;
       }
       checkDate.setDate(checkDate.getDate() + 1);
@@ -166,13 +201,38 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
   }, [allEntries, targetUserId]);
 
   const selectedUserStats = useMemo(() => {
+    // 1. Filtrar lançamentos do mês/ano selecionados
     const monthEntries = currentEntries.filter(e => {
       if (!e.date) return false;
       const d = new Date(e.date);
       return d.getMonth() === month && d.getFullYear() === year;
     });
-    const totalHours = monthEntries.reduce((acc, curr) => acc + (curr.totalHours || 0), 0);
 
+    // 2. Calcular Saldo de Horas (Diferença de 8h/dia) - APENAS DIAS APONTADOS
+    let balanceHours = 0;
+    const entriesByDate = monthEntries.reduce((acc, curr) => {
+      const d = curr.date;
+      acc[d] = (acc[d] || 0) + (curr.totalHours || 0);
+      return acc;
+    }, {} as { [key: string]: number });
+
+    Object.entries(entriesByDate).forEach(([dStr, dayTotal]) => {
+      const parts = dStr.split('-');
+      const checkDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const dayOfWeek = checkDate.getDay();
+      const isWorkDay = dayOfWeek >= 1 && dayOfWeek <= 5;
+      const holiday = getHoliday(checkDate.getDate(), checkDate.getMonth(), checkDate.getFullYear());
+
+      if (isWorkDay && !holiday) {
+        // Se trabalhou em dia útil, o saldo é a diferença para as 8h
+        balanceHours += (dayTotal - 8);
+      } else {
+        // Se trabalhou em feriado ou fim de semana, TUDO é extra
+        balanceHours += dayTotal;
+      }
+    });
+
+    // 3. Pendências (Dias sem nenhum apontamento)
     let missing = 0;
     if (isAdmin) {
       const u = processedUsers.find(u => u.id === targetUserId);
@@ -181,8 +241,10 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
       missing = calculateDaysMissing(currentUser?.id || '');
     }
 
-    return { totalHours, missing };
-  }, [currentEntries, year, month, targetUserId, processedUsers, isAdmin, currentUser]);
+    const totalHours = monthEntries.reduce((acc, curr) => acc + (curr.totalHours || 0), 0);
+
+    return { totalHours, balanceHours, missing };
+  }, [currentEntries, year, month, targetUserId, processedUsers, isAdmin, currentUser, today]);
 
   const handleDelete = async () => {
     if (entryToDelete) {
@@ -223,102 +285,7 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
   return (
     <div className={`h-full flex flex-col ${embedded ? '' : 'p-6 md:p-8'} overflow-hidden gap-6`} style={{ backgroundColor: 'var(--bg)' }}>
 
-      {/* 1. SELEÇÃO DE EQUIPE (ADMIN) */}
-      {!embedded && isAdmin && (
-        <div className="rounded-2xl shadow-sm border p-6 flex-shrink-0 z-20"
-          style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-              <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--text)' }}>
-                <Users className="w-5 h-5" style={{ color: 'var(--primary)' }} />
-                Visão da Equipe
-              </h2>
-              <p className="text-xs font-medium mt-1" style={{ color: 'var(--muted)' }}>
-                Selecione um colaborador para visualizar o ponto
-              </p>
-            </div>
 
-            {/* Search Dropdown */}
-            <div className="relative w-full md:w-96" ref={dropdownRef}>
-              <div
-                className={`
-                            flex items-center gap-2 border rounded-xl p-3 cursor-pointer transition-all
-                            ${isDropdownOpen ? 'ring-2' : ''}
-                        `}
-                style={{
-                  backgroundColor: isDropdownOpen ? 'var(--surface)' : 'var(--surface-2)',
-                  borderColor: isDropdownOpen ? 'var(--primary)' : 'var(--border)',
-                  boxShadow: isDropdownOpen ? 'var(--shadow-md)' : 'none'
-                }}
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              >
-                <Search className="w-5 h-5" style={{ color: 'var(--muted)' }} />
-                <input
-                  type="text"
-                  placeholder="Buscar colaborador..."
-                  className="bg-transparent outline-none flex-1 text-sm font-medium placeholder:text-slate-400 cursor-pointer"
-                  style={{ color: 'var(--text)' }}
-                  value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--muted)' }} />
-              </div>
-
-              {/* Dropdown Menu */}
-              {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 border rounded-xl shadow-xl max-h-[320px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200 z-30"
-                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                  <div className="p-2 space-y-1">
-                    {searchedUsers.length === 0 ? (
-                      <div className="p-4 text-center text-sm italic" style={{ color: 'var(--muted)' }}>Nenhum colaborador encontrado</div>
-                    ) : (
-                      searchedUsers.map(user => (
-                        <button
-                          key={user.id}
-                          onClick={() => handleUserSelect(user.id)}
-                          className={`
-                                                 w-full flex items-center gap-3 p-3 rounded-lg transition-colors group
-                                             `}
-                          style={{
-                            backgroundColor: user.id === selectedUserId ? 'var(--surface-2)' : 'transparent'
-                          }}
-                          onMouseEnter={(e) => { if (user.id !== selectedUserId) e.currentTarget.style.backgroundColor = 'var(--surface-hover)' }}
-                          onMouseLeave={(e) => { if (user.id !== selectedUserId) e.currentTarget.style.backgroundColor = 'transparent' }}
-                        >
-                          <div className="relative flex-shrink-0">
-                            {user.avatarUrl ? (
-                              <img src={user.avatarUrl} className="w-9 h-9 rounded-full object-cover border" style={{ borderColor: 'var(--border)' }} alt="" />
-                            ) : (
-                              <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs border"
-                                style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
-                                {user.name.charAt(0)}
-                              </div>
-                            )}
-                            {user.missing > 2 && (
-                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
-                            )}
-                          </div>
-                          <div className="text-left flex-1 min-w-0">
-                            <p className={`text-sm font-bold truncate group-hover:text-[var(--primary)]`}
-                              style={{ color: user.id === selectedUserId ? 'var(--primary)' : 'var(--text)' }}>
-                              {user.name}
-                            </p>
-                            <p className={`text-[10px] font-medium truncate ${user.missing > 2 ? 'text-red-500' : 'text-emerald-600'}`}>
-                              {user.missing > 2 ? `${user.missing} pendências` : 'Em dia'}
-                            </p>
-                          </div>
-                          {user.id === selectedUserId && <Check className="w-4 h-4" style={{ color: 'var(--primary)' }} />}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 2. CALENDÁRIO */}
       <div className="flex-1 rounded-2xl shadow-sm border overflow-hidden flex flex-col min-h-0"
@@ -331,68 +298,140 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
             {/* Header do Calendário Agora dentro do Scroll para não ficar fixo */}
-            <div className="px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 text-white flex-shrink-0"
-              style={{ background: 'linear-gradient(to right, var(--primary), var(--primary-hover))' }}>
+            <div className="px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-4 text-white flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))' }}>
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10">
+                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-inner">
                   <Calendar className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold flex items-center gap-2">
-                    {isAdmin ? processedUsers.find(u => u.id === targetUserId)?.name || 'Usuário' : 'Minhas Horas'}
+                  <h2 className="text-base font-black tracking-tight flex items-center gap-2">
+                    {isAdmin && <Users className="w-3.5 h-3.5 opacity-60" />}
+                    {isAdmin ? processedUsers.find(u => u.id === targetUserId)?.name || 'Usuário' : 'Meus Lançamentos'}
                   </h2>
-                  <div className="flex gap-4 text-xs font-medium text-white/70">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> Total: {selectedUserStats.totalHours.toFixed(1)}h
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-black uppercase tracking-widest text-white/60">
+                    <span className="flex items-center gap-1 text-white/90">
+                      <Clock className="w-3 h-3 text-white/50" /> {selectedUserStats.totalHours.toFixed(1)}h no Mês
                     </span>
-                    <span className="flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Pendências: {selectedUserStats.missing} dias
+                    <span className={`flex items-center gap-1 ${selectedUserStats.balanceHours >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      {selectedUserStats.balanceHours >= 0 ? '+' : ''}{selectedUserStats.balanceHours.toFixed(1)}h
+                      {selectedUserStats.balanceHours >= 0 ? ' Extra' : ' de Débito'}
                     </span>
+                    {selectedUserStats.missing > 0 && (
+                      <span className="flex items-center gap-1 text-amber-300">
+                        <AlertTriangle className="w-3 h-3" /> {selectedUserStats.missing} Falta(s)
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex bg-black/20 p-1 rounded-lg backdrop-blur-md">
-                  <button onClick={navPrevMonth} className="p-1.5 hover:bg-white/10 rounded-md text-white transition-colors"><ChevronLeft className="w-5 h-5" /></button>
-                  <span className="px-3 font-bold text-sm flex items-center min-w-[100px] justify-center text-white">{monthNames[month]} {year}</span>
+                {/* Search integrated in header for Admins */}
+                {isAdmin && !embedded && (
+                  <div className="relative" ref={dropdownRef}>
+                    <div
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/10 px-3 py-1.5 rounded-xl cursor-pointer transition-all backdrop-blur-sm min-w-[200px]"
+                    >
+                      <Search className="w-3.5 h-3.5 text-white" />
+                      <input
+                        type="text"
+                        placeholder="Buscar membro..."
+                        value={searchTerm}
+                        onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-transparent border-none outline-none text-xs font-black text-white placeholder:!text-white/80 w-full"
+                      />
+                      <ChevronDown className={`w-3 h-3 text-white transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                    </div>
+
+                    {isDropdownOpen && (
+                      <div className="absolute top-full right-0 mt-2 w-72 border rounded-xl shadow-2xl max-h-[300px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200 z-[1001]"
+                        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                        <div className="p-2 space-y-1">
+                          {searchedUsers.length === 0 ? (
+                            <div className="p-4 text-center text-xs italic" style={{ color: 'var(--muted)' }}>Nenhum colaborador...</div>
+                          ) : (
+                            searchedUsers.map(user => (
+                              <button
+                                key={user.id}
+                                onClick={() => handleUserSelect(user.id)}
+                                className="w-full flex items-center gap-3 p-2 rounded-lg transition-all group hover:bg-[var(--surface-2)]"
+                                style={{ backgroundColor: user.id === selectedUserId ? 'var(--surface-2)' : 'transparent' }}
+                              >
+                                <div className="relative">
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px] border"
+                                    style={{ backgroundColor: 'var(--surface-hover)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+                                    {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full rounded-full object-cover" /> : user.name.charAt(0)}
+                                  </div>
+                                  {user.missing > 2 && <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[var(--surface)]" />}
+                                </div>
+                                <div className="text-left flex-1 min-w-0">
+                                  <p className="text-xs font-bold truncate transition-colors group-hover:text-[var(--primary)]" style={{ color: user.id === selectedUserId ? 'var(--primary)' : 'var(--text)' }}>{user.name}</p>
+                                  <p className={`text-[9px] font-black uppercase ${user.missing > 2 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                    {user.missing > 2 ? `${user.missing} pendências` : 'OK'}
+                                  </p>
+                                </div>
+                                {user.id === selectedUserId && <Check className="w-3 h-3" style={{ color: 'var(--primary)' }} />}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex bg-black/20 p-1 rounded-xl backdrop-blur-md border border-white/5">
+                  <button onClick={navPrevMonth} className="p-1 hover:bg-white/10 rounded-lg text-white transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                  <span className="px-2 font-black text-[11px] uppercase tracking-widest flex items-center min-w-[120px] justify-center text-white">{monthNames[month]} {year}</span>
                   <button
                     onClick={navNextMonth}
                     disabled={!canGoNext}
-                    className={`p-1.5 rounded-md text-white transition-colors ${canGoNext ? 'hover:bg-white/10' : 'opacity-30 cursor-not-allowed'}`}
+                    className={`p-1 rounded-lg text-white transition-colors ${canGoNext ? 'hover:bg-white/10' : 'opacity-20 cursor-not-allowed'}`}
                   >
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
 
                 <button
                   onClick={() => navigate(`/timesheet/new?date=${new Date().toISOString().split('T')[0]}${targetUserId ? `&userId=${targetUserId}` : ''}`)}
-                  className="bg-white px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2 hover:bg-white/90"
+                  className="bg-white px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2 hover:bg-slate-50 hover:-translate-y-0.5 active:translate-y-0"
                   style={{ color: 'var(--primary)' }}
                 >
-                  <Plus className="w-4 h-4" />
-                  <span className="hidden sm:inline">Lançar</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  Lançar
                 </button>
               </div>
             </div>
 
             {/* Grid Days Header (Sticky) - Agora dentro do Scroll */}
-            <div className="grid grid-cols-7 border-b flex-shrink-0 sticky top-0 z-10"
-              style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <div className="grid border-b flex-shrink-0 sticky top-0 z-10"
+              style={{
+                backgroundColor: 'var(--surface-2)',
+                borderColor: 'var(--border)',
+                gridTemplateColumns: 'minmax(0, 0.4fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.4fr)'
+              }}>
               {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((day, idx) => (
-                <div key={day} className={`py-3 text-center text-[11px] font-bold tracking-widest`}
-                  style={{ color: (idx === 0 || idx === 6) ? 'var(--danger)' : 'var(--muted)' }}>
+                <div key={day} className={`py-3 text-center text-[11px] font-black tracking-widest`}
+                  style={{ color: (idx === 0 || idx === 6) ? 'var(--danger)' : 'var(--text-2)' }}>
                   {day}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 min-h-full auto-rows-fr gap-[1px] border-b" style={{ backgroundColor: 'var(--border)', borderColor: 'var(--border)' }}>
+            <div className="grid min-h-full gap-[1px] border-b"
+              style={{
+                backgroundColor: 'var(--border)',
+                borderColor: 'var(--border)',
+                gridTemplateColumns: 'minmax(0, 0.4fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.4fr)'
+              }}>
               {/* Empty Slots */}
               {Array.from({ length: firstDay }).map((_, i) => (
-                <div key={`empty-${i}`} className="min-h-[100px]" style={{ backgroundColor: 'var(--surface-2)', opacity: 0.5 }}></div>
+                <div key={`empty-${i}`} className="min-h-[60px]" style={{ backgroundColor: 'var(--surface-hover)', opacity: 0.3 }}></div>
               ))}
 
               {/* Days */}
@@ -406,38 +445,54 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
 
                 const hasEntries = dayEntries.length > 0;
                 const isToday = new Date().toISOString().split('T')[0] === dateStr;
+                const todayStr = today.toISOString().split('T')[0];
+                const isPast = dateStr < todayStr;
+
                 const dayOfWeek = new Date(year, month, d).getDay();
                 const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const holiday = getHoliday(d, month, year);
+                const HolidayIcon = holiday?.icon || Coffee;
+
+                const isMissing = !hasEntries && !isWeekend && !holiday && isPast;
 
                 return (
                   <div
                     key={d}
                     onClick={() => navigate(`/timesheet/new?date=${dateStr}${targetUserId ? `&userId=${targetUserId}` : ''}`)}
                     className={`
-                                        p-2 relative cursor-pointer min-h-[120px] transition-all group hover:z-10 hover:shadow-xl
+                                        p-1.5 relative cursor-pointer min-h-[60px] transition-all group hover:z-10 hover:shadow-xl border-r border-b flex flex-col
                                     `}
                     style={{
-                      backgroundColor: isToday ? 'var(--primary-soft)' : (isWeekend ? 'var(--surface-2)' : 'var(--surface)')
+                      backgroundColor: isToday ? 'var(--primary-soft)' : (holiday || isWeekend) ? 'var(--surface-2)' : isMissing ? '#FFFBEB' : 'var(--surface)',
+                      borderTop: holiday ? `3px solid ${holiday.color}` : isMissing ? `3px solid #FBBF24` : 'none',
+                      borderColor: 'var(--border)'
                     }}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <span className={`text-sm font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors`}
+                    {/* Header: Day Number and Hours Badge */}
+                    <div className="flex justify-between items-start mb-1 h-6">
+                      <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded transition-colors`}
                         style={{
-                          backgroundColor: isToday ? 'var(--primary)' : 'transparent',
-                          color: isToday ? 'white' : 'var(--muted)',
-                          boxShadow: isToday ? 'var(--shadow-md)' : 'none'
+                          backgroundColor: isToday ? 'var(--primary)' : holiday ? holiday.color : 'transparent',
+                          color: isToday || holiday ? 'white' : 'var(--text)',
                         }}>
                         {d}
                       </span>
                       {hasEntries && (
-                        <div className="flex flex-col items-end gap-1">
-                          <span className={`text-[10px] font-black text-white px-2.5 py-1 rounded-lg border shadow-sm flex items-center gap-1.5 transition-all ${totalDayHours > 9 ? 'bg-amber-500 border-amber-500' : totalDayHours >= 8 ? 'bg-emerald-600 border-emerald-600' : 'bg-blue-500 border-blue-500'}`}>
-                            {totalDayHours > 9 && <AlertTriangle className="w-3.5 h-3.5" />}
-                            {totalDayHours.toFixed(1)}h
-                          </span>
-                        </div>
+                        <span className={`text-[11px] font-black text-white px-2.5 py-1 rounded-lg shadow-lg border border-white/10 leading-none transition-all hover:scale-110 ${totalDayHours > 9 ? 'bg-amber-500' : totalDayHours >= 8 ? 'bg-emerald-600' : 'bg-blue-500'}`}>
+                          {totalDayHours.toFixed(1)}h
+                        </span>
                       )}
                     </div>
+
+                    {/* Holiday Indicator */}
+                    {holiday && (
+                      <div className="flex-1 flex flex-col items-center justify-center py-2 text-center pointer-events-none">
+                        <HolidayIcon className="w-5 h-5 mb-1" style={{ color: holiday.color }} />
+                        <span className="text-[7px] font-black uppercase whitespace-normal leading-tight px-1" style={{ color: holiday.color }}>
+                          {holiday.name}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="space-y-1.5">
                       {dayEntries.map(entry => {
@@ -457,47 +512,53 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                           <div
                             key={entry.id}
                             onClick={(e) => { e.stopPropagation(); navigate(`/timesheet/${entry.id}`); }}
-                            className="border shadow-sm rounded-md px-2 py-1.5 text-[10px] truncate transition-all flex justify-between items-center group/item flex-col items-start gap-0.5 h-auto"
+                            className="border shadow-md rounded-xl px-3 py-2.5 text-[11px] transition-all flex flex-col items-start gap-1.5 group/item mb-2 hover:-translate-y-0.5"
                             style={{
-                              backgroundColor: 'var(--surface-2)',
+                              backgroundColor: 'var(--surface)',
                               borderColor: 'var(--border)',
                               color: 'var(--text)',
-                              boxShadow: 'var(--shadow-sm)'
                             }}
                             title={`${client?.name || 'Cliente?'} - ${project?.name || 'Projeto?'}\n${entry.description || ''}`}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = 'var(--primary)';
-                              e.currentTarget.style.color = 'var(--primary)';
-                              e.currentTarget.style.backgroundColor = 'var(--surface)';
-                              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = 'var(--border)';
-                              e.currentTarget.style.color = 'var(--text)';
-                              e.currentTarget.style.backgroundColor = 'var(--surface-2)';
-                              e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                            }}
                           >
-                            <div className="flex w-full justify-between items-center">
-                              <div className="flex items-center gap-2 truncate">
-                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${entry.totalHours >= 4 ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
-                                <span className="truncate font-medium">{displayTitle}</span>
+                            <div className="flex w-full justify-between items-center gap-2">
+                              <div className="flex items-center gap-1.5 truncate flex-1 min-w-0">
+                                <span className={`px-2 py-1 rounded-md text-[10px] font-black text-white shrink-0 shadow-sm leading-none ${entry.totalHours >= 4 ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+                                  {entry.totalHours.toFixed(1)}h
+                                </span>
+                                <span className="truncate font-black leading-tight" style={{ color: 'var(--text)' }}>{displayTitle}</span>
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEntryToDelete(entry); setDeleteModalOpen(true); }}
-                                className="opacity-0 group-hover/item:opacity-100 transition-opacity hover:text-red-500"
+                                className="opacity-0 group-hover/item:opacity-100 transition-opacity hover:text-red-500 shrink-0"
                                 style={{ color: 'var(--muted)' }}
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
 
-                            {/* Subtitle with Project/Client */}
-                            {(project || client) && (
-                              <div className="text-[9px] opacity-70 truncate w-full pl-3.5" style={{ color: 'var(--muted)' }}>
-                                {project?.name || client?.name}
-                              </div>
-                            )}
+                            {/* Client & Project Mini-Tags */}
+                            <div className="flex flex-wrap gap-2 w-full overflow-hidden mt-0.5">
+                              {client && (
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg truncate max-w-[100px] border transition-colors shadow-sm"
+                                  style={{
+                                    backgroundColor: 'var(--surface-2)',
+                                    borderColor: 'var(--border)',
+                                    color: 'var(--text-2)'
+                                  }}>
+                                  {client.name}
+                                </span>
+                              )}
+                              {project && (
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg truncate max-w-[100px] border transition-colors shadow-sm"
+                                  style={{
+                                    backgroundColor: 'var(--primary-soft)',
+                                    borderColor: 'rgba(124, 58, 237, 0.2)',
+                                    color: 'var(--primary)'
+                                  }}>
+                                  {project.name}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}

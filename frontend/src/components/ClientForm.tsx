@@ -8,7 +8,7 @@ import ConfirmationModal from './ConfirmationModal';
 const ClientForm: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { getClientById, createClient, updateClient, deleteClient } = useDataController();
+  const { getClientById, createClient, updateClient, deleteClient, clients } = useDataController();
 
   const isEdit = !!clientId;
   const client = clientId ? getClientById(clientId) : null;
@@ -17,9 +17,19 @@ const ClientForm: React.FC = () => {
   const [logoUrl, setLogoUrl] = useState('');
   const [cnpj, setCnpj] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [tipo, setTipo] = useState<'parceiro' | 'cliente_final'>('cliente_final');
+  const [tipo_cliente, setTipoCliente] = useState<'parceiro' | 'cliente_final'>('cliente_final');
+  const [partner_id, setPartnerId] = useState('');
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryTipo = urlParams.get('tipo') as 'parceiro' | 'cliente_final';
+    const queryPartnerId = urlParams.get('partnerId');
+
+    if (queryTipo) setTipoCliente(queryTipo);
+    if (queryPartnerId) setPartnerId(queryPartnerId);
+  }, []);
 
   useEffect(() => {
     if (client) {
@@ -27,7 +37,8 @@ const ClientForm: React.FC = () => {
       setLogoUrl(client.logoUrl || '');
       setCnpj(client.cnpj || '');
       setTelefone(client.telefone || '');
-      setTipo(client.tipo || 'cliente_final');
+      setTipoCliente(client.tipo_cliente || 'cliente_final');
+      setPartnerId(client.partner_id || '');
     }
   }, [client]);
 
@@ -42,23 +53,28 @@ const ClientForm: React.FC = () => {
     try {
       setLoading(true);
 
+      const payload = {
+        name,
+        logoUrl,
+        cnpj,
+        telefone,
+        tipo_cliente,
+        partner_id: tipo_cliente === 'cliente_final' ? partner_id : undefined
+      };
+
       if (isEdit && clientId) {
-        await updateClient(clientId, { name, logoUrl, cnpj, telefone, tipo });
+        await updateClient(clientId, payload);
         alert('Cliente atualizado com sucesso!');
       } else {
-        // Coleta dados extras do formulário nativo (gambiarra controlada para evitar state complexo)
+        // Coleta dados extras do formulário nativo
         const form = e.currentTarget as HTMLFormElement;
         const choice = (form.elements.namedItem('contractChoice') as HTMLSelectElement)?.value;
         const months = (form.elements.namedItem('contractMonths') as HTMLInputElement)?.value;
 
         await createClient({
-          name,
-          logoUrl,
-          cnpj,
-          telefone,
-          tipo,
+          ...payload,
           active: true,
-          // @ts-ignore - Passando propriedades extras que o service sabe lidar
+          // @ts-ignore
           contractChoice: choice,
           contractMonths: months
         });
@@ -155,30 +171,48 @@ const ClientForm: React.FC = () => {
                 Tipo de Cliente
               </label>
               <div className="flex gap-4">
-                <label className={`flex-1 flex items-center justify-center gap-2 p-4 border rounded-xl cursor-pointer transition-all ${tipo === 'cliente_final' ? 'border-[var(--brand)] bg-[var(--brandMuted)] text-[var(--brandHover)]' : 'border-[var(--border)] hover:bg-[var(--surfaceHover)]'}`}>
+                <label className={`flex-1 flex items-center justify-center gap-2 p-4 border rounded-xl cursor-pointer transition-all ${tipo_cliente === 'cliente_final' ? 'border-[var(--brand)] bg-[var(--brandMuted)] text-[var(--brandHover)]' : 'border-[var(--border)] hover:bg-[var(--surfaceHover)]'}`}>
                   <input
                     type="radio"
                     name="tipo"
                     value="cliente_final"
-                    checked={tipo === 'cliente_final'}
-                    onChange={() => setTipo('cliente_final')}
+                    checked={tipo_cliente === 'cliente_final'}
+                    onChange={() => setTipoCliente('cliente_final')}
                     className="sr-only"
                   />
                   <span className="font-semibold">Cliente Final</span>
                 </label>
-                <label className={`flex-1 flex items-center justify-center gap-2 p-4 border rounded-xl cursor-pointer transition-all ${tipo === 'parceiro' ? 'border-[var(--brand)] bg-[var(--brandMuted)] text-[var(--brandHover)]' : 'border-[var(--border)] hover:bg-[var(--surfaceHover)]'}`}>
+                <label className={`flex-1 flex items-center justify-center gap-2 p-4 border rounded-xl cursor-pointer transition-all ${tipo_cliente === 'parceiro' ? 'border-[var(--brand)] bg-[var(--brandMuted)] text-[var(--brandHover)]' : 'border-[var(--border)] hover:bg-[var(--surfaceHover)]'}`}>
                   <input
                     type="radio"
                     name="tipo"
                     value="parceiro"
-                    checked={tipo === 'parceiro'}
-                    onChange={() => setTipo('parceiro')}
+                    checked={tipo_cliente === 'parceiro'}
+                    onChange={() => setTipoCliente('parceiro')}
                     className="sr-only"
                   />
                   <span className="font-semibold">Parceiro Nic-Labs</span>
                 </label>
               </div>
             </div>
+
+            {tipo_cliente === 'cliente_final' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-[var(--text)] mb-2">
+                  Vincular a um Parceiro (Opcional)
+                </label>
+                <select
+                  value={partner_id}
+                  onChange={(e) => setPartnerId(e.target.value)}
+                  className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--brand)] text-[var(--text)]"
+                >
+                  <option value="">Nenhum Parceiro (Direto)</option>
+                  {(clients || []).filter(c => c.tipo_cliente === 'parceiro' && c.id !== clientId).map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Logo URL */}

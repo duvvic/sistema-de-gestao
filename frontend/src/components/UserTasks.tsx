@@ -1,7 +1,7 @@
 // components/UserTasks.tsx
 import React, { useMemo, useState } from "react";
 import { Task, Project, Client, User, TimesheetEntry } from '@/types';
-import { ArrowLeft, Plus, FolderKanban, Calendar, Building2, TrendingUp, Clock } from "lucide-react";
+import { ArrowLeft, Plus, FolderKanban, Calendar, Building2, TrendingUp, Clock, User as UserIcon } from "lucide-react";
 
 interface UserTasksProps {
   user: User;
@@ -14,6 +14,7 @@ interface UserTasksProps {
   onNewTask: () => void;
   onCreateTimesheetForTask?: (task: Task) => void;
   timesheetEntries?: TimesheetEntry[];
+  users: User[];
 
   onBack?: () => void;
 }
@@ -28,7 +29,8 @@ const UserTasks: React.FC<UserTasksProps> = ({
   onNewTask,
   onBack,
   onCreateTimesheetForTask,
-  timesheetEntries
+  timesheetEntries,
+  users
 }) => {
 
   const [viewFilter, setViewFilter] = useState<'all' | 'concluded' | 'delayed' | 'inprogress'>('all');
@@ -37,7 +39,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
   // 1) Filtra apenas tarefas do usuário
   // ================================
   const myTasks = useMemo(
-    () => tasks.filter((t) => t.developerId === user.id),
+    () => tasks.filter((t) => t.developerId === user.id || t.collaboratorIds?.includes(user.id)),
     [tasks, user.id]
   );
 
@@ -156,6 +158,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
                 onCreateTimesheetForTask={onCreateTimesheetForTask}
                 timesheetEntries={timesheetEntries}
                 currentUserId={user.id}
+                users={users}
                 accentColor="#3b82f6"
               />
 
@@ -168,6 +171,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
                 onCreateTimesheetForTask={onCreateTimesheetForTask}
                 timesheetEntries={timesheetEntries}
                 currentUserId={user.id}
+                users={users}
                 accentColor="#ef4444"
               />
 
@@ -180,6 +184,7 @@ const UserTasks: React.FC<UserTasksProps> = ({
                 onCreateTimesheetForTask={onCreateTimesheetForTask}
                 timesheetEntries={timesheetEntries}
                 currentUserId={user.id}
+                users={users}
                 accentColor="#10b981"
               />
             </div>
@@ -256,8 +261,9 @@ const TaskColumn: React.FC<{
   onCreateTimesheetForTask?: (task: Task) => void;
   timesheetEntries?: TimesheetEntry[];
   currentUserId?: string;
+  users: User[];
   accentColor?: string;
-}> = ({ title, tasks, clients, projects, onTaskClick, onCreateTimesheetForTask, timesheetEntries, currentUserId, accentColor }) => {
+}> = ({ title, tasks, clients, projects, onTaskClick, onCreateTimesheetForTask, timesheetEntries, currentUserId, users, accentColor }) => {
 
   return (
     <div className="flex-1 min-w-[320px] rounded-2xl border p-4 flex flex-col" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
@@ -317,6 +323,55 @@ const TaskColumn: React.FC<{
 
                 <div className="text-[11px] mt-1 truncate" style={{ color: 'var(--muted)' }}>
                   Projeto: {project?.name ?? "Sem projeto"}
+                </div>
+
+                {/* Equipe / Avatares */}
+                <div className="flex -space-x-1.5 mt-3 overflow-hidden">
+                  {/* Responsável Principal */}
+                  {(() => {
+                    const dev = users.find(u => u.id === task.developerId);
+                    return (
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center border hover:z-10 transition-all bg-white overflow-hidden"
+                        style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                        title={`Responsável: ${dev?.name || task.developer || 'N/A'}`}
+                      >
+                        {dev?.avatarUrl ? (
+                          <img src={dev.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <UserIcon size={12} />
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Colaboradores Extras */}
+                  {(task.collaboratorIds || []).slice(0, 3).map(uid => {
+                    const u = users.find(user => user.id === uid);
+                    return (
+                      <div
+                        key={uid}
+                        className="w-6 h-6 rounded-full flex items-center justify-center border hover:z-10 transition-all bg-slate-50 overflow-hidden"
+                        style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                        title={`Colaborador: ${u?.name || uid}`}
+                      >
+                        {u?.avatarUrl ? (
+                          <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <UserIcon size={12} />
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {(task.collaboratorIds?.length || 0) > 3 && (
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center border bg-slate-100 text-[8px] font-bold"
+                      style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                    >
+                      +{task.collaboratorIds!.length - 3}
+                    </div>
+                  )}
                 </div>
               </button>
 
