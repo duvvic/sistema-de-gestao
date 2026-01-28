@@ -337,7 +337,10 @@ const KanbanColumn = ({
   onLoadMore,
   hasMore,
   totalCount,
-  currentUserId
+  currentUserId,
+  onClientFilterChange,
+  selectedClientFilter,
+  availableClients
 }: {
   col: typeof STATUS_COLUMNS[0];
   tasks: Task[];
@@ -352,6 +355,9 @@ const KanbanColumn = ({
   hasMore?: boolean;
   totalCount?: number;
   currentUserId?: string;
+  onClientFilterChange?: (clientId: string) => void;
+  selectedClientFilter?: string;
+  availableClients?: Client[];
 }) => {
   const { setNodeRef } = useSortable({
     id: col.id,
@@ -372,10 +378,33 @@ const KanbanColumn = ({
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: col.badgeColor }} />
           {col.title}
         </h3>
-        <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: 'var(--bg)', color: col.badgeColor, border: '1px solid var(--border)' }}>
-          {totalCount !== undefined ? totalCount : tasks.length}
-        </span>
+        <div className="flex items-center gap-2">
+          {/* Filtro de Empresas - Apenas para coluna Done */}
+          {col.id === 'Done' && onClientFilterChange && availableClients && availableClients.length > 0 && (
+            <select
+              value={selectedClientFilter || ''}
+              onChange={(e) => onClientFilterChange(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              className="px-2 py-1 text-[10px] font-bold rounded-lg border transition-all"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)'
+              }}
+            >
+              <option value="">Todas</option>
+              {availableClients.map(client => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: 'var(--bg)', color: col.badgeColor, border: '1px solid var(--border)' }}>
+            {totalCount !== undefined ? totalCount : tasks.length}
+          </span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 custom-scrollbar">
@@ -531,6 +560,18 @@ export const KanbanBoard = () => {
 
     return result;
   }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId, showOnlyDelayed, periodFilter, searchTerm]);
+
+  // Calcular empresas disponíveis para filtro (apenas empresas onde o usuário concluiu tarefas)
+  const availableClientsForDoneFilter = useMemo(() => {
+    if (!currentUser) return [];
+
+    const doneTasks = filteredTasks.filter(t => t.status === 'Done');
+    const clientIds = new Set(doneTasks.map(t => t.clientId));
+
+    return clients
+      .filter(c => clientIds.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [filteredTasks, clients, currentUser]);
 
   const currentClient = useMemo(() => clients.find(c => c.id === filteredClientId), [clients, filteredClientId]);
   const currentProject = useMemo(() => projects.find(p => p.id === filteredProjectId), [projects, filteredProjectId]);
@@ -811,30 +852,6 @@ export const KanbanBoard = () => {
             </div>
           )}
 
-          {/* Filtro de Empresas (Tarefas Concluídas) */}
-          <div className="relative min-w-[200px]">
-            <select
-              value={selectedClientFilter}
-              onChange={(e) => setSelectedClientFilter(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border font-bold text-sm transition-all shadow-lg appearance-none"
-              style={{
-                backgroundColor: 'var(--surface)',
-                borderColor: 'var(--border)',
-                color: 'var(--text)'
-              }}
-            >
-              <option value="">Todas as Empresas</option>
-              {clients
-                .filter(c => c.active !== false)
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map(client => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-
           {/* Botão Atrasados Toggle (Apenas Admin) */}
           {isAdmin && (
             <button
@@ -987,6 +1004,9 @@ export const KanbanBoard = () => {
                     currentUserId={currentUser?.id}
                     onLoadMore={isDone ? () => setDoneLimit(prev => prev + 10) : undefined}
                     hasMore={isDone ? displayedTasks.length < columnTasks.length : false}
+                    onClientFilterChange={isDone ? setSelectedClientFilter : undefined}
+                    selectedClientFilter={isDone ? selectedClientFilter : undefined}
+                    availableClients={isDone ? availableClientsForDoneFilter : undefined}
                   />
                 );
               })}
