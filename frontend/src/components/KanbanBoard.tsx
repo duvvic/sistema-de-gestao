@@ -428,6 +428,7 @@ export const KanbanBoard = () => {
   const [showOnlyDelayed, setShowOnlyDelayed] = useState(false);
   const [periodFilter, setPeriodFilter] = useState<'all' | '7' | '15' | '30'>('all');
   const [doneLimit, setDoneLimit] = useState(10);
+  const [selectedClientFilter, setSelectedClientFilter] = useState<string>('');
 
   // Auxiliar para detectar atraso
   const isTaskDelayed = (t: Task) => {
@@ -512,7 +513,12 @@ export const KanbanBoard = () => {
         }
       }
 
-      // 6. Global Search
+      // 6. Client Filter (for Done tasks)
+      if (selectedClientFilter && t.status === 'Done') {
+        if (t.clientId !== selectedClientFilter) return false;
+      }
+
+      // 7. Global Search
       if (searchTerm) {
         const lowerSearch = searchTerm.toLowerCase();
         return t.title.toLowerCase().includes(lowerSearch) ||
@@ -575,13 +581,24 @@ export const KanbanBoard = () => {
       // Progress calculation removed to allow manual control only
 
       try {
-        // Atualizar via Controller
-        await updateTask(activeId, {
+        const updatePayload: any = {
           status: newStatus,
           progress: newProgress,
-          // Se concluiu, definir data de entrega real se não houver
-          ...(newStatus === 'Done' ? { actualDelivery: new Date().toISOString() } : {})
-        });
+        };
+
+        // Automatizar datas reais baseadas no status
+        // Se mudou para "In Progress" e não tem início real, registrar agora
+        if (newStatus === 'In Progress' && !activeTask.actualStart) {
+          updatePayload.actualStart = new Date().toISOString().split('T')[0];
+        }
+
+        // Se mudou para "Done" e não tem fim real, registrar agora
+        if (newStatus === 'Done' && !activeTask.actualDelivery) {
+          updatePayload.actualDelivery = new Date().toISOString().split('T')[0];
+        }
+
+        // Atualizar via Controller
+        await updateTask(activeId, updatePayload);
       } catch (error) {
         console.error("Erro ao mover tarefa:", error);
       }
@@ -793,6 +810,30 @@ export const KanbanBoard = () => {
               </AnimatePresence>
             </div>
           )}
+
+          {/* Filtro de Empresas (Tarefas Concluídas) */}
+          <div className="relative min-w-[200px]">
+            <select
+              value={selectedClientFilter}
+              onChange={(e) => setSelectedClientFilter(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border font-bold text-sm transition-all shadow-lg appearance-none"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)'
+              }}
+            >
+              <option value="">Todas as Empresas</option>
+              {clients
+                .filter(c => c.active !== false)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(client => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+            </select>
+          </div>
 
           {/* Botão Atrasados Toggle (Apenas Admin) */}
           {isAdmin && (

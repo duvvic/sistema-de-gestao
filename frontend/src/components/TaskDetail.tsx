@@ -123,7 +123,7 @@ const TaskDetail: React.FC = () => {
 
     try {
       setLoading(true);
-      const taskPayload = {
+      const taskPayload: any = {
         ...formData,
         status: (formData.status as Status) || 'Todo',
         progress: Number(formData.progress) || 0,
@@ -133,6 +133,17 @@ const TaskDetail: React.FC = () => {
         developerId: formData.developerId || (isNew ? currentUser?.id : formData.developerId),
         developer: formData.developer || (isNew ? currentUser?.name : formData.developer)
       };
+
+      // Automatizar datas reais baseadas no status
+      // Se mudou para "In Progress" e não tem início real, registrar agora
+      if (taskPayload.status === 'In Progress' && !task?.actualStart && !formData.actualStart) {
+        taskPayload.actualStart = new Date().toISOString().split('T')[0];
+      }
+
+      // Se mudou para "Done" e não tem fim real, registrar agora
+      if (taskPayload.status === 'Done' && !task?.actualDelivery && !formData.actualDelivery) {
+        taskPayload.actualDelivery = new Date().toISOString().split('T')[0];
+      }
 
       if (isNew) {
         await createTask(taskPayload);
@@ -632,77 +643,83 @@ const TaskDetail: React.FC = () => {
                   <input
                     type="date"
                     value={formData.actualStart || ''}
-                    onChange={(e) => { markDirty(); setFormData({ ...formData, actualStart: e.target.value }); }}
-                    className="w-full p-2 border border-[var(--border)] rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-blue-400"
-                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}
-                    disabled={isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
+                    className="w-full p-2 border border-[var(--border)] rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-slate-800 cursor-not-allowed"
+                    style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
+                    disabled
+                    readOnly
+                    title="Preenchido automaticamente quando a tarefa muda para 'Trabalhando'"
                   />
+                  <p className="text-[8px] text-slate-400 mt-1 italic">Auto: ao iniciar tarefa</p>
                 </div>
                 <div>
                   <label className="block text-[9px] font-black mb-1 uppercase tracking-wider text-green-500">Fim Real</label>
                   <input
                     type="date"
                     value={formData.actualDelivery || ''}
-                    onChange={(e) => { markDirty(); setFormData({ ...formData, actualDelivery: e.target.value }); }}
-                    className="w-full p-2 border border-[var(--border)] rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-green-400"
-                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}
-                    disabled={isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
+                    className="w-full p-2 border border-[var(--border)] rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-slate-800 cursor-not-allowed"
+                    style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
+                    disabled
+                    readOnly
+                    title="Preenchido automaticamente quando a tarefa muda para 'Concluído'"
                   />
+                  <p className="text-[8px] text-slate-400 mt-1 italic">Auto: ao concluir tarefa</p>
                 </div>
               </div>
             </div>
 
-            {/* Gestão de Horas */}
-            <div className="p-6 rounded-2xl border shadow-sm space-y-4" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <h3 className="text-sm font-bold border-b pb-3 flex items-center gap-2 uppercase tracking-wider" style={{ color: 'var(--text)', borderColor: 'var(--border)' }}>
-                <Clock className="w-4 h-4 text-emerald-500" /> Gestão de Esforço
-              </h3>
+            {/* Gestão de Horas - Somente Admin */}
+            {isAdmin && (
+              <div className="p-6 rounded-2xl border shadow-sm space-y-4" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <h3 className="text-sm font-bold border-b pb-3 flex items-center gap-2 uppercase tracking-wider" style={{ color: 'var(--text)', borderColor: 'var(--border)' }}>
+                  <Clock className="w-4 h-4 text-emerald-500" /> Gestão de Esforço
+                </h3>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Horas Previstas</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={formData.estimatedHours || 0}
-                    onChange={(e) => { markDirty(); setFormData({ ...formData, estimatedHours: Number(e.target.value) }); }}
-                    className="w-full p-3 border border-[var(--border)] rounded-xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-400"
-                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}
-                    disabled={isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black mb-2 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Horas Previstas</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={formData.estimatedHours || 0}
+                      onChange={(e) => { markDirty(); setFormData({ ...formData, estimatedHours: Number(e.target.value) }); }}
+                      className="w-full p-3 border border-[var(--border)] rounded-xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-400"
+                      style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}
+                      disabled={isTaskCompleted}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black mb-2 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Consumido (Real)</label>
+                    <div className="w-full p-3 border rounded-xl text-sm font-black flex items-center justify-center gap-2 shadow-sm transition-all"
+                      style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+                      <span className={actualHoursSpent > (formData.estimatedHours || 0) ? 'text-red-500' : 'text-emerald-500'}>
+                        {actualHoursSpent}h
+                      </span>
+                      <span className="text-[10px] font-medium" style={{ color: 'var(--muted)' }}>/ {formData.estimatedHours || 0}h</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Consumido (Real)</label>
-                  <div className="w-full p-3 border rounded-xl text-sm font-black flex items-center justify-center gap-2 shadow-sm transition-all"
-                    style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
-                    <span className={actualHoursSpent > (formData.estimatedHours || 0) ? 'text-red-500' : 'text-emerald-500'}>
-                      {actualHoursSpent}h
-                    </span>
-                    <span className="text-[10px] font-medium" style={{ color: 'var(--muted)' }}>/ {formData.estimatedHours || 0}h</span>
+
+                {/* Progress Summary */}
+                <div className="bg-[var(--surface-2)] p-3 rounded-xl border border-[var(--border)] space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Progresso Planejado</span>
+                    <span className="text-xs font-black text-slate-600">{plannedProgress}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-slate-400 transition-all" style={{ width: `${plannedProgress}%` }} />
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-purple-400">Progresso Real</span>
+                    <span className="text-xs font-black text-purple-600">{formData.progress}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-600 transition-all" style={{ width: `${formData.progress}%` }} />
                   </div>
                 </div>
               </div>
-
-              {/* Progress Summary */}
-              <div className="bg-[var(--surface-2)] p-3 rounded-xl border border-[var(--border)] space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black uppercase text-slate-400">Progresso Planejado</span>
-                  <span className="text-xs font-black text-slate-600">{plannedProgress}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-slate-400 transition-all" style={{ width: `${plannedProgress}%` }} />
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black uppercase text-purple-400">Progresso Real</span>
-                  <span className="text-xs font-black text-purple-600">{formData.progress}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-full overflow-hidden">
-                  <div className="h-full bg-purple-600 transition-all" style={{ width: `${formData.progress}%` }} />
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
