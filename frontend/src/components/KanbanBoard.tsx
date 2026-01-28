@@ -542,12 +542,7 @@ export const KanbanBoard = () => {
         }
       }
 
-      // 6. Client Filter (for Done tasks)
-      if (selectedClientFilter && t.status === 'Done') {
-        if (t.clientId !== selectedClientFilter) return false;
-      }
-
-      // 7. Global Search
+      // 6. Global Search
       if (searchTerm) {
         const lowerSearch = searchTerm.toLowerCase();
         return t.title.toLowerCase().includes(lowerSearch) ||
