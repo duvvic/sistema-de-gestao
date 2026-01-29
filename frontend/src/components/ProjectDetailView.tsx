@@ -53,7 +53,8 @@ const ProjectDetailView: React.FC = () => {
     docLink: '',
     gaps_issues: '',
     important_considerations: '',
-    weekly_status_report: ''
+    weekly_status_report: '',
+    valor_total_rs: 0
   });
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
@@ -77,7 +78,8 @@ const ProjectDetailView: React.FC = () => {
         docLink: project.docLink || '',
         gaps_issues: (project as any).gapsIssues || (project as any).gaps_issues || '',
         important_considerations: (project as any).importantConsiderations || (project as any).important_considerations || '',
-        weekly_status_report: (project as any).weeklyStatusReport || (project as any).weekly_status_report || ''
+        weekly_status_report: (project as any).weeklyStatusReport || (project as any).weekly_status_report || '',
+        valor_total_rs: (project as any).valor_total_rs || 0
       });
       const members = getProjectMembers(project.id);
       setSelectedUsers(members);
@@ -453,7 +455,7 @@ const ProjectDetailView: React.FC = () => {
                         <label className="block text-xs font-black text-slate-400 uppercase mb-2">Investimento Total (Total RS)</label>
                         <div className="relative">
                           <div className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">R$</div>
-                          <input type="number" step="0.01" value={(project as any).valor_total_rs || ''} onChange={e => (project as any).valor_total_rs = Number(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-purple-500 rounded-2xl outline-none font-bold text-slate-800" />
+                          <input type="number" step="0.01" value={formData.valor_total_rs || ''} onChange={e => setFormData({ ...formData, valor_total_rs: Number(e.target.value) })} className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-purple-500 rounded-2xl outline-none font-bold text-slate-800" />
                         </div>
                       </div>
                     </div>
