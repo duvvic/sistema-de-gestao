@@ -147,6 +147,15 @@ export const useDataController = () => {
         const newTask = { ...taskData, id: String(newId) } as Task;
         setTasks(prev => [newTask, ...prev]);
 
+        // Auto-update project real start if task is created in progress
+        if (taskData.status === 'In Progress' || taskData.status === 'Done') {
+            const project = projects.find(p => p.id === taskData.projectId);
+            if (project && !project.startDateReal) {
+                const today = new Date().toISOString().split('T')[0];
+                await updateProject(project.id, { startDateReal: today });
+            }
+        }
+
         return String(newId);
     };
 
@@ -154,6 +163,26 @@ export const useDataController = () => {
         const oldTask = tasks.find(t => t.id === taskId);
         await taskService.updateTask(taskId, updates);
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+
+        // Auto-update project real start when first task starts
+        if (updates.status === 'In Progress' && oldTask?.status !== 'In Progress') {
+            const pId = updates.projectId || oldTask?.projectId;
+            const project = projects.find(p => p.id === pId);
+
+            if (project && !project.startDateReal) {
+                // Check if any other task in this project is already started
+                const otherStarted = tasks.some(t =>
+                    t.projectId === pId &&
+                    t.id !== taskId &&
+                    (t.status === 'In Progress' || t.status === 'Done' || t.status === 'Review')
+                );
+
+                if (!otherStarted) {
+                    const today = new Date().toISOString().split('T')[0];
+                    await updateProject(project.id, { startDateReal: today });
+                }
+            }
+        }
     };
 
     const deleteTask = async (taskId: string): Promise<void> => {

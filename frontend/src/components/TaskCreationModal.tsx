@@ -92,6 +92,17 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
         return hasAccessibleProject;
     });
 
+    // Debug logging
+    console.log('🔍 TaskCreationModal Debug:', {
+        isAdmin,
+        currentUserId: currentUser?.id,
+        totalClients: clients.length,
+        availableClients: availableClients.length,
+        totalProjects: projects.length,
+        totalProjectMembers: projectMembers.length,
+        userProjectMemberships: projectMembers.filter(pm => pm.userId === currentUser?.id).length
+    });
+
     const filteredUsers = projectId
         ? users.filter(u => u.active !== false && projectMembers.some(pm => pm.projectId === projectId && pm.userId === u.id))
         : [];

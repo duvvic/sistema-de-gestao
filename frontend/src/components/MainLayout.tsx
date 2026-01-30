@@ -261,7 +261,10 @@ const MainLayout: React.FC = () => {
                 <button
                     className={`p-6 border-b border-white/10 w-full bg-white/5 hover:bg-white/10 transition-all flex items-center gap-3 group focus:outline-none`}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => navigate('/profile')}
+                    onClick={() => {
+                        navigate('/profile');
+                        setSidebarOpen(false);
+                    }}
                     title="Ver/editar perfil"
                 >
                     {currentUser?.avatarUrl ? (
@@ -292,7 +295,10 @@ const MainLayout: React.FC = () => {
                         return (
                             <button
                                 key={item.path}
-                                onClick={() => navigate(item.path)}
+                                onClick={() => {
+                                    navigate(item.path);
+                                    setSidebarOpen(false);
+                                }}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${!sidebarOpen && 'justify-center'}`}
                                 style={{
                                     backgroundColor: active ? 'rgba(255, 255, 255, 0.1)' : 'transparent',

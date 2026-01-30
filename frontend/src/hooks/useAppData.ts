@@ -211,6 +211,7 @@ export function useAppData(): AppData {
         setAbsences(deduplicateById(absencesMapped));
 
         if (membersRes.data) {
+          console.log('🔍 Project Members Raw Data:', membersRes.data);
           const membersMapped = membersRes.data.map((row: any) => ({
             projectId: String(row.id_projeto),
             userId: String(row.id_colaborador)
@@ -219,6 +220,7 @@ export function useAppData(): AppData {
           // Deduplicate members
           const uniqueMembers = Array.from(new Map(membersMapped.map((m: any) => [`${m.projectId}-${m.userId}`, m])).values());
 
+          console.log('🔍 Project Members Mapped:', uniqueMembers);
           setProjectMembers(uniqueMembers);
 
           // SALVAR NO CACHE
@@ -234,6 +236,8 @@ export function useAppData(): AppData {
             absences: absencesMapped
           };
           localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        } else {
+          console.warn('🔍 Project Members Error:', membersRes.error);
         }
 
       } catch (err) {

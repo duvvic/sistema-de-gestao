@@ -99,17 +99,21 @@ const TaskDetail: React.FC = () => {
       });
     } else {
       // Defaults for new task
-      let newForm: Partial<Task> = { ...formData };
-      if (preSelectedClientId) newForm.clientId = preSelectedClientId;
-      if (preSelectedProjectId) newForm.projectId = preSelectedProjectId;
+      const qClient = preSelectedClientId as string || '';
+      const qProject = preSelectedProjectId as string || '';
 
-      if (currentUser?.id) {
-        newForm.developer = currentUser.name;
-        newForm.developerId = currentUser.id;
-      }
-      setFormData(prev => ({ ...prev, ...newForm }));
+      const proj = qProject ? projects.find(p => p.id === qProject) : null;
+      const finalClient = qClient || (proj ? proj.clientId : '');
+
+      setFormData(prev => ({
+        ...prev,
+        clientId: finalClient || prev.clientId,
+        projectId: qProject || prev.projectId,
+        developer: prev.developer || currentUser?.name || '',
+        developerId: prev.developerId || currentUser?.id || ''
+      }));
     }
-  }, [task, currentUser, preSelectedClientId, preSelectedProjectId]);
+  }, [task, currentUser, preSelectedClientId, preSelectedProjectId, projects]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,9 +222,11 @@ const TaskDetail: React.FC = () => {
 
 
   const availableProjectsIds = React.useMemo(() => {
-    // Permite que qualquer usuário veja todos os projetos ativos ao criar/editar tarefa
-    return projects.map(p => p.id);
-  }, [projects]);
+    if (isAdmin) return projects.map(p => p.id);
+    return projects
+      .filter(p => projectMembers.some(pm => pm.projectId === p.id && pm.userId === currentUser?.id))
+      .map(p => p.id);
+  }, [projects, isAdmin, projectMembers, currentUser]);
 
   const availableClientIds = React.useMemo(() => {
     if (isAdmin) return clients.map(c => c.id);
@@ -637,34 +643,36 @@ const TaskDetail: React.FC = () => {
                 />
               </div>
 
-              <div className="pt-2 border-t border-[var(--border)] grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[9px] font-black mb-1 uppercase tracking-wider text-blue-500">Início Real</label>
-                  <input
-                    type="date"
-                    value={formData.actualStart || ''}
-                    className="w-full p-2 border border-[var(--border)] rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-slate-800 cursor-not-allowed"
-                    style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
-                    disabled
-                    readOnly
-                    title="Preenchido automaticamente quando a tarefa muda para 'Trabalhando'"
-                  />
-                  <p className="text-[8px] text-slate-400 mt-1 italic">Auto: ao iniciar tarefa</p>
+              {isAdmin && (
+                <div className="pt-2 border-t border-[var(--border)] grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[9px] font-black mb-1 uppercase tracking-wider text-blue-500">Início Real</label>
+                    <input
+                      type="date"
+                      value={formData.actualStart || ''}
+                      className="w-full p-2 border border-[var(--border)] rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-slate-800 cursor-not-allowed"
+                      style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
+                      disabled
+                      readOnly
+                      title="Preenchido automaticamente quando a tarefa muda para 'Trabalhando'"
+                    />
+                    <p className="text-[8px] text-slate-400 mt-1 italic">Auto: ao iniciar tarefa</p>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black mb-1 uppercase tracking-wider text-green-500">Fim Real</label>
+                    <input
+                      type="date"
+                      value={formData.actualDelivery || ''}
+                      className="w-full p-2 border border-[var(--border)] rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-slate-800 cursor-not-allowed"
+                      style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
+                      disabled
+                      readOnly
+                      title="Preenchido automaticamente quando a tarefa muda para 'Concluído'"
+                    />
+                    <p className="text-[8px] text-slate-400 mt-1 italic">Auto: ao concluir tarefa</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[9px] font-black mb-1 uppercase tracking-wider text-green-500">Fim Real</label>
-                  <input
-                    type="date"
-                    value={formData.actualDelivery || ''}
-                    className="w-full p-2 border border-[var(--border)] rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-slate-800 cursor-not-allowed"
-                    style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
-                    disabled
-                    readOnly
-                    title="Preenchido automaticamente quando a tarefa muda para 'Concluído'"
-                  />
-                  <p className="text-[8px] text-slate-400 mt-1 italic">Auto: ao concluir tarefa</p>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Gestão de Horas - Somente Admin */}
