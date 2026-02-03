@@ -216,7 +216,7 @@ const AdminDashboard: React.FC = () => {
 
   // Proteção contra undefined
   const safeClients = clients || [];
-  const safeProjects = projects || [];
+  const safeProjects = useMemo(() => (projects || []).filter(p => p.active !== false), [projects]);
   const safeTasks = tasks || [];
 
   // Realtime handling should be done in useDataController or hooks/useAppData to maintain normalization.
@@ -2144,9 +2144,9 @@ const AdminDashboard: React.FC = () => {
             try {
               await deleteProject(projectToDelete);
               setProjectToDelete(null);
-            } catch (err) {
+            } catch (err: any) {
               console.error('Erro ao excluir projeto:', err);
-              alert('Erro ao excluir projeto.');
+              alert(err.message || 'Erro ao excluir projeto.');
             }
           }
         }}

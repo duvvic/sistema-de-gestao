@@ -254,16 +254,35 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
 // ===========================
 // DELETE
 // ===========================
+// ===========================
+// DELETE
+// ===========================
 export async function deleteTask(taskId: string): Promise<void> {
+  const getApiBase = () => {
+    let url = (import.meta as any).env?.VITE_API_URL?.toString()?.trim() || 'http://localhost:3000/api';
+    url = url.replace(/\/$/, '');
+    if (!url.endsWith('/api')) {
+      url += '/api';
+    }
+    return url;
+  };
 
-  const { error } = await supabase
-    .from("fato_tarefas")
-    .delete()
-    .eq("id_tarefa_novo", Number(taskId));
+  const API_BASE = getApiBase();
 
-  if (error) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
 
-    throw error;
+  const res = await fetch(`${API_BASE}/admin/tasks/${taskId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    }
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || `Erro ao excluir tarefa (${res.status})`);
   }
-
 }

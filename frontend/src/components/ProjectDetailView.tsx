@@ -562,8 +562,12 @@ const ProjectDetailView: React.FC = () => {
         message="Esta ação é definitiva. Deseja continuar?"
         onConfirm={async () => {
           if (itemToDelete?.type === 'project') {
-            await deleteProject(itemToDelete.id);
-            navigate(isAdmin ? '/admin/projects' : '/developer/projects');
+            try {
+              await deleteProject(itemToDelete.id);
+              navigate(isAdmin ? '/admin/projects' : '/developer/projects');
+            } catch (error: any) {
+              alert(error.message || 'Erro ao excluir projeto.');
+            }
           }
           setItemToDelete(null);
         }}
