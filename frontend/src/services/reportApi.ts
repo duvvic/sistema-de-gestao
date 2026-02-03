@@ -240,3 +240,31 @@ export async function syncExcel(file: File): Promise<{ message: string; details:
 
     return res.json();
 }
+
+/**
+ * Baixa uma planilha com todos os dados do sistema em formato compatível para reimportação
+ */
+export async function exportDatabaseExcel(): Promise<Blob> {
+    const token = await getAccessToken();
+
+    if (!token) {
+        console.error(`[exportDatabaseExcel] No access token found. User might need to re-login.`);
+    }
+
+    const res = await fetch(`${API_BASE}/admin/sync/export-database`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            'ngrok-skip-browser-warning': 'true',
+        }
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Export ${res.status}: ${text || res.statusText}`);
+    }
+
+    return res.blob();
+}
+

@@ -26,7 +26,7 @@ async function syncTable(sheet, tableName, onConflict) {
         'titulo': 'Afazer',
         'nome': 'Afazer',
         'statustaref': 'StatusTarefa',
-        'contatoprincipal': 'contato_principal', // Fix for the 500 error
+        'contatoprincipal': 'contato_principal',
         'inicioprevist': 'inicio_previsto',
         'inicioreal': 'inicio_real',
         'entregaestim': 'entrega_estimada',
@@ -58,7 +58,6 @@ async function syncTable(sheet, tableName, onConflict) {
         excelHeaders[colNumber] = translations[norm] || cell.value?.toString().trim();
     });
 
-    // 1. Coletar dados da planilha
     sheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return;
         const rowData = {};
@@ -69,9 +68,7 @@ async function syncTable(sheet, tableName, onConflict) {
             if (!dbField || dbField === 'id_tarefa_novo') return;
 
             let val = cell.value;
-            // Trata fórmulas do Excel
             if (val && typeof val === 'object' && val.result !== undefined) val = val.result;
-            // Trata Hiperlinks (extrai apenas o link/texto)
             if (val && typeof val === 'object' && val.text !== undefined) val = val.text;
             if (val && typeof val === 'object' && val.hyperlink !== undefined) val = val.hyperlink;
 
@@ -96,12 +93,10 @@ async function syncTable(sheet, tableName, onConflict) {
             hasData = true;
         });
 
-        // CRITICAL FIX: Se for horas_trabalhadas e não tiver ID, gera um UUID
         if (hasData && tableName === 'horas_trabalhadas' && !rowData['ID_Horas_Trabalhadas']) {
             rowData['ID_Horas_Trabalhadas'] = randomUUID();
         }
 
-        // SAFETY: Remover colunas que não existem no banco para evitar erro
         if (hasData && tableName === 'horas_trabalhadas') {
             const ALLOWED = ['ID_Horas_Trabalhadas', 'Data', 'ID_Colaborador', 'ID_Cliente', 'ID_Projeto', 'ID_Tarefa', 'Horas_Trabalhadas', 'Hora_Inicio', 'Hora_Fim', 'Almoco_Deduzido', 'Descricao', 'id_tarefa_novo'];
             Object.keys(rowData).forEach(key => {
@@ -111,7 +106,6 @@ async function syncTable(sheet, tableName, onConflict) {
             });
         }
 
-        // SAFETY: Remover colunas extras para fato_tarefas
         if (hasData && tableName === 'fato_tarefas') {
             const ALLOWED = [
                 'ID_Tarefa', 'ID_Cliente', 'ID_Projeto', 'Afazer', 'ID_Colaborador',
@@ -125,7 +119,6 @@ async function syncTable(sheet, tableName, onConflict) {
             });
         }
 
-        // SAFETY: dim_clientes
         if (hasData && tableName === 'dim_clientes') {
             const ALLOWED = ['ID_Cliente', 'NomeCliente', 'contato_principal', 'ativo', 'Contrato', 'Criado', 'NewLogo', 'Pais', 'Desativado'];
             Object.keys(rowData).forEach(key => {
@@ -133,7 +126,6 @@ async function syncTable(sheet, tableName, onConflict) {
             });
         }
 
-        // SAFETY: dim_projetos
         if (hasData && tableName === 'dim_projetos') {
             const ALLOWED = ['ID_Projeto', 'ID_Cliente', 'NomeProjeto', 'StatusProjeto', 'budget', 'startDate', 'estimatedDelivery', 'manager', 'description', 'ativo', 'valor_total_rs'];
             Object.keys(rowData).forEach(key => {
@@ -141,7 +133,6 @@ async function syncTable(sheet, tableName, onConflict) {
             });
         }
 
-        // SAFETY: dim_colaboradores
         if (hasData && tableName === 'dim_colaboradores') {
             const ALLOWED = ['ID_Colaborador', 'NomeColaborador', 'email', 'Cargo', 'role', 'ativo', 'avatar_url', 'auth_user_id'];
             Object.keys(rowData).forEach(key => {
@@ -154,7 +145,6 @@ async function syncTable(sheet, tableName, onConflict) {
 
     if (rows.length === 0) return { count: 0 };
 
-    // 2. VINCULO INTELIGENTE DE TAREFAS (Lookup de IDs Novos)
     if (tableName === 'horas_trabalhadas') {
         process.stdout.write(`[Sync] Vinculando IDs novos para ${rows.length} registros de horas...\n`);
         const { data: tasks } = await supabaseAdmin.from('fato_tarefas').select('ID_Tarefa, id_tarefa_novo');
@@ -171,7 +161,6 @@ async function syncTable(sheet, tableName, onConflict) {
         });
     }
 
-    // 3. Deduplicação e Upsert
     const uniqueRows = onConflict ? Array.from(new Map(rows.reverse().map(r => [r[onConflict], r])).values()).reverse() : rows;
     const { error } = await supabaseAdmin.from(tableName).upsert(uniqueRows, { onConflict });
     if (error) throw error;
@@ -192,7 +181,6 @@ router.post("/excel", requireAdmin, upload.single("file"), async (req, res) => {
         };
         const results = {};
 
-        // ORDEM CRÍTICA: Clientes -> Colaboradores -> Projetos -> Tarefas -> Horas
         const priority = {
             "dim_clientes": 1,
             "dim_colaboradores": 2,
@@ -218,6 +206,94 @@ router.post("/excel", requireAdmin, upload.single("file"), async (req, res) => {
         res.json({ message: "Sincronização concluída", details: results });
     } catch (e) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+router.get("/export-database", requireAdmin, async (req, res) => {
+    try {
+        const workbook = new ExcelJS.Workbook();
+
+        // Definir as tabelas - vamos buscar TODOS os campos com select('*')
+        const tableNames = ['dim_clientes', 'dim_colaboradores', 'dim_projetos', 'fato_tarefas', 'horas_trabalhadas'];
+
+        for (const tableName of tableNames) {
+            // Buscar TODOS os dados da tabela
+            const { data, error } = await supabaseAdmin.from(tableName).select('*');
+
+            if (error) {
+                console.error(`Erro ao buscar dados de ${tableName}:`, error);
+                continue;
+            }
+
+            if (!data || data.length === 0) {
+                console.log(`Tabela ${tableName} está vazia, pulando...`);
+                continue;
+            }
+
+            // Criar worksheet
+            const sheet = workbook.addWorksheet(tableName);
+
+            // Pegar TODAS as colunas do primeiro registro
+            const allColumns = Object.keys(data[0]);
+
+            // Configurar colunas dinamicamente
+            sheet.columns = allColumns.map(col => ({
+                header: col,
+                key: col,
+                width: col.length > 20 ? 25 : 15
+            }));
+
+            // Estilizar cabeçalho
+            const headerRow = sheet.getRow(1);
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // Adicionar dados
+            data.forEach(row => {
+                const rowData = {};
+                allColumns.forEach(col => {
+                    let value = row[col];
+
+                    // Formatar datas (manter apenas YYYY-MM-DD)
+                    if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        value = value.split('T')[0];
+                    }
+
+                    // Converter null para string vazia
+                    rowData[col] = value ?? '';
+                });
+                sheet.addRow(rowData);
+            });
+
+            // Aplicar bordas e alternância de cores nas linhas
+            sheet.eachRow((row, rowNumber) => {
+                if (rowNumber > 1) {
+                    row.eachCell((cell) => {
+                        cell.border = {
+                            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+                        };
+                    });
+
+                    // Linhas alternadas
+                    if (rowNumber % 2 === 0) {
+                        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+                    }
+                }
+            });
+        }
+
+        // Configurar resposta
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="backup_completo_${new Date().toISOString().split('T')[0]}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error("Erro ao exportar banco de dados:", error);
+        res.status(500).json({ error: error.message });
     }
 });
 

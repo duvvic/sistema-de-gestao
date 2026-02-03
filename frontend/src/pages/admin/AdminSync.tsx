@@ -7,9 +7,10 @@ import {
     CheckCircle2,
     AlertTriangle,
     Info,
-    Table
+    Table,
+    Download
 } from 'lucide-react';
-import { syncExcel } from '@/services/reportApi';
+import { syncExcel, exportDatabaseExcel } from '@/services/reportApi';
 import { ToastContainer, ToastType } from '@/components/Toast';
 
 const AdminSync: React.FC = () => {
@@ -79,6 +80,28 @@ const AdminSync: React.FC = () => {
         fileInputRef.current?.click();
     };
 
+    const handleExport = async () => {
+        try {
+            addToast("Gerando planilha de backup...", 'success');
+            const blob = await exportDatabaseExcel();
+
+            // Criar link para download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_completo_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            addToast("Backup baixado com sucesso!", 'success');
+        } catch (error: any) {
+            console.error("Erro ao exportar banco de dados:", error);
+            addToast(`Falha ao gerar backup: ${error.message}`, 'error');
+        }
+    };
+
     return (
         <div className="p-6 md:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -98,6 +121,48 @@ const AdminSync: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
+                    {/* CARD DE DOWNLOAD DO BACKUP */}
+                    <div className="border-2 rounded-3xl p-8 transition-all" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="p-4 rounded-2xl bg-emerald-500 text-white">
+                                    <Download className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--text)' }}>
+                                        Baixar Backup Completo
+                                    </h3>
+                                    <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>
+                                        Exporta todos os dados do sistema em uma planilha Excel que pode ser reimportada
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleExport}
+                                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95 whitespace-nowrap"
+                            >
+                                <Download className="w-5 h-5" />
+                                Gerar Backup
+                            </button>
+                        </div>
+                        <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--surface)', borderLeft: '4px solid var(--primary)' }}>
+                            <p className="text-xs font-bold" style={{ color: 'var(--text)' }}>
+                                📋 Esta planilha contém todas as tabelas:
+                            </p>
+                            <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                                dim_clientes, dim_colaboradores, dim_projetos, fato_tarefas, horas_trabalhadas
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* SEPARADOR */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
+                        <span className="text-xs font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>ou</span>
+                        <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
+                    </div>
+
+                    {/* CARD DE UPLOAD */}
                     <div
                         onClick={triggerFileInput}
                         className={`

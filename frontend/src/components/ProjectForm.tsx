@@ -33,7 +33,7 @@ const ProjectForm: React.FC = () => {
   const [name, setName] = useState('');
   const [clientId, setClientId] = useState(initialClientId);
   const [partnerId, setPartnerId] = useState('');
-  const [status, setStatus] = useState('Planejamento');
+  const [status, setStatus] = useState('Não Iniciado');
   const [description, setDescription] = useState('');
   const [managerClient, setManagerClient] = useState('');
   const [responsibleNicLabsId, setResponsibleNicLabsId] = useState('');
@@ -62,7 +62,7 @@ const ProjectForm: React.FC = () => {
       setName(project.name);
       setClientId(project.clientId);
       setPartnerId(project.partnerId || '');
-      setStatus(project.status || 'Planejamento');
+      setStatus(project.status || 'Não Iniciado');
       setDescription(project.description || '');
       setManagerClient(project.managerClient || '');
       setResponsibleNicLabsId(project.responsibleNicLabsId || '');
@@ -256,10 +256,11 @@ const ProjectForm: React.FC = () => {
                     className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold"
                     style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
                   >
-                    <option value="Planejamento">Planejamento</option>
-                    <option value="Em Andamento">Em Andamento</option>
+                    <option value="Não Iniciado">Não Iniciado</option>
+                    <option value="Iniciado">Iniciado</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Conclusão">Conclusão</option>
                     <option value="Em Pausa">Em Pausa</option>
-                    <option value="Concluído">Concluído</option>
                     <option value="Cancelado">Cancelado</option>
                   </select>
                 </div>

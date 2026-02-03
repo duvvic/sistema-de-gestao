@@ -67,8 +67,8 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
 
   const getPlannedStatus = (prog: number, complexity?: string) => {
     const c = (complexity || 'Média') as 'Alta' | 'Média' | 'Baixa';
-    if (prog >= 100) return 'Concluído';
-    if (prog <= 0) return 'A Iniciar';
+    if (prog >= 100) return 'Conclusão';
+    if (prog <= 0) return 'Não Iniciado';
     const thresholds = { 'Alta': [10, 20, 50], 'Média': [10, 20, 55], 'Baixa': [10, 20, 60] };
     const [t1, t2, t3] = thresholds[c];
     if (prog <= t1) return 'Entendimento';
@@ -115,9 +115,9 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
         </div>
       </td>
       <td className="p-3 bg-emerald-500/[0.02]">
-        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border flex items-center gap-1 w-fit ${p.status === 'Concluído' || p.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border-slate-500/20'}`}>
-          <div className={`w-1 h-1 rounded-full ${p.status === 'Concluído' || p.status === 'Done' ? 'bg-emerald-500' : 'bg-slate-500'}`} />
-          {p.status === 'Done' ? 'CONCLUÍDO' : p.status === 'In Progress' ? 'EM ANDAMENTO' : String(p.status || 'ATIVO').toUpperCase()}
+        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border flex items-center gap-1 w-fit ${p.status === 'Conclusão' || p.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border-slate-500/20'}`}>
+          <div className={`w-1 h-1 rounded-full ${p.status === 'Conclusão' || p.status === 'Done' ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+          {p.status === 'Conclusão' || p.status === 'Done' ? 'CONCLUSÃO' : p.status === 'Iniciado' || p.status === 'In Progress' ? 'INICIADO' : String(p.status || 'ATIVO').toUpperCase()}
         </span>
       </td>
       <td className="p-3 text-[10px] font-mono bg-emerald-500/[0.02]" style={{ color: 'var(--text-2)' }}>{formatDate(p.startDateReal)}</td>
@@ -261,7 +261,7 @@ const AdminDashboard: React.FC = () => {
         }
         if (taskStatusFilter === 'done') {
           const clientProjects = safeProjects.filter(p => p.clientId === client.id);
-          return clientProjects.some(p => p.status === 'Concluído');
+          return clientProjects.some(p => p.status === 'Conclusão');
         }
         return true;
       });
@@ -427,7 +427,7 @@ const AdminDashboard: React.FC = () => {
       totalEstimatedROI,
       averageMargin,
       globalProgress,
-      activeProjectsCount: projectsToUse.filter(p => p.status !== 'Concluído').length,
+      activeProjectsCount: projectsToUse.filter(p => p.status !== 'Conclusão').length,
       delayedTasksCount: (() => {
         const activeProjIds = new Set(projectsToUse.map(p => p.id));
         return safeTasks.filter(t =>
@@ -1596,11 +1596,11 @@ const AdminDashboard: React.FC = () => {
                                       <CheckSquare className="w-3.5 h-3.5 text-purple-500" />
                                       <span>{doneTasks}/{projectTasks.length}</span>
                                     </div>
-                                    <div className={`p-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter border flex items-center gap-1 shadow-sm ${project.status === 'Concluído' || project.status === 'Done' ? 'text-emerald-600 border-emerald-200 bg-emerald-500/5' : 'text-blue-600 border-blue-200 bg-blue-500/5'
+                                    <div className={`p-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter border flex items-center gap-1 shadow-sm ${project.status === 'Conclusão' || project.status === 'Done' ? 'text-emerald-600 border-emerald-200 bg-emerald-500/5' : 'text-blue-600 border-blue-200 bg-blue-500/5'
                                       }`}>
-                                      <div className={`w-1 h-1 rounded-full ${project.status === 'Concluído' || project.status === 'Done' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                                      {project.status === 'Done' ? 'CONCLUÍDO' :
-                                        project.status === 'In Progress' ? 'EM ANDAMENTO' :
+                                      <div className={`w-1 h-1 rounded-full ${project.status === 'Conclusão' || project.status === 'Done' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                                      {project.status === 'Done' || project.status === 'Conclusão' ? 'CONCLUSÃO' :
+                                        project.status === 'In Progress' || project.status === 'Iniciado' ? 'INICIADO' :
                                           String(project.status || 'ATIVO').toUpperCase()}
                                     </div>
                                   </div>
@@ -1669,10 +1669,10 @@ const AdminDashboard: React.FC = () => {
                                         {project.name}
                                       </h4>
                                       <div className="flex items-center gap-3">
-                                        <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${project.status === 'Concluído' || project.status === 'Done' ? 'text-emerald-500 border-emerald-200 bg-emerald-500/5' : 'text-blue-500 border-blue-200 bg-blue-500/5'
+                                        <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${project.status === 'Conclusão' || project.status === 'Done' ? 'text-emerald-500 border-emerald-200 bg-emerald-500/5' : 'text-blue-600 border-blue-200 bg-blue-500/5'
                                           }`}>
-                                          {project.status === 'Done' ? 'CONCLUÍDO' :
-                                            project.status === 'In Progress' ? 'EM ANDAMENTO' :
+                                          {project.status === 'Done' || project.status === 'Conclusão' ? 'CONCLUSÃO' :
+                                            project.status === 'In Progress' || project.status === 'Iniciado' ? 'INICIADO' :
                                               String(project.status || 'ATIVO').toUpperCase()}
                                         </div>
                                         <span className="text-[10px] font-bold opacity-30 text-purple-900 dark:text-purple-300">•</span>
@@ -1743,10 +1743,10 @@ const AdminDashboard: React.FC = () => {
                                                   task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
                                                     'bg-slate-500/10 text-slate-500 border-slate-500/20'
                                                 }`}>
-                                                {task.status === 'Done' ? 'CONCLUÍDO' :
-                                                  task.status === 'Review' ? 'EM TESTE' :
-                                                    task.status === 'In Progress' ? 'EM ANDAMENTO' :
-                                                      'PENDENTE'}
+                                                {task.status === 'Done' ? 'CONCLUSÃO' :
+                                                  task.status === 'Review' ? 'PENDENTE' :
+                                                    task.status === 'In Progress' ? 'INICIADO' :
+                                                      'NÃO INICIADO'}
                                               </span>
                                             </div>
                                           </div>

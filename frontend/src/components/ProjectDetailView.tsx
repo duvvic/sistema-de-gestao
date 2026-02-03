@@ -38,7 +38,7 @@ const ProjectDetailView: React.FC = () => {
     name: '',
     clientId: '',
     partnerId: '',
-    status: 'Planejamento',
+    status: 'Não Iniciado',
     description: '',
     managerClient: '',
     responsibleNicLabsId: '',
@@ -64,7 +64,7 @@ const ProjectDetailView: React.FC = () => {
         name: project.name || '',
         clientId: project.clientId || '',
         partnerId: project.partnerId || '',
-        status: project.status || 'Planejamento',
+        status: project.status || 'Não Iniciado',
         description: project.description || '',
         managerClient: project.managerClient || '',
         responsibleNicLabsId: project.responsibleNicLabsId || '',
@@ -507,9 +507,9 @@ const ProjectDetailView: React.FC = () => {
                       {[
                         { label: 'Todos', value: 'Todos' },
                         { label: 'Não Iniciado', value: 'Todo' },
-                        { label: 'Trabalhando', value: 'In Progress' },
-                        { label: 'Teste', value: 'Review' },
-                        { label: 'Concluído', value: 'Done' }
+                        { label: 'Iniciado', value: 'In Progress' },
+                        { label: 'Pendente', value: 'Review' },
+                        { label: 'Conclusão', value: 'Done' }
                       ].map(item => (
                         <button
                           key={item.value}
@@ -580,9 +580,9 @@ const ProjectTaskCard: React.FC<{ task: any, users: any[], timesheetEntries: any
 
   const statusMap: Record<string, { label: string, color: string, bg: string }> = {
     'Todo': { label: 'Não Iniciado', color: 'text-slate-500', bg: 'bg-slate-500/10' },
-    'In Progress': { label: 'Trabalhando', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    'Review': { label: 'Em Teste', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-    'Done': { label: 'Concluído', color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+    'In Progress': { label: 'Iniciado', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+    'Review': { label: 'Pendente', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    'Done': { label: 'Conclusão', color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
   };
 
   const statusInfo = statusMap[task.status] || { label: task.status, color: 'text-slate-400', bg: 'bg-slate-400/10' };

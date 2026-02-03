@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -11,7 +12,7 @@ import syncRoutes from "./routes/sync.js";
 
 
 
-dotenv.config();
+// dotenv.config() called at top via import "dotenv/config";
 
 const app = express();
 

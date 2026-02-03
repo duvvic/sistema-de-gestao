@@ -26,9 +26,10 @@ import ThemeToggle from './ThemeToggle';
 
 const Badge = ({ children, status, className = "" }: { children: React.ReactNode, status: string, className?: string }) => {
     const colors: any = {
-        'trabalhando': 'bg-purple-50 text-purple-600 border-purple-100',
-        'teste': 'bg-amber-50 text-amber-600 border-amber-100',
-        'nao iniciado': 'bg-emerald-50 text-emerald-600 border-emerald-100',
+        'iniciado': 'bg-purple-50 text-purple-600 border-purple-100',
+        'pendente': 'bg-amber-50 text-amber-600 border-amber-100',
+        'não iniciado': 'bg-emerald-50 text-emerald-600 border-emerald-100',
+        'conclusão': 'bg-green-50 text-green-600 border-green-100',
         'atraso': 'bg-red-50 text-red-600 border-red-100',
         // Fallbacks keys if needed
         'execucao': 'bg-purple-50 text-purple-600 border-purple-100',
@@ -478,7 +479,7 @@ const AdminMonitoringView: React.FC = () => {
                 entry.date === todayStr
             );
 
-            let status: 'LIVRE' | 'ESTUDANDO' | 'TRABALHANDO' | 'APONTADO' | 'ATRASADO' = 'LIVRE';
+            let status: 'LIVRE' | 'ESTUDANDO' | 'INICIADO' | 'APONTADO' | 'ATRASADO' = 'LIVRE';
 
             // Hierarquia: Atrasado > Apontado (após 16h) > Trabalhando > Estudando > Livre
             if (delayedTasksForStatus.length > 0) {
@@ -486,7 +487,7 @@ const AdminMonitoringView: React.FC = () => {
             } else if (isAfter16h && hasTimesheetToday) {
                 status = 'APONTADO';
             } else if (activeTasks.length > 0) {
-                status = 'TRABALHANDO';
+                status = 'INICIADO';
             } else if (isStudyCargo || hasStudy) {
                 status = 'ESTUDANDO';
             }
@@ -582,7 +583,7 @@ const AdminMonitoringView: React.FC = () => {
                         const reviewCount = tasksInProgress.filter(t => t.status === 'Review').length;
                         return (
                             <SectionHeader
-                                label={`Operaçoes em Execução & Teste ${reviewCount > 0 ? `• Atenção: ${reviewCount} em teste` : ''}`}
+                                label={`Operações Iniciadas & Pendentes ${reviewCount > 0 ? `• Atenção: ${reviewCount} em pendência` : ''}`}
                                 icon={Activity}
                                 colorClass={reviewCount > 0 ? "bg-amber-500" : "bg-purple-600"}
                             />
@@ -646,9 +647,9 @@ const AdminMonitoringView: React.FC = () => {
                                             else if (diffDays <= 3) countdownText = `Faltam ${diffDays}d`;
                                         }
 
-                                        const statusLabel = task.status === 'In Progress' ? 'Trabalhando' :
-                                            task.status === 'Review' ? 'Teste' :
-                                                (task.status as any) === 'Todo' ? 'Não Iniciado' : 'Concluído';
+                                        const statusLabel = task.status === 'In Progress' ? 'Iniciado' :
+                                            task.status === 'Review' ? 'Pendente' :
+                                                (task.status as any) === 'Todo' ? 'Não Iniciado' : 'Conclusão';
 
                                         const shadowClass = delayed
                                             ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)] border-red-500 border-2'

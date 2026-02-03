@@ -442,9 +442,9 @@ const TaskDetail: React.FC = () => {
                   disabled={isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
                 >
                   <option value="Todo">Não Iniciado</option>
-                  <option value="In Progress">Trabalhando</option>
-                  <option value="Review">Teste</option>
-                  <option value="Done">Concluído</option>
+                  <option value="In Progress">Iniciado</option>
+                  <option value="Review">Pendente</option>
+                  <option value="Done">Conclusão</option>
                 </select>
               </div>
 
@@ -669,7 +669,7 @@ const TaskDetail: React.FC = () => {
                       style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
                       disabled
                       readOnly
-                      title="Preenchido automaticamente quando a tarefa muda para 'Trabalhando'"
+                      title="Preenchido automaticamente quando a tarefa muda para 'Iniciado'"
                     />
                     <p className="text-[8px] text-slate-400 mt-1 italic">Auto: ao iniciar tarefa</p>
                   </div>
@@ -682,7 +682,7 @@ const TaskDetail: React.FC = () => {
                       style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
                       disabled
                       readOnly
-                      title="Preenchido automaticamente quando a tarefa muda para 'Concluído'"
+                      title="Preenchido automaticamente quando a tarefa muda para 'Conclusão'"
                     />
                     <p className="text-[8px] text-slate-400 mt-1 italic">Auto: ao concluir tarefa</p>
                   </div>
