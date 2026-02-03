@@ -101,3 +101,41 @@ export async function checkTowerMembersInProject(projectId, towerName) {
 
     return towerMembers && towerMembers.length > 0;
 }
+
+/**
+ * Verifica se o projeto tem tarefas criadas
+ * @param {string|number} projectId 
+ * @returns {Promise<boolean>}
+ */
+export async function checkProjectHasTasks(projectId) {
+    const { data, error } = await supabaseAdmin
+        .from('fato_tarefas')
+        .select('id_tarefa_novo')
+        .eq('ID_Projeto', projectId)
+        .limit(1);
+
+    if (error) {
+        console.error('Erro checkProjectHasTasks:', error);
+        throw error;
+    }
+    return data && data.length > 0;
+}
+
+/**
+ * Verifica se a tarefa tem horas apontadas
+ * @param {string} taskId 
+ * @returns {Promise<boolean>}
+ */
+export async function checkTaskHasHours(taskId) {
+    const { data, error } = await supabaseAdmin
+        .from('horas_trabalhadas')
+        .select('ID_Horas_Trabalhadas')
+        .eq('id_tarefa_novo', taskId)
+        .limit(1);
+
+    if (error) {
+        console.error('Erro checkTaskHasHours:', error);
+        throw error;
+    }
+    return data && data.length > 0;
+}

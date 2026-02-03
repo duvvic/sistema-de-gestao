@@ -51,6 +51,7 @@ export default function Login() {
     const [showPasswordInput, setShowPasswordInput] = useState(false);
     const [emailFound, setEmailFound] = useState(false);
     const [knownEmails, setKnownEmails] = useState<string[]>([]);
+    const [showEmailNotFoundToast, setShowEmailNotFoundToast] = useState(false);
 
     const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -168,6 +169,10 @@ export default function Login() {
                 setEmailFound(false);
                 setShowPasswordInput(false);
                 setShowFirstAccess(false);
+
+                // Mostrar toast temporário
+                setShowEmailNotFoundToast(true);
+                setTimeout(() => setShowEmailNotFoundToast(false), 3000);
                 return;
             }
 
@@ -681,6 +686,21 @@ export default function Login() {
                     )}
                 </form>
             </div>
+
+            {/* Toast de Email Não Encontrado */}
+            {showEmailNotFoundToast && (
+                <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-top-4 fade-in duration-300">
+                    <div className="bg-red-50 border-2 border-red-200 rounded-2xl shadow-2xl p-4 flex items-center gap-3 max-w-sm">
+                        <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Mail className="w-5 h-5 text-red-600" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-bold text-red-900">Email não encontrado</p>
+                            <p className="text-xs text-red-700 mt-0.5">Verifique o endereço digitado</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Custom Alert Modal */}
             {alertConfig.show && (

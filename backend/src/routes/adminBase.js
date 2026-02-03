@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabaseAdmin } from '../config/supabaseAdmin.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { checkProjectHasTasks, checkTaskHasHours } from '../services/projectService.js';
 
 const router = express.Router();
 
@@ -77,6 +78,60 @@ router.get('/tasks', requireAdmin, async (req, res) => {
         if (error) throw error;
         res.json(data.map(t => ({ id: t.id_tarefa_novo, name: t.Afazer, projectId: t.ID_Projeto })));
     } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// DELETE /api/admin/projects/:id
+router.delete('/projects/:id', requireAdmin, async (req, res) => {
+    try {
+        const projectId = req.params.id;
+
+        // Validar se o projeto tem tarefas
+        const hasTasks = await checkProjectHasTasks(projectId);
+        if (hasTasks) {
+            return res.status(400).json({
+                error: 'Não é possível excluir este projeto pois existem tarefas criadas nele.'
+            });
+        }
+
+        // Soft delete do projeto
+        const { error } = await supabaseAdmin
+            .from('dim_projetos')
+            .update({ ativo: false })
+            .eq('ID_Projeto', projectId);
+
+        if (error) throw error;
+        res.json({ success: true, message: 'Projeto excluído com sucesso.' });
+    } catch (e) {
+        console.error('Erro ao excluir projeto:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// DELETE /api/admin/tasks/:id
+router.delete('/tasks/:id', async (req, res) => {
+    try {
+        const taskId = req.params.id;
+
+        // Validar se a tarefa tem horas apontadas
+        const hasHours = await checkTaskHasHours(taskId);
+        if (hasHours) {
+            return res.status(400).json({
+                error: 'Não é possível excluir esta tarefa pois existem horas apontadas nela.'
+            });
+        }
+
+        // Exclusão física da tarefa
+        const { error } = await supabaseAdmin
+            .from('fato_tarefas')
+            .delete()
+            .eq('id_tarefa_novo', taskId);
+
+        if (error) throw error;
+        res.json({ success: true, message: 'Tarefa excluída com sucesso.' });
+    } catch (e) {
+        console.error('Erro ao excluir tarefa:', e);
         res.status(500).json({ error: e.message });
     }
 });
