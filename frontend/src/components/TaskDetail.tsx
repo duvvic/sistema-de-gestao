@@ -225,7 +225,7 @@ const TaskDetail: React.FC = () => {
   const availableProjectsIds = React.useMemo(() => {
     if (isAdmin) return projects.map(p => p.id);
     return projects
-      .filter(p => projectMembers.some(pm => pm.projectId === p.id && pm.userId === currentUser?.id))
+      .filter(p => projectMembers.some(pm => String(pm.id_projeto) === p.id && String(pm.id_colaborador) === currentUser?.id))
       .map(p => p.id);
   }, [projects, isAdmin, projectMembers, currentUser]);
 
@@ -304,7 +304,7 @@ const TaskDetail: React.FC = () => {
             </p>
           </div>
         </div>
-        {!isTaskCompleted && canEdit && (
+        {canEdit && (
           <button
             onClick={handleSubmit}
             disabled={loading}
@@ -387,7 +387,7 @@ const TaskDetail: React.FC = () => {
                   placeholder="Ex: Criar Wireframes da Home"
                   className="w-full p-4 text-lg font-bold border rounded-xl outline-none shadow-sm transition-all disabled:opacity-60 focus:ring-2 focus:ring-[var(--ring)]"
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                  disabled={!canEdit || isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
+                  disabled={!canEdit || (isCollaborator && !isAdmin && !isOwner)}
                   required
                 />
               </div>
@@ -401,7 +401,7 @@ const TaskDetail: React.FC = () => {
                   className="w-full p-4 border rounded-xl outline-none shadow-sm resize-none transition-all disabled:opacity-60 focus:ring-2 focus:ring-[var(--ring)]"
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
                   placeholder="Detalhes adicionais sobre a tarefa..."
-                  disabled={isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
+                  disabled={isCollaborator && !isAdmin && !isOwner}
                 />
               </div>
 
@@ -417,7 +417,7 @@ const TaskDetail: React.FC = () => {
                   placeholder="Ex: Aguardando aprovação do cliente"
                   className="w-full p-3 border rounded-xl outline-none transition-all disabled:opacity-60 shadow-sm focus:ring-2 focus:ring-[var(--ring)]"
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                  disabled={!canEdit || isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
+                  disabled={!canEdit || (isCollaborator && !isAdmin && !isOwner)}
                 />
               </div>
 
@@ -439,7 +439,7 @@ const TaskDetail: React.FC = () => {
                   onChange={(e) => { markDirty(); setFormData({ ...formData, status: e.target.value as Status }); }}
                   className="w-full p-3 border rounded-xl outline-none transition-all disabled:opacity-60 shadow-sm focus:ring-2 focus:ring-[var(--ring)]"
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                  disabled={isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
+                  disabled={isCollaborator && !isAdmin && !isOwner}
                 >
                   <option value="Todo">Não Iniciado</option>
                   <option value="In Progress">Iniciado</option>
@@ -461,7 +461,7 @@ const TaskDetail: React.FC = () => {
                   onChange={(e) => { markDirty(); setFormData({ ...formData, progress: Number(e.target.value) }); }}
                   className="w-full h-2 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
                   style={{ backgroundColor: 'var(--border)' }}
-                  disabled={isTaskCompleted || !canEdit}
+                  disabled={!canEdit}
                 />
               </div>
 
@@ -547,7 +547,7 @@ const TaskDetail: React.FC = () => {
                     >
                       <option value="">Trocar responsável...</option>
                       {users
-                        .filter(u => u.active !== false && projectMembers.some(pm => pm.projectId === formData.projectId && pm.userId === u.id))
+                        .filter(u => u.active !== false && projectMembers.some(pm => String(pm.id_projeto) === formData.projectId && String(pm.id_colaborador) === u.id))
                         .sort((a, b) => a.name.localeCompare(b.name))
                         .map(u => (
                           <option key={u.id} value={u.id}>{u.name}</option>
@@ -567,8 +567,8 @@ const TaskDetail: React.FC = () => {
                   <div className="space-y-2 max-h-48 overflow-y-auto p-3 border rounded-xl shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                     {(() => {
                       const projectMemberIds = projectMembers
-                        .filter(pm => pm.projectId === formData.projectId)
-                        .map(pm => pm.userId);
+                        .filter(pm => String(pm.id_projeto) === formData.projectId)
+                        .map(pm => String(pm.id_colaborador));
 
                       const filteredUsers = users.filter(u =>
                         u.active !== false &&
@@ -584,7 +584,7 @@ const TaskDetail: React.FC = () => {
                         <label key={u.id} className="flex items-center gap-2 p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md cursor-pointer transition-colors">
                           <input
                             type="checkbox"
-                            disabled={!(isAdmin || formData.developerId === currentUser?.id) || isTaskCompleted}
+                            disabled={!(isAdmin || formData.developerId === currentUser?.id)}
                             checked={formData.collaboratorIds?.includes(u.id) || false}
                             onChange={(e) => {
                               markDirty();
@@ -638,7 +638,7 @@ const TaskDetail: React.FC = () => {
                   onChange={(e) => { markDirty(); setFormData({ ...formData, scheduledStart: e.target.value }); }}
                   className="w-full p-3 border border-[var(--border)] rounded-xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-[var(--ring)] transition-all disabled:opacity-60"
                   style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}
-                  disabled={isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
+                  disabled={isCollaborator && !isAdmin && !isOwner}
                 />
               </div>
 
@@ -654,7 +654,7 @@ const TaskDetail: React.FC = () => {
                     borderColor: daysDelayed > 0 ? 'var(--danger)' : 'var(--border)',
                     color: daysDelayed > 0 ? 'var(--danger)' : 'var(--text)'
                   }}
-                  disabled={isTaskCompleted || (isCollaborator && !isAdmin && !isOwner)}
+                  disabled={isCollaborator && !isAdmin && !isOwner}
                 />
               </div>
 
@@ -708,7 +708,6 @@ const TaskDetail: React.FC = () => {
                       onChange={(e) => { markDirty(); setFormData({ ...formData, estimatedHours: Number(e.target.value) }); }}
                       className="w-full p-3 border border-[var(--border)] rounded-xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-400"
                       style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}
-                      disabled={isTaskCompleted}
                     />
                   </div>
                   <div>

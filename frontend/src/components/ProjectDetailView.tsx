@@ -166,10 +166,10 @@ const ProjectDetailView: React.FC = () => {
     if (!project || !projectId) return {};
     const metrics: Record<string, { reported: number; remaining: number }> = {};
 
-    const projectMems = projectMembers.filter(pm => pm.projectId === projectId);
+    const projectMems = projectMembers.filter(pm => String(pm.id_projeto) === projectId);
 
     projectMems.forEach(pm => {
-      const userId = pm.userId;
+      const userId = String(pm.id_colaborador);
       const reported = timesheetEntries
         .filter(e => e.projectId === projectId && e.userId === userId)
         .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
@@ -429,7 +429,7 @@ const ProjectDetailView: React.FC = () => {
                           <div className="flex items-end gap-2">
                             <p className="text-xl font-black text-purple-500">
                               {(() => {
-                                const team = users.filter(u => projectMembers.some(pm => pm.projectId === project.id && pm.userId === u.id));
+                                const team = users.filter(u => projectMembers.some(pm => String(pm.id_projeto) === project.id && String(pm.id_colaborador) === u.id));
                                 const remainingHours = Math.max(0, (project.horas_vendidas || 0) - (performance?.consumedHours || 0));
                                 const deadline = CapacityUtils.calculateProjectDeadline(new Date().toISOString().split('T')[0], remainingHours, team);
                                 return deadline ? deadline.split('-').reverse().join('/') : '--';
@@ -572,7 +572,7 @@ const ProjectDetailView: React.FC = () => {
                                       <p className="text-[8px] font-bold uppercase opacity-50" style={{ color: 'var(--muted)' }}>{user.cargo || user.role}</p>
                                       {(() => {
                                         const status = getUserStatus(user, tasks, projects, clients);
-                                        const availability = CapacityUtils.getUserMonthlyAvailability(user, new Date().toISOString().slice(0, 7), tasks, timesheetEntries);
+                                        const availability = CapacityUtils.getUserMonthlyAvailability(user, new Date().toISOString().slice(0, 7), projects, projectMembers, timesheetEntries);
                                         return (
                                           <div className="flex items-center gap-2">
                                             <div className="flex items-center gap-1">
@@ -593,8 +593,8 @@ const ProjectDetailView: React.FC = () => {
                             ))}
                           </div>
                         ) : (
-                          projectMembers.filter(pm => pm.projectId === projectId).map(pm => {
-                            const u = users.find(user => user.id === pm.userId);
+                          projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
+                            const u = users.find(user => user.id === String(pm.id_colaborador));
                             return u ? (
                               <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--bg)' }}>
                                 <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
@@ -606,11 +606,11 @@ const ProjectDetailView: React.FC = () => {
                                     <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
                                     {(() => {
                                       const status = getUserStatus(u, tasks, projects, clients);
-                                      const availability = CapacityUtils.getUserMonthlyAvailability(u, new Date().toISOString().slice(0, 7), tasks, timesheetEntries);
+                                      const availability = CapacityUtils.getUserMonthlyAvailability(u, new Date().toISOString().slice(0, 7), projects, projectMembers, timesheetEntries);
 
                                       // Calculate share of remaining work
                                       const projectRemainingHours = Math.max(0, project.horas_vendidas - (performance?.consumedHours || 0));
-                                      const teamSize = projectMembers.filter(m => m.projectId === projectId).length || 1;
+                                      const teamSize = projectMembers.filter(m => String(m.id_projeto) === projectId).length || 1;
                                       const shareOfRemaining = projectRemainingHours / teamSize;
 
                                       // Calculate monthly burden based on deadline
@@ -652,7 +652,7 @@ const ProjectDetailView: React.FC = () => {
                                       {(() => {
                                         // Logic requested: Divide missing hours by team size
                                         const projectRemainingHours = Math.max(0, project.horas_vendidas - (performance?.consumedHours || 0));
-                                        const teamSize = projectMembers.filter(m => m.projectId === projectId).length || 1;
+                                        const teamSize = projectMembers.filter(m => String(m.id_projeto) === projectId).length || 1;
                                         const shareOfRemaining = projectRemainingHours / teamSize;
 
                                         return (
