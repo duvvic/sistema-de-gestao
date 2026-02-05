@@ -38,8 +38,8 @@ const DeveloperProjects: React.FC = () => {
     if (!currentUser || !projectMembers) return new Set<string>();
     return new Set(
       projectMembers
-        .filter(pm => pm.userId === currentUser.id)
-        .map(pm => pm.projectId)
+        .filter(pm => String(pm.id_colaborador) === String(currentUser.id))
+        .map(pm => String(pm.id_projeto))
     );
   }, [projectMembers, currentUser]);
 
@@ -216,9 +216,9 @@ const DeveloperProjects: React.FC = () => {
                           <div className="mt-4 pt-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
                             <div className="flex -space-x-2">
                               {projectMembers
-                                .filter(pm => pm.projectId === project.id)
+                                .filter(pm => String(pm.id_projeto) === String(project.id))
                                 .map(pm => {
-                                  const member = users.find(u => u.id === pm.userId);
+                                  const member = users.find(u => u.id === String(pm.id_colaborador));
                                   if (!member) return null;
                                   return (
                                     <div
@@ -347,9 +347,9 @@ const DeveloperProjects: React.FC = () => {
                   <div className="mt-4 pt-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex -space-x-2">
                       {projectMembers
-                        .filter(pm => pm.projectId === project.id)
+                        .filter(pm => String(pm.id_projeto) === String(project.id))
                         .map(pm => {
-                          const member = users.find(u => u.id === pm.userId);
+                          const member = users.find(u => u.id === String(pm.id_colaborador));
                           if (!member) return null;
                           return (
                             <div
@@ -372,7 +372,7 @@ const DeveloperProjects: React.FC = () => {
                           );
                         })}
                     </div>
-                    {projectMembers.filter(pm => pm.projectId === project.id).length === 0 && (
+                    {projectMembers.filter(pm => String(pm.id_projeto) === String(project.id)).length === 0 && (
                       <span className="text-[10px] italic" style={{ color: 'var(--textMuted)' }}>Sem equipe</span>
                     )}
                   </div>

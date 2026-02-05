@@ -234,8 +234,8 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                                                         <optgroup label="Colaboradores do Projeto">
                                                             {(() => {
                                                                 const projectUserIds = (projectMembers || [])
-                                                                    .filter(pm => pm.projectId === t.projectId)
-                                                                    .map(pm => pm.userId);
+                                                                    .filter(pm => String(pm.id_projeto) === String(t.projectId))
+                                                                    .map(pm => String(pm.id_colaborador));
 
                                                                 return users
                                                                     .filter(u => u.active !== false && u.id !== effectiveUserId && projectUserIds.includes(u.id))

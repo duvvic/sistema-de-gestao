@@ -332,7 +332,7 @@ const ClientDetailsView: React.FC = () => {
                       </h4>
                       <div className="flex flex-wrap gap-3">
                         {Array.from(new Set([
-                          ...clientProjects.flatMap(p => projectMembers.filter(pm => pm.projectId === p.id).map(pm => pm.userId)),
+                          ...clientProjects.flatMap(p => projectMembers.filter(pm => String(pm.id_projeto) === String(p.id)).map(pm => String(pm.id_colaborador))),
                           ...clientTasks.map(t => t.developerId).filter(id => id)
                         ])).map(uId => {
                           const user = users.find(u => u.id === uId);
@@ -446,9 +446,9 @@ const ClientDetailsView: React.FC = () => {
 
                           <div className="flex -space-x-3 mt-4">
                             {projectMembers
-                              .filter(pm => pm.projectId === project.id)
+                              .filter(pm => String(pm.id_projeto) === String(project.id))
                               .map(pm => {
-                                const member = users.find(u => u.id === pm.userId);
+                                const member = users.find(u => u.id === String(pm.id_colaborador));
                                 if (!member) return null;
                                 return (
                                   <div key={member.id} className="w-9 h-9 rounded-2xl border-4 shadow-sm overflow-hidden" style={{ borderColor: 'var(--surface)', backgroundColor: 'var(--surface-hover)' }} title={member.name}>

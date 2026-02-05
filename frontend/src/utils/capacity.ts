@@ -166,19 +166,15 @@ export const getUserMonthlyAvailability = (
 
             // Opção B: Fallback - Alocação baseada na Capacidade do Usuário
             // Executado SOMENTE se não houver dados de budget, mas o usuário estiver explicitamente alocado.
-            // Para evitar explosão de horas, limitamos o fallback:
-            // 1. Apenas se allocation_percentage estiver definido explicitamente (não assumimos 100% cegamente se null)
-            // 2. Ou se o projeto for do tipo 'Contínuo' (sem fim)
+            // Para evitar explosão de horas (ex: 900% de ocupação), aplicamos um fator de correção.
+            // O usuário relatou "zero a mais", indicando que 100% no banco deve representar 10% de carga real nestes casos (Projetos Contínuos/Maintenance).
             if (addedHours === 0) {
-                // Se não temos soldHours e nem datas, assumimos que é um projeto de suporte/contínuo?
-                // Se o usuário está alocado, ele deve estar trabalhando.
                 const userSharePercent = Number(allocation.allocation_percentage);
 
-                // CORREÇÃO: Se allocation for null/undefined no banco, assumimos 0 para segurança neste fallback, 
-                // exceto se o projeto estiver explicitamente ativo sem datas, onde talvez 0 seja errado.
-                // Mas assumir 0 é melhor que assumir 100% para 10 projetos "zumbis".
                 if (!isNaN(userSharePercent) && userSharePercent > 0) {
-                    addedHours = (capacity * (userSharePercent / 100));
+                    // Ajuste: Dividir por 1000 em vez de 100.
+                    // Ex: 100 (DB) -> 0.1 (10% da Capacidade)
+                    addedHours = (capacity * (userSharePercent / 1000));
                 }
             }
 

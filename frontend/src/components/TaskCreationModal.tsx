@@ -72,7 +72,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
         const isActive = p.active !== false;
 
         // Permissão: Admin vê tudo, Colaborador vê apenas onde é membro
-        const isMember = isAdmin || projectMembers.some(pm => pm.projectId === p.id && pm.userId === currentUser?.id);
+        const isMember = isAdmin || projectMembers.some(pm => String(pm.id_projeto) === String(p.id) && String(pm.id_colaborador) === String(currentUser?.id));
 
         return matchesClient && isActive && isMember;
     });
@@ -86,7 +86,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
         const hasAccessibleProject = projects.some(p =>
             p.clientId === c.id &&
             p.active !== false &&
-            projectMembers.some(pm => pm.projectId === p.id && pm.userId === currentUser?.id)
+            projectMembers.some(pm => String(pm.id_projeto) === String(p.id) && String(pm.id_colaborador) === String(currentUser?.id))
         );
 
         return hasAccessibleProject;
@@ -96,7 +96,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
 
     const eligibleUsers = useMemo(() => {
         return projectId
-            ? users.filter(u => u.active !== false && u.torre !== 'N/A' && projectMembers.some(pm => pm.projectId === projectId && pm.userId === u.id))
+            ? users.filter(u => u.active !== false && u.torre !== 'N/A' && projectMembers.some(pm => String(pm.id_projeto) === String(projectId) && String(pm.id_colaborador) === String(u.id)))
             : users.filter(u => u.active !== false && u.torre !== 'N/A');
     }, [users, projectId, projectMembers]);
 

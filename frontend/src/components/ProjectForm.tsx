@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Save, Users, Briefcase, Calendar, Info, Zap, DollarSign, Target, Shield, Layout, Clock } from 'lucide-react';
+import { ArrowLeft, Save, Users, Briefcase, Calendar, Info, Zap, DollarSign, Target, Shield, Layout, Clock, ChevronDown, LayoutGrid, AlertCircle, FileSpreadsheet, ExternalLink, CheckSquare, User } from 'lucide-react';
 import { getUserStatus } from '@/utils/userStatus';
 import * as CapacityUtils from '@/utils/capacity';
 
@@ -24,7 +24,8 @@ const ProjectForm: React.FC = () => {
     updateProject,
     getProjectMembers,
     addProjectMember,
-    removeProjectMember
+    removeProjectMember,
+    timesheetEntries // Import timesheetEntries to pass to availability function
   } = useDataController();
 
   const isEdit = !!projectId;
@@ -190,318 +191,455 @@ const ProjectForm: React.FC = () => {
     }
   };
 
+  const [memberSearch, setMemberSearch] = useState('');
+
+  const filteredUsers = users
+    .filter(u => u.active !== false && u.torre !== 'N/A')
+    .filter(u => u.name.toLowerCase().includes(memberSearch.toLowerCase()) || u.role.toLowerCase().includes(memberSearch.toLowerCase()))
+    .sort((a, b) => {
+      // Selected first
+      const aSelected = selectedUsers.includes(a.id);
+      const bSelected = selectedUsers.includes(b.id);
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
   return (
-    <div className="h-full flex flex-col p-8" style={{ backgroundColor: 'var(--bg)' }}>
-      {/* Header */}
-      <div className="mb-6 flex items-center gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 hover:bg-[var(--surface-hover)] rounded-full transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-[var(--muted)]" />
-        </button>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
-          {isEdit ? 'Editar Projeto' : 'Novo Projeto'}
-        </h1>
+    <div className="h-full flex flex-col bg-[var(--bg)] overflow-hidden">
+      {/* Header com Transparência e Blur */}
+      <div className="px-8 py-6 border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2.5 hover:bg-[var(--surface-hover)] rounded-xl transition-all text-[var(--muted)] hover:text-[var(--text)]"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight flex items-center gap-3" style={{ color: 'var(--text)' }}>
+              <Briefcase className="w-6 h-6 text-[var(--primary)]" />
+              {isEdit ? 'Editar Projeto' : 'Novo Projeto'}
+            </h1>
+            <p className="text-xs font-medium opacity-60 mt-1" style={{ color: 'var(--text)' }}>
+              {isEdit ? 'Atualize as informações e escopo do projeto' : 'Defina o escopo, orçamento e equipe do novo projeto'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-5 py-2.5 rounded-xl font-bold text-xs transition-all hover:bg-[var(--surface-hover)]"
+            style={{ color: 'var(--muted)' }}
+            disabled={loading}
+          >
+            CANCELAR
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-8 py-2.5 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-500/20 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
+            style={{ backgroundColor: 'var(--primary)' }}
+            disabled={loading}
+          >
+            <Save className="w-4 h-4" />
+            {loading ? 'SALVANDO...' : 'SALVAR PROJETO'}
+          </button>
+        </div>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 pb-10">
+      {/* Main Form Content */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
+        <form onSubmit={handleSubmit} className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8">
 
-          {/* Left Column */}
-          <div className="space-y-6">
-            <div className="bg-[var(--surface-2)] p-6 rounded-2xl border border-[var(--border)] shadow-sm space-y-6">
-              <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--primary)' }}>
-                <Briefcase className="w-5 h-5" />
-                Informações do Projeto
+          {/* Left Column (Main Info) - Spans 7 cols */}
+          <div className="xl:col-span-7 space-y-8">
+
+            {/* Project Identity Card */}
+            <div className="bg-[var(--surface)] p-8 rounded-3xl border border-[var(--border)] shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <Briefcase className="w-32 h-32 transform rotate-12" />
+              </div>
+
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                Informações Gerais
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Nome *</label>
+              <div className="space-y-6 relative z-10">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Nome do Projeto *</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                    placeholder="Nome do projeto"
+                    className="w-full px-5 py-4 text-lg font-bold border rounded-2xl focus:ring-4 focus:ring-[var(--primary)]/20 outline-none transition-all placeholder:font-normal placeholder:opacity-30"
+                    style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                    placeholder="Ex: Migração SAP S/4HANA"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Cliente *</label>
-                  <select
-                    value={clientId}
-                    onChange={(e) => setClientId(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                    required
-                    disabled={isEdit}
-                  >
-                    <option value="">Selecione</option>
-                    {clients.filter(c => c.active !== false && c.tipo_cliente !== 'parceiro').map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Cliente *</label>
+                    <div className="relative">
+                      <select
+                        value={clientId}
+                        onChange={(e) => setClientId(e.target.value)}
+                        className="w-full px-4 py-3 border rounded-xl appearance-none font-semibold focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all disabled:opacity-50 cursor-pointer"
+                        style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                        required
+                        disabled={isEdit}
+                      >
+                        <option value="">Selecione um cliente...</option>
+                        {clients.filter(c => c.active !== false && c.tipo_cliente !== 'parceiro').map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-50" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Parceiro (Opcional)</label>
+                    <div className="relative">
+                      <select
+                        value={partnerId}
+                        onChange={(e) => setPartnerId(e.target.value)}
+                        className="w-full px-4 py-3 border rounded-xl appearance-none font-semibold focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all disabled:opacity-50 cursor-pointer"
+                        style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                        disabled={isEdit}
+                      >
+                        <option value="">Sem parceiro</option>
+                        {clients.filter(c => c.active !== false && c.tipo_cliente === 'parceiro').map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-50" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Status do Projeto</label>
+                    <div className="relative">
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="w-full px-4 py-3 border rounded-xl appearance-none font-semibold focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all cursor-pointer"
+                        style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                      >
+                        {['Não Iniciado', 'Iniciado', 'Pendente', 'Concluído', 'Em Pausa', 'Cancelado'].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-50" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Torre / Vertical</label>
+                    <div className="relative">
+                      <LayoutGrid className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                      <input
+                        type="text"
+                        value={torre}
+                        onChange={(e) => setTorre(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 border rounded-xl font-semibold focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all placeholder:font-normal placeholder:opacity-30"
+                        style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                        placeholder="Ex: Infraestrutura"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Parceiro</label>
-                  <select
-                    value={partnerId}
-                    onChange={(e) => setPartnerId(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                    disabled={isEdit}
-                  >
-                    <option value="">Nenhum</option>
-                    {clients.filter(c => c.active !== false && c.tipo_cliente === 'parceiro').map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Status</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                  >
-                    <option value="Não Iniciado">Não Iniciado</option>
-                    <option value="Iniciado">Iniciado</option>
-                    <option value="Pendente">Pendente</option>
-                    <option value="Concluído">Concluído</option>
-                    <option value="Em Pausa">Em Pausa</option>
-                    <option value="Cancelado">Cancelado</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Torre / Vertical</label>
-                  <input
-                    type="text"
-                    value={torre}
-                    onChange={(e) => setTorre(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                    placeholder="Ex: ERP, Infra, Dev"
+                  <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Descrição / Escopo</label>
+                  <textarea
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    className="w-full px-5 py-4 border rounded-2xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all placeholder:font-normal placeholder:opacity-30 resize-none min-h-[100px]"
+                    style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                    placeholder="Descreva o objetivo e escopo principal do projeto..."
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-[var(--surface-2)] p-6 rounded-2xl border border-[var(--border)] shadow-sm space-y-6">
-              <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--primary)' }}>
-                <DollarSign className="w-5 h-5" />
-                Dados Financeiros e Complexidade
+            {/* Financial & Complexity Card */}
+            <div className="bg-[var(--surface)] p-8 rounded-3xl border border-[var(--border)] shadow-sm">
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
+                  <DollarSign className="w-4 h-4" />
+                </div>
+                Financeiro e Complexidade
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Valor Total (R$)</label>
-                  <input
-                    type="number"
-                    value={valorTotalRs}
-                    onChange={(e) => setValorTotalRs(Number(e.target.value))}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                    placeholder="0.00"
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Valor do Projeto (R$)</label>
+                    <div className="relative group">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold opacity-30 tracking-widest text-xs">BRL</span>
+                      <input
+                        type="number"
+                        value={valorTotalRs}
+                        onChange={(e) => setValorTotalRs(Number(e.target.value))}
+                        className="w-full pl-14 pr-4 py-4 text-xl font-bold border rounded-2xl focus:ring-2 focus:ring-emerald-500/30 outline-none transition-all tabular-nums bg-transparent"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Horas Vendidas (Budget)</label>
+                    <div className="relative group">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                      <input
+                        type="number"
+                        value={horasVendidas}
+                        onChange={(e) => setHorasVendidas(Number(e.target.value))}
+                        className="w-full pl-12 pr-4 py-3 font-bold border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all tabular-nums bg-transparent"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                        placeholder="0h"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Horas Vendidas</label>
-                  <input
-                    type="number"
-                    value={horasVendidas}
-                    onChange={(e) => setHorasVendidas(Number(e.target.value))}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Complexidade Estimada</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Baixa', 'Média', 'Alta'].map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setComplexity(c as any)}
-                        className={`py-3 rounded-xl font-bold border transition-all ${complexity === c ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-md translate-y-[-2px]' : 'bg-[var(--surface)] text-[var(--text)] border-[var(--border)] opacity-60'}`}
-                      >
-                        {c}
-                      </button>
-                    ))}
+
+                <div className="p-6 rounded-2xl border border-[var(--border)] bg-[var(--bg)]/50">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider mb-4 opacity-60" style={{ color: 'var(--text)' }}>Nível de Complexidade</label>
+                  <div className="flex flex-col gap-3">
+                    {['Baixa', 'Média', 'Alta'].map((c) => {
+                      const isSelected = complexity === c;
+                      let activeColor = 'var(--primary)';
+                      if (c === 'Baixa') activeColor = 'var(--success)';
+                      if (c === 'Média') activeColor = 'var(--warning)';
+                      if (c === 'Alta') activeColor = 'var(--danger)';
+
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setComplexity(c as any)}
+                          className={`flex items-center justify-between px-5 py-3 rounded-xl border transition-all ${isSelected ? 'shadow-md border-transparent transform scale-[1.02]' : 'border-transparent hover:bg-[var(--surface-hover)]'}`}
+                          style={{
+                            backgroundColor: isSelected ? activeColor : 'transparent',
+                            color: isSelected ? '#fff' : 'var(--muted)'
+                          }}
+                        >
+                          <span className="font-bold text-sm">{c}</span>
+                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[var(--surface-2)] p-6 rounded-2xl border border-[var(--border)] shadow-sm space-y-6">
-              <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--primary)' }}>
-                <Calendar className="w-5 h-5" />
-                Cronograma
+            {/* Cronograma Card */}
+            <div className="bg-[var(--surface)] p-8 rounded-3xl border border-[var(--border)] shadow-sm">
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                Cronograma de Execução
               </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Início Previsto</label>
-                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl font-bold bg-[var(--surface)] border-[var(--border)] text-[var(--text)]" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
+                {/* Decorative line connecting dates */}
+                <div className="hidden md:block absolute left-1/2 top-4 bottom-4 w-px bg-[var(--border)] -translate-x-1/2 border-dashed border-l" />
+
+                <div className="space-y-4">
+                  <span className="text-xs font-black text-blue-500 uppercase tracking-widest block mb-4">Planejado</span>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase mb-1 opacity-50">Início Previsto</label>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-medium bg-[var(--bg)] border-[var(--border)] text-[var(--text)]" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase mb-1 opacity-50">Entrega Estimada</label>
+                    <input type="date" value={estimatedDelivery} readOnly className="w-full px-4 py-2 border rounded-xl font-bold bg-[var(--surface-2)] border-[var(--border)] opacity-60 cursor-not-allowed" />
+                    <div className="flex items-center gap-1 mt-1.5 text-[9px] text-[var(--primary)] font-bold opacity-80">
+                      <Zap className="w-3 h-3" />
+                      Calculada automaticamente (Budget/Equipe)
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Entrega Estimada</label>
-                  <input
-                    type="date"
-                    value={estimatedDelivery}
-                    onChange={e => setEstimatedDelivery(e.target.value)}
-                    readOnly
-                    className="w-full px-4 py-2.5 border rounded-xl font-bold bg-[var(--surface-2)] border-[var(--border)] text-[var(--primary)] cursor-not-allowed"
-                  />
-                  <p className="text-[8px] font-black uppercase tracking-wider mt-1 opacity-50">Calculado automaticamente via Squad/Horas</p>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Início Real</label>
-                  <input type="date" value={startDateReal} onChange={e => setStartDateReal(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl font-bold bg-[var(--surface)] border-[var(--border)] text-[var(--text)]" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Fim Real</label>
-                  <input type="date" value={endDateReal} onChange={e => setEndDateReal(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl font-bold bg-[var(--surface)] border-[var(--border)] text-[var(--text)]" />
+
+                <div className="space-y-4">
+                  <span className="text-xs font-black text-purple-500 uppercase tracking-widest block mb-4 md:text-right">Realizado</span>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase mb-1 opacity-50 md:text-right">Início Real</label>
+                    <input type="date" value={startDateReal} onChange={e => setStartDateReal(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-medium bg-[var(--bg)] border-[var(--border)] text-[var(--text)]" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase mb-1 opacity-50 md:text-right">Fim Real</label>
+                    <input type="date" value={endDateReal} onChange={e => setEndDateReal(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-medium bg-[var(--bg)] border-[var(--border)] text-[var(--text)]" />
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Governance Card */}
+            <div className="bg-[var(--surface)] p-8 rounded-3xl border border-[var(--border)] shadow-sm">
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500">
+                  <Shield className="w-4 h-4" />
+                </div>
+                Governança e Report
+              </h3>
+
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Link Documentação</label>
+                    <div className="relative">
+                      <ExternalLink className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                      <input type="url" value={docLink} onChange={e => setDocLink(e.target.value)} className="w-full pl-11 pr-4 py-3 border rounded-xl text-sm bg-[var(--bg)] border-[var(--border)] text-[var(--text)]" placeholder="https://notion.so/projeto..." />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Link Status Report</label>
+                    <div className="relative">
+                      <FileSpreadsheet className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                      <input type="url" value={weeklyStatusReport} onChange={e => setWeeklyStatusReport(e.target.value)} className="w-full pl-11 pr-4 py-3 border rounded-xl text-sm bg-[var(--bg)] border-[var(--border)] text-[var(--text)]" placeholder="URL do relatório..." />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Principais Riscos / Gaps</label>
+                  <div className="relative">
+                    <AlertCircle className="absolute left-4 top-4 w-4 h-4 text-red-400 opacity-50" />
+                    <textarea value={gapsIssues} onChange={e => setGapsIssues(e.target.value)} className="w-full pl-11 pr-4 py-3 border rounded-xl text-sm bg-[var(--bg)] border-[var(--border)] text-[var(--text)] resize-none h-24" placeholder="Liste os principais riscos ou impedimentos..." />
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          {/* Right Column */}
-          <div className="space-y-6">
-            <div className="bg-[var(--surface-2)] p-6 rounded-2xl border border-[var(--border)] shadow-md space-y-6">
-              <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--primary)' }}>
-                <Users className="w-5 h-5" />
+          {/* Right Column (Squad) - Spans 5 cols */}
+          <div className="xl:col-span-5 space-y-8">
+
+            {/* Squad Card */}
+            <div className="bg-[var(--surface)] p-8 rounded-3xl border border-[var(--border)] shadow-xl shadow-black/5 sticky top-28 max-h-[calc(100vh-140px)] flex flex-col">
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500">
+                  <Users className="w-4 h-4" />
+                </div>
                 Squad e Responsáveis
               </h3>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Responsável Nic-Labs</label>
+              <div className="mb-6">
+                <label className="block text-[10px] font-black uppercase tracking-widest mb-2 opacity-60" style={{ color: 'var(--text)' }}>Gestor Responsável (Interno)</label>
+                <div className="relative">
                   <select
                     value={responsibleNicLabsId}
                     onChange={(e) => setResponsibleNicLabsId(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all font-bold"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                    className="w-full pl-4 pr-10 py-3 border rounded-xl appearance-none font-bold text-sm focus:ring-2 focus:ring-[var(--ring)] outline-none transition-all cursor-pointer"
+                    style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                   >
-                    <option value="">Selecione o responsável interno</option>
+                    <option value="">Selecione o responsável</option>
                     {users.filter(u => u.active !== false && u.torre !== 'N/A').map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.cargo || u.role})</option>
+                      <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
                   </select>
+                  <User className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-50" />
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-[10px] font-black uppercase tracking-widest opacity-60" style={{ color: 'var(--text)' }}>Seleção de Time</label>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--secondary)]/10 text-[var(--secondary)]">
+                    {selectedUsers.length} selecionados
+                  </span>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-2 opacity-70" style={{ color: 'var(--text)' }}>Colaboradores do Projeto</label>
-                  <div className="border rounded-xl p-4 max-h-[340px] overflow-y-auto grid grid-cols-1 gap-2 custom-scrollbar shadow-inner"
-                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                    {users.filter(u => u.active !== false && u.torre !== 'N/A')
-                      .sort((a, b) => a.name.localeCompare(b.name)).map(user => (
-                        <label key={user.id} className={`flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-hover)] p-2.5 rounded-xl transition-all border ${selectedUsers.includes(user.id) ? 'border-[var(--primary)] bg-[var(--primary)]/5' : 'border-transparent opacity-70'}`}>
+                {/* Search Bar for Members */}
+                <div className="relative mb-3">
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                  <input
+                    type="text"
+                    placeholder="Buscar colaborador..."
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-xs font-medium border rounded-xl bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-[var(--primary)] outline-none"
+                  />
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2">
+                  {filteredUsers.map(user => {
+                    const isSelected = selectedUsers.includes(user.id);
+                    const status = getUserStatus(user, tasks, projects, clients);
+                    const availability = CapacityUtils.getUserMonthlyAvailability(user, new Date().toISOString().slice(0, 7), projects, projectMembers, timesheetEntries);
+
+                    return (
+                      <label
+                        key={user.id}
+                        className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all group duration-200 ${isSelected ? 'border-[var(--primary)] bg-[var(--primary)]/5' : 'border-transparent hover:bg-[var(--surface-hover)] bg-[var(--bg)]'}`}
+                      >
+                        <div className="relative shrink-0">
                           <input
                             type="checkbox"
-                            checked={selectedUsers.includes(user.id)}
+                            checked={isSelected}
                             onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedUsers(prev => [...prev, user.id]);
-                              } else {
-                                setSelectedUsers(prev => prev.filter(id => id !== user.id));
-                              }
+                              if (e.target.checked) setSelectedUsers(prev => [...prev, user.id]);
+                              else setSelectedUsers(prev => prev.filter(id => id !== user.id));
                             }}
-                            className="w-5 h-5 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]"
+                            className="peer sr-only"
                           />
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold overflow-hidden shadow-sm border border-white/10"
-                              style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}>
-                              {user.avatarUrl ? (
-                                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
-                              ) : (
-                                user.name.substring(0, 2).toUpperCase()
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-xs font-black uppercase tracking-tighter" style={{ color: 'var(--text)' }}>{user.name}</p>
-                              <div className="flex items-center gap-2">
-                                <p className="text-[9px] font-bold uppercase opacity-50" style={{ color: 'var(--muted)' }}>{user.cargo || user.role}</p>
-                                {(() => {
-                                  const status = getUserStatus(user, tasks, projects, clients);
-                                  const availability = CapacityUtils.getUserMonthlyAvailability(user, new Date().toISOString().slice(0, 7), tasks);
-                                  return (
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex items-center gap-1">
-                                        <div className="w-1 h-1 rounded-full" style={{ backgroundColor: status.color }} />
-                                        <span className="text-[7px] font-black uppercase tracking-widest" style={{ color: status.color }}>{status.label}</span>
-                                      </div>
-                                      <span className="text-[var(--muted)] opacity-20 text-[7px]">•</span>
-                                      <span className={`text-[8px] font-black tracking-tighter ${availability.available < 20 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                        DISP: {availability.available}H
-                                      </span>
-                                    </div>
-                                  );
-                                })()}
+                          <div className={`w-10 h-10 rounded-xl overflow-hidden border-2 transition-all ${isSelected ? 'border-[var(--primary)] ring-2 ring-[var(--primary)]/20 shadow-lg shadow-purple-500/20' : 'border-transparent group-hover:border-[var(--border)] grayscale hover:grayscale-0'}`}>
+                            {user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-[var(--surface-2)] font-bold text-xs">
+                                {user.name.substring(0, 2).toUpperCase()}
                               </div>
+                            )}
+                          </div>
+                          {/* Checkmark indicator */}
+                          <div className={`absolute -top-1 -right-1 w-4 h-4 bg-[var(--primary)] rounded-full text-white flex items-center justify-center transform scale-0 transition-transform ${isSelected ? 'scale-100' : ''}`}>
+                            <CheckSquare className="w-2.5 h-2.5" />
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-bold truncate transition-colors ${isSelected ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>{user.name}</p>
+                          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-0.5">
+                            <span className="text-[9px] uppercase tracking-wider opacity-50 truncate max-w-[100px]">{user.cargo || 'Consultor'}</span>
+
+                            {/* Status Dots */}
+                            <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-[var(--surface-2)]">
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: status.color }} />
+                              <span className={`text-[8px] font-black ${availability.available < 20 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                {availability.available}h
+                              </span>
                             </div>
                           </div>
-                        </label>
-                      ))}
-                  </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+
+                  {filteredUsers.length === 0 && (
+                    <div className="text-center py-8 opacity-40">
+                      <Users className="w-8 h-8 mx-auto mb-2" />
+                      <p className="text-xs">Nenhum colaborador encontrado</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-
-            <div className="bg-[var(--surface-2)] p-6 rounded-2xl border border-[var(--border)] shadow-sm space-y-6">
-              <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--primary)' }}>
-                <Shield className="w-5 h-5" />
-                Governança e Gaps
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Link Documentação</label>
-                  <input type="url" value={docLink} onChange={e => setDocLink(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl font-bold bg-[var(--surface)] border-[var(--border)] text-[var(--text)]" placeholder="https://..." />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Impedimentos / Gaps</label>
-                  <textarea value={gapsIssues} onChange={e => setGapsIssues(e.target.value)} className="w-full px-4 py-2 border rounded-xl text-xs bg-[var(--surface)] border-[var(--border)] transition-all h-20 resize-none" placeholder="Problemas detectados..." />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: 'var(--text)' }}>Status Report Semanal</label>
-                  <textarea value={weeklyStatusReport} onChange={e => setWeeklyStatusReport(e.target.value)} className="w-full px-4 py-2 border rounded-xl text-xs bg-[var(--surface)] border-[var(--border)] transition-all h-24 resize-none" placeholder="Texto para o cliente..." />
-                </div>
-              </div>
-            </div>
-
-            {/* Save Buttons */}
-            <div className="flex gap-4 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="flex-1 px-6 py-4 border rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-red-500/10 hover:text-red-500"
-                style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--muted)' }}
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="flex-[2] px-6 py-4 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95 disabled:opacity-50"
-                style={{ backgroundColor: 'var(--primary)' }}
-                disabled={loading}
-              >
-                <Save className="w-5 h-5" />
-                {loading ? 'Processando...' : isEdit ? 'Atualizar Projeto' : 'Criar Novo Projeto'}
-              </button>
             </div>
           </div>
-        </div>
-      </form>
+
+        </form>
+      </div>
     </div>
   );
 };

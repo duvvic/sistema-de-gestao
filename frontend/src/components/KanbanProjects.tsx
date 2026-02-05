@@ -13,7 +13,7 @@ interface KanbanProjectsProps {
   onDeleteProject?: (projectId: string) => void;
   user?: User;
   users: User[];
-  projectMembers: { projectId: string; userId: string }[];
+  projectMembers: { id_projeto: string; id_colaborador: string }[];
 }
 
 /* ===========================================================
@@ -25,7 +25,7 @@ const ProjectColumn: React.FC<{
   projects: Project[];
   clients: Client[];
   users: User[];
-  projectMembers: { projectId: string; userId: string }[];
+  projectMembers: { id_projeto: string; id_colaborador: string }[];
   onProjectClick: (projectId: string) => void;
   onDeleteClick?: (e: React.MouseEvent, project: Project) => void;
   isAdmin: boolean;
@@ -154,9 +154,9 @@ const ProjectColumn: React.FC<{
               <div className="mt-4 flex items-center justify-between">
                 <div className="flex -space-x-2 overflow-hidden">
                   {projectMembers
-                    .filter(pm => pm.projectId === project.id)
+                    .filter(pm => String(pm.id_projeto) === String(project.id))
                     .map(pm => {
-                      const member = users.find(u => u.id === pm.userId);
+                      const member = users.find(u => u.id === String(pm.id_colaborador));
                       if (!member) return null;
                       return (
                         <div
@@ -176,7 +176,7 @@ const ProjectColumn: React.FC<{
                     })}
                 </div>
 
-                {projectMembers.filter(pm => pm.projectId === project.id).length === 0 && (
+                {projectMembers.filter(pm => String(pm.id_projeto) === String(project.id)).length === 0 && (
                   <span className="text-[10px] text-slate-400 italic">Sem equipe</span>
                 )}
               </div>

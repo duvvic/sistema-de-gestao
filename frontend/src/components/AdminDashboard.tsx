@@ -1413,11 +1413,11 @@ const AdminDashboard: React.FC = () => {
 
               <div className="flex items-center gap-2 ml-2">
                 <button
-                  onClick={() => navigate('/admin/clients/new?tipo=parceiro')}
+                  onClick={() => navigate('/admin/projects/new')}
                   className="px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all font-bold text-xs bg-[var(--surface-2)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--surface-hover)] active:scale-95"
                 >
-                  <Handshake size={16} className="text-purple-600" />
-                  Novo Parceiro
+                  <Briefcase size={16} className="text-purple-600" />
+                  Criar Projeto
                 </button>
                 <button
                   onClick={() => navigate('/admin/clients/new?tipo=cliente_final')}

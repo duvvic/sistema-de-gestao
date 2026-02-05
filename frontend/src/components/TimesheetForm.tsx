@@ -332,8 +332,8 @@ const TimesheetForm: React.FC = () => {
 
     // Projetos onde o usuário alvo é membro oficial
     const memberProjectIds = projectMembers
-      .filter(pm => pm.userId === targetUserId)
-      .map(pm => pm.projectId);
+      .filter(pm => String(pm.id_colaborador) === String(targetUserId))
+      .map(pm => String(pm.id_projeto));
 
     // Projetos que contêm tarefas vinculadas ao usuário alvo
     const taskProjectIds = tasks
@@ -380,12 +380,19 @@ const TimesheetForm: React.FC = () => {
     // Primeiro filtro: deve pertencer ao projeto selecionado (se houver)
     if (formData.projectId && t.projectId !== formData.projectId) return false;
 
-    // Se for admin, mostra todas as tarefas do projeto
+    // Filtro de status: Apenas "Não Iniciado", "Iniciado" e "Pendente"
+    // E remover tarefas sem título ou inválidas
+    const validStatus = ['Todo', 'In Progress', 'Review'].includes(t.status || '');
+    const validTitle = t.title && t.title !== '(Sem título)' && t.title.trim() !== '';
+
+    if (!validStatus || !validTitle) return false;
+
+    // Se for admin, mostra todas as tarefas do projeto que passaram no filtro de status
     if (isAdmin) return true;
 
     // Para usuários normais: mostrar apenas tarefas onde ele é desenvolvedor ou colaborador
-    const isTaskDeveloper = t.developerId === user?.id;
-    const isTaskCollaborator = t.collaboratorIds?.includes(user?.id || '');
+    const isTaskDeveloper = String(t.developerId) === String(user?.id);
+    const isTaskCollaborator = (t.collaboratorIds || []).some(id => String(id) === String(user?.id));
 
     return isTaskDeveloper || isTaskCollaborator;
   });
