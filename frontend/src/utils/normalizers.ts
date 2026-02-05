@@ -213,11 +213,36 @@ export function mapDbAbsenceToAbsence(row: any): any {
     return {
         id: String(row.id),
         userId: String(row.colaborador_id),
-        type: row.tipo,
+        type: row.type,
         startDate: row.data_inicio,
         endDate: row.data_fim,
         status: row.status,
         observations: row.observacoes || undefined,
         createdAt: row.created_at
     };
+}
+
+/**
+ * Converte horas decimais (ex: 5.75) para o formato de tempo (ex: 5:45).
+ */
+export function formatDecimalToTime(decimalHours: number): string {
+    if (isNaN(decimalHours) || decimalHours === 0) return "0:00";
+
+    // Obter o sinal das horas (positivo ou negativo)
+    const isNegative = decimalHours < 0;
+    const absHours = Math.abs(decimalHours);
+
+    const hours = Math.floor(absHours);
+    const minutes = Math.round((absHours - hours) * 60);
+
+    // Ajuste se o arredondamento dos minutos resultar em 60
+    let adjustedHours = hours;
+    let adjustedMinutes = minutes;
+    if (adjustedMinutes === 60) {
+        adjustedHours += 1;
+        adjustedMinutes = 0;
+    }
+
+    const timeStr = `${adjustedHours}:${adjustedMinutes.toString().padStart(2, '0')}`;
+    return isNegative ? `-${timeStr}` : timeStr;
 }

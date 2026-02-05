@@ -3,11 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useDataController } from '@/controllers/useDataController';
 import { Client, Project, Task } from "@/types";
-import { Plus, Building2, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, ArrowUp, Trash2, DollarSign, Target, TrendingUp, BarChart, Users, User, Calendar, PieChart, ArrowRight, Layers, FileSpreadsheet, X, HelpCircle, Info, Handshake, ArrowLeft, Mail, Phone, ExternalLink } from "lucide-react";
+import { Plus, Building2, Search as SearchIcon, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, ArrowUp, Trash2, DollarSign, Target, TrendingUp, BarChart, Users, User, Calendar, PieChart, ArrowRight, Layers, FileSpreadsheet, X, HelpCircle, Info, Handshake, ArrowLeft, Mail, Phone, ExternalLink } from "lucide-react";
 import ConfirmationModal from "./ConfirmationModal";
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
 import * as CapacityUtils from '@/utils/capacity';
+import { formatDecimalToTime } from '@/utils/normalizers';
 
 type SortOption = 'recent' | 'alphabetical' | 'creation';
 
@@ -156,6 +157,7 @@ const AdminDashboard: React.FC = () => {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -224,8 +226,14 @@ const AdminDashboard: React.FC = () => {
   // Removing local broken realtime logic.
 
   const activeClients = useMemo(() =>
-    safeClients.filter(c => c.active !== false && c.tipo_cliente !== 'parceiro'),
-    [safeClients]
+    safeClients.filter(c => {
+      // Incluir se for cliente final OU se tiver projetos ativos vinculados
+      // ID comparison with String() for safety
+      const hasProjects = safeProjects.some(p => String(p.clientId) === String(c.id));
+      const isNicLabs = c.name?.toLowerCase().includes('nic-labs');
+      return c.active !== false && (c.tipo_cliente !== 'parceiro' || hasProjects || isNicLabs);
+    }),
+    [safeClients, safeProjects]
   );
 
   // Tarefa mais recente de um cliente
@@ -245,6 +253,28 @@ const AdminDashboard: React.FC = () => {
   // Filtrar e Ordenar clientes
   const filteredSortedClients = useMemo(() => {
     let result = [...activeClients];
+
+    // Aplicar Filtro de Busca - Refinado para match de início de palavra
+    if (searchTerm && searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      result = result.filter(c => {
+        const clientName = (c.name || '').toLowerCase();
+
+        // Verifica se o termo coincide com o início de alguma palavra no nome do cliente
+        const clientWords = clientName.split(/[\s-]+/);
+        const matchesClientName = clientWords.some(word => word.startsWith(term)) || clientName.startsWith(term);
+
+        // Busca nos projetos deste cliente
+        const matchesProjectName = safeProjects.some(p => {
+          if (String(p.clientId) !== String(c.id)) return false;
+          const projectName = (p.name || '').toLowerCase();
+          const projectWords = projectName.split(/[\s-]+/);
+          return projectWords.some(word => word.startsWith(term)) || projectName.startsWith(term);
+        });
+
+        return matchesClientName || matchesProjectName;
+      });
+    }
 
     // Aplicar Filtro de Status de Tarefa
     if (taskStatusFilter !== 'all') {
@@ -285,7 +315,7 @@ const AdminDashboard: React.FC = () => {
           return dateB.getTime() - dateA.getTime();
       }
     });
-  }, [activeClients, sortBy, taskStatusFilter, safeTasks, safeProjects]);
+  }, [activeClients, sortBy, taskStatusFilter, safeTasks, searchTerm, projects, safeProjects]);
 
   // Filtros Executivos (Excel-like)
   const [executiveFilters, setExecutiveFilters] = useState<{
@@ -506,15 +536,29 @@ const AdminDashboard: React.FC = () => {
     const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'developer'];
     return users.filter(u => u.active !== false && (u.torre !== 'N/A' || activeRoles.includes(u.role?.toLowerCase() || ''))).map(u => {
       // 1. Apontado (Realizado - Timesheet)
-      const userMonthEntries = portfolioTimesheets.filter(entry =>
-        entry.userId === u.id &&
-        entry.date.startsWith(capacityMonth)
-      );
-      const performedHours = userMonthEntries.reduce((acc, entry) => acc + Number(entry.totalHours || 0), 0);
+      const [yearStr, monthStr] = capacityMonth.split('-');
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr);
+
+      const userMonthEntries = (timesheetEntries || []).filter(entry => {
+        if (!entry.userId || String(entry.userId) !== String(u.id)) return false;
+        if (!entry.date) return false;
+
+        const entryDate = new Date(entry.date + 'T12:00:00');
+        return entryDate.getFullYear() === year && (entryDate.getMonth() + 1) === month;
+      });
+
+      const performedHours = userMonthEntries.reduce((acc, entry) => {
+        const h = Number(entry.totalHours || (entry as any).hours || 0);
+        return acc + (isNaN(h) ? 0 : h);
+      }, 0);
 
       // 2. Alocado (Previsto - Via Nova Lógica de Projetos e Membros)
       // Agora espera: user, monthStr, projects, projectMembers, timesheets
       const capData = CapacityUtils.getUserMonthlyAvailability(u, capacityMonth, safeProjects, projectMembers, timesheetEntries);
+
+      // 3. Data de Disponibilidade (Preditivo - Baseado em Backlog Total)
+      const releaseDate = CapacityUtils.calculateIndividualReleaseDate(u, safeProjects, projectMembers, timesheetEntries) || 'N/A';
 
       return {
         id: u.id,
@@ -522,9 +566,10 @@ const AdminDashboard: React.FC = () => {
         torre: u.torre,
         capacity: capData.capacity,
         assigned: capData.allocated, // Horas planejadas
-        performed: Math.round(performedHours), // Horas já trabalhadas
+        performed: performedHours, // Horas já trabalhadas (agora sem round para permitir HH:MM preciso)
         available: capData.available, // Planejado Disponível
-        load: capData.capacity > 0 ? (capData.allocated / capData.capacity) * 100 : 0
+        load: capData.capacity > 0 ? (capData.allocated / capData.capacity) * 100 : 0,
+        releaseDate
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
   }, [users, portfolioTimesheets, capacityMonth, safeTasks, safeProjects, projectMembers, timesheetEntries]);
@@ -565,7 +610,7 @@ const AdminDashboard: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col p-0 overflow-y-auto no-scrollbar" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className="h-full flex flex-col p-0 overflow-y-auto custom-scrollbar" style={{ backgroundColor: 'var(--bg)' }}>
       {/* NAVEGAÇÃO DE SUB-MENUS (VERSÃO COMPACTA & FUNCIONAL) */}
       <div className="px-6 py-2 bg-[var(--bg)] sticky top-0 z-50 border-b border-[var(--border)]">
         <div className="flex bg-[var(--surface-2)] p-1 rounded-lg border border-[var(--border)] w-fit">
@@ -897,55 +942,71 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-              {resourceMetrics.map(res => (
-                <div
-                  key={res.id}
-                  onClick={() => {
-                    const [year, month] = capacityMonth.split('-');
-                    navigate(`/timesheet?userId=${res.id}&month=${Number(month) - 1}&year=${year}`);
-                  }}
-                  className="px-5 py-4 rounded-xl border transition-all hover:shadow-lg group flex flex-col justify-between h-[96px] cursor-pointer"
-                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="min-w-0 flex-1 pr-2">
-                      <h4 className="font-bold text-sm truncate leading-tight mb-0.5" style={{ color: 'var(--text)' }}>{res.name}</h4>
-                      <span className="text-[10px] font-black text-[var(--primary)] uppercase tracking-tighter opacity-70 block">{res.torre || 'N/A'}</span>
-                    </div>
-                    <span className={`text-xs font-black px-2 py-0.5 rounded-md border shrink-0 ${res.load > 100 ? 'bg-red-500/5 text-red-500 border-red-500/10' : res.load > 80 ? 'bg-amber-500/5 text-amber-500 border-amber-500/10' : 'bg-emerald-500/5 text-emerald-500 border-emerald-500/10'}`}>
-                      {Math.round(res.load)}%
-                    </span>
-                  </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12">
+              {[0, 1].map(colIdx => {
+                const half = Math.ceil(resourceMetrics.length / 2);
+                const subset = colIdx === 0 ? resourceMetrics.slice(0, half) : resourceMetrics.slice(half);
+                if (subset.length === 0) return null;
 
-                  <div className="space-y-2 mt-auto">
-                    <div className="w-full h-2 rounded-full overflow-hidden border border-white/5" style={{ backgroundColor: 'var(--surface-2)' }}>
-                      <div className={`h-full transition-all duration-1000 ${res.load > 100 ? 'bg-red-500' : res.load > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(res.load, 100)}%` }} />
-                    </div>
-                    <div className="flex justify-between text-[8px] font-black uppercase tracking-tighter items-center mt-1" style={{ color: 'var(--muted)' }}>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="flex items-center gap-1">
-                          ALOCADO: <span className="text-[var(--text)] font-black">{res.assigned}H</span>
-                          <InfoTooltip title="Carga Planejada" content="Total de horas das tarefas (não concluídas) distribuídas para este mês." />
-                        </span>
-                        <span className="flex items-center gap-1">
-                          REALIZADO: <span className="text-blue-500 font-black">{res.performed}H</span>
-                          <InfoTooltip title="Horas Trabalhadas" content="Soma das horas já apontadas no timesheet para este mês." />
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-end gap-0.5 border-l border-[var(--border)] pl-2">
-                        <span className="flex items-center gap-1">
-                          DISP: <span className={`${res.available < 0 ? 'text-red-500' : 'text-emerald-500'} font-black text-[10px]`}>{res.available}H</span>
-                          <InfoTooltip title="Balanço Mensal" content="Horas que ainda podem ser demandadas (Capacidade total - Alocação planejada)." />
-                        </span>
-                        <span className="flex items-center gap-1 opacity-50">
-                          BASE: <span className="text-[var(--text-2)]">{res.capacity}H</span>
-                        </span>
-                      </div>
-                    </div>
+                return (
+                  <div key={colIdx} className="overflow-hidden mb-6 xl:mb-0">
+                    <table className="w-full border-collapse border border-[var(--border)]">
+                      <thead>
+                        <tr className="bg-[var(--surface-2)]">
+                          <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-left border-b border-r border-[var(--border)]">Colaborador</th>
+                          <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">Ocup (%)</th>
+                          <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">Alocado</th>
+                          <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">Realiz</th>
+                          <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">Disponível em</th>
+                          <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-right border-b border-[var(--border)]">Saldo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subset.map(res => (
+                          <tr
+                            key={res.id}
+                            onClick={() => {
+                              navigate(`/admin/team/${res.id}?tab=projects`);
+                            }}
+                            className="group cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
+                          >
+                            <td className="py-3 px-3 border-b border-r border-[var(--border)]">
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-bold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors line-clamp-1">{res.name}</span>
+                                <span className="text-[8px] font-black text-[var(--muted)] uppercase tracking-tighter opacity-70 leading-none">{res.torre || 'N/A'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 text-center border-b border-r border-[var(--border)]">
+                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${res.load > 100 ? 'bg-red-500/10 text-red-500 border-red-500/20' : res.load > 80 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
+                                {Math.round(res.load)}%
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 text-center text-[10px] font-bold text-[var(--text)] border-b border-r border-[var(--border)]">
+                              {formatDecimalToTime(res.assigned)}H
+                            </td>
+                            <td className="py-3 px-2 text-center text-[10px] font-bold text-blue-500 border-b border-r border-[var(--border)]">
+                              {formatDecimalToTime(res.performed)}H
+                            </td>
+                            <td className="py-3 px-2 text-center border-b border-r border-[var(--border)]">
+                              <div className="flex flex-col items-center">
+                                <span className={`text-[10px] font-black ${res.releaseDate === 'N/A' || res.releaseDate === '' ? 'text-[var(--muted)] opacity-40' : 'text-purple-500'}`}>
+                                  {res.releaseDate || '---'}
+                                </span>
+                                {res.releaseDate && res.releaseDate !== 'N/A' && <span className="text-[7px] font-black text-[var(--muted)] uppercase tracking-tighter leading-none">Previsão</span>}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-right font-black border-b border-[var(--border)]">
+                              <span className={`text-[11px] ${res.available < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                {formatDecimalToTime(res.available)}H
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </motion.div>
@@ -1290,84 +1351,100 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'operacional' && (
         <div className="px-8 pb-10">
           {/* NEW COMPACT HEADER */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-            <div className="flex items-center gap-4">
-              <div className="p-2.5 rounded-xl border" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+          {/* COMPACT DASHBOARD HEADER IN ONE ROW - NO WRAP */}
+          <div className="flex flex-row items-center justify-between gap-2 mb-8 w-full">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="p-2 rounded-xl border hidden sm:flex" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                 <Briefcase className="w-5 h-5 text-slate-600" />
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                <h1 className="text-base lg:text-lg font-black tracking-tight flex items-center gap-2 whitespace-nowrap" style={{ color: 'var(--text)' }}>
                   {viewMode === 'grid' ? 'Clientes' : viewMode === 'list' ? 'Clientes -> Projetos' : 'Projetos -> Tarefas'}
                   <InfoTooltip title="Visão de Gestão" content="Espaço dedicado ao acompanhamento operacional. Alterne entre as visualizações de Clientes, Projetos ou Tarefas nos ícones à direita." />
                 </h1>
-                <p className="text-xs font-bold uppercase tracking-widest mt-0.5" style={{ color: 'var(--muted)' }}>
-                  {activeClients.length} Clientes Ativos • {safeProjects.length} Projetos
+                <p className="text-[9px] font-bold uppercase tracking-widest leading-none" style={{ color: 'var(--muted)' }}>
+                  {searchTerm ? (
+                    <span className="text-purple-500">{filteredSortedClients.length} Encontrados</span>
+                  ) : (
+                    <>{activeClients.length} Clientes • {safeProjects.length} Projetos</>
+                  )}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* BOTÃO ORDENAR (DROPDOWN) */}
-              <div className="relative">
+            <div className="flex items-center gap-2 flex-1 justify-end">
+              {/* BUSCADOOR COMPACTA */}
+              <div className="relative shrink hidden md:block">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar..."
+                  className="pl-9 pr-3 py-1.5 w-32 lg:w-48 border rounded-xl text-xs transition-all focus:ring-2 focus:ring-purple-500/20 outline-none"
+                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                />
+              </div>
+
+              {/* BOTÃO ORDENAR */}
+              <div className="relative shrink-0">
                 <button
                   onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }}
-                  className="px-4 py-2.5 border rounded-xl text-sm font-bold flex items-center gap-2 transition-all"
+                  className="px-2 py-1.5 border rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all hover:bg-[var(--surface-hover)] whitespace-nowrap"
                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
                 >
-                  <ArrowDownAZ className="w-4 h-4 text-slate-400" />
-                  <span>Ordenar: {sortBy === 'recent' ? 'Recentes' : sortBy === 'alphabetical' ? 'Alfabética' : 'Criação'}</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showSortMenu ? 'rotate-180' : ''}`} />
+                  <ArrowDownAZ className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="hidden sm:inline">{sortBy === 'recent' ? 'Recentes' : sortBy === 'alphabetical' ? 'A-Z' : 'Criação'}</span>
                 </button>
 
                 {showSortMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                    <div className="absolute right-0 mt-2 w-48 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}>
-                      <button onClick={() => handleSortChange('recent')} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${sortBy === 'recent' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
-                        Mais Recentes
+                    <div className="absolute right-0 mt-2 w-40 rounded-xl shadow-2xl z-50 p-1.5 overflow-hidden border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                      <button onClick={() => handleSortChange('recent')} className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'recent' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
+                        Recentes
                       </button>
-                      <button onClick={() => handleSortChange('alphabetical')} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${sortBy === 'alphabetical' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
-                        Alfabética (A-Z)
+                      <button onClick={() => handleSortChange('alphabetical')} className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'alphabetical' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
+                        Alfabética
                       </button>
-                      <button onClick={() => handleSortChange('creation')} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${sortBy === 'creation' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
-                        Data de Criação
+                      <button onClick={() => handleSortChange('creation')} className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'creation' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
+                        Criação
                       </button>
                     </div>
                   </>
                 )}
               </div>
 
-              {/* BOTÃO FILTRAR (DROPDOWN) */}
-              <div className="relative">
+              {/* BOTÃO FILTRAR */}
+              <div className="relative shrink-0">
                 <button
                   onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }}
-                  className="px-4 py-2.5 border rounded-xl text-sm font-bold flex items-center gap-2 transition-all"
+                  className="px-2 py-1.5 border rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all hover:bg-[var(--surface-hover)] whitespace-nowrap"
                   style={{
                     backgroundColor: taskStatusFilter !== 'all' ? 'var(--surface-2)' : 'var(--surface)',
                     borderColor: 'var(--border)',
-                    color: taskStatusFilter !== 'all' ? 'var(--text)' : 'var(--text)'
+                    color: 'var(--text)'
                   }}
                 >
-                  <Filter className="w-4 h-4" />
-                  <span>Status: {taskStatusFilter === 'all' ? 'Todos' : taskStatusFilter === 'late' ? 'Em Atraso' : taskStatusFilter === 'ongoing' ? 'Em Andamento' : 'Concluídos'}</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
+                  <Filter className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="hidden sm:inline">{taskStatusFilter === 'all' ? 'Status: Todos' : taskStatusFilter === 'late' ? 'Atrasados' : taskStatusFilter === 'ongoing' ? 'Em Andamento' : 'Concluídos'}</span>
                 </button>
 
                 {showFilterMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
-                    <div className="absolute right-0 mt-2 w-56 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}>
-                      <button onClick={() => { setTaskStatusFilter('all'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
-                        Todos os Clientes
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl shadow-2xl z-50 p-1.5 overflow-hidden border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                      <button onClick={() => { setTaskStatusFilter('all'); setShowFilterMenu(false); }} className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${taskStatusFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-white/5'}`}>
+                        Todos
                       </button>
-                      <button onClick={() => { setTaskStatusFilter('late'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'late' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:bg-white/5'}`}>
-                        <AlertCircle className="w-4 h-4" /> Em Atraso
+                      <button onClick={() => { setTaskStatusFilter('late'); setShowFilterMenu(false); }} className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-red-500 hover:bg-red-500/10`}>
+                        Em Atraso
                       </button>
-                      <button onClick={() => { setTaskStatusFilter('ongoing'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'ongoing' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:bg-white/5'}`}>
-                        <Clock className="w-4 h-4" /> Em Andamento
+                      <button onClick={() => { setTaskStatusFilter('ongoing'); setShowFilterMenu(false); }} className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-blue-500 hover:bg-blue-500/10`}>
+                        Em Andamento
                       </button>
-                      <button onClick={() => { setTaskStatusFilter('done'); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${taskStatusFilter === 'done' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:bg-white/5'}`}>
-                        <CheckSquare className="w-4 h-4" /> Proj. Concluídos
+                      <button onClick={() => { setTaskStatusFilter('done'); setShowFilterMenu(false); }} className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-emerald-500 hover:bg-emerald-500/10`}>
+                        Concluídos
                       </button>
                     </div>
                   </>
@@ -1375,56 +1452,39 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* VIEW TOGGLE */}
-              <div className="flex p-1 rounded-xl border" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <button
-                  onClick={() => toggleViewMode('grid')}
-                  className="p-2 px-3 rounded-lg transition-all flex items-center gap-2"
-                  style={{
-                    backgroundColor: viewMode === 'grid' ? 'var(--text)' : 'transparent',
-                    color: viewMode === 'grid' ? 'var(--bg)' : 'var(--muted)'
-                  }}
-                  title="Mural de Clientes"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => toggleViewMode('list')}
-                  className="p-2 px-3 rounded-lg transition-all flex items-center gap-2"
-                  style={{
-                    backgroundColor: viewMode === 'list' ? 'var(--text)' : 'transparent',
-                    color: viewMode === 'list' ? 'var(--bg)' : 'var(--muted)'
-                  }}
-                  title="Portfólio de Projetos"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => toggleViewMode('tasks')}
-                  className="p-2 px-3 rounded-lg transition-all flex items-center gap-2"
-                  style={{
-                    backgroundColor: viewMode === 'tasks' ? 'var(--text)' : 'transparent',
-                    color: viewMode === 'tasks' ? 'var(--bg)' : 'var(--muted)'
-                  }}
-                  title="Monitoramento de Operações"
-                >
-                  <Layers className="w-4 h-4" />
-                </button>
+              <div className="flex p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                {(['grid', 'list', 'tasks'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => toggleViewMode(mode)}
+                    className="p-1 px-1.5 rounded-md transition-all"
+                    style={{
+                      backgroundColor: viewMode === mode ? 'var(--text)' : 'transparent',
+                      color: viewMode === mode ? 'var(--bg)' : 'var(--muted)'
+                    }}
+                  >
+                    {mode === 'grid' && <LayoutGrid className="w-3.5 h-3.5" />}
+                    {mode === 'list' && <List className="w-3.5 h-3.5" />}
+                    {mode === 'tasks' && <Layers className="w-3.5 h-3.5" />}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex items-center gap-2 ml-2">
+              {/* ACTION BUTTONS */}
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => navigate('/admin/projects/new')}
-                  className="px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all font-bold text-xs bg-[var(--surface-2)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--surface-hover)] active:scale-95"
+                  className="px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all font-bold text-[10px] bg-[var(--surface-2)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--surface-hover)] shadow-sm"
                 >
-                  <Briefcase size={16} className="text-purple-600" />
-                  Criar Projeto
+                  <Briefcase size={12} className="text-purple-600" />
+                  <span className="hidden sm:inline">Projeto</span>
                 </button>
                 <button
                   onClick={() => navigate('/admin/clients/new?tipo=cliente_final')}
-                  className="px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all font-bold text-xs bg-[var(--text)] text-[var(--bg)] hover:opacity-90 active:scale-95"
+                  className="px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition-all font-bold text-[10px] bg-[var(--text)] text-[var(--bg)] hover:opacity-90"
                 >
-                  <Plus size={16} />
-                  Novo Cliente
+                  <Plus size={12} />
+                  <span className="hidden sm:inline">Cliente</span>
                 </button>
               </div>
             </div>
@@ -1466,12 +1526,7 @@ const AdminDashboard: React.FC = () => {
                       borderColor: 'var(--border)',
                     }}
                     onClick={() => {
-                      if (client.tipo_cliente === 'parceiro') {
-                        setSelectedPartnerId(client.id);
-                        setActiveTab('parceiros');
-                      } else {
-                        navigate(`/admin/clients/${client.id}`);
-                      }
+                      navigate(`/admin/clients/${client.id}`);
                     }}
                   >
                     <div className="w-full flex-1 bg-white dark:bg-white/95 p-3 flex items-center justify-center transition-all overflow-hidden border-b border-[var(--border)]">
@@ -1517,12 +1572,7 @@ const AdminDashboard: React.FC = () => {
                       <div
                         className="flex items-center gap-5 cursor-pointer flex-1"
                         onClick={() => {
-                          if (client.tipo_cliente === 'parceiro') {
-                            setSelectedPartnerId(client.id);
-                            setActiveTab('parceiros');
-                          } else {
-                            navigate(`/admin/clients/${client.id}`);
-                          }
+                          navigate(`/admin/clients/${client.id}`);
                         }}
                       >
                         <div className="w-16 h-16 rounded-xl border p-2 flex items-center justify-center shadow-lg bg-white border-white/20">
@@ -1553,12 +1603,7 @@ const AdminDashboard: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (client.tipo_cliente === 'parceiro') {
-                              setSelectedPartnerId(client.id);
-                              setActiveTab('parceiros');
-                            } else {
-                              navigate(`/admin/clients/${client.id}`);
-                            }
+                            navigate(`/admin/clients/${client.id}`);
                           }}
                           className="flex items-center gap-2 px-6 py-2.5 bg-white text-purple-700 hover:bg-purple-50 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest shadow-xl group"
                         >

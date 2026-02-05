@@ -7,6 +7,7 @@ import { TimesheetEntry } from '@/types';
 import { ArrowLeft, Save, Clock, Trash2, User as UserIcon, Briefcase, CheckSquare, Calendar, AlertCircle } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { useUnsavedChangesPrompt } from '@/hooks/useUnsavedChangesPrompt';
+import { formatDecimalToTime } from '@/utils/normalizers';
 import TimePicker from './TimePicker';
 
 const TimesheetForm: React.FC = () => {
@@ -147,7 +148,7 @@ const TimesheetForm: React.FC = () => {
 
   const timeDisplay = hasTimes
     ? calculateTimeDisplay(formData.startTime!, formData.endTime!, deductLunch)
-    : `${formData.totalHours || 0}h`;
+    : formatDecimalToTime(formData.totalHours || 0) + 'h';
 
   // Get entries for the same day and user
   const entriesForDay = React.useMemo(() => {
@@ -437,7 +438,7 @@ const TimesheetForm: React.FC = () => {
               <Clock className="w-3.5 h-3.5 text-white/80" />
               <div className="flex flex-col leading-tight">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-white/60">Já apontado hoje</span>
-                <span className="text-sm font-black text-white">{entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0).toFixed(1)}h</span>
+                <span className="text-sm font-black text-white">{formatDecimalToTime(entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0))}h</span>
               </div>
             </div>
           )}
@@ -691,7 +692,7 @@ const TimesheetForm: React.FC = () => {
                     {entriesForDay.length > 0 && (
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/20">
                         <span className="text-[10px] font-bold text-[var(--primary)]">
-                          {entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0).toFixed(1)}h
+                          {formatDecimalToTime(entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0))}h
                         </span>
                       </div>
                     )}
@@ -705,7 +706,7 @@ const TimesheetForm: React.FC = () => {
                           <div key={entry.id} className="p-2.5 rounded-lg bg-[var(--bg)] border border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs font-bold text-[var(--primary)] px-2 py-0.5 rounded bg-[var(--primary)]/10">
-                                {entry.totalHours?.toFixed(1)}h
+                                {formatDecimalToTime(entry.totalHours)}h
                               </span>
                               <div className="text-[11px] font-bold text-[var(--text)] truncate flex-1 min-w-[100px]">
                                 {task?.title || 'Tarefa'}

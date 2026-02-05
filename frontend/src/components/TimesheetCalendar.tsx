@@ -9,6 +9,7 @@ import {
   Users, AlertTriangle, CheckCircle, Calendar,
   Search, ChevronDown, Check, Coffee, PartyPopper, Flag, Gift, Sparkles, Heart, Hammer, Palmtree
 } from 'lucide-react';
+import { formatDecimalToTime } from '@/utils/normalizers';
 import ConfirmationModal from './ConfirmationModal';
 
 interface TimesheetCalendarProps {
@@ -387,10 +388,10 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                   </h2>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-black uppercase tracking-widest text-white/60">
                     <span className="flex items-center gap-1 text-white/90">
-                      <Clock className="w-3 h-3 text-white/40" /> {selectedUserStats.totalHours.toFixed(1)}h no Mês
+                      <Clock className="w-3 h-3 text-white/40" /> {formatDecimalToTime(selectedUserStats.totalHours)}h no Mês
                     </span>
                     <span className="flex items-center gap-1 text-white/90">
-                      {selectedUserStats.balanceHours >= 0 ? '+' : ''}{selectedUserStats.balanceHours.toFixed(1)}h
+                      {selectedUserStats.balanceHours >= 0 ? '+' : ''}{formatDecimalToTime(selectedUserStats.balanceHours)}h
                       {selectedUserStats.balanceHours >= 0 ? ' Extra' : ' Débito'}
                     </span>
                     {selectedUserStats.missing > 0 && (
@@ -554,7 +555,7 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                       </span>
                       {hasEntries && (
                         <span className={`text-[11px] font-black text-white px-2.5 py-1 rounded-lg shadow-lg border border-white/10 leading-none transition-all hover:scale-110 ${totalDayHours > 9 ? 'bg-amber-500' : totalDayHours >= 8 ? 'bg-emerald-600' : 'bg-blue-500'}`}>
-                          {totalDayHours.toFixed(1)}h
+                          {formatDecimalToTime(totalDayHours)}h
                         </span>
                       )}
                     </div>
@@ -608,9 +609,14 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                             <div className="flex w-full justify-between items-center gap-2">
                               <div className="flex items-center gap-1.5 truncate flex-1 min-w-0">
                                 <span className={`px-2 py-1 rounded-md text-[10px] font-black text-white shrink-0 shadow-sm leading-none ${entry.totalHours >= 4 ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                                  {entry.totalHours.toFixed(1)}h
+                                  {formatDecimalToTime(entry.totalHours)}h
                                 </span>
-                                <span className="truncate font-black leading-tight" style={{ color: 'var(--text)' }}>{displayTitle}</span>
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <span className="truncate font-black leading-tight" style={{ color: 'var(--text)' }}>{displayTitle}</span>
+                                  <span className="text-[9px] font-bold opacity-60" style={{ color: 'var(--text)' }}>
+                                    {entry.startTime} - {entry.endTime}
+                                  </span>
+                                </div>
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEntryToDelete(entry); setDeleteModalOpen(true); }}

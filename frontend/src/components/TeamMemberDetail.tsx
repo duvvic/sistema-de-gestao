@@ -1,7 +1,7 @@
 // components/TeamMemberDetail.tsx - Reestruturado: Resumo Topo + Edição Principal
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
 import { Task, Role } from '@/types';
 import { User as UserIcon, Mail, Briefcase, Shield, Edit, Save, Trash2, ArrowLeft, CheckCircle, Clock, AlertCircle, Calendar, Zap, Info, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -19,9 +19,12 @@ type ViewTab = 'details' | 'projects' | 'tasks' | 'delayed' | 'ponto' | 'absence
 const TeamMemberDetail: React.FC = () => {
    const { userId } = useParams<{ userId: string }>();
    const navigate = useNavigate();
+   const [searchParams] = useSearchParams();
    const { users, tasks, projects, projectMembers, timesheetEntries, deleteUser, absences } = useDataController();
 
-   const [activeTab, setActiveTab] = useState<ViewTab>('details');
+   // Get initial tab from URL query parameter, default to 'details'
+   const initialTab = (searchParams.get('tab') as ViewTab) || 'details';
+   const [activeTab, setActiveTab] = useState<ViewTab>(initialTab);
    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
    const user = users.find(u => u.id === userId);

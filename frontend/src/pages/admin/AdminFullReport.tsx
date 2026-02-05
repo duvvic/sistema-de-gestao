@@ -78,17 +78,16 @@ const AdminFullReport: React.FC = () => {
         [ctxProjects, selectedClients]);
 
     const collaboratorOptions = useMemo(() => {
-        const activeCargos = ['desenvolvedor', 'infraestrutura de ti'];
         return ctxUsers
-            .filter(u => activeCargos.includes(u.cargo?.toLowerCase() || ''))
+            .filter(u => u.active !== false)
             .map(u => ({ id: Number(u.id), name: u.name }));
     }, [ctxUsers]);
 
     const statusOptions = [
-        { id: 'Não Iniciado', label: 'Não Iniciado' },
-        { id: 'Iniciado', label: 'Iniciado' },
-        { id: 'Pendente', label: 'Pendente' },
-        { id: 'Concluído', label: 'Concluído' },
+        { id: 'Não Iniciado', name: 'Não Iniciado' },
+        { id: 'Iniciado', name: 'Iniciado' },
+        { id: 'Pendente', name: 'Pendente' },
+        { id: 'Concluído', name: 'Concluído' },
     ];
 
     const addToast = (message: string, type: ToastType) => {
@@ -105,10 +104,10 @@ const AdminFullReport: React.FC = () => {
         }
     }, [currentUser, navigate, isAdmin]);
 
-    // Carregar dados iniciais
-    useEffect(() => {
+    // Carregar dados iniciais (Opcional: se quiser que carregue ao entrar, mantenha. O user disse que está aplicando antes do clique)
+    /* useEffect(() => {
         handleApplyFilters();
-    }, []);
+    }, []); */
 
     const handleApplyFilters = async () => {
         setLoading(true);
@@ -243,24 +242,45 @@ const AdminFullReport: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {/* Período */}
                             <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
-                                    Período
-                                </label>
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
+                                        Período
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (startDate === '' && endDate === '') {
+                                                setStartDate(daysAgoISO(30));
+                                                setEndDate(todayISO());
+                                            } else {
+                                                setStartDate('');
+                                                setEndDate('');
+                                            }
+                                        }}
+                                        className="text-[10px] font-black uppercase text-purple-500 hover:bg-purple-500/10 px-2 py-1 rounded-lg transition-all"
+                                    >
+                                        Todo o período
+                                    </button>
+                                </div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="px-3 py-2 rounded-xl border text-sm"
-                                        style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                                    />
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        className="px-3 py-2 rounded-xl border text-sm"
-                                        style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                                    />
+                                    <div className="relative group">
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl border text-sm"
+                                            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                                        />
+                                    </div>
+                                    <div className="relative group">
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl border text-sm"
+                                            style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
@@ -403,15 +423,27 @@ const StatCard = ({ icon: Icon, label, value, color }: { icon: any, label: strin
     );
 };
 
-const FilterMultiSelect = ({ label, options, selected, onChange }: {
+const FilterMultiSelect = <T extends string | number>({ label, options, selected, onChange }: {
     label: string;
-    options: { id: number | string; name: string }[];
-    selected: (number | string)[];
-    onChange: (val: (number | string)[]) => void;
+    options: { id: T; name: string }[];
+    selected: T[];
+    onChange: (val: T[]) => void;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    const toggleOption = (id: number | string) => {
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleOption = (id: T) => {
         if (selected.includes(id)) {
             onChange(selected.filter(s => s !== id));
         } else {
@@ -419,13 +451,20 @@ const FilterMultiSelect = ({ label, options, selected, onChange }: {
         }
     };
 
+    const filteredOptions = options.filter(opt =>
+        opt.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="space-y-2 relative">
+        <div className="space-y-2 relative" ref={containerRef}>
             <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
                 {label}
             </label>
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    setIsOpen(!isOpen);
+                    if (!isOpen) setSearchTerm('');
+                }}
                 className="w-full px-3 py-2 rounded-xl border text-sm text-left flex justify-between items-center"
                 style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
             >
@@ -441,21 +480,56 @@ const FilterMultiSelect = ({ label, options, selected, onChange }: {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="absolute z-50 w-full mt-1 border rounded-xl shadow-2xl p-2 max-h-60 overflow-y-auto"
+                        className="absolute z-50 w-full mt-1 border rounded-xl shadow-2xl p-2 max-h-80 flex flex-col overflow-hidden"
                         style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                     >
-                        {options.map(opt => (
-                            <div
-                                key={opt.id}
-                                onClick={() => toggleOption(opt.id)}
-                                className="flex items-center gap-2 p-2 hover:bg-[var(--surface-hover)] rounded-lg cursor-pointer transition-colors"
-                            >
-                                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${selected.includes(opt.id) ? 'bg-purple-600 border-purple-600' : 'border-gray-300'}`}>
-                                    {selected.includes(opt.id) && <Check className="w-3 h-3 text-white" />}
-                                </div>
-                                <span className="text-sm" style={{ color: 'var(--text)' }}>{opt.name}</span>
+                        {/* Search Input */}
+                        <div className="p-2 border-b border-[var(--border)] mb-2">
+                            <div className="relative">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Buscar..."
+                                    className="w-full pl-8 pr-3 py-1.5 rounded-lg border text-xs focus:ring-1 focus:ring-purple-500 transition-all outline-none"
+                                    style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                                    autoFocus
+                                />
                             </div>
-                        ))}
+                        </div>
+
+                        {/* Options List */}
+                        <div className="overflow-y-auto custom-scrollbar flex-1 max-h-60">
+                            {filteredOptions.length === 0 ? (
+                                <div className="p-4 text-center text-xs text-slate-400 italic">Nenhum resultado encontrado</div>
+                            ) : (
+                                filteredOptions.map(opt => (
+                                    <div
+                                        key={opt.id}
+                                        onClick={() => toggleOption(opt.id)}
+                                        className="flex items-center gap-2 p-2 hover:bg-[var(--surface-hover)] rounded-lg cursor-pointer transition-colors"
+                                    >
+                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${selected.includes(opt.id) ? 'bg-purple-600 border-purple-600' : 'border-gray-300'}`}>
+                                            {selected.includes(opt.id) && <Check className="w-3 h-3 text-white" />}
+                                        </div>
+                                        <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{opt.name}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Actions */}
+                        {selected.length > 0 && (
+                            <div className="p-2 border-t border-[var(--border)] mt-2 flex justify-end">
+                                <button
+                                    onClick={() => onChange([])}
+                                    className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-600 transition-colors"
+                                >
+                                    Limpar Seleção
+                                </button>
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

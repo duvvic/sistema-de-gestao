@@ -61,9 +61,7 @@ const MainLayout: React.FC = () => {
     const adminRoles: Role[] = ['admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'tech_lead', 'system_admin', 'executive', 'ceo'];
 
     const menuItems = adminRoles.includes(currentUser?.role as Role)
-        ? adminMenuItems.filter(item =>
-            item.label !== 'Sincronização' || currentUser?.cargo?.toLowerCase() === 'manutenção'
-        )
+        ? adminMenuItems
         : developerMenuItems;
 
     // Listamos as rotas "raiz" do menu para forçar a animação
@@ -342,7 +340,7 @@ const MainLayout: React.FC = () => {
                             initial="initial"
                             animate="animate"
                             exit="exit"
-                            className="h-full w-full overflow-auto absolute inset-0"
+                            className="h-full w-full overflow-auto absolute inset-0 custom-scrollbar"
                             style={{ backgroundColor: 'var(--bg)' }}
                         >
                             <Outlet />
