@@ -194,26 +194,6 @@ const TimesheetForm: React.FC = () => {
     return entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0) + adjustedTotalHours;
   }, [entriesForDay, adjustedTotalHours]);
 
-  // Calculate occupied hours for visual feedback in TimePicker
-  const occupiedHours = React.useMemo(() => {
-    const occupied = new Set<string>();
-
-    entriesForDay.forEach(entry => {
-      const startHour = parseInt(entry.startTime.split(':')[0]);
-      const endHour = parseInt(entry.endTime.split(':')[0]);
-
-      // Mark all hours in the range as occupied
-      for (let h = startHour; h < endHour; h++) {
-        occupied.add(h.toString().padStart(2, '0'));
-      }
-      // Also mark the end hour if it's not exactly on the hour
-      if (entry.endTime.split(':')[1] !== '00') {
-        occupied.add(endHour.toString().padStart(2, '0'));
-      }
-    });
-
-    return Array.from(occupied);
-  }, [entriesForDay]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -618,14 +598,12 @@ const TimesheetForm: React.FC = () => {
                     icon={<Clock className="w-3 h-3 text-emerald-500" />}
                     value={formData.startTime || '09:00'}
                     onChange={(val) => validateAndSetTime('startTime', val)}
-                    disabledHours={occupiedHours}
                   />
                   <TimePicker
                     label="Fim *"
                     icon={<Clock className="w-3 h-3 text-red-500" />}
                     value={formData.endTime || '18:00'}
                     onChange={(val) => validateAndSetTime('endTime', val)}
-                    disabledHours={occupiedHours}
                   />
                 </div>
 

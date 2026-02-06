@@ -59,8 +59,8 @@ const UserTasks: React.FC<UserTasksProps> = ({
   // ================================
   const tasksByStatus = useMemo(() => {
     const concluded = filteredTasks.filter(t => !!t.actualDelivery || t.status === 'Done' || t.status === 'Review');
-    const delayed = filteredTasks.filter(t => !concluded.includes(t) && isTaskDelayed(t));
-    const inProgress = filteredTasks.filter(t => !concluded.includes(t) && !delayed.includes(t));
+    const delayed = filteredTasks.filter(t => !concluded.some(c => c.id === t.id) && isTaskDelayed(t));
+    const inProgress = filteredTasks.filter(t => !concluded.some(c => c.id === t.id) && !delayed.some(d => d.id === t.id));
 
     return {
       InProgress: inProgress,
