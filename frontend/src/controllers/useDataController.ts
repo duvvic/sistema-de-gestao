@@ -274,7 +274,10 @@ export const useDataController = () => {
                 Cargo: userData.cargo,
                 nivel: userData.nivel,
                 role: userData.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : 'Resource', // Default role
-                ativo: userData.active ?? true
+                ativo: userData.active ?? true,
+                custo_hora: userData.hourlyCost,
+                horas_disponiveis_dia: userData.dailyAvailableHours,
+                horas_disponiveis_mes: userData.monthlyAvailableHours
             }])
             .select('ID_Colaborador')
             .single();
@@ -291,6 +294,9 @@ export const useDataController = () => {
         if (updates.role !== undefined) payload.role = updates.role.charAt(0).toUpperCase() + updates.role.slice(1);
         if (updates.active !== undefined) payload.ativo = updates.active;
         if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
+        if (updates.hourlyCost !== undefined) payload.custo_hora = updates.hourlyCost;
+        if (updates.dailyAvailableHours !== undefined) payload.horas_disponiveis_dia = updates.dailyAvailableHours;
+        if (updates.monthlyAvailableHours !== undefined) payload.horas_disponiveis_mes = updates.monthlyAvailableHours;
 
         const { error } = await supabase
             .from('dim_colaboradores')

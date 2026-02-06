@@ -20,6 +20,9 @@ export interface DbUserRow {
   ativo?: boolean | null;
   torre?: string | null;
   nivel?: string | null;
+  custo_hora?: number | null;
+  horas_disponiveis_dia?: number | null;
+  horas_disponiveis_mes?: number | null;
 }
 
 // dim_clientes
@@ -96,7 +99,7 @@ export async function fetchUsers(): Promise<User[]> {
 
     const { data, error } = await supabase
       .from("dim_colaboradores")
-      .select("ID_Colaborador, NomeColaborador, Cargo, email, avatar_url, role, ativo, torre, nivel");
+      .select("ID_Colaborador, NomeColaborador, Cargo, email, avatar_url, role, ativo, torre, nivel, custo_hora, horas_disponiveis_dia, horas_disponiveis_mes");
 
     if (error) {
       console.error("[API] Erro Supabase:", error);
