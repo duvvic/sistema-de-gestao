@@ -1,10 +1,16 @@
 import axios from 'axios';
 
 const getBaseURL = () => {
+    const envUrl = import.meta.env.VITE_API_URL?.toString()?.trim();
+
+    if (envUrl && envUrl.startsWith('http') && !envUrl.includes('localhost')) {
+        return envUrl;
+    }
+
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
         return `${window.location.origin}/api`;
     }
-    return import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    return envUrl || 'http://localhost:3001/api';
 };
 
 const api = axios.create({

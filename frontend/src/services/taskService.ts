@@ -259,22 +259,21 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
 // ===========================
 export async function deleteTask(taskId: string): Promise<void> {
   const getApiBase = () => {
-    // Se não estivermos em localhost, a API deve ser relativa ao domínio atual (Tunnel/Produção)
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return `${window.location.origin}/api`;
-    }
-
-    // Se estivermos em localhost, tenta usar o ENV, mas ignora se for um link de túnel (obsoleto)
     let url = import.meta.env.VITE_API_URL?.toString()?.trim();
-    if (!url || url.includes('trycloudflare.com')) {
-      url = 'http://localhost:3001/api';
+
+    // Se o ENV tem uma URL absoluta que não seja localhost, usamos ela (é o túnel ou prod API)
+    if (url && url.startsWith('http') && !url.includes('localhost')) {
+      url = url.replace(/\/$/, '');
+      return url.endsWith('/api') ? url : `${url}/api`;
     }
 
-    url = url.replace(/\/$/, '');
-    if (!url.endsWith('/api')) {
-      url += '/api';
+    // Se estivermos em localhost, usamos o fallback para 3001
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return url || 'http://localhost:3001/api';
     }
-    return url;
+
+    // Fallback final para o domínio atual (pode dar 405 em hosts estáticos se não houver proxy)
+    return `${window.location.origin}/api`;
   };
 
   const API_BASE = getApiBase();
