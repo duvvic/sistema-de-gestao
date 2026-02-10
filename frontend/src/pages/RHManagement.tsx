@@ -1,34 +1,31 @@
 import React, { useState, useMemo } from 'react';
 import { useDataController } from '@/controllers/useDataController';
 import { useAuth } from '@/contexts/AuthContext';
-import { Absence, User } from '@/types';
+import { Absence } from '@/types';
 import {
     Calendar, Users, Clock, CheckCircle, XCircle, AlertCircle,
-    Palmtree, Search, Filter, ArrowRight, UserPlus,
-    MessageSquare, History, FileText, Download, Briefcase, Trash2,
-    ShieldCheck, CheckCheck, Landmark, Info
+    Search, UserPlus, Download, Trash2, ShieldCheck, CheckCheck,
+    Landmark, Info, Plus, Flag, ArrowRight, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import HolidayManager from '@/components/HolidayManager';
 import AbsenceManager from '@/components/AbsenceManager';
+import AbsenceStatusWidget from '@/components/AbsenceStatusWidget';
 
 const RHManagement: React.FC = () => {
     const { isAdmin, currentUser } = useAuth();
-    const { absences, users, updateAbsence, deleteAbsence } = useDataController();
+    const { absences, users, updateAbsence, deleteAbsence, holidays } = useDataController();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | Absence['status']>('all');
     const [towerFilter, setTowerFilter] = useState('all');
     const [activeTab, setActiveTab] = useState<'requests' | 'calendar' | 'collaborators' | 'holidays'>('requests');
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
     const [loading, setLoading] = useState(false);
-    const [actionModal, setActionModal] = useState<{ id: string, type: 'approve' | 'reject' | 'delete' } | null>(null);
+    const [actionModal, setActionModal] = useState<{ id: string, type: 'approve' | 'reject' | 'delete' | 'revert' } | null>(null);
     const [showRequestModal, setShowRequestModal] = useState(false);
-
-
-    // ... rest of the code logic remains ...
-
 
     // Filters
     const filteredAbsences = useMemo(() => {
@@ -42,10 +39,6 @@ const RHManagement: React.FC = () => {
         }).sort((a, b) => b.startDate.localeCompare(a.startDate));
     }, [absences, users, searchTerm, statusFilter, towerFilter]);
 
-    const pendingRequests = useMemo(() => {
-        return absences.filter(a => a.status === 'sugestao' || a.status === 'aprovada_gestao' || a.status === 'aprovada_rh');
-    }, [absences]);
-
     const handleAction = async () => {
         if (!actionModal) return;
         setLoading(true);
@@ -55,34 +48,20 @@ const RHManagement: React.FC = () => {
 
             if (actionModal.type === 'approve') {
                 let nextStatus: Absence['status'] = current.status;
-                let statusLabel = '';
-
-                if (current.status === 'sugestao') {
-                    nextStatus = 'aprovada_gestao';
-                    statusLabel = 'Aprovada pela Gestão';
-                } else if (current.status === 'aprovada_gestao') {
-                    nextStatus = 'aprovada_rh';
-                    statusLabel = 'Aprovada pelo RH';
-                } else if (current.status === 'aprovada_rh') {
-                    nextStatus = 'finalizada_dp';
-                    statusLabel = 'Finalizada no DP';
-                }
-
+                if (current.status === 'sugestao') nextStatus = 'aprovada_gestao';
+                else if (current.status === 'aprovada_gestao') nextStatus = 'aprovada_rh';
+                else if (current.status === 'aprovada_rh') nextStatus = 'finalizada_dp';
                 await updateAbsence(actionModal.id, { status: nextStatus });
-
-                // Feedback visual
-                const userName = users.find(u => u.id === current.userId)?.name || 'Colaborador';
-                alert(`✅ Solicitação aprovada!\n\n${userName}\nNovo status: ${statusLabel}\n\nA solicitação agora aparece com a nova etapa na lista.`);
             } else if (actionModal.type === 'reject') {
                 await updateAbsence(actionModal.id, { status: 'rejeitado' });
-                alert('❌ Solicitação rejeitada.');
+            } else if (actionModal.type === 'revert') {
+                await updateAbsence(actionModal.id, { status: 'sugestao' });
             } else if (actionModal.type === 'delete') {
                 await deleteAbsence(actionModal.id);
-                alert('🗑️ Solicitação excluída.');
             }
             setActionModal(null);
         } catch (error) {
-            alert('Erro ao processar ação.');
+            console.error(error);
         } finally {
             setLoading(false);
         }
@@ -90,578 +69,348 @@ const RHManagement: React.FC = () => {
 
     const getStatusStyle = (status: Absence['status']) => {
         switch (status) {
-            case 'sugestao': return 'bg-amber-100 text-amber-700 border-amber-200'; // Amarelo
-            case 'aprovada_gestao': return 'bg-blue-100 text-blue-700 border-blue-200'; // Azul
-            case 'aprovada_rh': return 'bg-emerald-100 text-emerald-700 border-emerald-200'; // Verde
-            case 'finalizada_dp': return 'bg-purple-100 text-purple-700 border-purple-200'; // Lilas
-            case 'rejeitado': return 'bg-red-100 text-red-700 border-red-200';
-            default: return 'bg-slate-100 text-slate-700 border-slate-200';
+            case 'sugestao': return 'bg-amber-100/40 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30';
+            case 'aprovada_gestao': return 'bg-cyan-100/40 text-cyan-700 border-cyan-200 dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/30';
+            case 'aprovada_rh': return 'bg-emerald-100/40 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30';
+            case 'finalizada_dp': return 'bg-purple-100/40 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/30';
+            case 'rejeitado': return 'bg-rose-100/40 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30';
+            default: return 'bg-slate-100/40 text-slate-700 border-slate-200 dark:bg-white/5 dark:text-slate-400 dark:border-white/10';
         }
     };
 
     const getStatusLabel = (status: Absence['status']) => {
         switch (status) {
             case 'sugestao': return '1. Sugestão';
-            case 'aprovada_gestao': return '2. Aprovada Gestão';
-            case 'aprovada_rh': return '3. Aprovada RH';
+            case 'aprovada_gestao': return '2. Gestão';
+            case 'aprovada_rh': return '3. RH';
             case 'finalizada_dp': return '4. Lançada DP';
+            case 'rejeitado': return 'Rejeitado';
             default: return status;
         }
     };
 
     const calculateDays = (start: string, end: string) => {
-        const d1 = new Date(start);
-        const d2 = new Date(end);
+        const d1 = new Date(start + 'T00:00:00');
+        const d2 = new Date(end + 'T00:00:00');
         const diff = d2.getTime() - d1.getTime();
         return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
     };
 
-    // Função para exportar relatório em CSV
-    const handleExportReport = () => {
-        const csvRows = [];
-        const headers = ['Colaborador', 'Cargo', 'Torre', 'Data Início', 'Data Fim', 'Dias', 'Status', 'Periodo', 'Observações'];
-        csvRows.push(headers.join(','));
-
-        filteredAbsences.forEach(absence => {
-            const user = users.find(u => u.id === absence.userId);
-            const days = calculateDays(absence.startDate, absence.endDate);
-            const row = [
-                user?.name || 'N/A',
-                user?.cargo || 'N/A',
-                user?.torre || 'N/A',
-                new Date(absence.startDate).toLocaleDateString('pt-BR'),
-                new Date(absence.endDate).toLocaleDateString('pt-BR'),
-                days,
-                getStatusLabel(absence.status),
-                absence.period || 'integral',
-                absence.observations || ''
-            ];
-            csvRows.push(row.join(','));
-        });
-
-        const csvData = csvRows.join('\n');
-        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `ferias_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    // Função para calcular estatísticas mensais
-    const getMonthlyStats = (monthIdx: number) => {
-        const monthAbsences = absences.filter(a => {
-            const date = new Date(a.startDate);
-            return date.getMonth() === monthIdx && date.getFullYear() === 2026;
-        });
-
-        const totalDays = monthAbsences.reduce((acc, a) => acc + calculateDays(a.startDate, a.endDate), 0);
-        const uniqueCollaborators = new Set(monthAbsences.map(a => a.userId)).size;
-
-        return {
-            total: monthAbsences.length,
-            totalDays,
-            collaborators: uniqueCollaborators,
-            byStatus: {
-                sugestao: monthAbsences.filter(a => a.status === 'sugestao').length,
-                aprovada_gestao: monthAbsences.filter(a => a.status === 'aprovada_gestao').length,
-                aprovada_rh: monthAbsences.filter(a => a.status === 'aprovada_rh').length,
-                finalizada_dp: monthAbsences.filter(a => a.status === 'finalizada_dp').length,
-            }
-        };
-    };
-
+    if (!isAdmin) return null;
 
     return (
-        <div className="h-full flex flex-col p-8 gap-8 overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="h-full flex bg-[var(--bg)] overflow-hidden">
+            {/* SIDEBAR DE NAVEGAÇÃO LOCAL - PREMIUM */}
+            <aside className="w-64 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col p-6 gap-8 hidden md:flex shrink-0">
                 <div>
-                    <h1 className="text-2xl font-black text-[var(--text)] flex items-center gap-3">
-                        <Users className="text-[var(--primary)]" />
-                        Gestão de Férias NIC-LABS
-                    </h1>
-                    <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest mt-1">
-                        Fluxo de Aprovação e Planejamento Anual
-                    </p>
+                    <div className="flex items-center gap-3 mb-1">
+                        <div className="p-2 bg-[var(--primary)] rounded-xl text-white shadow-lg shadow-purple-500/20">
+                            <Users size={18} />
+                        </div>
+                        <h1 className="text-sm font-black text-[var(--text)] uppercase tracking-tighter leading-none">Gestão de RH</h1>
+                    </div>
+                    <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest pl-1">Férias & Ausências</p>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setShowRequestModal(true)}
-                        className="bg-emerald-600 text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase flex items-center gap-2 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20"
-                    >
-                        <Palmtree size={18} /> Solicitar Férias
-                    </button>
-                </div>
+                <nav className="flex flex-col gap-1.5 flex-1">
+                    {[
+                        { id: 'requests', label: 'Fluxo Aprovação', icon: Clock },
+                        { id: 'calendar', label: 'Mapa Anual', icon: Calendar },
+                        { id: 'collaborators', label: 'Saldos de Férias', icon: UserPlus },
+                        { id: 'holidays', label: 'Feriados & Pontos', icon: Flag }
+                    ].map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => setActiveTab(t.id as any)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-[11px] font-black uppercase transition-all ${activeTab === t.id ? 'bg-[var(--primary)] text-white shadow-xl shadow-purple-500/20' : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'}`}
+                        >
+                            <t.icon size={16} /> {t.label}
+                        </button>
+                    ))}
+                </nav>
 
-                <div className="flex bg-[var(--surface-2)] p-1 rounded-2xl border border-[var(--border)] overflow-hidden">
-                    <button
-                        onClick={() => setActiveTab('requests')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'requests' ? 'bg-[var(--primary)] text-white shadow-lg' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
-                    >
-                        Fluxo {pendingRequests.length > 0 && <span className="ml-1 bg-red-500 text-white px-1.5 py-0.5 rounded-full text-[9px]">{pendingRequests.length}</span>}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('calendar')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'calendar' ? 'bg-[var(--primary)] text-white shadow-lg' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
-                    >
-                        Visão Mensal
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('collaborators')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'collaborators' ? 'bg-[var(--primary)] text-white shadow-lg' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
-                    >
-                        Regras e Saldos
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('holidays')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'holidays' ? 'bg-[var(--primary)] text-white shadow-lg' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
-                    >
-                        Feriados
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex-1 min-h-0 flex flex-col gap-6">
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] shadow-sm flex items-center gap-4">
-                        <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-600"><Clock size={24} /></div>
-                        <div>
-                            <p className="text-[10px] font-black uppercase text-[var(--muted)]">Sugestões</p>
-                            <p className="text-2xl font-black">{absences.filter(a => a.status === 'sugestao').length}</p>
-                        </div>
-                    </div>
-                    <div className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] shadow-sm flex items-center gap-4">
-                        <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-600"><ShieldCheck size={24} /></div>
-                        <div>
-                            <p className="text-[10px] font-black uppercase text-[var(--muted)]">Aprov. Gestão</p>
-                            <p className="text-2xl font-black">{absences.filter(a => a.status === 'aprovada_gestao').length}</p>
-                        </div>
-                    </div>
-                    <div className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] shadow-sm flex items-center gap-4">
-                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600"><CheckCheck size={24} /></div>
-                        <div>
-                            <p className="text-[10px] font-black uppercase text-[var(--muted)]">Aprov. RH</p>
-                            <p className="text-2xl font-black">{absences.filter(a => a.status === 'aprovada_rh').length}</p>
-                        </div>
-                    </div>
-                    <div className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] shadow-sm flex items-center gap-4">
-                        <div className="p-3 bg-purple-500/10 rounded-2xl text-purple-600"><Landmark size={24} /></div>
-                        <div>
-                            <p className="text-[10px] font-black uppercase text-[var(--muted)]">Finalizadas DP</p>
-                            <p className="text-2xl font-black">{absences.filter(a => a.status === 'finalizada_dp').length}</p>
-                        </div>
+                <div className="p-4 rounded-3xl bg-indigo-500/5 border border-indigo-500/10 mt-auto">
+                    <p className="text-[9px] font-black text-indigo-500 uppercase mb-2">Resumo Pendências</p>
+                    <div className="space-y-2">
+                        {[
+                            { status: 'sugestao', label: '1. Sugestões', color: 'bg-amber-400' },
+                            { status: 'aprovada_gestao', label: '2. Gestão', color: 'bg-cyan-400' },
+                            { status: 'aprovada_rh', label: '3. RH', color: 'bg-emerald-400' }
+                        ].map(s => (
+                            <div key={s.status} className="flex justify-between items-center text-[10px] font-black text-[var(--text)]">
+                                <span className="flex items-center gap-2">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${s.color}`} /> {s.label}
+                                </span>
+                                <span>{absences.filter(a => a.status === s.status).length}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
+            </aside>
 
-                {activeTab === 'requests' && (
-                    <div className="flex-1 flex flex-col gap-4 min-h-0">
-                        {/* Guia Visual do Fluxo */}
-                        <div className="bg-[var(--surface-2)] p-4 rounded-3xl border border-[var(--border)] flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
-                            <div className="flex items-center gap-2 shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-600 flex items-center justify-center font-black text-xs">1</div>
-                                <span className="text-[10px] font-black uppercase text-amber-700">Sugestão</span>
+            {/* ÁREA DE CONTEÚDO PRINCIPAL */}
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* TOP BAR ACTION */}
+                <header className="h-20 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between px-8 shrink-0">
+                    <div className="flex items-center gap-4">
+                        <button className="md:hidden p-2 text-[var(--muted)]"><Users size={20} /></button>
+                        <div>
+                            <h2 className="text-xl font-black text-[var(--text)] leading-none italic">
+                                {activeTab === 'requests' ? 'Pipeline de Aprovação' : activeTab === 'calendar' ? 'Visibilidade de Equipe' : activeTab === 'collaborators' ? 'Gestão de Saldos' : 'Configurações'}
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="flex flex-col text-right">
+                            <p className="text-[10px] font-black text-[var(--muted)] uppercase leading-none mb-1">Status do Ciclo</p>
+                            <p className="text-[11px] font-black text-emerald-500 uppercase leading-none">Ativo 2026</p>
+                        </div>
+                        <button
+                            onClick={() => setShowRequestModal(true)}
+                            className="bg-emerald-600 text-white px-6 py-3 rounded-2xl text-[11px] font-black uppercase flex items-center gap-2 hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 active:scale-95"
+                        >
+                            <Plus size={16} /> Criar Solicitação
+                        </button>
+                    </div>
+                </header>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <div className="lg:col-span-3">
+                            <AbsenceStatusWidget />
+                        </div>
+                        <div className="lg:col-span-1 bg-gradient-to-br from-[var(--surface)] to-[var(--surface-2)] border border-[var(--border)] rounded-[2rem] p-6 shadow-xl relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                                <ShieldCheck size={80} />
                             </div>
-                            <div className="h-px bg-[var(--border)] flex-1 min-w-[20px]" />
-                            <div className="flex items-center gap-2 shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-600 flex items-center justify-center font-black text-xs">2</div>
-                                <span className="text-[10px] font-black uppercase text-blue-700">Gestão</span>
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-white">
+                                    <Info size={14} />
+                                </div>
+                                <h3 className="text-xs font-black uppercase text-[var(--text)] tracking-widest">Políticas 2026</h3>
                             </div>
-                            <div className="h-px bg-[var(--border)] flex-1 min-w-[20px]" />
-                            <div className="flex items-center gap-2 shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center font-black text-xs">3</div>
-                                <span className="text-[10px] font-black uppercase text-emerald-700">RH</span>
-                            </div>
-                            <div className="h-px bg-[var(--border)] flex-1 min-w-[20px]" />
-                            <div className="flex items-center gap-2 shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-600 flex items-center justify-center font-black text-xs">4</div>
-                                <span className="text-[10px] font-black uppercase text-purple-700">DP (Finalizada)</span>
+                            <div className="space-y-3">
+                                {[
+                                    { text: 'Solicite com 30d de antecedência', color: 'bg-amber-400' },
+                                    { text: 'Um período deve ter 14d+', color: 'bg-emerald-400' },
+                                    { text: 'Duração mínima de 5d fixos', color: 'bg-indigo-400' }
+                                ].map((rule, idx) => (
+                                    <div key={idx} className="flex items-center gap-3 p-2 bg-[var(--surface)]/50 rounded-xl border border-[var(--border)]/50">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${rule.color}`} />
+                                        <span className="text-[10px] font-bold text-[var(--text-2)]">{rule.text}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
+                    </div>
 
-                        <div className="bg-[var(--surface)] p-4 rounded-3xl border border-[var(--border)] shadow-sm flex flex-wrap items-center gap-4">
-                            <div className="flex-1 flex items-center bg-[var(--bgApp)] rounded-xl border border-[var(--border)] px-4 py-2 gap-3 min-w-[200px]">
-                                <Search size={18} className="text-[var(--muted)]" />
-                                <input
-                                    type="text"
-                                    placeholder="Buscar por colaborador ou observação..."
-                                    className="bg-transparent border-none outline-none w-full text-sm font-medium"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
+                    {activeTab === 'requests' && (
+                        <div className="space-y-4 animate-in fade-in duration-500 flex flex-col h-full">
+                            <div className="bg-[var(--surface-2)] p-1.5 rounded-2xl border border-[var(--border)] flex flex-col md:flex-row items-center gap-3 shadow-sm">
+                                <div className="flex-1 flex items-center bg-[var(--surface)] rounded-xl px-3 py-2 gap-2 border border-[var(--border)] w-full">
+                                    <Search size={14} className="text-[var(--muted)]" />
+                                    <input
+                                        type="text"
+                                        placeholder="Procurar por nome ou observação..."
+                                        className="bg-transparent border-none outline-none w-full text-[11px] font-black placeholder:text-[var(--muted)]"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex gap-2 w-full md:w-auto">
+                                    <select
+                                        value={towerFilter}
+                                        onChange={(e) => setTowerFilter(e.target.value)}
+                                        className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[9px] font-black outline-none uppercase min-w-[100px]"
+                                    >
+                                        <option value="all">TODAS TORRES</option>
+                                        {Array.from(new Set(users.map(u => u.torre).filter(Boolean))).map(t => (
+                                            <option key={t} value={t!}>{t!.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                                        className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[9px] font-black outline-none uppercase min-w-[100px]"
+                                    >
+                                        <option value="all">TODOS STATUS</option>
+                                        <option value="sugestao">1. Sugestão</option>
+                                        <option value="aprovada_gestao">2. Gestão</option>
+                                        <option value="aprovada_rh">3. RH</option>
+                                        <option value="finalizada_dp">4. DP/PAGO</option>
+                                    </select>
+                                </div>
+                                <div className="hidden lg:flex items-center gap-3 px-3 py-1.5 border-l border-[var(--border)] ml-1">
+                                    <span title="1. Sugestão" className="w-2.5 h-2.5 rounded bg-amber-400 border border-amber-600/20" />
+                                    <span title="2. Gestão" className="w-2.5 h-2.5 rounded bg-cyan-400 border border-blue-600/20" />
+                                    <span title="3. RH" className="w-2.5 h-2.5 rounded bg-emerald-400 border border-emerald-600/20" />
+                                    <span title="4. DP" className="w-2.5 h-2.5 rounded bg-purple-400 border border-purple-600/20" />
+                                </div>
                             </div>
-                            <select
-                                value={towerFilter}
-                                onChange={(e) => setTowerFilter(e.target.value)}
-                                className="bg-[var(--bgApp)] border border-[var(--border)] rounded-xl px-4 py-2 text-xs font-bold outline-none cursor-pointer hover:bg-[var(--surface-2)] transition-colors"
-                            >
-                                <option value="all">Todas as Torres</option>
-                                <option value="Engenharia">Engenharia</option>
-                                <option value="Design">Design</option>
-                                <option value="QA">QA</option>
-                                <option value="DevOps">DevOps</option>
-                            </select>
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as any)}
-                                className="bg-[var(--bgApp)] border border-[var(--border)] rounded-xl px-4 py-2 text-xs font-bold outline-none cursor-pointer hover:bg-[var(--surface-2)] transition-colors"
-                            >
-                                <option value="all">Todos os Status</option>
-                                <option value="sugestao">1. Sugestão</option>
-                                <option value="aprovada_gestao">2. Gestão (Azul)</option>
-                                <option value="aprovada_rh">3. RH (Verde)</option>
-                                <option value="finalizada_dp">4. DP (Lilas)</option>
-                                <option value="rejeitado">Rejeitados</option>
-                            </select>
-                            <button
-                                onClick={handleExportReport}
-                                className="p-2.5 bg-[var(--surface-2)] text-[var(--text)] rounded-xl border border-[var(--border)] hover:bg-[var(--primary)] hover:text-white transition-all flex items-center gap-2 text-xs font-bold"
-                            >
-                                <Download size={16} /> Exportar
-                            </button>
-                        </div>
 
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-8 min-h-0">
-                            {/* Seção de Pendentes */}
-                            <div className="space-y-4">
-                                <h3 className="text-[10px] font-black uppercase text-amber-600 tracking-widest pl-2 flex items-center gap-2">
-                                    <Clock size={14} /> Solicitações em Fluxo
-                                </h3>
-                                <AnimatePresence mode="popLayout">
-                                    {filteredAbsences.filter(a => a.status !== 'finalizada_dp' && a.status !== 'rejeitado').map((absence) => {
-                                        const user = users.find(u => u.id === absence.userId);
-                                        const days = calculateDays(absence.startDate, absence.endDate);
-                                        const daysUntilStart = Math.ceil((new Date(absence.startDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-
+                            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm flex-1 flex flex-col">
+                                <div className="grid grid-cols-12 gap-2 p-2.5 bg-[var(--surface-2)] border-b border-[var(--border)] text-[9px] font-black uppercase text-[var(--muted)] sticky top-0 z-10">
+                                    <span className="col-span-3 border-r border-[var(--border)] pr-2">Colaborador / Tipo</span>
+                                    <span className="col-span-2 border-r border-[var(--border)] pr-2 text-center">Período</span>
+                                    <span className="col-span-1 border-r border-[var(--border)] pr-2 text-center">Dias</span>
+                                    <span className="col-span-2 border-r border-[var(--border)] pr-2">Torre / Cargo</span>
+                                    <span className="col-span-2 border-r border-[var(--border)] pr-2 text-center">Status</span>
+                                    <span className="col-span-2 text-right pr-4">Ações</span>
+                                </div>
+                                <div className="divide-y divide-[var(--border)] overflow-y-auto custom-scrollbar">
+                                    {filteredAbsences.map(a => {
+                                        const user = users.find(u => u.id === a.userId);
+                                        const days = calculateDays(a.startDate, a.endDate);
                                         return (
-                                            <motion.div
-                                                layout
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, scale: 0.95 }}
-                                                key={absence.id}
-                                                className="bg-[var(--surface)] p-5 rounded-[32px] border border-[var(--border)] shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center gap-6 group relative overflow-hidden"
-                                            >
-                                                {/* Indicador lateral da fase atual */}
-                                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${absence.status === 'sugestao' ? 'bg-amber-400' :
-                                                    absence.status === 'aprovada_gestao' ? 'bg-blue-400' :
-                                                        'bg-emerald-400'
-                                                    }`} />
-
-                                                <div className="flex items-center gap-4 min-w-[200px]">
-                                                    <div className="w-10 h-10 rounded-full bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)] font-black text-sm">
+                                            <div key={a.id} className="grid grid-cols-12 gap-2 p-3 items-center hover:bg-[var(--primary-soft)]/30 transition-colors group">
+                                                <div className="col-span-3 flex items-center gap-3 min-w-0">
+                                                    <div className="w-8 h-8 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center font-black text-xs shrink-0">
                                                         {user?.name.charAt(0)}
                                                     </div>
-                                                    <div>
-                                                        <h3 className="font-black text-sm text-[var(--text)]">{user?.name}</h3>
-                                                        <p className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-tighter">{user?.cargo}</p>
+                                                    <div className="truncate">
+                                                        <p className="text-[11px] font-black text-[var(--text)] truncate">{user?.name}</p>
+                                                        <p className="text-[8px] font-black text-[var(--muted)] uppercase">{a.type}</p>
                                                     </div>
                                                 </div>
-
-                                                <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-6 w-full">
-                                                    <div>
-                                                        <p className="text-[9px] font-black uppercase text-[var(--muted)] mb-1">Datas</p>
-                                                        <p className="text-[11px] font-black text-[var(--text)] whitespace-nowrap">
-                                                            {new Date(absence.startDate).toLocaleDateString()}
-                                                            <ArrowRight size={12} className="inline mx-1 opacity-40" />
-                                                            {new Date(absence.endDate).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[9px] font-black uppercase text-[var(--muted)] mb-1">Duração</p>
-                                                        <p className="text-xs font-black">{days} {days === 1 ? 'dia' : 'dias'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[9px] font-black uppercase text-[var(--muted)] mb-1">Fase Atual</p>
-                                                        <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase border whitespace-nowrap ${getStatusStyle(absence.status)}`}>
-                                                            {getStatusLabel(absence.status)}
-                                                        </span>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[9px] font-black uppercase text-[var(--muted)] mb-1">Antecedência</p>
-                                                        <p className={`text-[10px] font-black ${daysUntilStart < 30 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                                            {daysUntilStart} dias
-                                                        </p>
-                                                    </div>
+                                                <div className="col-span-2 text-[10px] font-black text-[var(--text)]">
+                                                    {new Date(a.startDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {new Date(a.endDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                                                 </div>
-
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    <button
-                                                        onClick={() => setActionModal({ id: absence.id, type: 'approve' })}
-                                                        className="px-4 py-2 bg-emerald-500 text-white rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-500/20 text-[9px] font-black uppercase"
-                                                    >
-                                                        {absence.status === 'sugestao' ? 'Passar p/ Gestão' : absence.status === 'aprovada_gestao' ? 'Passar p/ RH' : 'Passar p/ DP'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setActionModal({ id: absence.id, type: 'reject' })}
-                                                        className="p-2.5 bg-red-100 text-red-600 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-200"
-                                                        title="Rejeitar"
-                                                    >
-                                                        <XCircle size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setActionModal({ id: absence.id, type: 'delete' })}
-                                                        className="p-2.5 text-[var(--muted)] hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                <div className="col-span-1 text-center font-black text-xs text-[var(--primary)] bg-[var(--primary-soft)]/50 py-1 rounded-lg border border-[var(--primary-soft)]">
+                                                    {days}d
                                                 </div>
-                                            </motion.div>
-                                        );
-                                    })}
-                                </AnimatePresence>
-
-                                {filteredAbsences.filter(a => a.status !== 'finalizada_dp' && a.status !== 'rejeitado').length === 0 && (
-                                    <div className="text-center py-10 bg-[var(--surface-2)] rounded-[32px] border border-dashed border-[var(--border)]">
-                                        <p className="text-[var(--muted)] text-xs font-bold uppercase tracking-widest">Nenhuma solicitação pendente</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Seção de Finalizadas */}
-                            <div className="space-y-4 opacity-70 hover:opacity-100 transition-opacity">
-                                <h3 className="text-[10px] font-black uppercase text-purple-600 tracking-widest pl-2 flex items-center gap-2">
-                                    <CheckCheck size={14} /> Recentemente Finalizadas (Histórico)
-                                </h3>
-                                <div className="space-y-3">
-                                    {filteredAbsences.filter(a => a.status === 'finalizada_dp' || a.status === 'rejeitado').map((absence) => {
-                                        const user = users.find(u => u.id === absence.userId);
-                                        const isRejected = absence.status === 'rejeitado';
-
-                                        return (
-                                            <div
-                                                key={absence.id}
-                                                className={`bg-[var(--bgApp)] p-4 rounded-3xl border ${isRejected ? 'border-red-100' : 'border-purple-100'} flex items-center gap-4 group transition-all`}
-                                            >
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${isRejected ? 'bg-red-50 text-red-500' : 'bg-purple-50 text-purple-500'}`}>
-                                                    {user?.name.charAt(0)}
+                                                <div className="col-span-2 truncate text-[9px] font-black text-[var(--text)] uppercase">
+                                                    {user?.torre || 'N/A'}
                                                 </div>
-                                                <div className="flex-1">
-                                                    <h4 className="font-bold text-xs">{user?.name}</h4>
-                                                    <p className="text-[9px] font-black text-[var(--muted)]">{new Date(absence.startDate).toLocaleDateString()} a {new Date(absence.endDate).toLocaleDateString()}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase border ${getStatusStyle(absence.status)}`}>
-                                                        {getStatusLabel(absence.status)}
+                                                <div className="col-span-2">
+                                                    <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase border shadow-sm block text-center truncate ${getStatusStyle(a.status)}`}>
+                                                        {getStatusLabel(a.status)}
                                                     </span>
                                                 </div>
-                                                <button
-                                                    onClick={() => setActionModal({ id: absence.id, type: 'delete' })}
-                                                    className="p-2 text-[var(--muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                <div className="col-span-2 flex items-center justify-end gap-1.5 flex-wrap">
+                                                    {a.status !== 'finalizada_dp' && a.status !== 'rejeitado' && (
+                                                        <button onClick={() => setActionModal({ id: a.id, type: 'approve' })} className="h-7 px-3 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase hover:bg-emerald-500 transition-all">Avançar</button>
+                                                    )}
+                                                    {a.status === 'rejeitado' && (
+                                                        <button onClick={() => setActionModal({ id: a.id, type: 'revert' })} className="h-7 w-7 flex items-center justify-center bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white border border-blue-200"><RotateCcw size={12} /></button>
+                                                    )}
+                                                    <button onClick={() => setActionModal({ id: a.id, type: 'delete' })} className="h-7 w-7 flex items-center justify-center bg-slate-50 text-slate-400 rounded-lg hover:bg-red-500 hover:text-white border border-slate-100 opacity-0 group-hover:opacity-100"><Trash2 size={12} /></button>
+                                                </div>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {activeTab === 'calendar' && (
-                    <div className="flex-1 bg-[var(--surface)] rounded-[40px] border border-[var(--border)] overflow-hidden flex flex-col">
-                        <div className="p-8 border-b flex justify-between items-center">
-                            <div>
-                                <h3 className="text-lg font-black flex items-center gap-3">
-                                    <Calendar className="text-[var(--primary)]" />
-                                    Visão Geral Mensal (spreadsheet view)
-                                </h3>
-                                <p className="text-xs font-bold text-[var(--muted)] uppercase mt-1">Legenda por etapa do fluxo</p>
+                    {activeTab === 'calendar' && (
+                        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[var(--surface)] p-4 rounded-[2rem] border border-[var(--border)] shadow-xl">
+                                <div>
+                                    <h3 className="text-sm font-black uppercase text-[var(--text)] tracking-[0.2em] italic">Mapa Anual de Disponibilidade</h3>
+                                    <p className="text-[10px] font-bold text-[var(--muted)] uppercase">Visão completa do ciclo {currentYear}</p>
+                                </div>
+                                <div className="flex items-center gap-6 bg-[var(--surface-2)] px-6 py-3 rounded-2xl border border-[var(--border)]">
+                                    <button onClick={() => setCurrentYear(currentYear - 1)} className="p-1 hover:bg-[var(--primary-soft)] rounded ring-1 ring-[var(--border)] transition-all cursor-pointer"><Clock size={14} /></button>
+                                    <span className="text-sm font-black text-[var(--text)] px-4">{currentYear}</span>
+                                    <button onClick={() => setCurrentYear(currentYear + 1)} className="p-1 hover:bg-[var(--primary-soft)] rounded ring-1 ring-[var(--border)] transition-all cursor-pointer"><Calendar size={14} /></button>
+                                </div>
                             </div>
-                            <div className="flex gap-4">
-                                <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-amber-500"><div className="w-2 h-2 bg-amber-400 rounded-sm" /> Sugestão</span>
-                                <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-blue-500"><div className="w-2 h-2 bg-blue-300 rounded-sm" /> Gestão</span>
-                                <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-500"><div className="w-2 h-2 bg-emerald-400 rounded-sm" /> RH</span>
-                                <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-purple-500"><div className="w-2 h-2 bg-purple-400 rounded-sm" /> DP</span>
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-auto p-4 custom-scrollbar">
-                            <div className="h-full flex gap-4 min-w-max">
-                                {[...Array(12)].map((_, monthIdx) => {
-                                    const monthDate = new Date(2026, monthIdx, 1);
-                                    const monthLabel = monthDate.toLocaleDateString('pt-BR', { month: 'long', year: '2-digit' });
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(monthIdx => {
+                                    const d = new Date(currentYear, monthIdx, 1);
                                     const monthAbsences = absences.filter(a => {
-                                        const date = new Date(a.startDate);
-                                        return date.getMonth() === monthIdx && date.getFullYear() === 2026;
-                                    });
-                                    const stats = getMonthlyStats(monthIdx);
-
+                                        const aStart = new Date(a.startDate + 'T00:00:00');
+                                        const aEnd = new Date(a.endDate + 'T23:59:59');
+                                        return (aStart.getFullYear() === currentYear && aStart.getMonth() === monthIdx) || (aEnd.getFullYear() === currentYear && aEnd.getMonth() === monthIdx);
+                                    }).filter(a => a.status !== 'rejeitado');
                                     return (
-                                        <div key={monthIdx} className="w-80 flex-shrink-0 flex flex-col gap-4">
-                                            <div className="bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 p-4 rounded-2xl border border-purple-200 dark:border-purple-700 space-y-2">
-                                                <div className="text-center text-[11px] font-black uppercase text-purple-900 dark:text-purple-200">
-                                                    {monthLabel}
-                                                </div>
-                                                <div className="grid grid-cols-3 gap-2 text-center">
-                                                    <div className="bg-white/50 dark:bg-black/20 p-1.5 rounded-lg">
-                                                        <p className="text-[8px] font-black uppercase opacity-60">Solicit.</p>
-                                                        <p className="text-sm font-black text-purple-600 dark:text-purple-400">{stats.total}</p>
+                                        <div key={monthIdx} className="bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-5 shadow-lg flex flex-col gap-3">
+                                            <h4 className="text-[12px] font-black uppercase text-[var(--primary)] border-b pb-2 border-[var(--border)]">{d.toLocaleDateString('pt-BR', { month: 'long' })}</h4>
+                                            <div className="space-y-1">
+                                                {monthAbsences.map(a => (
+                                                    <div key={a.id} className="flex justify-between items-center text-[9px] font-black bg-[var(--surface-2)]/50 p-1.5 rounded-lg">
+                                                        <span className="truncate max-w-[80px]">{users.find(u => u.id === a.userId)?.name.split(' ')[0]}</span>
+                                                        <span className="text-[8px] opacity-50">{new Date(a.startDate + 'T00:00:00').getDate()}/{monthIdx + 1} - {new Date(a.endDate + 'T00:00:00').getDate()}/{new Date(a.endDate + 'T00:00:00').getMonth() + 1}</span>
                                                     </div>
-                                                    <div className="bg-white/50 dark:bg-black/20 p-1.5 rounded-lg">
-                                                        <p className="text-[8px] font-black uppercase opacity-60">Pessoas</p>
-                                                        <p className="text-sm font-black text-blue-600 dark:text-blue-400">{stats.collaborators}</p>
-                                                    </div>
-                                                    <div className="bg-white/50 dark:bg-black/20 p-1.5 rounded-lg">
-                                                        <p className="text-sm font-black uppercase opacity-60">Dias</p>
-                                                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">{stats.totalDays}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 bg-[var(--bgApp)] rounded-2xl border border-[var(--border)] p-2 space-y-2 overflow-y-auto custom-scrollbar">
-                                                <div className="grid grid-cols-4 gap-1 text-[8px] font-black uppercase opacity-60 px-2">
-                                                    <span className="col-span-1">Nome</span>
-                                                    <span className="text-center">Início</span>
-                                                    <span className="text-center">Fim</span>
-                                                    <span className="text-right">D</span>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    {monthAbsences.length === 0 && <p className="text-[10px] text-center py-4 opacity-30 italic">Sem registros</p>}
-                                                    {monthAbsences.map(a => {
-                                                        const user = users.find(u => u.id === a.userId);
-                                                        const days = calculateDays(a.startDate, a.endDate);
-                                                        const bgColor = a.status === 'sugestao' ? '#fbbf24' : a.status === 'aprovada_gestao' ? '#93c5fd' : a.status === 'aprovada_rh' ? '#34d399' : a.status === 'finalizada_dp' ? '#c084fc' : '#f1f5f9';
-
-                                                        return (
-                                                            <div
-                                                                key={a.id}
-                                                                className="grid grid-cols-4 gap-1 p-2 rounded-lg text-[9px] font-bold border border-black/5 shadow-sm"
-                                                                style={{ backgroundColor: bgColor }}
-                                                            >
-                                                                <span className="truncate">{user?.name.split(' ')[0]}</span>
-                                                                <span className="text-center font-black">{new Date(a.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                                                                <span className="text-center font-black">{new Date(a.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                                                                <span className="text-right font-black">{days}</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
+                                                ))}
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {activeTab === 'collaborators' && (
-                    <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto custom-scrollbar pr-2">
-                        <div className="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-[32px] border border-blue-100 dark:border-blue-800 flex items-start gap-4 shadow-sm">
-                            <Info className="text-blue-500 shrink-0" />
-                            <div className="space-y-2">
-                                <p className="text-sm font-black text-blue-900 dark:text-blue-200">Políticas de Férias NIC-LABS</p>
-                                <ul className="text-xs space-y-1 text-blue-800 dark:text-blue-300 list-disc pl-4 font-bold">
-                                    <li>Solicitações devem ser enviadas com pelo menos <strong>30 dias</strong> de antecedência.</li>
-                                    <li>As férias podem ser divididas em até <strong>3 períodos</strong>.</li>
-                                    <li>Um período deve ter no mínimo <strong>14 dias corridos</strong>.</li>
-                                    <li>Nenhum período pode ser inferior a <strong>5 dias</strong>.</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {activeTab === 'collaborators' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {users.filter(u => u.active !== false).map(user => {
-                                const userAbsences = absences.filter(a => a.userId === user.id && a.type === 'férias' && a.status !== 'rejeitado' && a.status !== 'cancelado');
-                                const totalVacationDays = userAbsences.reduce((acc, a) => acc + calculateDays(a.startDate, a.endDate), 0);
-                                const has14DayRule = userAbsences.some(a => calculateDays(a.startDate, a.endDate) >= 14);
-                                const hasInvalidSmallPeriod = userAbsences.some(a => calculateDays(a.startDate, a.endDate) < 5);
-
+                                const userAbsences = absences.filter(a => a.userId === user.id && a.type === 'férias' && a.status !== 'rejeitado');
+                                const totalDays = userAbsences.reduce((acc, a) => acc + calculateDays(a.startDate, a.endDate), 0);
+                                const percent = Math.min((totalDays / 30) * 100, 100);
                                 return (
-                                    <div key={user.id} className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] shadow-sm hover:shadow-md transition-all">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="w-10 h-10 rounded-full bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)] font-black">
-                                                {user.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-sm">{user.name}</h4>
-                                                <p className="text-[10px] text-[var(--muted)] uppercase font-black">{user.cargo}</p>
-                                            </div>
+                                    <div key={user.id} className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border)] shadow-sm">
+                                        <p className="text-[12px] font-black text-[var(--text)]">{user.name}</p>
+                                        <div className="h-2 bg-[var(--bg-app)] rounded-full mt-2 overflow-hidden border border-[var(--border)]">
+                                            <div className={`h-full ${percent > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${percent}%` }} />
                                         </div>
-
-                                        <div className="space-y-4">
-                                            <div className="flex justify-between items-end">
-                                                <p className="text-[10px] font-black uppercase text-[var(--muted)]">Consumo do Saldo (Ano)</p>
-                                                <p className="text-xl font-black text-emerald-600">{totalVacationDays} / 30 d</p>
-                                            </div>
-                                            <div className="w-full bg-[var(--surface-2)] h-2 rounded-full overflow-hidden">
-                                                <div className="bg-emerald-500 h-full transition-all duration-700 ease-out" style={{ width: `${Math.min((totalVacationDays / 30) * 100, 100)}%` }} />
-                                            </div>
-
-                                            <div className="flex flex-col gap-2 pt-2 border-t mt-2">
-                                                <div className="flex items-center justify-between text-[9px] font-black uppercase">
-                                                    <span>Corredor de 14 dias:</span>
-                                                    {has14DayRule ? <span className="text-emerald-500 font-black">OK</span> : <span className="text-amber-500 font-black italic">Aguardando</span>}
-                                                </div>
-                                                <div className="flex items-center justify-between text-[9px] font-black uppercase">
-                                                    <span>Período Mínimo (5 d):</span>
-                                                    {hasInvalidSmallPeriod ? <span className="text-red-500 font-black">Irregular</span> : <span className="text-emerald-500 font-black">OK</span>}
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <p className="text-[9px] font-black mt-1 text-[var(--muted)] uppercase">{totalDays} / 30 DIAS</p>
                                     </div>
                                 );
                             })}
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {activeTab === 'holidays' && (
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                        <HolidayManager />
-                    </div>
-                )}
+                    {activeTab === 'holidays' && (
+                        <div className="flex-1 bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm p-4">
+                            <HolidayManager />
+                        </div>
+                    )}
 
-            </div>
+                    <footer className="mt-12 p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[3rem] flex flex-col items-center text-center gap-4 relative overflow-hidden group shrink-0">
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="p-4 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] ring-4 ring-white dark:ring-slate-900 shadow-lg">
+                            <ShieldCheck size={32} />
+                        </div>
+                        <div className="max-w-2xl relative">
+                            <h4 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] mb-2 font-serif italic text-purple-600">Central de Conformidade & Suporte RH</h4>
+                            <p className="text-[12px] font-bold text-[var(--text-2)] leading-relaxed">
+                                Em caso de dúvidas sobre saldo de férias, período aquisitivo ou regras do processo corporativo, por favor, entre em contato com o departamento de RH através dos canais oficiais. Nosso time está à disposição para garantir seu descanso com segurança jurídica.
+                            </p>
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                            <div className="px-4 py-1.5 bg-[var(--surface-2)] rounded-full text-[9px] font-black border border-[var(--border)] uppercase tracking-tighter shadow-sm">Regras de Retenção 2026</div>
+                            <div className="px-4 py-1.5 bg-[var(--surface-2)] rounded-full text-[9px] font-black border border-[var(--border)] uppercase tracking-tighter shadow-sm">SLA de Atendimento: 48h</div>
+                        </div>
+                    </footer>
+                </div>
+            </main>
 
             <ConfirmationModal
                 isOpen={!!actionModal}
-                title={actionModal?.type === 'approve' ? 'Avançar Fluxo' : actionModal?.type === 'reject' ? 'Rejeitar Pedido' : 'Excluir Item'}
-                message={actionModal?.type === 'approve' ? 'Confirma a passagem deste pedido para a próxima etapa do fluxo de aprovação?' : 'Esta ação não poderá ser desfeita. Deseja continuar?'}
+                title={actionModal?.type === 'approve' ? 'Avançar Solicitação' : actionModal?.type === 'reject' ? 'Rejeitar Solicitação' : actionModal?.type === 'revert' ? 'Reverter Status' : 'Excluir Item'}
+                message="Confirma esta operação? Esta ação poderá alterar o status do registro permanentemente."
                 onConfirm={handleAction}
                 onCancel={() => setActionModal(null)}
-                confirmColor={actionModal?.type === 'reject' || actionModal?.type === 'delete' ? 'red' : 'blue'}
+                confirmColor={actionModal?.type === 'approve' ? 'blue' : 'red'}
             />
 
-            {/* Modal de Solicitação de Férias */}
             <AnimatePresence>
                 {showRequestModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowRequestModal(false)}
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                        />
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="relative bg-[var(--bg)] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[40px] shadow-2xl border border-[var(--border)] p-8 custom-scrollbar"
-                        >
-                            <div className="flex justify-between items-center mb-8">
-                                <div>
-                                    <h2 className="text-2xl font-black text-[var(--text)]">Solicitar Férias / Ausência</h2>
-                                    <p className="text-sm font-medium text-[var(--muted)]">Preencha os dados abaixo para enviar sua solicitação ao fluxo de aprovação.</p>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRequestModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-[var(--bg)] w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-[40px] shadow-2xl border border-[var(--border)] flex flex-col">
+                            <div className="p-6 border-b flex justify-between items-center bg-[var(--surface-2)]">
+                                <div className="flex flex-col">
+                                    <h2 className="text-lg font-black uppercase text-[var(--text)]">Nova Solicitação</h2>
+                                    <p className="text-[10px] font-bold text-[var(--muted)] uppercase">Submeta ao fluxo de RH</p>
                                 </div>
-                                <button
-                                    onClick={() => setShowRequestModal(false)}
-                                    className="p-3 hover:bg-[var(--surface-2)] rounded-2xl text-[var(--muted)] transition-colors"
-                                >
-                                    <XCircle size={24} />
-                                </button>
+                                <button onClick={() => setShowRequestModal(false)} className="p-2 hover:bg-[var(--surface)] rounded-2xl text-[var(--muted)] shadow-sm"><XCircle size={20} /></button>
                             </div>
-
-                            <AbsenceManager
-                                targetUserId={currentUser?.id}
-                                targetUserName={currentUser?.name}
-                            />
+                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[var(--bg)]">
+                                <AbsenceManager targetUserId={currentUser?.id} targetUserName={currentUser?.name} />
+                            </div>
                         </motion.div>
                     </div>
                 )}

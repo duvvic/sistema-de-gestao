@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import AbsenceStatusWidget from "./AbsenceStatusWidget";
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useDataController } from '@/controllers/useDataController';
@@ -1488,6 +1489,10 @@ const AdminDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div className="mb-8 animate-in fade-in duration-700 delay-300">
+            <AbsenceStatusWidget />
           </div>
 
           {/* LISTA DE CLIENTES */}

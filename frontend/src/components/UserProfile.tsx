@@ -187,22 +187,20 @@ const UserProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* Absence Management Section - Admin Only */}
-          {isAdmin && (
-            <div className="p-8 rounded-2xl border shadow-sm space-y-6" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
-                <Calendar className="w-5 h-5" style={{ color: 'var(--brand)' }} />
-                Gestão de Ausências
-              </h2>
-              <p className="text-sm" style={{ color: 'var(--textMuted)' }}>
-                Registre e acompanhe seus períodos de férias, afastamentos ou folgas. Isso evita alertas de pendência no timesheet e ajuda na gestão de tarefas.
-              </p>
+          {/* Absence Management Section */}
+          <div className="p-8 rounded-2xl border shadow-sm space-y-6" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
+              <Calendar className="w-5 h-5" style={{ color: 'var(--brand)' }} />
+              Solicitar Férias / Ausência
+            </h2>
+            <p className="text-sm" style={{ color: 'var(--textMuted)' }}>
+              Registre e acompanhe seus períodos de férias, afastamentos ou folgas. Suas solicitações entrarão automaticamente no fluxo de aprovação do RH.
+            </p>
 
-              <div className="pt-4 border-t border-[var(--border)]">
-                <AbsenceManager />
-              </div>
+            <div className="pt-4 border-t border-[var(--border)]">
+              <AbsenceManager />
             </div>
-          )}
+          </div>
 
           {/* Infra / Sincronização Section (Admin Only & Disabled) */}
           {isAdmin && (

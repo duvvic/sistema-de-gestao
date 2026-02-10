@@ -200,6 +200,27 @@ const HolidayManager: React.FC = () => {
                                 <Download size={16} /> Exportar CSV
                             </button>
                             <button
+                                onClick={() => {
+                                    const nextHolidays = [...filteredHolidays]
+                                        .filter(h => new Date(h.date + 'T00:00:00') >= new Date())
+                                        .slice(0, 10);
+
+                                    const text = `📢 *Planejamento de Feriados e Recessos*\n\n` +
+                                        nextHolidays.map(h => {
+                                            const start = new Date(h.date + 'T12:00:00').toLocaleDateString('pt-BR');
+                                            const period = h.period !== 'integral' ? ` (${h.period === 'manha' ? 'Manhã' : 'Tarde'})` : '';
+                                            return `• *${start}*: ${h.name}${period}`;
+                                        }).join('\n') +
+                                        `\n\n_Favor planejar suas atividades considerando estas datas._`;
+
+                                    navigator.clipboard.writeText(text);
+                                    alert('Comunicado copiado para a área de transferência!');
+                                }}
+                                className="bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-amber-500/20"
+                            >
+                                <PartyPopper size={16} /> Gerar Comunicado
+                            </button>
+                            <button
                                 onClick={() => { resetForm(); setIsAdding(true); }}
                                 className="bg-[var(--primary)] text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-purple-500/20"
                             >

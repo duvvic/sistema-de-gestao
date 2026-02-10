@@ -284,6 +284,33 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                                 </div>
                             )}
 
+                            {/* MENSAGENS DE VALIDAÇÃO DE REGRA DE NEGÓCIO */}
+                            {type === 'férias' && startDate && (
+                                <div className="space-y-2">
+                                    {/* Regra de 30 dias */}
+                                    {(() => {
+                                        const thirtyDaysFromNow = new Date();
+                                        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+                                        const selectedDate = new Date(startDate + 'T00:00:00');
+                                        if (selectedDate < thirtyDaysFromNow) {
+                                            return (
+                                                <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] font-black text-amber-600 uppercase">
+                                                    <AlertCircle size={14} />
+                                                    Atenção: Solicitações devem ser enviadas com pelo menos 30 dias de antecedência.
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+
+                                    {/* Regra de Divisão */}
+                                    <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[10px] font-black text-blue-600 uppercase">
+                                        <Info size={14} />
+                                        Lembrete: As férias podem ser divididas em até 3 períodos (um mín. 14d, outros mín. 5d).
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex justify-end gap-3 pt-4 border-t border-[var(--border)]">
                                 <button
                                     type="button"

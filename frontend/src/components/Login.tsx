@@ -82,15 +82,17 @@ export default function Login() {
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
             if (e.key === 'Enter' && alertConfig.show) {
+                e.preventDefault();
+                e.stopPropagation();
                 closeAlert();
             }
         };
 
         if (alertConfig.show) {
-            window.addEventListener('keydown', handleKeyPress);
+            window.addEventListener('keydown', handleKeyPress, true);
         }
 
-        return () => window.removeEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress, true);
     }, [alertConfig.show]);
 
     const [showPass, setShowPass] = useState(false);
@@ -103,11 +105,17 @@ export default function Login() {
 
     const closeAlert = () => {
         setAlertConfig(prev => ({ ...prev, show: false }));
+
         if (pendingRedirect) {
             const userToUse = currentUser || selectedUser;
             const adminRoles: Role[] = ['admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'tech_lead', 'system_admin', 'executive', 'ceo'];
             const path = adminRoles.includes(userToUse?.role as Role) ? '/admin/clients' : '/developer/projects';
             navigate(path, { replace: true });
+        } else {
+            // Se não for redirecionamento, foca no campo de senha se estiver visível
+            setTimeout(() => {
+                if (showPasswordInput) passwordRef.current?.focus();
+            }, 100);
         }
     };
 
@@ -616,23 +624,40 @@ export default function Login() {
                     )}
 
                     {mode === 'set-password' && (
-                        <div className="space-y-4">
-                            <input
-                                type={showNewPass ? "text" : "password"}
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-purple-500 outline-none"
-                                placeholder="Nova Senha (min 7 chars)"
-                                required
-                            />
-                            <input
-                                type={showConfirmPass ? "text" : "password"}
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-purple-500 outline-none"
-                                placeholder="Confirmar Nova Senha"
-                                required
-                            />
+                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                                <input
+                                    id="new-password"
+                                    name="new-password"
+                                    type={showNewPass ? "text" : "password"}
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-purple-500 outline-none transition-all text-[#1e1b4b] font-medium"
+                                    placeholder="Nova Senha (min 7 chars)"
+                                    required
+                                    autoFocus
+                                />
+                                <button type="button" onClick={() => togglePasswordVisibility(setShowNewPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 p-2 hover:text-purple-600 transition-colors">
+                                    {showNewPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                                <input
+                                    id="confirm-password"
+                                    name="confirm-password"
+                                    type={showConfirmPass ? "text" : "password"}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-purple-500 outline-none transition-all text-[#1e1b4b] font-medium"
+                                    placeholder="Confirmar Nova Senha"
+                                    required
+                                />
+                                <button type="button" onClick={() => togglePasswordVisibility(setShowConfirmPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 p-2 hover:text-purple-600 transition-colors">
+                                    {showConfirmPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -718,6 +743,7 @@ export default function Login() {
                         <div className="px-6 pb-8">
                             <button
                                 onClick={closeAlert}
+                                autoFocus
                                 className="w-full py-4 bg-[#1e1b4b] text-white rounded-2xl font-bold hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-blue-900/20"
                             >
                                 OK

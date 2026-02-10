@@ -63,7 +63,18 @@ async function fetchReport({ startDate, endDate, clientIds, projectIds, collabor
         console.log('Sample row from RPC:', JSON.stringify(data[0], null, 2));
     }
 
-    return data || [];
+    return (data || []).map(r => ({
+        ...r,
+        id_cliente: r.id_cliente ? Number(r.id_cliente) : null,
+        id_projeto: r.id_projeto ? Number(r.id_projeto) : null,
+        id_colaborador: r.id_colaborador ? Number(r.id_colaborador) : null,
+        horas: Number(r.horas || 0),
+        valor_projeto: Number(r.valor_projeto || 0),
+        horas_projeto_total: Number(r.horas_projeto_total || 0),
+        valor_hora_projeto: Number(r.valor_hora_projeto || 0),
+        valor_rateado: Number(r.valor_rateado || 0),
+        progresso_p: Number(r.progresso_p || 0)
+    }));
 }
 
 /**
@@ -80,14 +91,14 @@ function calculateProjectTotals(rows) {
                 projeto: r.nome_projeto || r.projeto,
                 cliente: r.nome_cliente || r.cliente,
                 id_cliente: r.id_cliente,
-                horas_projeto_total: r.horas_projeto_total || 0,
-                valor_projeto: r.valor_projeto || 0,
-                valor_hora_projeto: r.valor_hora_projeto || 0,
+                horas_projeto_total: Number(r.horas_projeto_total || 0),
+                valor_projeto: Number(r.valor_projeto || 0),
+                valor_hora_projeto: Number(r.valor_hora_projeto || 0),
                 valor_rateado_total: 0
             });
         }
         const pt = map.get(id);
-        pt.valor_rateado_total += (r.valor_rateado || 0);
+        pt.valor_rateado_total += Number(r.valor_rateado || 0);
     });
     return Array.from(map.values());
 }
@@ -99,8 +110,8 @@ function calculateTotals(rows) {
     let horas_total = 0;
     let valor_total_rateado = 0;
     rows.forEach(r => {
-        horas_total += (r.horas || 0);
-        valor_total_rateado += (r.valor_rateado || 0);
+        horas_total += Number(r.horas || 0);
+        valor_total_rateado += Number(r.valor_rateado || 0);
     });
     return {
         horas_total,
@@ -111,11 +122,6 @@ function calculateTotals(rows) {
 // PREVIEW JSON (para “preview estilo Excel” no front)
 router.get('/preview', requireAdmin, async (req, res) => {
     try {
-        const today = new Date();
-        const endIso = today.toISOString().slice(0, 10);
-        const start30 = new Date(today.getTime() - 29 * 86400000).toISOString().slice(0, 10);
-
-        // Se não vier data no query, passamos null para o RPC (que interpreta como "sem limite")
         const startDate = req.query.startDate ? dateOrDefault(req.query.startDate, null) : null;
         const endDate = req.query.endDate ? dateOrDefault(req.query.endDate, null) : null;
 
@@ -146,10 +152,6 @@ router.get('/preview', requireAdmin, async (req, res) => {
 // EXPORT POWER BI (por enquanto retorna o mesmo JSON “flat”)
 router.get('/powerbi', requireAdmin, async (req, res) => {
     try {
-        const today = new Date();
-        const endIso = today.toISOString().slice(0, 10);
-        const start30 = new Date(today.getTime() - 29 * 86400000).toISOString().slice(0, 10);
-
         const startDate = req.query.startDate ? dateOrDefault(req.query.startDate, null) : null;
         const endDate = req.query.endDate ? dateOrDefault(req.query.endDate, null) : null;
 
