@@ -124,8 +124,8 @@ export const useDataController = () => {
         setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
     };
 
-    const deleteProject = async (projectId: string): Promise<void> => {
-        await projectService.deleteProject(projectId);
+    const deleteProject = async (projectId: string, force: boolean = false): Promise<void> => {
+        await projectService.deleteProject(projectId, force);
         setProjects(prev => prev.filter(p => p.id !== projectId));
     };
 
@@ -186,9 +186,8 @@ export const useDataController = () => {
         }
     };
 
-    const deleteTask = async (taskId: string): Promise<void> => {
-        const taskToDelete = tasks.find(t => t.id === taskId);
-        await taskService.deleteTask(taskId);
+    const deleteTask = async (taskId: string, force: boolean = false): Promise<void> => {
+        await taskService.deleteTask(taskId, force);
         setTasks(prev => prev.filter(t => t.id !== taskId));
     };
 

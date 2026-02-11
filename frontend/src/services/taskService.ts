@@ -259,8 +259,9 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
 // ===========================
 import { apiRequest } from './apiClient';
 
-export async function deleteTask(taskId: string): Promise<void> {
-  await apiRequest(`/admin/tasks/${taskId}`, {
+export async function deleteTask(taskId: string, force: boolean = false): Promise<void> {
+  const query = force ? '?force=true' : '';
+  await apiRequest(`/admin/tasks/${taskId}${query}`, {
     method: 'DELETE'
   });
 }

@@ -108,10 +108,14 @@ export async function updateProject(projectId: string, data: Partial<Project>): 
 // ===========================
 // DELETE (Soft Delete - marca como inativo)
 // ===========================
+// ===========================
+// DELETE
+// ===========================
 import { apiRequest } from './apiClient';
 
-export async function deleteProject(projectId: string): Promise<void> {
-  await apiRequest(`/admin/projects/${projectId}`, {
+export async function deleteProject(projectId: string, force: boolean = false): Promise<void> {
+  const query = force ? '?force=true' : '';
+  await apiRequest(`/admin/projects/${projectId}${query}`, {
     method: 'DELETE'
   });
 }

@@ -53,7 +53,7 @@ const ProjectForm: React.FC = () => {
   const [gapsIssues, setGapsIssues] = useState('');
   const [importantConsiderations, setImportantConsiderations] = useState('');
   const [weeklyStatusReport, setWeeklyStatusReport] = useState('');
-  const [complexity, setComplexity] = useState<'Alta' | 'Média' | 'Baixa'>('Média');
+
   const [valorTotalRs, setValorTotalRs] = useState(0);
   const [horasVendidas, setHorasVendidas] = useState(0);
   const [torre, setTorre] = useState('');
@@ -86,7 +86,7 @@ const ProjectForm: React.FC = () => {
       setGapsIssues(project.gapsIssues || '');
       setImportantConsiderations(project.importantConsiderations || '');
       setWeeklyStatusReport(project.weeklyStatusReport || '');
-      setComplexity(project.complexidade || 'Média');
+
       setValorTotalRs(project.valor_total_rs || 0);
       setHorasVendidas(project.horas_vendidas || 0);
       setTorre(project.torre || '');
@@ -154,7 +154,7 @@ const ProjectForm: React.FC = () => {
         gaps_issues: gapsIssues,
         important_considerations: importantConsiderations,
         weekly_status_report: weeklyStatusReport,
-        complexidade: complexity,
+
         valor_total_rs: valorTotalRs,
         horas_vendidas: horasVendidas,
         torre: torre,
@@ -381,7 +381,7 @@ const ProjectForm: React.FC = () => {
                 <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
                   <DollarSign className="w-4 h-4" />
                 </div>
-                Financeiro e Complexidade
+                Financeiro
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -392,8 +392,8 @@ const ProjectForm: React.FC = () => {
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold opacity-30 tracking-widest text-xs">BRL</span>
                       <input
                         type="number"
-                        value={valorTotalRs}
-                        onChange={(e) => setValorTotalRs(Number(e.target.value))}
+                        value={valorTotalRs || ''}
+                        onChange={(e) => setValorTotalRs(e.target.value === '' ? 0 : Number(e.target.value))}
                         className="w-full pl-14 pr-4 py-4 text-xl font-bold border rounded-2xl focus:ring-2 focus:ring-emerald-500/30 outline-none transition-all tabular-nums bg-transparent"
                         style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                         placeholder="0.00"
@@ -401,35 +401,19 @@ const ProjectForm: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Campo de Horas Vendidas removido conforme nova regra (cálculos nas tarefas) */}
-                </div>
-
-                <div className="p-6 rounded-2xl border border-[var(--border)] bg-[var(--bg)]/50">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider mb-4 opacity-60" style={{ color: 'var(--text)' }}>Nível de Complexidade</label>
-                  <div className="flex flex-col gap-3">
-                    {['Baixa', 'Média', 'Alta'].map((c) => {
-                      const isSelected = complexity === c;
-                      let activeColor = 'var(--primary)';
-                      if (c === 'Baixa') activeColor = 'var(--success)';
-                      if (c === 'Média') activeColor = 'var(--warning)';
-                      if (c === 'Alta') activeColor = 'var(--danger)';
-
-                      return (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setComplexity(c as any)}
-                          className={`flex items-center justify-between px-5 py-3 rounded-xl border transition-all ${isSelected ? 'shadow-md border-transparent transform scale-[1.02]' : 'border-transparent hover:bg-[var(--surface-hover)]'}`}
-                          style={{
-                            backgroundColor: isSelected ? activeColor : 'transparent',
-                            color: isSelected ? '#fff' : 'var(--muted)'
-                          }}
-                        >
-                          <span className="font-bold text-sm">{c}</span>
-                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                        </button>
-                      );
-                    })}
+                  <div className="pt-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 opacity-60" style={{ color: 'var(--text)' }}>Horas Vendidas (Budget)</label>
+                    <div className="relative group">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                      <input
+                        type="number"
+                        value={horasVendidas || ''}
+                        onChange={(e) => setHorasVendidas(e.target.value === '' ? 0 : Number(e.target.value))}
+                        className="w-full pl-11 pr-4 py-4 text-xl font-bold border rounded-2xl focus:ring-2 focus:ring-blue-500/30 outline-none transition-all tabular-nums bg-transparent"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -663,9 +647,9 @@ const ProjectForm: React.FC = () => {
             </div>
           </div>
 
-        </form>
-      </div>
-    </div>
+        </form >
+      </div >
+    </div >
   );
 };
 

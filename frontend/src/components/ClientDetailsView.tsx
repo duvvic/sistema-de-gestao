@@ -640,16 +640,36 @@ const ClientDetailsView: React.FC = () => {
             if (itemToDelete.type === 'client') {
               await handleDeleteClient();
             } else if (itemToDelete.type === 'project') {
-              await deleteProject(itemToDelete.id);
-              alert('Projeto excluído com sucesso!');
-            } else {
-              await deleteTask(itemToDelete.id);
-              alert('Tarefa excluída com sucesso!');
+              try {
+                await deleteProject(itemToDelete.id);
+                alert('Projeto excluído com sucesso!');
+              } catch (projectError: any) {
+                const msg = projectError.message || "";
+                if (msg.includes("tarefas criadas") || msg.includes("hasTasks")) {
+                  if (window.confirm("Este projeto possui tarefas e possivelmente horas apontadas. Deseja realizar a EXCLUSÃO FORÇADA de todos os dados vinculados? Esta ação é irreversível.")) {
+                    await deleteProject(itemToDelete.id, true);
+                    alert('Projeto e dados vinculados excluídos com sucesso!');
+                  } else return;
+                } else throw projectError;
+              }
+            } else if (itemToDelete.type === 'task') {
+              try {
+                await deleteTask(itemToDelete.id);
+                alert('Tarefa excluída com sucesso!');
+              } catch (taskError: any) {
+                const msg = taskError.message || "";
+                if (msg.includes("horas apontadas") || msg.includes("hasHours")) {
+                  if (window.confirm("Esta tarefa possui horas apontadas. Deseja excluir a tarefa e TODOS os apontamentos de horas vinculados?")) {
+                    await deleteTask(itemToDelete.id, true);
+                    alert('Tarefa e horas excluídas com sucesso!');
+                  } else return;
+                } else throw taskError;
+              }
             }
             setItemToDelete(null);
-          } catch (err) {
+          } catch (err: any) {
             console.error(err);
-            alert('Erro ao excluir item.');
+            alert('Erro ao excluir item: ' + (err.message || 'Erro desconhecido'));
           }
         }}
         onCancel={() => setItemToDelete(null)}

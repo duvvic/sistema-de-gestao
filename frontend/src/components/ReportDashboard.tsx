@@ -457,16 +457,16 @@ const ReportDashboard: React.FC = () => {
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter border ${row.status_p === 'Desenvolvimento' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                                                row.status_p === 'Arquitetura' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                                                                    'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                                            row.status_p === 'Arquitetura' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                                                'bg-slate-500/10 text-slate-400 border-slate-500/20'
                                                             }`}>
                                                             {row.status_p || 'N/A'}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-center">
                                                         <span className={`text-[10px] font-bold ${row.complexidade_p === 'Alta' ? 'text-red-500' :
-                                                                row.complexidade_p === 'Média' ? 'text-amber-500' :
-                                                                    'text-emerald-500'
+                                                            row.complexidade_p === 'Média' ? 'text-amber-500' :
+                                                                'text-emerald-500'
                                                             }`}>
                                                             {row.complexidade_p || '-'}
                                                         </span>
@@ -507,7 +507,7 @@ interface ProjectCostRowProps {
 }
 
 const ProjectCostRow: React.FC<ProjectCostRowProps> = ({ pt, onUpdate }) => {
-    const [inputValue, setInputValue] = useState(pt.valor_projeto?.toString() || '');
+    const [inputValue, setInputValue] = useState(pt.valor_projeto && pt.valor_projeto !== 0 ? pt.valor_projeto.toString() : '');
 
     return (
         <tr className="hover:bg-[var(--bg)]/50 transition-colors">

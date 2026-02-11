@@ -264,8 +264,8 @@ const UserForm: React.FC = () => {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.hourlyCost}
-                      onChange={(e) => setFormData({ ...formData, hourlyCost: Number(e.target.value) })}
+                      value={formData.hourlyCost || ''}
+                      onChange={(e) => setFormData({ ...formData, hourlyCost: e.target.value === '' ? 0 : Number(e.target.value) })}
                       className="w-full pl-10 pr-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm font-black text-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-none"
                     />
                   </div>
@@ -286,8 +286,8 @@ const UserForm: React.FC = () => {
                   <label className="block text-[9px] font-black text-[var(--muted)] uppercase tracking-widest">Carga Horária (Dia)</label>
                   <input
                     type="number"
-                    value={formData.dailyAvailableHours}
-                    onChange={(e) => setFormData({ ...formData, dailyAvailableHours: Number(e.target.value) })}
+                    value={formData.dailyAvailableHours || ''}
+                    onChange={(e) => setFormData({ ...formData, dailyAvailableHours: e.target.value === '' ? 0 : Number(e.target.value) })}
                     className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm font-black text-[var(--text)]"
                   />
                 </div>
