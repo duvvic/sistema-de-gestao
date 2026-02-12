@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useDataController } from '@/controllers/useDataController';
 import { Client, Project, Task } from "@/types";
-import { Plus, Building2, Search as SearchIcon, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, ArrowUp, Trash2, DollarSign, Target, TrendingUp, BarChart, Users, User, Calendar, PieChart, ArrowRight, Layers, FileSpreadsheet, X, HelpCircle, Info, Handshake, ArrowLeft, Mail, Phone, ExternalLink } from "lucide-react";
+import { Plus, Building2, Search as SearchIcon, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, AlertTriangle, ArrowUp, Trash2, DollarSign, Target, TrendingUp, BarChart, Users, User, Calendar, PieChart, ArrowRight, Layers, FileSpreadsheet, X, HelpCircle, Info, Handshake, ArrowLeft, Mail, Phone, ExternalLink } from "lucide-react";
 import ConfirmationModal from "./ConfirmationModal";
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,13 +28,14 @@ const InfoTooltip: React.FC<{ title: string; content: string }> = ({ title, cont
 
 // --- COMPONENTES AUXILIARES PARA FLUIDEZ ---
 
-const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navigate }: {
+const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navigate, isIncomplete }: {
   p: Project;
   idx: number;
   safeClients: Client[];
   users: any[];
   groupedData: any;
   navigate: any;
+  isIncomplete?: boolean;
 }) => {
   const client = safeClients.find(c => c.id === p.clientId);
   const partner = safeClients.find(c => c.id === p.partnerId);
@@ -104,7 +105,14 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
         {client?.name || "-"}
       </td>
       <td className="p-3 sticky left-[290px] z-10 font-black text-xs group-hover:bg-[var(--surface-hover)] shadow-[2px_0_8px_rgba(0,0,0,0.05)] truncate border-r border-white/5" style={{ backgroundColor: rowBg, color: 'var(--text)' }}>
-        {p.name}
+        <div className="flex items-center gap-2">
+          {p.name}
+          {isIncomplete && (
+            <span title="Cadastro Incompleto">
+              <AlertTriangle className="w-3 h-3 text-yellow-500 animate-pulse" />
+            </span>
+          )}
+        </div>
       </td>
       <td className="p-3 border-r border-white/5 bg-blue-500/[0.02]"><span className="text-[10px] text-blue-400 whitespace-nowrap">{statusP}</span></td>
       <td className="p-3 text-[10px] font-mono bg-blue-500/[0.02]" style={{ color: 'var(--text-2)' }}>{formatDate(p.startDate)}</td>
@@ -202,6 +210,21 @@ const AdminDashboard: React.FC = () => {
 
   const [showPartnerDetailsId, setShowPartnerDetailsId] = useState<string | null>(null);
   const [showClientDetailsId, setShowClientDetailsId] = useState<string | null>(null);
+
+  const isProjectIncomplete = (p: Project) => {
+    return (
+      !p.name?.trim() ||
+      !p.clientId ||
+      !p.partnerId ||
+      !p.valor_total_rs ||
+      !p.horas_vendidas ||
+      !p.startDate ||
+      !p.estimatedDelivery ||
+      !p.responsibleNicLabsId ||
+      !p.managerClient ||
+      projectMembers.filter(pm => String(pm.id_projeto) === p.id).length === 0
+    );
+  };
 
   const toggleViewMode = (mode: 'grid' | 'list' | 'tasks') => {
     setViewMode(mode);
@@ -885,6 +908,7 @@ const AdminDashboard: React.FC = () => {
                       users={users}
                       groupedData={groupedData}
                       navigate={navigate}
+                      isIncomplete={isProjectIncomplete(p)}
                     />
                   ))}
                 </tbody>
@@ -1520,10 +1544,13 @@ const AdminDashboard: React.FC = () => {
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4 overflow-y-auto custom-scrollbar"
               >
                 {filteredSortedClients.map((client) => {
+                  const clientProjects = safeProjects.filter((p) => String(p.clientId) === String(client.id));
+                  const hasIncomplete = clientProjects.some(p => isProjectIncomplete(p));
+
                   return (
                     <div
                       key={client.id}
-                      className="group border rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col h-[220px]"
+                      className={`group border rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col h-[220px] relative ${hasIncomplete ? 'ring-2 ring-yellow-500/30' : ''}`}
                       style={{
                         backgroundColor: 'var(--surface)',
                         borderColor: 'var(--border)',
@@ -1532,6 +1559,11 @@ const AdminDashboard: React.FC = () => {
                         navigate(`/admin/clients/${client.id}`);
                       }}
                     >
+                      {hasIncomplete && (
+                        <div className="absolute top-2 right-2 z-20 bg-yellow-500 text-black p-1.5 rounded-full shadow-lg animate-pulse" title="Cliente possui projetos com cadastro incompleto">
+                          <AlertTriangle size={12} />
+                        </div>
+                      )}
                       <div className="w-full flex-1 bg-white dark:bg-white/95 p-3 flex items-center justify-center transition-all overflow-hidden border-b border-[var(--border)]">
                         <img
                           src={client.logoUrl}
@@ -1563,13 +1595,15 @@ const AdminDashboard: React.FC = () => {
                 {filteredSortedClients.map((client) => {
                   const clientProjects = safeProjects.filter(p => String(p.clientId) === String(client.id));
                   const clientTasks = safeTasks.filter(t => String(t.clientId) === String(client.id));
+                  const hasIncomplete = clientProjects.some(p => isProjectIncomplete(p));
 
                   return (
                     <div key={client.id} className="space-y-4">
                       <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 rounded-2xl border group transition-all shadow-lg relative overflow-hidden"
                         style={{
                           background: 'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)', // Gradiente Roxo
-                          borderColor: '#7C3AED'
+                          borderColor: hasIncomplete ? '#eab308' : '#7C3AED',
+                          borderWidth: hasIncomplete ? '2px' : '1px'
                         }}
                       >
                         <div
@@ -1578,6 +1612,14 @@ const AdminDashboard: React.FC = () => {
                             navigate(`/admin/clients/${client.id}`);
                           }}
                         >
+                          {hasIncomplete && (
+                            <div
+                              className="absolute top-4 right-4 z-20 bg-yellow-500 text-black p-2 rounded-full shadow-lg animate-pulse cursor-help"
+                              title="Este cliente possui projetos com cadastro incompleto. Clique aqui para ver detalhes e editar."
+                            >
+                              <AlertTriangle size={16} />
+                            </div>
+                          )}
                           <div className="w-16 h-16 rounded-xl border p-2 flex items-center justify-center shadow-lg bg-white border-white/20">
                             <img
                               src={client.logoUrl}
@@ -1626,12 +1668,14 @@ const AdminDashboard: React.FC = () => {
                               const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
                               const progress = projectTasks.length > 0 ? Math.round((doneTasks / projectTasks.length) * 100) : 0;
 
+                              const isIncomplete = isProjectIncomplete(project);
+
                               return (
                                 <motion.div
                                   whileHover={{ y: -4 }}
                                   key={project.id}
                                   onClick={() => navigate(`/admin/projects/${project.id}`)}
-                                  className="min-w-[280px] max-w-[280px] border rounded-2xl p-5 cursor-pointer transition-all group/card shadow-sm hover:shadow-md relative overflow-hidden"
+                                  className={`min-w-[280px] max-w-[280px] border rounded-2xl p-5 cursor-pointer transition-all group/card shadow-sm hover:shadow-md relative overflow-hidden ${isIncomplete ? 'ring-1 ring-yellow-500/50' : ''}`}
                                   style={{
                                     backgroundColor: 'var(--surface)',
                                     borderColor: 'var(--border)'
@@ -1639,6 +1683,11 @@ const AdminDashboard: React.FC = () => {
                                 >
                                   {/* Accent line at the top to keep the premium purple identity */}
                                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-70" />
+                                  {isIncomplete && (
+                                    <div className="absolute top-2 left-2 z-10 bg-yellow-500 text-black px-2 py-0.5 rounded-md text-[8px] font-black flex items-center gap-1 shadow-md animate-pulse">
+                                      <AlertTriangle size={8} /> INCOMPLETO
+                                    </div>
+                                  )}
                                   {isAdmin && (
                                     <button
                                       onClick={(e) => {
@@ -1651,7 +1700,10 @@ const AdminDashboard: React.FC = () => {
                                       <Trash2 className="w-4 h-4" />
                                     </button>
                                   )}
-                                  <h4 className="font-bold mb-3 line-clamp-1 transition-colors uppercase text-[11px] tracking-wider text-purple-600 dark:text-purple-400">{project.name}</h4>
+                                  <h4 className="font-bold mb-3 line-clamp-1 transition-colors uppercase text-[11px] tracking-wider text-purple-600 dark:text-purple-400">
+                                    {project.name}
+                                    {isIncomplete && <span className="ml-2 text-[8px] text-yellow-600 block mt-1 lowercase font-medium italic">Clique para completar cadastro</span>}
+                                  </h4>
 
                                   <div className="space-y-4">
                                     {/* Evolução Física */}
@@ -1761,14 +1813,21 @@ const AdminDashboard: React.FC = () => {
                                   <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 rounded-2xl border transition-all relative overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
 
                                     {/* Accent Line Left */}
-                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 dark:bg-purple-600" />
+                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${isProjectIncomplete(project) ? 'bg-yellow-500' : 'bg-purple-500 dark:bg-purple-600'}`} />
 
                                     <div className="flex items-center gap-4 flex-1 pl-2">
                                       {/* Removed redundant inner bar, using border accent instead */}
                                       <div className="flex flex-col">
-                                        <h4 className="font-black text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--text)' }}>
-                                          {project.name}
-                                        </h4>
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <h4 className="font-black text-[10px] uppercase tracking-widest" style={{ color: 'var(--text)' }}>
+                                            {project.name}
+                                          </h4>
+                                          {isProjectIncomplete(project) && (
+                                            <div className="bg-yellow-500 text-black px-1.5 py-0.5 rounded text-[7px] font-black flex items-center gap-1 self-center">
+                                              <AlertTriangle size={8} /> INCOMPLETO
+                                            </div>
+                                          )}
+                                        </div>
                                         <div className="flex items-center gap-3">
                                           <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${project.status === 'Concluído' || project.status === 'Done' ? 'text-emerald-500 border-emerald-200 bg-emerald-500/5' : 'text-blue-600 border-blue-200 bg-blue-500/5'
                                             }`}>

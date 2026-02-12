@@ -14,8 +14,10 @@ import {
   Filter,
   Download,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  AlertTriangle
 } from 'lucide-react';
+import { Project } from '@/types';
 
 type SortConfig = {
   key: string;
@@ -27,6 +29,23 @@ const ExecutiveDashboard: React.FC = () => {
   const { projects, tasks, clients, users, timesheetEntries } = useDataController();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'margin', direction: 'desc' });
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'critical'>('all');
+  const { projectMembers } = useDataController();
+
+  const isProjectIncomplete = (p: Project) => {
+    const pMembers = projectMembers.filter(pm => String(pm.id_projeto) === p.id);
+    return (
+      !p.name?.trim() ||
+      !p.clientId ||
+      !p.partnerId ||
+      !p.valor_total_rs ||
+      !p.horas_vendidas ||
+      !p.startDate ||
+      !p.estimatedDelivery ||
+      !p.responsibleNicLabsId ||
+      !p.managerClient ||
+      pMembers.length === 0
+    );
+  };
 
   // Calculate project metrics
   const projectMetrics = useMemo(() => {
@@ -79,7 +98,8 @@ const ExecutiveDashboard: React.FC = () => {
           totalTasks,
           completedTasks,
           overdueTasks,
-          isCritical
+          isCritical,
+          isIncomplete: isProjectIncomplete(p)
         };
       });
   }, [projects, clients, tasks, timesheetEntries, users]);
@@ -222,9 +242,8 @@ const ExecutiveDashboard: React.FC = () => {
             <button
               key={filter.value}
               onClick={() => setFilterStatus(filter.value as any)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${
-                filterStatus === filter.value ? 'shadow-sm' : ''
-              }`}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${filterStatus === filter.value ? 'shadow-sm' : ''
+                }`}
               style={{
                 backgroundColor: filterStatus === filter.value ? 'var(--primary)' : 'var(--surface-2)',
                 color: filterStatus === filter.value ? 'white' : 'var(--text-2)'
@@ -290,6 +309,11 @@ const ExecutiveDashboard: React.FC = () => {
                 <td className="px-4 py-3 font-bold" style={{ color: 'var(--text)' }}>
                   <div className="flex items-center gap-2">
                     {project.isCritical && <AlertCircle className="w-4 h-4" style={{ color: 'var(--danger)' }} />}
+                    {project.isIncomplete && (
+                      <span title="Cadastro Incompleto">
+                        <AlertTriangle className="w-4 h-4 text-yellow-500 animate-pulse" />
+                      </span>
+                    )}
                     {project.projectName}
                   </div>
                 </td>

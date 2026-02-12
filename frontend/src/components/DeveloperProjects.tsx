@@ -4,7 +4,7 @@ import AbsenceStatusWidget from "./AbsenceStatusWidget";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
-import { Briefcase, CheckSquare, LayoutGrid, List, Building2, FolderKanban } from 'lucide-react';
+import { Briefcase, CheckSquare, LayoutGrid, List, Building2, FolderKanban, AlertTriangle } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
 
@@ -21,6 +21,21 @@ const DeveloperProjects: React.FC = () => {
   const handleToggleViewMode = (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem('project_view_mode_dev', mode);
+  };
+
+  const isProjectIncomplete = (p: any) => {
+    return (
+      !p.name?.trim() ||
+      !p.clientId ||
+      !p.partnerId ||
+      !p.valor_total_rs ||
+      !p.horas_vendidas ||
+      !p.startDate ||
+      !p.estimatedDelivery ||
+      !p.responsibleNicLabsId ||
+      !p.managerClient ||
+      projectMembers.filter(pm => String(pm.id_projeto) === p.id).length === 0
+    );
   };
 
   // === FILTRAGEM DE DADOS (Limitação do Colaborador) ===
@@ -153,16 +168,16 @@ const DeveloperProjects: React.FC = () => {
 
                       const myProjectTasks = getMyTasks();
                       const myDoneTasks = myProjectTasks.filter(t => t.status === 'Done').length;
+                      const isIncomplete = isProjectIncomplete(project);
 
                       // Lógica de Cor do Card
                       const getStatusColor = () => {
                         const now = new Date();
+                        if (isIncomplete) return { borderColor: '#eab308', shadowColor: 'rgba(234, 179, 8, 0.2)', borderWidth: '2px' };
+
                         const hasDelay = myProjectTasks.some(t => {
                           if (t.status === 'Done' || t.status === 'Review') return false;
                           if (!t.estimatedDelivery) return false;
-                          // A data de entrega é string YYYY-MM-DD ou ISO. new Date resolve.
-                          // Adicionando um dia de margem ou comparando estritamente.
-                          // Se estimatedDelivery < hoje (ignora horas para simplificar ou nao)
                           return new Date(t.estimatedDelivery) < now;
                         });
 
@@ -184,7 +199,7 @@ const DeveloperProjects: React.FC = () => {
                         <button
                           key={project.id}
                           onClick={() => navigate(`/developer/projects/${project.id}`)}
-                          className="rounded-xl p-5 hover:shadow-lg transition-all text-left group relative overflow-hidden"
+                          className={`rounded-xl p-5 hover:shadow-lg transition-all text-left group relative overflow-hidden ${isIncomplete ? 'ring-2 ring-yellow-500/20' : ''}`}
                           style={{
                             backgroundColor: 'var(--surface)',
                             borderColor: statusStyle.borderColor,
@@ -201,6 +216,11 @@ const DeveloperProjects: React.FC = () => {
                             e.currentTarget.style.boxShadow = `0 4px 6px -1px ${statusStyle.shadowColor}`;
                           }}
                         >
+                          {isIncomplete && (
+                            <div className="absolute top-0 right-0 p-1 px-2 bg-yellow-500 text-black text-[8px] font-black uppercase rounded-bl-lg animate-pulse z-10 font-sans">
+                              Cadastro Incompleto
+                            </div>
+                          )}
                           <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)]" style={{ color: 'var(--textTitle)' }}>
                             {project.name}
                           </h3>
@@ -272,10 +292,13 @@ const DeveloperProjects: React.FC = () => {
 
               const myProjectTasks = getMyTasks();
               const myDoneTasks = myProjectTasks.filter(t => t.status === 'Done').length;
+              const isIncomplete = isProjectIncomplete(project);
 
               // Lógica de Cor do Card (Duplicada para manter consistência)
               const getStatusColor = () => {
                 const now = new Date();
+                if (isIncomplete) return { borderColor: '#eab308', shadowColor: 'rgba(234, 179, 8, 0.2)', borderWidth: '2px' };
+
                 const hasDelay = myProjectTasks.some(t => {
                   if (t.status === 'Done' || t.status === 'Review') return false;
                   if (!t.estimatedDelivery) return false;
@@ -300,7 +323,7 @@ const DeveloperProjects: React.FC = () => {
                 <button
                   key={project.id}
                   onClick={() => navigate(`/developer/projects/${project.id}`)}
-                  className="rounded-xl p-6 hover:shadow-lg transition-all text-left group relative overflow-hidden"
+                  className={`rounded-xl p-6 hover:shadow-lg transition-all text-left group relative overflow-hidden ${isIncomplete ? 'ring-2 ring-yellow-500/20' : ''}`}
                   style={{
                     backgroundColor: 'var(--surface)',
                     borderColor: statusStyle.borderColor,
@@ -317,6 +340,11 @@ const DeveloperProjects: React.FC = () => {
                     e.currentTarget.style.boxShadow = `0 4px 6px -1px ${statusStyle.shadowColor}`;
                   }}
                 >
+                  {isIncomplete && (
+                    <div className="absolute top-0 right-0 p-1 px-2 bg-yellow-500 text-black text-[8px] font-black uppercase rounded-bl-lg animate-pulse z-10 font-sans">
+                      Cadastro Incompleto
+                    </div>
+                  )}
                   {/* Cliente Logo */}
                   {client && (
                     <div className="flex items-center gap-2 mb-4 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>

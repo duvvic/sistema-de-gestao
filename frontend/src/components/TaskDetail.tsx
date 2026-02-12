@@ -3,10 +3,13 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
 import { Task, Status, Priority, Impact } from '@/types';
-import { ArrowLeft, Save, Calendar, Clock, Crown, Users, StickyNote, CheckSquare, Plus, Trash2, X, CheckCircle, Activity, Zap, AlertTriangle } from 'lucide-react';
+import {
+  ArrowLeft, Save, Calendar, Clock, Crown, Users, StickyNote, CheckSquare, Plus, Trash2, X, CheckCircle, Activity, Zap, AlertTriangle, Briefcase, Info, Target, LayoutGrid, Shield, User, FileSpreadsheet
+} from 'lucide-react';
 import { useUnsavedChangesPrompt } from '@/hooks/useUnsavedChangesPrompt';
 import ConfirmationModal from './ConfirmationModal';
 import TransferResponsibilityModal from './TransferResponsibilityModal';
+import BackButton from './shared/BackButton';
 
 const TaskDetail: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
@@ -23,9 +26,7 @@ const TaskDetail: React.FC = () => {
   const preSelectedProjectId = searchParams.get('projectId') || searchParams.get('project');
 
   const getDefaultDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 7);
-    return date.toISOString().split('T')[0];
+    return ''; // Removida sugestão de data fim conforme solicitado
   };
 
   const [formData, setFormData] = useState<Partial<Task>>({
@@ -54,6 +55,47 @@ const TaskDetail: React.FC = () => {
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+
+  // Validação Reativa (Imediata)
+  const isFieldMissing = (field: string) => {
+    if (field === 'team') {
+      const hasTeam = (formData.collaboratorIds && formData.collaboratorIds.length > 0) || !!formData.developerId;
+      return !hasTeam;
+    }
+    if (field === 'developerId') {
+      // Responsável é obrigatório APENAS se tiver equipe alocada (conforme regra de negócio: não mostra se não tiver equipe)
+      // Se tiver equipe, TEM que ter responsável.
+      const hasTeam = (formData.collaboratorIds && formData.collaboratorIds.length > 0) || !!formData.developerId;
+      return hasTeam && !formData.developerId;
+    }
+    // Campos padrão
+    const value = formData[field as keyof typeof formData];
+    if (field === 'estimatedHours') return !value || Number(value) <= 0;
+    return !value;
+  };
+
+  // Verificar se o cliente é NIC-LABS (projetos internos)
+  const selectedClient = clients.find(c => c.id === formData.clientId);
+  const isNicLabs = selectedClient?.name?.toUpperCase().includes('NIC-LABS') || false;
+
+  const hasError = (field: string) => {
+    // Para NIC-LABS, apenas título e projeto são obrigatórios
+    if (isNicLabs) {
+      const mandatoryFields = ['projectId', 'title'];
+      if (mandatoryFields.includes(field)) return isFieldMissing(field);
+      return false; // Outros campos são opcionais para NIC-LABS
+    }
+    
+    // Para outros clientes, validação completa
+    const mandatoryFields = ['projectId', 'clientId', 'title', 'scheduledStart', 'estimatedDelivery', 'estimatedHours'];
+    if (mandatoryFields.includes(field)) return isFieldMissing(field);
+    if (field === 'developerId') return isFieldMissing('developerId');
+    if (field === 'team') return isFieldMissing('team');
+    return false;
+  };
+
+  // Função dummy para manter compatibilidade com chamadas existentes, mas agora o erro é visual direto
+  const clearError = (field: string) => { };
 
   const { isDirty, showPrompt, markDirty, requestBack, discardChanges, continueEditing } = useUnsavedChangesPrompt();
 
@@ -127,52 +169,86 @@ const TaskDetail: React.FC = () => {
     return Math.round((current / total) * 100);
   }, [formData.scheduledStart, formData.estimatedDelivery]);
 
+  const taskWeight = useMemo(() => {
+    const project = projects.find(p => p.id === formData.projectId);
+
+    // Cálculo baseado em dias (Duration)
+    if (!project || !project.startDate || !project.estimatedDelivery || !formData.scheduledStart || !formData.estimatedDelivery) {
+      return { weight: 0, soldHours: 0 };
+    }
+
+    const projStart = new Date(project.startDate).getTime();
+    const projEnd = new Date(project.estimatedDelivery).getTime();
+    const projDuration = projEnd - projStart;
+
+    const taskStart = new Date(formData.scheduledStart).getTime();
+    const taskEnd = new Date(formData.estimatedDelivery).getTime();
+    const taskDuration = taskEnd - taskStart;
+
+    if (projDuration <= 0 || taskDuration <= 0) return { weight: 0, soldHours: 0 };
+
+    // Peso = (Duração da Tarefa / Duração do Projeto) * 100
+    const weight = (taskDuration / projDuration) * 100;
+    const soldHours = project.horas_vendidas > 0 ? (weight / 100) * project.horas_vendidas : 0;
+
+    return { weight, soldHours };
+  }, [formData.scheduledStart, formData.estimatedDelivery, formData.projectId, projects]);
+
   const taskTeamMetrics = useMemo(() => {
     if (!formData.projectId) return [];
+
+    // Identificar todos os membros únicos
     const allMemberIds = Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])].filter(Boolean)));
-    const projMembers = projectMembers.filter(pm => String(pm.id_projeto) === formData.projectId);
+    const teamSize = allMemberIds.length;
+
+    if (teamSize === 0) return [];
+
+    // Calcular totais globais da tarefa
+    const taskEntries = !isNew ? timesheetEntries.filter(entry => entry.taskId === taskId) : [];
+    const totalSpentGlobal = taskEntries.reduce((sum, entry) => sum + (Number(entry.totalHours) || 0), 0);
+    const totalEstimated = taskWeight.soldHours;
+
+    // O que sobra da fatia vendida (Global)
+    const remainingGlobal = totalEstimated - totalSpentGlobal;
+
+    // A fatia futura de CADA UM é o que sobra dividido por todos
+    // Se a sobra for negativa (estouro), a divisão também será negativa, reduzindo o limite visual
+    const futureSharePerMember = remainingGlobal / teamSize;
 
     return allMemberIds.map(userId => {
       const u = users.find(user => user.id === userId);
-      const pm = projMembers.find(member => String(member.id_colaborador) === userId);
-      const allocationPerc = pm ? Number(pm.allocation_percentage) || 0 : 0;
-      const limit = (allocationPerc / 100) * (formData.estimatedHours || 0);
-      const spent = !isNew ? timesheetEntries
-        .filter(entry => entry.taskId === taskId && entry.userId === userId)
-        .reduce((sum, entry) => sum + (Number(entry.totalHours) || 0), 0) : 0;
+
+      const userSpent = taskEntries
+        .filter(entry => entry.userId === userId)
+        .reduce((sum, entry) => sum + (Number(entry.totalHours) || 0), 0);
+
+      // O Limite dinâmico de cada um é: O que ele já gastou (garantido) + Sua parte na sobra
+      // Exemplo: 80h total, 2 devs. 
+      // Dev A gastou 60h. Total Gasto = 60. Sobra = 20. Divisão Sobra = 10.
+      // Dev A Limite = 60 + 10 = 70h. (Ele gastou 60 de 70, ok)
+      // Dev B Limite = 0 + 10 = 10h.  (Ele tem 10h restantes)
+      // Soma dos Limites = 70 + 10 = 80h. (Fecha a conta)
+      const dynamicLimit = userSpent + futureSharePerMember;
 
       return {
         id: userId!,
         name: u?.name || '?',
         avatarUrl: u?.avatarUrl,
         cargo: u?.cargo || 'Membro',
-        spent,
-        limit,
+        spent: userSpent,
+        limit: dynamicLimit,
         isResponsible: userId === formData.developerId,
-        percent: limit > 0 ? Math.min(100, (spent / limit) * 100) : 0
+        percent: dynamicLimit > 0 ? Math.min(100, (userSpent / dynamicLimit) * 100) : (userSpent > 0 ? 100 : 0)
       };
     });
-  }, [formData.developerId, formData.collaboratorIds, formData.projectId, formData.estimatedHours, projectMembers, users, timesheetEntries, taskId, isNew]);
-
-  const projectTotalHours = useMemo(() => {
-    if (!formData.projectId) return 0;
-    // Soma horas de todas as tarefas do projeto (exceto a atual se estivermos editando, para somar o valor do formulário)
-    const otherTasksHours = tasks
-      .filter(t => t.projectId === formData.projectId && t.id !== taskId)
-      .reduce((sum, t) => sum + (Number(t.estimatedHours) || 0), 0);
-    return otherTasksHours + (Number(formData.estimatedHours) || 0);
-  }, [tasks, formData.projectId, formData.estimatedHours, taskId]);
-
-  const taskWeight = useMemo(() => {
-    if (!projectTotalHours || !formData.estimatedHours) return 0;
-    return (Number(formData.estimatedHours) / projectTotalHours) * 100;
-  }, [projectTotalHours, formData.estimatedHours]);
+  }, [formData.developerId, formData.collaboratorIds, formData.projectId, taskWeight.soldHours, users, timesheetEntries, taskId, isNew]);
 
   // Permissões
   const isOwner = task && task.developerId === currentUser?.id;
   const isCollaborator = !isNew && task && task.collaboratorIds?.includes(currentUser?.id || '');
   const canEditEverything = isAdmin || isNew;
-  const canEditProgressStatus = isAdmin || isOwner || isNew;
+  // Permite que colaboradores também editem status, progresso e notas
+  const canEditProgressStatus = isAdmin || isOwner || isCollaborator || isNew;
   const canAnyEdit = isAdmin || isOwner || isCollaborator || isNew;
 
   const getDelayDays = () => {
@@ -187,10 +263,36 @@ const TaskDetail: React.FC = () => {
   // Handlers
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.projectId || !formData.clientId || !formData.title || !formData.developerId) {
-      alert("Preencha todos os campos obrigatórios");
+
+    // Validação estrita dos campos obrigatórios NO SUBMIT
+    const errors: string[] = [];
+    if (isFieldMissing('projectId')) errors.push('projectId');
+    if (isFieldMissing('clientId')) errors.push('clientId');
+    if (isFieldMissing('title')) errors.push('title');
+    if (isFieldMissing('team')) errors.push('team');
+    if (isFieldMissing('developerId')) errors.push('developerId');
+    if (isFieldMissing('scheduledStart')) errors.push('scheduledStart');
+    if (isFieldMissing('estimatedDelivery')) errors.push('estimatedDelivery');
+    if (isFieldMissing('estimatedHours')) errors.push('estimatedHours');
+
+    if (errors.length > 0) {
+      const missingFields = errors.map(e => {
+        switch (e) {
+          case 'projectId': return 'Projeto';
+          case 'clientId': return 'Cliente';
+          case 'title': return 'Título';
+          case 'developerId': return 'Responsável';
+          case 'team': return 'Equipe Alocada';
+          case 'scheduledStart': return 'Previsão Início';
+          case 'estimatedDelivery': return 'Previsão Entrega';
+          case 'estimatedHours': return 'Horas Planejadas';
+          default: return e;
+        }
+      });
+      alert(`Campos obrigatórios faltando:\n- ${missingFields.join('\n- ')}\n\nPor favor, preencha os campos destacados em amarelo.`);
       return;
     }
+
     try {
       setLoading(true);
       const payload: any = { ...formData, progress: Number(formData.progress), estimatedHours: Number(formData.estimatedHours) };
@@ -238,360 +340,384 @@ const TaskDetail: React.FC = () => {
     return users.filter(u => u.active !== false && (membersIds.includes(u.id) || u.id === formData.developerId));
   }, [users, projectMembers, formData.projectId, formData.developerId]);
 
-  // Sub-Renders
-  const renderHeader = () => (
-    <div className={`px-5 py-3 border-b flex items-center justify-between sticky top-0 z-20 backdrop-blur-xl transition-colors ${daysDelayed > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-[var(--surface)] border-[var(--border)]'}`}>
-      <div className="flex items-center gap-3">
-        <button onClick={() => requestBack() && navigate(-1)} className="p-2 rounded-lg hover:bg-purple-500/10 text-[var(--muted)] group">
-          <ArrowLeft className="w-4 h-4 group-hover:text-purple-500 transition-colors" />
-        </button>
-        <div>
-          <h1 className="text-lg font-black flex items-center gap-2 text-[var(--text)]">
-            {isNew ? 'Nova Tarefa' : 'Detalhes da Tarefa'}
-            {daysDelayed > 0 && (
-              <span className="flex items-center gap-1 text-[8px] px-2 py-0.5 rounded-full bg-red-500 text-white uppercase font-black animate-pulse">
-                <AlertTriangle size={10} />
-                {daysDelayed} dias de atraso
-              </span>
-            )}
-          </h1>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {!isNew && (isAdmin || isOwner) && (
-          <button onClick={() => setDeleteConfirmation({ force: false })} className="p-2 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
-        )}
-        {canAnyEdit && (
-          <button onClick={handleSubmit} disabled={loading} className="px-5 py-2 rounded-lg bg-[var(--primary)] text-white text-[10px] font-black uppercase shadow-lg hover:scale-105 transition-all">
-            {loading ? '...' : 'Salvar'}
-          </button>
-        )}
-      </div>
-    </div>
-  );
+  const currentDeveloper = useMemo(() => users.find(u => u.id === formData.developerId), [users, formData.developerId]);
 
-  const renderIdentification = () => (
-    <div className="p-4 rounded-xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-[var(--surface-2)] shadow-lg h-full flex flex-col gap-4">
-      <div className="flex items-center gap-2 opacity-50"><CheckSquare size={14} /><h3 className="text-[9px] font-black uppercase tracking-widest">Identificação</h3></div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-[7px] font-black uppercase opacity-30">Cliente</label>
-          <select value={formData.clientId} onChange={e => setFormData({ ...formData, clientId: e.target.value, projectId: '' })} className="w-full bg-[var(--bg)]/50 p-2 rounded-lg text-[10px] font-bold border border-[var(--border)] outline-none" disabled={!canEditEverything}>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-[7px] font-black uppercase opacity-30">Projeto</label>
-          <select value={formData.projectId} onChange={e => setFormData({ ...formData, projectId: e.target.value })} className="w-full bg-[var(--bg)]/50 p-2 rounded-lg text-[10px] font-bold border border-[var(--border)] outline-none" disabled={!canEditEverything}>{filteredProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-        </div>
-      </div>
-      <div className="space-y-1">
-        <label className="text-[7px] font-black uppercase opacity-30">Responsável</label>
-        <select value={formData.developerId} onChange={e => { const u = users.find(usr => usr.id === e.target.value); setFormData({ ...formData, developerId: e.target.value, developer: u?.name || '' }) }} className="w-full bg-[var(--bg)]/50 p-2 rounded-lg text-[10px] font-bold border border-[var(--border)] outline-none" disabled={!canEditEverything}>{responsibleUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
-      </div>
-      <div className="space-y-1 flex-1 flex flex-col min-h-[120px]">
-        <label className="text-[7px] font-black uppercase opacity-30">Título</label>
-        <input type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full bg-transparent border-none p-0 text-sm font-black outline-none" placeholder="Título..." disabled={!canEditEverything} />
-        <label className="text-[7px] font-black uppercase opacity-30 mt-3">Descrição</label>
-        <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="flex-1 w-full bg-[var(--bg)]/30 border border-[var(--border)] rounded-lg p-2.5 text-[10px] outline-none resize-none leading-relaxed transition-all focus:border-purple-500/30" placeholder="Descrição detalhada da tarefa..." disabled={!canEditEverything} />
-      </div>
-      <div className="p-3 bg-[var(--bg)]/40 border border-dashed border-[var(--border)] rounded-xl flex flex-col min-h-[140px] flex-grow transition-all hover:border-amber-500/20">
-        <div className="flex items-center gap-1.5 opacity-30 mb-2"><StickyNote size={11} /><span className="text-[8px] font-black uppercase tracking-wider">Notas Internas</span></div>
-        <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} className="flex-1 bg-transparent border-none p-0 text-[10px] outline-none resize-none leading-relaxed placeholder:opacity-20" placeholder="Anote observações importantes aqui..." disabled={!canEditEverything} />
-      </div>
-    </div>
-  );
 
-  const renderTimeline = () => {
-    const totalDays = formData.scheduledStart && formData.estimatedDelivery ? Math.ceil((new Date(formData.estimatedDelivery).getTime() - new Date(formData.scheduledStart).getTime()) / 86400000) : 0;
-    const daysUsed = formData.scheduledStart ? Math.ceil((new Date().getTime() - new Date(formData.scheduledStart).getTime()) / 86400000) : 0;
-    const progressPerc = totalDays > 0 ? Math.min(Math.max((daysUsed / totalDays) * 100, 0), 100) : 0;
-
-    return (
-      <div className={`p-4 rounded-xl border transition-all shadow-lg flex flex-col gap-4 ${daysDelayed > 0 ? 'border-red-500/40 bg-red-500/5' : 'border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-[var(--surface-2)]'}`}>
-        <div className="flex items-center justify-between opacity-50">
-          <div className="flex items-center gap-2"><Calendar size={14} /><h3 className="text-[9px] font-black uppercase tracking-widest">Cronograma</h3></div>
-          {daysDelayed > 0 && <span className="text-[8px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1"><AlertTriangle size={10} /> Em Atraso</span>}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1"><label className="text-[7px] font-black uppercase opacity-30">Previsão Início</label><input type="date" value={formData.scheduledStart} onChange={e => setFormData({ ...formData, scheduledStart: e.target.value })} className="w-full bg-[var(--bg)]/50 p-2 rounded-lg text-[10px] font-bold border border-[var(--border)]" disabled={!canEditEverything} /></div>
-          <div className="space-y-1"><label className={`text-[7px] font-black uppercase opacity-30 ${daysDelayed > 0 ? 'text-red-400 opacity-100' : ''}`}>Previsão Entrega</label><input type="date" value={formData.estimatedDelivery} onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })} className={`w-full p-2 rounded-lg text-[10px] font-bold border ${daysDelayed > 0 ? 'bg-red-500/10 border-red-500 text-red-200' : 'bg-[var(--bg)]/50 border-[var(--border)]'}`} disabled={!canEditEverything} /></div>
-        </div>
-        <div className="p-3 bg-[var(--bg)]/40 rounded-lg space-y-2">
-          <div className="flex justify-between items-end"><span className="text-[8px] font-black uppercase opacity-30">Jornada</span><span className={`text-sm font-black ${daysDelayed > 0 ? 'text-red-500' : 'text-blue-500'}`}>{Math.round(progressPerc)}%</span></div>
-          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-1000 ${daysDelayed > 0 ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} style={{ width: `${progressPerc}%` }} /></div>
-          <div className="flex justify-between text-[7px] font-bold opacity-30 uppercase"><span>{totalDays}d total</span><span className={daysDelayed > 0 ? 'text-red-500 opacity-100' : ''}>{daysDelayed > 0 ? `${daysDelayed}d extrapolados` : `${Math.max(0, totalDays - daysUsed)}d restantes`}</span></div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="p-2 bg-[var(--bg)]/30 rounded-lg border border-[var(--border)]/20 text-center"><p className="text-[6px] font-black uppercase opacity-30">Real Início</p><p className="text-[10px] font-black text-blue-400">{formData.actualStart?.split('-').reverse().slice(0, 2).join('/') || '--'}</p></div>
-          <div className={`p-2 bg-[var(--bg)]/30 rounded-lg border text-center ${formData.actualDelivery ? 'border-emerald-500/30' : 'border-[var(--border)]/20'}`}><p className="text-[6px] font-black uppercase opacity-30">Real Entrega</p><p className="text-[10px] font-black text-emerald-400">{formData.actualDelivery?.split('-').reverse().slice(0, 2).join('/') || '--'}</p></div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderEffort = () => (
-    <div className="p-4 rounded-xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-[var(--surface-2)] shadow-lg flex-1 flex flex-col gap-4">
-      <div className="flex items-center gap-2 opacity-50"><Clock size={14} /><h3 className="text-[9px] font-black uppercase tracking-widest">Esforço</h3></div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="p-3 bg-[var(--bg)]/40 rounded-lg text-center border border-[var(--border)]/10">
-          <label className="text-[7px] font-black uppercase opacity-30 block">Planejado</label>
-          <input
-            type="number"
-            value={formData.estimatedHours || ''}
-            onChange={e => {
-              markDirty();
-              const val = e.target.value === '' ? 0 : Number(e.target.value);
-              setFormData({ ...formData, estimatedHours: val });
-            }}
-            className="bg-transparent border-none text-xl font-black text-center w-full outline-none placeholder:opacity-10"
-            placeholder="0"
-            disabled={!canEditEverything}
-          />
-          <span className="text-[8px] font-bold opacity-30">horas</span>
-        </div>
-        <div className="p-3 bg-[var(--bg)]/40 rounded-lg text-center border border-[var(--border)]/10"><label className="text-[7px] font-black uppercase opacity-30 block">Apontado</label><p className={`text-xl font-black ${actualHoursSpent > (formData.estimatedHours || 0) ? 'text-red-500' : 'text-emerald-500'}`}>{actualHoursSpent}</p><span className="text-[8px] font-bold opacity-30">horas</span></div>
-      </div>
-      <div className="mt-auto p-3 bg-purple-500/5 border border-purple-500/10 rounded-lg flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity size={12} className="text-purple-400" />
-            <span className="text-[8px] font-black uppercase opacity-60">Peso no Projeto</span>
-          </div>
-          <span className="text-sm font-black text-purple-400">{formData.estimatedHours ? `${taskWeight.toFixed(1)}%` : '--'}</span>
-        </div>
-
-        {/* Barra Visual de Peso */}
-        <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden flex">
-          <div className="h-full bg-purple-500" style={{ width: `${Math.min(taskWeight, 100)}%` }} />
-        </div>
-
-        {!formData.estimatedHours && (
-          <p className="text-[8px] text-yellow-500/70 font-bold text-center mt-1 animate-pulse">Defina o Planejado para calcular</p>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderStatusPriority = () => (
-    <div className="p-4 rounded-xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-[var(--surface-2)] shadow-lg flex flex-col gap-4">
-      <div className="flex items-center gap-2 opacity-50"><Activity size={14} /><h3 className="text-[9px] font-black uppercase tracking-widest">Estado & Prioridade</h3></div>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            markDirty();
-            const startParts = formData.scheduledStart?.split('-') || [];
-            const start = startParts.length === 3 ? new Date(Number(startParts[0]), Number(startParts[1]) - 1, Number(startParts[2])) : null;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const autoStatus = (start && today >= start) ? 'In Progress' : 'Todo';
-            setFormData({ ...formData, status: autoStatus });
-          }}
-          className={`col-span-2 py-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${formData.status === 'Todo' || formData.status === 'In Progress' ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/20' : 'bg-[var(--surface-2)] border-[var(--border)] opacity-50 hover:opacity-100'}`}
-          disabled={!canEditProgressStatus}
-        >
-          <Zap size={14} /><span className="text-[9px] font-black uppercase">Automático</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => { markDirty(); setFormData({ ...formData, status: 'Review' }); }}
-          className={`py-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${formData.status === 'Review' ? 'bg-amber-600 border-amber-400 text-white shadow-lg shadow-amber-500/20' : 'bg-[var(--surface-2)] border-[var(--border)] opacity-50 hover:opacity-100'}`}
-          disabled={!canEditProgressStatus}
-        >
-          <Clock size={14} /><span className="text-[9px] font-black uppercase">Pendente</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => { markDirty(); setFormData({ ...formData, status: 'Done' }); }}
-          className={`py-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${formData.status === 'Done' ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-500/20' : 'bg-[var(--surface-2)] border-[var(--border)] opacity-50 hover:opacity-100'}`}
-          disabled={!canEditProgressStatus}
-        >
-          <CheckCircle size={14} /><span className="text-[9px] font-black uppercase">Concluído</span>
-        </button>
-      </div>
-      <div className="space-y-1 mt-1">
-        <label className="text-[7px] font-black uppercase opacity-30 ml-0.5">Prioridade</label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {(['Low', 'Medium', 'High', 'Critical'] as Priority[]).map(p => (
-            <button key={p} type="button" onClick={() => { markDirty(); setFormData({ ...formData, priority: p }); }} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${formData.priority === p ? 'bg-purple-600 border-purple-400 text-white shadow-md' : 'bg-[var(--surface-2)] border-[var(--border)] opacity-50 hover:opacity-100'}`} disabled={!canEditEverything}>{p === 'Low' ? 'Baixa' : p === 'Medium' ? 'Média' : p === 'High' ? 'Alta' : 'Crítica'}</button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-auto pt-4 border-t border-[var(--border)]/20 space-y-2.5">
-        <div className="flex justify-between text-[8px] font-black uppercase px-0.5"><span className="opacity-40">Progresso Atual</span><span className="text-purple-400 font-black text-[10px] tabular-nums">{formData.progress}%</span></div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={formData.progress}
-          onChange={e => { markDirty(); setFormData({ ...formData, progress: Number(e.target.value) }); }}
-          className="w-full h-2 rounded-full appearance-none bg-slate-800 accent-purple-500 cursor-pointer focus:outline-none hover:accent-purple-400 transition-all"
-          disabled={!canEditProgressStatus}
-        />
-      </div>
-    </div>
-  );
-
-  const renderTeam = () => (
-    <div className="p-4 rounded-xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-[var(--surface-2)] shadow-lg flex-1 flex flex-col gap-3 min-h-0">
-      <div className="flex items-center justify-between opacity-50">
-        <div className="flex items-center gap-2">
-          <Users size={14} />
-          <h3 className="text-[9px] font-black uppercase tracking-widest">Equipe Alocada</h3>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
-        {taskTeamMetrics.map(m => (
-          <div
-            key={m.id}
-            onClick={() => isAdmin && setActiveMemberId(activeMemberId === m.id ? null : m.id)}
-            className={`relative p-3 rounded-xl border transition-all cursor-pointer group/member overflow-hidden ${activeMemberId === m.id ? 'bg-purple-500/10 border-purple-500/40' : 'bg-[var(--bg)]/40 border-[var(--border)] hover:border-purple-500/20'}`}
-          >
-            {/* Overlay de Ações */}
-            {activeMemberId === m.id && isAdmin && (
-              <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-20 flex items-center justify-center gap-4 rounded-xl animate-in fade-in zoom-in duration-200">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (m.isResponsible) return;
-                    markDirty();
-                    const currentCollabs = formData.collaboratorIds || [];
-                    const oldDevId = formData.developerId;
-                    let newCollabs = currentCollabs.filter(id => id !== m.id);
-                    if (oldDevId && oldDevId !== m.id && !newCollabs.includes(oldDevId)) newCollabs.push(oldDevId);
-                    setFormData({ ...formData, developerId: m.id, developer: m.name, collaboratorIds: newCollabs });
-                    setActiveMemberId(null);
-                  }}
-                  title="Tornar Responsável"
-                  className={`p-2 rounded-lg transition-all shadow-lg ${m.isResponsible ? 'bg-yellow-500/50 cursor-not-allowed text-white' : 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500 hover:text-white'}`}
-                >
-                  <Crown size={16} />
-                </button>
-                {!m.isResponsible && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markDirty();
-                      const current = formData.collaboratorIds || [];
-                      setFormData({ ...formData, collaboratorIds: current.filter(id => id !== m.id) });
-                      setActiveMemberId(null);
-                    }}
-                    title="Remover da Equipe"
-                    className="p-2 rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-                <button onClick={(e) => { e.stopPropagation(); setActiveMemberId(null); }} className="absolute top-1.5 right-1.5 p-1 text-slate-500 hover:text-slate-300">
-                  <X size={12} />
-                </button>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className={`w-10 h-10 rounded-xl overflow-hidden border-2 transition-colors ${m.isResponsible ? 'border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.2)]' : 'border-purple-500/10'}`}>
-                  {m.avatarUrl ? (
-                    <img src={m.avatarUrl} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-indigo-700 text-white font-black text-xs">
-                      {m.name.charAt(0)}
-                    </div>
-                  )}
-                </div>
-                {m.isResponsible && (
-                  <div className="absolute -top-1 -right-1 bg-yellow-500 rounded p-0.5 border border-slate-900 shadow-sm">
-                    <Crown size={8} className="text-white fill-white" />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-[11px] font-black text-slate-100 truncate">{m.name}</p>
-                    <p className="text-[8px] font-bold text-purple-400 uppercase tracking-wider">{m.cargo}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[7px] font-black uppercase opacity-30 mb-0.5 whitespace-nowrap">Apontado / Alocado</p>
-                    <p className="text-[10px] font-black text-slate-100 tabular-nums">{m.spent.toFixed(1)}h<span className="opacity-30 mx-1">/</span><span className="text-purple-400">{m.limit.toFixed(1)}h</span></p>
-                  </div>
-                </div>
-                <div className="mt-2 h-1.5 rounded-full bg-slate-800/50 overflow-hidden border border-white/5">
-                  <div
-                    className={`h-full transition-all duration-700 ${m.percent > 90 ? 'bg-red-500' : 'bg-gradient-to-r from-purple-600 to-indigo-500'}`}
-                    style={{ width: `${Math.min(m.percent, 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {isAdmin && (
-          <button
-            onClick={() => setIsAddMemberOpen(true)}
-            className="w-full py-3 border border-dashed border-[var(--border)] rounded-xl text-[9px] font-black uppercase opacity-40 hover:opacity-100 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all flex items-center justify-center gap-2"
-          >
-            <Plus size={14} />
-            Adicionar Colaborador
-          </button>
-        )}
-
-        {taskTeamMetrics.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-[var(--border)] rounded-xl bg-slate-900/40 p-4 opacity-30">
-            <Users size={20} className="mb-2 text-slate-600" />
-            <p className="text-[9px] font-black uppercase text-slate-600 tracking-widest">Sem membros alocados</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   if (!isNew && !task) return <div className="p-8 text-center" style={{ color: 'var(--textMuted)' }}>Tarefa não encontrada.</div>;
 
   return (
-    <div className="h-full flex flex-col rounded-xl shadow-md border overflow-hidden bg-[var(--surface)] border-[var(--border)]">
-      {renderHeader()}
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-[var(--bg)]">
-        <div className="max-w-7xl mx-auto h-full flex flex-col gap-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full items-stretch">
-            <div className="flex flex-col gap-4">{renderIdentification()}</div>
-            <div className="flex flex-col gap-4">{renderTimeline()}{renderEffort()}</div>
-            <div className="flex flex-col gap-4">{renderStatusPriority()}{renderTeam()}</div>
-          </div>
-        </div>
-      </div>
-
-      <ConfirmationModal isOpen={!!deleteConfirmation} title={deleteConfirmation?.force ? "Exclusão Forçada" : "Excluir Tarefa"} message={deleteConfirmation?.force ? "Esta tarefa possui horas. Excluir tudo?" : "Tem certeza?"} confirmText="Excluir" cancelText="Cancelar" onConfirm={performDelete} onCancel={() => setDeleteConfirmation(null)} />
-      {showPrompt && <ConfirmationModal isOpen={true} title="Descartar alterações?" message="Você tem alterações não salvas." confirmText="Continuar editando" cancelText="Descartar" onConfirm={continueEditing} onCancel={() => { discardChanges(); navigate(-1); }} />}
-      {task && isOwner && !isAdmin && (
-        <TransferResponsibilityModal
-          isOpen={transferModalOpen}
-          currentOwner={{ id: currentUser?.id!, name: currentUser?.name! }}
-          collaborators={(task.collaboratorIds || [])
-            .map(id => users.find(u => u.id === id))
-            .filter((u): u is typeof users[0] => !!u)
-            .map(u => ({ id: u.id, name: u.name }))}
-          onConfirm={handleTransferResponsibility}
-          onCancel={() => setTransferModalOpen(false)}
-        />
-      )}
-
-      {isAddMemberOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsAddMemberOpen(false)}>
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center"><h4 className="text-[9px] font-black uppercase tracking-widest">Selecionar</h4><button onClick={() => setIsAddMemberOpen(false)} className="text-slate-500 hover:text-slate-300"><X size={14} /></button></div>
-            <div className="p-2 max-h-[250px] overflow-y-auto custom-scrollbar">
-              {users.filter(u => u.active !== false && projectMembers.some(pm => String(pm.id_projeto) === formData.projectId && String(pm.id_colaborador) === u.id) && u.id !== formData.developerId && !formData.collaboratorIds?.includes(u.id)).map(u => (
-                <button key={u.id} onClick={() => { markDirty(); const curr = formData.collaboratorIds || []; setFormData({ ...formData, collaboratorIds: [...curr, u.id] }); setIsAddMemberOpen(false); }} className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-purple-500/10 transition-colors"><div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-[8px] font-black">{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : u.name[0]}</div><span className="text-[10px] font-bold">{u.name}</span></button>
-              ))}
+    <div className="h-full flex flex-col bg-[var(--bg)] overflow-hidden">
+      {/* HEADER - Replicating Project Dashboard Style */}
+      <div className="px-8 py-6 shadow-lg flex items-center justify-between text-white z-20" style={{ background: 'linear-gradient(to right, #1e1b4b, #4c1d95)' }}>
+        <div className="flex items-center gap-4">
+          <BackButton />
+          <div>
+            <h1 className="text-xl font-bold flex items-center gap-3">
+              {isNew ? 'Nova Tarefa' : 'Detalhes da Tarefa'}
+              {daysDelayed > 0 && (
+                <span className="flex items-center gap-1 text-[8px] px-2 py-0.5 rounded-full bg-red-500 text-white uppercase font-black animate-pulse align-middle">
+                  <AlertTriangle size={10} /> {daysDelayed} dias de atraso
+                </span>
+              )}
+            </h1>
+            <div className="flex items-center gap-2 mt-1 opacity-60">
+              <span className="text-xs font-medium uppercase tracking-tighter">Fluxo de Cadastro Premium</span>
             </div>
           </div>
         </div>
-      )}
+
+        <div className="flex items-center gap-3">
+          {!isNew && (isAdmin || isOwner) && (
+            <button
+              onClick={() => setDeleteConfirmation({ force: false })}
+              className="px-4 py-2.5 rounded-xl font-bold text-xs text-red-100 hover:bg-white/10 transition-all flex items-center gap-2"
+            >
+              <Trash2 size={16} /> EXCLUIR
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-5 py-2.5 rounded-xl font-bold text-xs transition-all hover:bg-white/10 text-white"
+            disabled={loading}
+          >
+            CANCELAR
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-8 py-2.5 bg-white text-indigo-950 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xl hover:bg-indigo-50 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
+            disabled={loading}
+          >
+            <Save className="w-4 h-4 shadow-sm" />
+            {loading ? 'SALVANDO...' : 'SALVAR TAREFA'}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area - Grid Layout matching Project Dashboard */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+        <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-4">
+
+          {/* ROW 1: 4 KPI CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+            {/* Card 1: Identificação */}
+            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col h-[260px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Identificação</h4>
+                <Briefcase size={14} className="text-purple-500" />
+              </div>
+              <div className="space-y-3 flex-1">
+                <div>
+                  <label className={`text-[9px] font-black uppercase mb-1 block opacity-60 ${hasError('title') ? 'text-yellow-500 opacity-100' : ''}`}>Nome da Tarefa *</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={e => { setFormData({ ...formData, title: e.target.value }); clearError('title'); }}
+                    className={`w-full px-3 py-2 text-sm font-bold border rounded-xl outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    style={{ color: 'var(--text)' }}
+                    placeholder="Nome da Tarefa"
+                    disabled={!canEditEverything}
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={e => setFormData({ ...formData, status: e.target.value as any })}
+                    className="w-full px-3 py-2 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    <option value="Todo">Não Iniciado</option>
+                    <option value="In Progress">Iniciado</option>
+                    <option value="Review">Pendente</option>
+                    <option value="Done">Concluído</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Gestão */}
+            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col h-[260px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Gestão</h4>
+                <Shield size={14} className="text-emerald-500" />
+              </div>
+              <div className="space-y-4 flex-1">
+                <div>
+                  <label className={`text-[9px] font-black uppercase mb-1 block opacity-60 ${hasError('developerId') ? 'text-yellow-500 opacity-100' : ''}`}>Responsável *</label>
+                  <select
+                    value={formData.developerId}
+                    onChange={e => {
+                      const u = users.find(usr => usr.id === e.target.value);
+                      setFormData({ ...formData, developerId: e.target.value, developer: u?.name || '' });
+                      clearError('developerId');
+                    }}
+                    className={`w-full px-3 py-2 text-xs font-bold border rounded-xl outline-none transition-all ${hasError('developerId') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    style={{ color: 'var(--text)' }}
+                    disabled={!canEditEverything}
+                  >
+                    <option value="">Selecione...</option>
+                    {responsibleUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Prioridade</label>
+                  <select
+                    value={formData.priority}
+                    onChange={e => setFormData({ ...formData, priority: e.target.value as any })}
+                    className="w-full px-3 py-2 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    <option value="Low">Baixa</option>
+                    <option value="Medium">Média</option>
+                    <option value="High">Alta</option>
+                    <option value="Critical">Crítica</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Esforço */}
+            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col h-[260px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Esforço</h4>
+                <Activity size={14} className="text-amber-500" />
+              </div>
+              <div className="space-y-3">
+                {isNicLabs && (
+                  <div className="text-[8px] font-bold text-amber-400 opacity-60 italic">
+                    ℹ️ Projeto interno - Horas opcionais
+                  </div>
+                )}
+                <div>
+                  <label className={`text-[9px] font-black uppercase mb-1 block opacity-60 ${hasError('estimatedHours') ? 'text-yellow-500 opacity-100' : ''}`}>
+                    Horas Estimadas {!isNicLabs && '*'}
+                  </label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                    <input
+                      type="number"
+                      value={formData.estimatedHours || ''}
+                      onChange={e => { setFormData({ ...formData, estimatedHours: Number(e.target.value) }); clearError('estimatedHours'); }}
+                      className={`w-full pl-9 pr-3 py-4 text-xl font-black border rounded-2xl outline-none transition-all tabular-nums ${hasError('estimatedHours') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                      style={{ color: 'var(--text)' }}
+                      placeholder="0"
+                      disabled={!canEditEverything}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Progresso (%)</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={formData.progress}
+                      onChange={e => setFormData({ ...formData, progress: Number(e.target.value) })}
+                      className="flex-1 h-2 rounded-full appearance-none bg-slate-800 accent-purple-500 cursor-pointer"
+                    />
+                    <span className="text-sm font-black text-purple-400 w-12 text-right">{formData.progress}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Timeline */}
+            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col h-[260px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Timeline</h4>
+                <Calendar size={14} className="text-blue-500" />
+              </div>
+              <div className="space-y-3">
+                {isNicLabs && (
+                  <div className="text-[8px] font-bold text-blue-400 opacity-60 italic">
+                    ℹ️ Projeto interno - Datas opcionais
+                  </div>
+                )}
+                <div className="p-4 rounded-2xl border border-dashed" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg)' }}>
+                  <label className="text-[9px] font-black uppercase mb-2 block text-blue-500">Planejado {!isNicLabs && '(Obrigatório)'}</label>
+                  <div className="space-y-3">
+                    <input
+                      type="date"
+                      value={formData.scheduledStart}
+                      onChange={e => { setFormData({ ...formData, scheduledStart: e.target.value }); clearError('scheduledStart'); }}
+                      className={`w-full text-xs font-bold p-2 rounded-lg border outline-none ${hasError('scheduledStart') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-transparent border-[var(--border)]'}`}
+                      style={{ color: 'var(--text)' }}
+                      disabled={!canEditEverything}
+                    />
+                    <input
+                      type="date"
+                      value={formData.estimatedDelivery}
+                      onChange={e => { setFormData({ ...formData, estimatedDelivery: e.target.value }); clearError('estimatedDelivery'); }}
+                      className={`w-full text-xs font-bold p-2 rounded-lg border outline-none ${hasError('estimatedDelivery') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-purple-500/10 border-purple-500/50 text-purple-500'}`}
+                      style={{ color: hasError('estimatedDelivery') ? 'var(--text)' : undefined }}
+                      disabled={!canEditEverything}
+                    />
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl border border-dotted" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg)' }}>
+                  <label className="text-[9px] font-black uppercase mb-2 block opacity-40">Realizado</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="date" value={formData.actualStart} onChange={e => setFormData({ ...formData, actualStart: e.target.value })} className="text-[9px] font-bold p-1 bg-transparent border-b border-[var(--border)] outline-none" style={{ color: 'var(--text)' }} />
+                    <input type="date" value={formData.actualDelivery} onChange={e => setFormData({ ...formData, actualDelivery: e.target.value })} className="text-[9px] font-bold p-1 bg-transparent border-b border-[var(--border)] outline-none" style={{ color: 'var(--text)' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ROW 2: DOCUMENTATION & SQUAD */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Documentation Card (2/3 width) */}
+            <div className="lg:col-span-2 p-6 rounded-[24px] border shadow-sm space-y-4" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                <FileSpreadsheet size={14} /> Documentação
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black uppercase opacity-40 block mb-2">Link do Sharepoint/OneDrive</label>
+                <input
+                  type="url"
+                  value={formData.notes}
+                  onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-4 py-3 text-xs border rounded-2xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-2 focus:ring-indigo-500/20"
+                  style={{ color: 'var(--text)' }}
+                />
+              </div>
+            </div>
+
+            {/* Squad Card (1/3 width) with Scroll */}
+            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col max-h-[320px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                  <Users size={14} /> Equipe Alocada
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddMemberOpen(true)}
+                  className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 transition-all"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
+                {/* Developer / Owner */}
+                <div>
+                  <label className="text-[8px] font-black uppercase opacity-40 mb-2 block">Responsável Principal</label>
+                  {currentDeveloper ? (
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/20">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-indigo-500 shadow-lg shadow-indigo-500/20">
+                        {currentDeveloper.avatarUrl ? <img src={currentDeveloper.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-[var(--surface-2)] font-bold text-xs">{currentDeveloper.name.substring(0, 2).toUpperCase()}</div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-indigo-400 truncate">{currentDeveloper.name}</p>
+                        <p className="text-[8px] font-black uppercase opacity-40 truncate">{currentDeveloper.cargo || 'Responsável'}</p>
+                      </div>
+                      <button type="button" onClick={() => setFormData({ ...formData, developerId: '' })} className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500/50 hover:text-red-500 transition-all"><X size={12} /></button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setIsAddMemberOpen(true)} className="w-full py-4 rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-2 opacity-50 hover:opacity-100 hover:bg-[var(--surface-hover)] transition-all">
+                      <User size={16} />
+                      <span className="text-[9px] font-black uppercase">Definir Responsável</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Collaborators */}
+                <div className="pt-4 border-t border-[var(--border)]">
+                  <label className="text-[8px] font-black uppercase opacity-40 mb-2 block">Colaboradores ({formData.collaboratorIds.length})</label>
+                  <div className="space-y-2">
+                    {formData.collaboratorIds.map(id => {
+                      const collab = users.find(u => u.id === id);
+                      if (!collab) return null;
+                      return (
+                        <div key={id} className="flex items-center gap-2 p-2 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
+                          <div className="w-6 h-6 rounded-lg overflow-hidden shrink-0">
+                            {collab.avatarUrl ? <img src={collab.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-[var(--surface-2)] text-[8px] font-bold">{collab.name.substring(0, 2).toUpperCase()}</div>}
+                          </div>
+                          <p className="flex-1 text-[10px] font-bold truncate" style={{ color: 'var(--text)' }}>{collab.name}</p>
+                          <button type="button" onClick={() => setFormData({ ...formData, collaboratorIds: formData.collaboratorIds.filter(cid => cid !== id) })} className="p-1 rounded-lg hover:bg-red-500/10 text-red-500/30 hover:text-red-500 transition-all"><X size={10} /></button>
+                        </div>
+                      );
+                    })}
+                    <button type="button" onClick={() => setIsAddMemberOpen(true)} className="w-full py-2 rounded-xl border border-dashed border-[var(--border)] text-[8px] font-black uppercase opacity-40 hover:opacity-100 hover:bg-[var(--surface-hover)] transition-all">+ Adicionar Colaborador</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <ConfirmationModal
+          isOpen={!!deleteConfirmation}
+          title={deleteConfirmation?.force ? "Exclusão Forçada" : "Excluir Tarefa"}
+          message={deleteConfirmation?.force ? "Esta tarefa possui horas apontadas. Deseja excluir tudo permanentemente?" : "Tem certeza que deseja excluir esta tarefa?"}
+          confirmText="Excluir"
+          cancelText="Cancelar"
+          onConfirm={performDelete}
+          onCancel={() => setDeleteConfirmation(null)}
+        />
+
+        {showPrompt && (
+          <ConfirmationModal
+            isOpen={true}
+            title="Descartar alterações?"
+            message="Existem alterações não salvas. Deseja sair sem salvar?"
+            confirmText="Continuar Editando"
+            cancelText="Descartar"
+            onConfirm={continueEditing}
+            onCancel={() => { discardChanges(); navigate(-1); }}
+          />
+        )}
+
+        {isAddMemberOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md" style={{ backgroundColor: 'var(--overlay)' }} onClick={() => setIsAddMemberOpen(false)}>
+            <div className="border rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+              <div className="px-6 py-4 border-b flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
+                <h4 className="text-xs font-black uppercase tracking-[0.2em]" style={{ color: 'var(--text)' }}>Alocar Colaborador</h4>
+                <button onClick={() => setIsAddMemberOpen(false)} className="transition-colors" style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+              </div>
+              <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar space-y-2">
+                {users.filter(u => u.active !== false && projectMembers.some(pm => String(pm.id_projeto) === formData.projectId && String(pm.id_colaborador) === u.id) && u.id !== formData.developerId && !formData.collaboratorIds?.includes(u.id)).map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      markDirty();
+                      const newCollabs = [...(formData.collaboratorIds || []), u.id];
+                      setFormData({ ...formData, collaboratorIds: newCollabs });
+                      clearError('team');
+                      setIsAddMemberOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all group"
+                    style={{ backgroundColor: 'transparent' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm group-hover:scale-105 transition-transform overflow-hidden" style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}>
+                      {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : u.name[0]}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs font-bold uppercase" style={{ color: 'var(--text)' }}>{u.name}</p>
+                      <p className="text-[9px] opacity-40 uppercase font-bold" style={{ color: 'var(--text-muted)' }}>{u.cargo}</p>
+                    </div>
+                  </button>
+                ))}
+                {users.filter(u => u.active !== false && projectMembers.some(pm => String(pm.id_projeto) === formData.projectId && String(pm.id_colaborador) === u.id) && u.id !== formData.developerId && !formData.collaboratorIds?.includes(u.id)).length === 0 && (
+                  <div className="py-8 text-center opacity-40">
+                    <p className="text-[10px] font-bold uppercase">Nenhum membro do projeto disponível</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

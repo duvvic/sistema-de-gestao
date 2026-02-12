@@ -13,29 +13,45 @@ import {
   BarChart2,
   Users,
   Target,
-  Activity
+  Activity,
+  AlertTriangle
 } from 'lucide-react';
 
 const AdminDashboardBento: React.FC = () => {
   const navigate = useNavigate();
-  const { projects, tasks, clients, users, timesheetEntries } = useDataController();
+  const { projects, tasks, clients, users, timesheetEntries, projectMembers } = useDataController();
   const { currentUser } = useAuth();
+
+  const isProjectIncomplete = (p: any) => {
+    return (
+      !p.name?.trim() ||
+      !p.clientId ||
+      !p.partnerId ||
+      !p.valor_total_rs ||
+      !p.horas_vendidas ||
+      !p.startDate ||
+      !p.estimatedDelivery ||
+      !p.responsibleNicLabsId ||
+      !p.managerClient ||
+      projectMembers.filter(pm => String(pm.id_projeto) === p.id).length === 0
+    );
+  };
 
   // Cálculos de métricas
   const metrics = useMemo(() => {
     const activeProjects = projects.filter(p => p.active !== false);
-    
+
     const totalHoursSold = activeProjects.reduce((acc, p) => acc + (p.horas_vendidas || 0), 0);
     const totalHoursConsumed = timesheetEntries.reduce((acc, e) => acc + (Number(e.totalHours) || 0), 0);
-    
+
     const totalRevenue = activeProjects.reduce((acc, p) => acc + (p.valor_total_rs || 0), 0);
     const totalCost = timesheetEntries.reduce((acc, e) => {
       const user = users.find(u => u.id === e.userId);
       return acc + (e.totalHours * (user?.hourlyCost || 0));
     }, 0);
-    
+
     const avgMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
-    
+
     const overdueTasks = tasks.filter(t => {
       if (t.status === 'Done' || !t.estimatedDelivery) return false;
       return new Date(t.estimatedDelivery) < new Date();
@@ -63,7 +79,7 @@ const AdminDashboardBento: React.FC = () => {
         }, 0);
         const revenue = p.valor_total_rs || 0;
         const margin = revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0;
-        
+
         return { ...p, margin, cost, revenue };
       })
       .sort((a, b) => b.margin - a.margin)
@@ -74,11 +90,11 @@ const AdminDashboardBento: React.FC = () => {
   const hoursPerWeek = useMemo(() => {
     const weeks: Record<string, number> = {};
     const now = new Date();
-    
+
     timesheetEntries.forEach(entry => {
       const entryDate = new Date(entry.date);
       const weekAgo = Math.floor((now.getTime() - entryDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-      
+
       if (weekAgo < 8) {
         const weekKey = `W${8 - weekAgo}`;
         weeks[weekKey] = (weeks[weekKey] || 0) + (Number(entry.totalHours) || 0);
@@ -97,11 +113,11 @@ const AdminDashboardBento: React.FC = () => {
       .map(p => {
         const pTasks = tasks.filter(t => t.projectId === p.id);
         const pTimesheets = timesheetEntries.filter(e => e.projectId === p.id);
-        
+
         const hoursConsumed = pTimesheets.reduce((acc, e) => acc + (Number(e.totalHours) || 0), 0);
         const hoursSold = p.horas_vendidas || 0;
         const overBudget = hoursConsumed > hoursSold;
-        
+
         const overdueTasks = pTasks.filter(t => {
           if (t.status === 'Done' || !t.estimatedDelivery) return false;
           return new Date(t.estimatedDelivery) < new Date();
@@ -183,7 +199,7 @@ const AdminDashboardBento: React.FC = () => {
             {hoursPerWeek.map(({ week, hours }) => {
               const maxHours = Math.max(...hoursPerWeek.map(w => w.hours));
               const heightPercent = (hours / maxHours) * 100;
-              
+
               return (
                 <div key={week} className="flex-1 flex flex-col items-center gap-2">
                   <div className="w-full flex flex-col items-center justify-end flex-1">
@@ -319,9 +335,19 @@ const AdminDashboardBento: React.FC = () => {
           {projects.filter(p => p.active !== false).slice(0, 8).map(project => {
             const client = clients.find(c => c.id === project.clientId);
             const pTasks = tasks.filter(t => t.projectId === project.id);
-            const progress = pTasks.length > 0
-              ? pTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / pTasks.length
-              : 0;
+            const progress = (() => {
+              if (pTasks.length === 0) return 0;
+              let totalDuration = 0;
+              let weightedSum = 0;
+              pTasks.forEach(t => {
+                const tStart = t.scheduledStart ? new Date(t.scheduledStart) : new Date();
+                const tEnd = t.estimatedDelivery ? new Date(t.estimatedDelivery) : tStart;
+                const duration = Math.max(1, Math.ceil((tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24)));
+                totalDuration += duration;
+                weightedSum += (t.progress || 0) * duration;
+              });
+              return totalDuration > 0 ? weightedSum / totalDuration : 0;
+            })();
 
             const pTimesheets = timesheetEntries.filter(e => e.projectId === project.id);
             const cost = pTimesheets.reduce((acc, e) => {
@@ -330,17 +356,23 @@ const AdminDashboardBento: React.FC = () => {
             }, 0);
             const revenue = project.valor_total_rs || 0;
             const margin = revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0;
+            const isIncomplete = isProjectIncomplete(project);
 
             return (
               <div
                 key={project.id}
                 onClick={() => navigate(`/admin/projects/${project.id}`)}
-                className="p-5 rounded-xl border cursor-pointer transition-all hover:shadow-lg"
+                className={`p-5 rounded-xl border cursor-pointer transition-all hover:shadow-lg relative overflow-hidden ${isIncomplete ? 'ring-2 ring-yellow-500/50' : ''}`}
                 style={{
                   backgroundColor: 'var(--surface)',
-                  borderColor: 'var(--border)'
+                  borderColor: isIncomplete ? '#eab308' : 'var(--border)'
                 }}
               >
+                {isIncomplete && (
+                  <div className="absolute top-0 right-0 p-1 px-2 bg-yellow-500 text-black text-[8px] font-black uppercase rounded-bl-lg animate-pulse z-10">
+                    Incompleto
+                  </div>
+                )}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold truncate mb-1" style={{ color: 'var(--text)' }}>

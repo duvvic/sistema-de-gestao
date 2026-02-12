@@ -75,9 +75,19 @@ export const ContextPanel: React.FC = () => {
     if (!project) return null;
 
     const projectTasks = tasks.filter(t => t.projectId === topProjectId);
-    const progress = projectTasks.length > 0
-      ? projectTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / projectTasks.length
-      : 0;
+    const progress = (() => {
+      if (projectTasks.length === 0) return 0;
+      let totalDuration = 0;
+      let weightedSum = 0;
+      projectTasks.forEach(t => {
+        const tStart = t.scheduledStart ? new Date(t.scheduledStart) : new Date();
+        const tEnd = t.estimatedDelivery ? new Date(t.estimatedDelivery) : tStart;
+        const duration = Math.max(1, Math.ceil((tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24)));
+        totalDuration += duration;
+        weightedSum += (t.progress || 0) * duration;
+      });
+      return totalDuration > 0 ? weightedSum / totalDuration : 0;
+    })();
 
     return {
       ...project,

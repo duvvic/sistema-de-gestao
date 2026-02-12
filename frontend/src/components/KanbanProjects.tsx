@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Project, Client, User } from '@/types';
-import { Calendar, User as UserIcon, ArrowLeft, Search, Trash2, Plus, Building2 } from 'lucide-react';
+import { Calendar, User as UserIcon, ArrowLeft, Search, Trash2, Plus, Building2, AlertTriangle } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
 interface KanbanProjectsProps {
@@ -30,6 +30,22 @@ const ProjectColumn: React.FC<{
   onDeleteClick?: (e: React.MouseEvent, project: Project) => void;
   isAdmin: boolean;
 }> = ({ title, status, projects, clients, users, projectMembers, onProjectClick, onDeleteClick, isAdmin }) => {
+
+  const isProjectIncomplete = (p: Project) => {
+    const pMembers = projectMembers.filter(pm => String(pm.id_projeto) === p.id);
+    return (
+      !p.name?.trim() ||
+      !p.clientId ||
+      !p.partnerId ||
+      !p.valor_total_rs ||
+      !p.horas_vendidas ||
+      !p.startDate ||
+      !p.estimatedDelivery ||
+      !p.responsibleNicLabsId ||
+      !p.managerClient ||
+      pMembers.length === 0
+    );
+  };
 
   const safeProjects = projects || [];
   const safeClients = clients || [];
@@ -71,7 +87,7 @@ const ProjectColumn: React.FC<{
             <div
               key={project.id}
               onClick={() => onProjectClick(project.id)}
-              className="p-4 rounded-xl shadow-sm border cursor-pointer hover:shadow-md transition-all group relative overflow-hidden bg-white border-slate-100 hover:border-purple-200"
+              className={`p-4 rounded-xl shadow-sm border cursor-pointer hover:shadow-md transition-all group relative overflow-hidden bg-white border-slate-100 hover:border-purple-200 ${isProjectIncomplete(project) ? 'ring-1 ring-yellow-500/50 border-yellow-200' : ''}`}
             >
               {/* DELETE → Apenas Admin */}
               {isAdmin && onDeleteClick && (
@@ -99,7 +115,14 @@ const ProjectColumn: React.FC<{
               </div>
 
               {/* Nome do Projeto */}
-              <h4 className="font-bold text-slate-800 mb-2 text-base leading-snug pr-4">{project.name}</h4>
+              <h4 className="font-bold text-slate-800 mb-2 text-base leading-snug pr-4">
+                {project.name}
+                {isProjectIncomplete(project) && (
+                  <span className="ml-2 inline-flex items-center gap-1 bg-yellow-500 text-black px-1.5 py-0.5 rounded text-[8px] font-black uppercase animate-pulse">
+                    <AlertTriangle size={8} /> Incompleto
+                  </span>
+                )}
+              </h4>
 
               {/* Descrição */}
               {project.description && (

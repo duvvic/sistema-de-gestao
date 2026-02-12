@@ -1,163 +1,277 @@
 /* ================================================
    THEME SYSTEM - LIGHT & DARK MODE
+   Professional Color System with Depth & Contrast
    ================================================ */
 
 :root {
-  /* LIGHT MODE - High Contrast & Depth */
+  /* ============================================
+     LIGHT MODE - Premium & Professional
+     Sophisticated tones with clear visual depth
+     ============================================ */
 
-  /* Backgrounds */
-  --bg: #F1F5F9;
-  /* Slate 100 - Cleaner background */
-  --surface: #FFFFFF;
-  /* Pure white for cards */
-  --surface-2: #E2E8F0;
-  /* Slate 200 for nested blocks */
-  --surface-hover: #F8FAFC;
+  /* Core Backgrounds - Clear layering with depth perception */
+  --bg: #F0F4F8;              /* Cool gray-blue - Soft main background */
+  --bg-elevated: #F7F9FB;      /* Slightly lighter - App container */
+  --surface: #FFFFFF;          /* Pure white - Primary cards (clearly elevated) */
+  --surface-elevated: #FFFFFF; /* Pure white - Modals, dropdowns (highest elevation) */
+  --surface-2: #F8FAFB;        /* Very light blue-gray - Nested sections within cards */
+  --surface-3: #F0F3F7;        /* Light blue-gray - Input fields & subtle containers */
+  --surface-hover: #F7F9FC;    /* Subtle blue tint - Hover states */
+  --surface-pressed: #EDF1F5;  /* Slightly darker - Pressed states */
+
+  /* Input & Form Elements */
+  --input-bg: #F8FAFB;         /* Soft background for inputs */
+  --input-bg-focus: #FFFFFF;   /* Pure white on focus for clarity */
+  --input-border: #D5DBE1;     /* Medium gray - Visible but not harsh */
+  --input-border-focus: #A0AEC0; /* Darker on focus for emphasis */
+  --input-disabled: #F0F3F7;   /* Muted for disabled state */
 
   /* Sidebar & Brand */
-  --sidebar-bg: #4C1D95;
-  --sidebar-bg-2: #5B21B6;
-  --primary: #7C3AED;
-  --primary-hover: #6D28D9;
-  --primary-soft: #F5F3FF;
+  --sidebar-bg: #4C1D95;       /* Purple 900 */
+  --sidebar-bg-2: #5B21B6;     /* Purple 800 */
+  --sidebar-hover: #6D28D9;    /* Purple 700 */
+  --primary: #7C3AED;          /* Purple 600 */
+  --primary-hover: #6D28D9;    /* Purple 700 */
+  --primary-soft: #F5F3FF;     /* Purple 50 */
+  --primary-muted: #EDE9FE;    /* Purple 100 */
 
-  /* Text - Improved Priority */
-  --text: #0F172A;
-  /* Slate 900 */
-  --text-2: #334155;
-  /* Slate 700 */
-  --muted: #64748B;
-  /* Slate 500 */
+  /* Text Hierarchy - Strong readability */
+  --text: #1A202C;             /* Deep slate - Primary text (softer than pure black) */
+  --text-2: #2D3748;           /* Slate 800 - Secondary text */
+  --text-3: #4A5568;           /* Slate 600 - Tertiary text */
+  --text-muted: #718096;       /* Slate 500 - Muted text */
+  --text-placeholder: #A0AEC0; /* Slate 400 - Placeholders */
 
-  /* Borders & Spacing */
-  --border: #E2E8F0;
-  /* Slate 200 */
-  --border-strong: #CBD5E1;
-  /* Slate 300 */
-  --ring: rgba(124, 58, 237, 0.2);
+  /* Borders & Dividers - Clear separation */
+  --border: #D5DBE1;           /* Medium gray - Clearly visible borders */
+  --border-strong: #B8C1CC;    /* Darker gray - Emphasized borders */
+  --border-muted: #E8ECF0;     /* Very light - Subtle dividers */
+  --divider: #E2E8F0;          /* Light gray - Section dividers */
+
+  /* Interactive States */
+  --hover-overlay: rgba(0, 0, 0, 0.03);
+  --pressed-overlay: rgba(0, 0, 0, 0.06);
+  --focus-ring: rgba(124, 58, 237, 0.25);
 
   /* Status Colors */
-  --success: #10B981;
-  --success-bg: #ECFDF5;
-  --success-text: #065F46;
-  --warning: #F59E0B;
-  --warning-bg: #FFFBEB;
-  --warning-text: #92400E;
-  --danger: #EF4444;
-  --danger-bg: #FEF2F2;
-  --danger-text: #991B1B;
-  --info: #3B82F6;
-  --info-bg: #EFF6FF;
-  --info-text: #1E40AF;
+  --success: #10B981;          /* Emerald 500 */
+  --success-bg: #D1FAE5;       /* Emerald 100 - More visible */
+  --success-text: #047857;     /* Emerald 700 - Better contrast */
+  --warning: #F59E0B;          /* Amber 500 */
+  --warning-bg: #FEF3C7;       /* Amber 100 - More visible */
+  --warning-text: #B45309;     /* Amber 700 - Better contrast */
+  --danger: #EF4444;           /* Red 500 */
+  --danger-bg: #FEE2E2;        /* Red 100 - More visible */
+  --danger-text: #B91C1C;      /* Red 700 - Better contrast */
+  --info: #3B82F6;             /* Blue 500 */
+  --info-bg: #DBEAFE;          /* Blue 100 - More visible */
+  --info-text: #1E40AF;        /* Blue 800 */
 
-  /* Shadows - More pronounced to distinguish layers in light mode */
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --shadow-card: 0 4px 20px -5px rgba(0, 0, 0, 0.1), 0 2px 8px -4px rgba(0, 0, 0, 0.05);
+  /* Shadows - Enhanced for depth perception */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.12), 0 1px 2px 0 rgba(0, 0, 0, 0.08);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.18);
+  --shadow-card: 0 2px 8px -2px rgba(0, 0, 0, 0.08), 0 4px 16px -4px rgba(0, 0, 0, 0.06);
 
-  /* Aliases */
+  /* Overlay & Modal */
+  --overlay: rgba(15, 23, 42, 0.45);   /* Slightly stronger for better modal focus */
+  --modal-bg: #FFFFFF;
+
+  /* Kanban Specific - Light Mode */
+  --status-todo: #F8FAFB;
+  --status-progress: rgba(59, 130, 246, 0.08);
+  --status-review: rgba(251, 191, 36, 0.08);
+  --status-done: rgba(16, 185, 129, 0.08);
+
+  /* Note Colors - Light Mode */
+  --note-yellow: #F59E0B;
+  --note-blue: #3B82F6;
+  --note-purple: #7C3AED;
+  --note-orange: #F97316;
+  --note-green: #10B981;
+  --note-bg-yellow: rgba(251, 191, 36, 0.12);
+  --note-bg-blue: rgba(59, 130, 246, 0.12);
+  --note-bg-purple: rgba(124, 58, 237, 0.12);
+  --note-bg-orange: rgba(249, 115, 22, 0.12);
+  --note-bg-green: rgba(16, 185, 129, 0.12);
+
+  /* Deprecated/Legacy - Kept for backwards compatibility */
   --bg-app: var(--bg);
   --bgApp: var(--bg);
   --bg-surface: var(--surface);
   --surfaceHover: var(--surface-hover);
   --text-primary: var(--text);
   --textTitle: var(--text);
-  --textMuted: var(--muted);
+  --textMuted: var(--text-muted);
+  --muted: var(--text-3);
   --brand: var(--primary);
   --brandHover: var(--primary-hover);
+  --ring: var(--focus-ring);
 }
 
 html.dark {
-  /* DARK MODE - Mantendo paleta definida */
+  /* ============================================
+     DARK MODE - Deep & Professional
+     ============================================ */
 
-  /* Backgrounds */
-  --bg: #0F0B18;
-  /* Darker bg */
-  --surface: #1E1B2E;
-  /* Darker surface */
-  --surface-2: #161320;
-  /* Even darker nested */
-  --surface-hover: #2D283E;
+  /* Core Backgrounds - Deep layering with proper depth */
+  --bg: #0A0A0F;               /* Very dark base - almost black */
+  --bg-elevated: #13121C;      /* Slightly elevated */
+  --surface: #1A1825;          /* Card backgrounds - clearly elevated */
+  --surface-elevated: #211E30; /* Modals, dropdowns - even more elevated */
+  --surface-2: #100E18;        /* Nested sections - darker than surface */
+  --surface-3: #0D0B13;        /* Input fields - darker still */
+  --surface-hover: #252233;    /* Hover states - lighter */
+  --surface-pressed: #1E1B2E;  /* Pressed states */
 
-  /* Sidebar */
-  --sidebar-bg: #1A1625;
-  --sidebar-bg-2: #13101C;
+  /* Input & Form Elements */
+  --input-bg: #13121C;         /* Darker for depth */
+  --input-bg-focus: #1A1825;   /* Slightly lighter on focus */
+  --input-border: #2D2839;     /* Subtle border */
+  --input-border-focus: #3D3750; /* More visible on focus */
+  --input-disabled: #0D0B13;   /* Very dark when disabled */
 
-  /* Primary Colors */
-  --primary: #7C3AED;
-  --primary-hover: #8B5CF6;
-  --primary-soft: rgba(124, 58, 237, 0.15);
+  /* Sidebar & Brand */
+  --sidebar-bg: #13101C;       /* Very dark purple-tinted */
+  --sidebar-bg-2: #1A1625;     /* Slightly lighter */
+  --sidebar-hover: #252040;    /* Hover state */
+  --primary: #8B5CF6;          /* Purple 500 - brighter for dark mode */
+  --primary-hover: #A78BFA;    /* Purple 400 - even brighter on hover */
+  --primary-soft: rgba(139, 92, 246, 0.12);
+  --primary-muted: rgba(139, 92, 246, 0.2);
 
-  /* Text */
-  --text: #F1F5F9;
-  /* Very white text */
-  --text-2: #94A3B8;
-  /* Slate-400 */
-  --muted: #64748B;
+  /* Text Hierarchy - Adjusted for dark backgrounds */
+  --text: #F1F5F9;             /* Slate 100 - Very light */
+  --text-2: #CBD5E1;           /* Slate 300 - Secondary */
+  --text-3: #94A3B8;           /* Slate 400 - Tertiary */
+  --text-muted: #64748B;       /* Slate 500 - Muted */
+  --text-placeholder: #475569; /* Slate 600 - Placeholders */
 
-  /* Borders & Effects */
-  --border: #2D283E;
-  --ring: rgba(139, 92, 246, 0.3);
+  /* Borders & Dividers */
+  --border: #2D2839;           /* Subtle purple-tinted border */
+  --border-strong: #3D3750;    /* More visible borders */
+  --border-muted: #1E1B2E;     /* Very subtle dividers */
+  --divider: #252233;
 
-  /* Shadows - mais fortes no dark */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
+  /* Interactive States */
+  --hover-overlay: rgba(255, 255, 255, 0.03);
+  --pressed-overlay: rgba(255, 255, 255, 0.05);
+  --focus-ring: rgba(139, 92, 246, 0.3);
 
-  /* Kanban Dark Mode - Deeper colors for column backgrounds */
-  --status-todo: #1e1b2e;
-  --status-progress: rgba(30, 58, 138, 0.25);
-  --status-review: rgba(234, 179, 8, 0.15);
-  /* Yellow transparency */
-  --status-done: rgba(6, 78, 59, 0.25);
+  /* Status Colors - Adjusted brightness for dark mode */
+  --success: #34D399;          /* Emerald 400 - brighter */
+  --success-bg: rgba(52, 211, 153, 0.15);
+  --success-text: #6EE7B7;     /* Emerald 300 */
+  --warning: #FBBF24;          /* Amber 400 - brighter */
+  --warning-bg: rgba(251, 191, 36, 0.15);
+  --warning-text: #FCD34D;     /* Amber 300 */
+  --danger: #F87171;           /* Red 400 - brighter */
+  --danger-bg: rgba(248, 113, 113, 0.15);
+  --danger-text: #FCA5A5;      /* Red 300 */
+  --info: #60A5FA;             /* Blue 400 - brighter */
+  --info-bg: rgba(96, 165, 250, 0.15);
+  --info-text: #93C5FD;        /* Blue 300 */
 
-  /* Notes Colors - Refined for Dark Mode */
-  --note-yellow: #FACC15;
+  /* Shadows - Stronger in Dark Mode for depth */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  --shadow-card: 0 4px 20px -5px rgba(0, 0, 0, 0.6), 0 2px 8px -4px rgba(0, 0, 0, 0.5);
+
+  /* Overlay & Modal */
+  --overlay: rgba(0, 0, 0, 0.7);
+  --modal-bg: #1A1825;
+
+  /* Kanban Specific */
+  --status-todo: #13121C;
+  --status-progress: rgba(59, 130, 246, 0.15);
+  --status-review: rgba(251, 191, 36, 0.15);
+  --status-done: rgba(52, 211, 153, 0.15);
+
+  /* Note Colors */
+  --note-yellow: #FBBF24;
   --note-blue: #60A5FA;
   --note-purple: #A78BFA;
   --note-orange: #FB923C;
   --note-green: #4ADE80;
-  --note-bg-yellow: rgba(250, 204, 21, 0.15);
+  --note-bg-yellow: rgba(251, 191, 36, 0.15);
   --note-bg-blue: rgba(96, 165, 250, 0.15);
   --note-bg-purple: rgba(167, 139, 250, 0.15);
   --note-bg-orange: rgba(251, 146, 60, 0.15);
   --note-bg-green: rgba(74, 222, 128, 0.15);
+
+  /* Deprecated/Legacy */
+  --bg-app: var(--bg);
+  --bgApp: var(--bg);
+  --bg-surface: var(--surface);
+  --surfaceHover: var(--surface-hover);
+  --text-primary: var(--text);
+  --textTitle: var(--text);
+  --textMuted: var(--text-muted);
+  --muted: var(--text-3);
+  --brand: var(--primary);
+  --brandHover: var(--primary-hover);
+  --ring: var(--focus-ring);
 }
 
 /* ================================================
    UTILITY CLASSES
    ================================================ */
 
-/* Base styles */
-/* Base styles */
 body {
   background-color: var(--bg);
   color: var(--text);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Glass Card */
+/* Glass Effects */
 .glass-effect {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(213, 219, 225, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 html.dark .glass-effect {
-  background: rgba(30, 27, 46, 0.7);
+  background: rgba(26, 24, 37, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Card component */
+.glass-purple {
+  background: rgba(124, 58, 237, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.glass-purple:hover {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.25);
+}
+
+html.dark .glass-purple {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+html.dark .glass-purple:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+/* Card Components */
 .ui-card {
   background-color: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 1.25rem;
+  border-radius: 1rem;
   box-shadow: var(--shadow-card);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -168,7 +282,7 @@ html.dark .glass-effect {
   border-color: var(--border-strong);
 }
 
-/* Custom scrollbar - Subtle Purple */
+/* Custom Scrollbars */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -179,15 +293,13 @@ html.dark .glass-effect {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(109, 40, 217, 0.2);
-  /* Very subtle purple */
+  background: var(--border-strong);
   border-radius: 20px;
-  transition: background 0.3s ease;
+  transition: background 0.2s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(109, 40, 217, 0.5);
-  /* Stronger purple on hover */
+  background: var(--primary);
 }
 
 .custom-scrollbar-thin::-webkit-scrollbar {
@@ -200,7 +312,7 @@ html.dark .glass-effect {
 }
 
 .custom-scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(109, 40, 217, 0.2);
+  background: var(--border-strong);
   border-radius: 10px;
 }
 
@@ -208,78 +320,17 @@ html.dark .glass-effect {
   background: var(--primary);
 }
 
-/* ================================================
-   LIGHT MODE COLOR OVERRIDES
-   Fix hardcoded Tailwind colors for better visibility
-   ================================================ */
-
-/* Override tailwind colors for better visibility in light mode */
-:root:not(.dark) .text-slate-400,
-:root:not(.dark) .text-gray-400 {
-  color: #64748B !important;
-  /* slate-500 */
+/* No Scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
-:root:not(.dark) .text-slate-500,
-:root:not(.dark) .text-gray-500 {
-  color: #475569 !important;
-  /* slate-600 */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-:root:not(.dark) .text-slate-600,
-:root:not(.dark) .text-gray-600 {
-  color: #334155 !important;
-  /* slate-700 */
-}
-
-:root:not(.dark) .text-slate-700,
-:root:not(.dark) .text-gray-700 {
-  color: #1E293B !important;
-  /* slate-800 */
-}
-
-:root:not(.dark) .text-slate-100 {
-  color: #F1F5F9 !important;
-}
-
-:root:not(.dark) .bg-slate-50\/50:hover {
-  background-color: #F8FAFC !important;
-}
-
-/* Fix placeholder colors in light mode */
-:root:not(.dark) input::placeholder,
-:root:not(.dark) textarea::placeholder {
-  color: #94A3B8 !important;
-  opacity: 1;
-}
-
-/* Force better contrast for opacity classes */
-:root:not(.dark) .opacity-40 {
-  opacity: 0.6 !important;
-}
-
-:root:not(.dark) .opacity-50 {
-  opacity: 0.7 !important;
-}
-
-:root:not(.dark) .opacity-60 {
-  opacity: 0.8 !important;
-}
-
-/* Keep dark mode opacity as is */
-html.dark .opacity-50 {
-  opacity: 0.5 !important;
-}
-
-html.dark .opacity-60 {
-  opacity: 0.6 !important;
-}
-
-html.dark .opacity-70 {
-  opacity: 0.7 !important;
-}
-
-/* Hide number input spinners for cleaner UI */
+/* Input Number Spinners Hidden */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -291,28 +342,103 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
-/* Glass Purple Effect */
-.glass-purple {
-  background: rgba(124, 58, 237, 0.08);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(124, 58, 237, 0.2);
+/* ================================================
+   TAILWIND COLOR OVERRIDES FOR CONSISTENCY
+   ================================================ */
+
+/* Light Mode Adjustments */
+:root:not(.dark) {
+  /* Text Colors - Updated for better hierarchy */
+  .text-slate-400,
+  .text-gray-400 {
+    color: #718096 !important; /* Slate 500 - more visible */
+  }
+
+  .text-slate-500,
+  .text-gray-500 {
+    color: #4A5568 !important; /* Slate 600 - stronger */
+  }
+
+  .text-slate-600,
+  .text-gray-600 {
+    color: #2D3748 !important; /* Slate 800 - more contrast */
+  }
+
+  .text-slate-700,
+  .text-gray-700 {
+    color: #1A202C !important; /* Deep slate - strong text */
+  }
+
+  /* Background Colors - New tones for depth */
+  .bg-slate-50 {
+    background-color: #F7F9FB !important;
+  }
+
+  .bg-slate-100 {
+    background-color: #F0F4F8 !important;
+  }
+
+  .bg-slate-200 {
+    background-color: #E2E8F0 !important;
+  }
+
+  .bg-slate-800 {
+    background-color: #2D3748 !important;
+  }
+
+  .bg-slate-900 {
+    background-color: #1A202C !important;
+  }
+
+  /* Border Colors - More visible */
+  .border-slate-100 {
+    border-color: #E8ECF0 !important;
+  }
+
+  .border-slate-200 {
+    border-color: #D5DBE1 !important;
+  }
+
+  .border-slate-300 {
+    border-color: #B8C1CC !important;
+  }
+
+  /* Placeholder Colors */
+  input::placeholder,
+  textarea::placeholder {
+    color: #A0AEC0 !important;
+    opacity: 1;
+  }
+
+  /* Opacity Adjustments */
+  .opacity-30 {
+    opacity: 0.5 !important;
+  }
+
+  .opacity-40 {
+    opacity: 0.6 !important;
+  }
+
+  .opacity-50 {
+    opacity: 0.7 !important;
+  }
 }
 
-.glass-purple:hover {
-  background: rgba(124, 58, 237, 0.12);
-  border-color: rgba(124, 58, 237, 0.3);
-}
+/* Dark Mode - Keep as is */
+html.dark {
+  .opacity-30 {
+    opacity: 0.3 !important;
+  }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
+  .opacity-40 {
+    opacity: 0.4 !important;
+  }
 
-/* Hide scrollbar for IE, Edge and Firefox */
-.no-scrollbar {
-  -ms-overflow-style: none;
-  /* IE and Edge */
-  scrollbar-width: none;
-  /* Firefox */
+  .opacity-50 {
+    opacity: 0.5 !important;
+  }
+
+  .opacity-60 {
+    opacity: 0.6 !important;
+  }
 }

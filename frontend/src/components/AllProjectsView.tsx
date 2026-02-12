@@ -2,7 +2,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
-import { Plus, Briefcase, CheckSquare, LayoutGrid, List, Building2 } from 'lucide-react';
+import { Plus, Briefcase, CheckSquare, LayoutGrid, List, Building2, AlertTriangle } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
 
@@ -17,6 +17,21 @@ const AllProjectsView: React.FC = () => {
   const handleToggleViewMode = (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem('project_view_mode_admin', mode);
+  };
+
+  const isProjectIncomplete = (p: any) => {
+    return (
+      !p.name?.trim() ||
+      !p.clientId ||
+      !p.partnerId ||
+      !p.valor_total_rs ||
+      !p.horas_vendidas ||
+      !p.startDate ||
+      !p.estimatedDelivery ||
+      !p.responsibleNicLabsId ||
+      !p.managerClient ||
+      projectMembers.filter(pm => String(pm.id_projeto) === p.id).length === 0
+    );
   };
 
   return (
@@ -123,18 +138,25 @@ const AllProjectsView: React.FC = () => {
                         const projectTasks = tasks.filter(t => t.projectId === project.id);
                         const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
 
+                        const isIncomplete = isProjectIncomplete(project);
+
                         return (
                           <button
                             key={project.id}
                             onClick={() => navigate(`/admin/projects/${project.id}`)}
-                            className="border-2 rounded-xl p-5 hover:shadow-lg transition-all text-left group"
+                            className={`border-2 rounded-xl p-5 hover:shadow-lg transition-all text-left group relative overflow-hidden ${isIncomplete ? 'ring-1 ring-yellow-500/50' : ''}`}
                             style={{
                               backgroundColor: 'var(--surface)',
-                              borderColor: 'var(--border)'
+                              borderColor: isIncomplete ? '#eab308' : 'var(--border)'
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand)'}
-                            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                            onMouseEnter={(e) => e.currentTarget.style.borderColor = isIncomplete ? '#eab308' : 'var(--brand)'}
+                            onMouseLeave={(e) => e.currentTarget.style.borderColor = isIncomplete ? '#eab308' : 'var(--border)'}
                           >
+                            {isIncomplete && (
+                              <div className="absolute top-0 right-0 p-1 px-2 bg-yellow-500 text-black text-[8px] font-black uppercase rounded-bl-lg animate-pulse z-10">
+                                Incompleto
+                              </div>
+                            )}
                             <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)]" style={{ color: 'var(--textTitle)' }}>
                               {project.name}
                             </h3>
@@ -190,19 +212,25 @@ const AllProjectsView: React.FC = () => {
               const client = clients.find(c => c.id === project.clientId);
               const projectTasks = tasks.filter(t => t.projectId === project.id);
               const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
+              const isIncomplete = isProjectIncomplete(project);
 
               return (
                 <button
                   key={project.id}
                   onClick={() => navigate(`/admin/projects/${project.id}`)}
-                  className="border-2 rounded-xl p-6 hover:shadow-lg transition-all text-left group"
+                  className={`border-2 rounded-xl p-6 hover:shadow-lg transition-all text-left group relative overflow-hidden ${isIncomplete ? 'ring-1 ring-yellow-500/50' : ''}`}
                   style={{
                     backgroundColor: 'var(--surface)',
-                    borderColor: 'var(--border)'
+                    borderColor: isIncomplete ? '#eab308' : 'var(--border)'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand)'}
-                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = isIncomplete ? '#eab308' : 'var(--brand)'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = isIncomplete ? '#eab308' : 'var(--border)'}
                 >
+                  {isIncomplete && (
+                    <div className="absolute top-0 right-0 p-1 px-2 bg-yellow-500 text-black text-[8px] font-black uppercase rounded-bl-lg animate-pulse z-10">
+                      Incompleto
+                    </div>
+                  )}
                   {/* Cliente Logo */}
                   {client && (
                     <div className="flex items-center gap-2 mb-4 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>

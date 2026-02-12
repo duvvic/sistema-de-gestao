@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
-import { Building2, ArrowRight, Clock, Briefcase, Users, TrendingUp, BarChart3, CheckSquare, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { Building2, ArrowRight, Clock, Briefcase, Users, TrendingUp, BarChart3, CheckSquare, ChevronDown, ChevronUp, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Project } from '@/types';
 
 const TimesheetAdminDashboard: React.FC = () => {
    const [searchParams, setSearchParams] = useSearchParams();
@@ -12,6 +13,24 @@ const TimesheetAdminDashboard: React.FC = () => {
 
    const initialTab = (searchParams.get('tab') as 'projects' | 'collaborators' | 'status') || 'projects';
    const selectedClientId = searchParams.get('clientId');
+
+   const { projectMembers } = useDataController();
+
+   const isProjectIncomplete = (p: Project) => {
+      const pMembers = projectMembers.filter(pm => String(pm.id_projeto) === p.id);
+      return (
+         !p.name?.trim() ||
+         !p.clientId ||
+         !p.partnerId ||
+         !p.valor_total_rs ||
+         !p.horas_vendidas ||
+         !p.startDate ||
+         !p.estimatedDelivery ||
+         !p.responsibleNicLabsId ||
+         !p.managerClient ||
+         pMembers.length === 0
+      );
+   };
 
    const [activeTab, setActiveTab] = useState<'projects' | 'collaborators' | 'status'>(initialTab);
    const [expandedCollaborators, setExpandedCollaborators] = useState<Set<string>>(new Set());
@@ -254,9 +273,16 @@ const TimesheetAdminDashboard: React.FC = () => {
                                     <div className="text-xl font-bold" style={{ color: 'var(--muted)' }}>{client.name.charAt(0)}</div>
                                  )}
                               </div>
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all group-hover:scale-110"
-                                 style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--primary)' }}>
-                                 <ArrowRight className="w-4 h-4" />
+                              <div className="flex flex-col items-end gap-2">
+                                 <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all group-hover:scale-110"
+                                    style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--primary)' }}>
+                                    <ArrowRight className="w-4 h-4" />
+                                 </div>
+                                 {clientProjects.some(p => isProjectIncomplete(p)) && (
+                                    <span title="Este cliente possui projetos com cadastro incompleto" className="text-yellow-500 animate-pulse">
+                                       <AlertTriangle size={16} />
+                                    </span>
+                                 )}
                               </div>
                               <style>{`.group:hover .rounded-full { background-color: var(--primary) !important; color: white !important; }`}</style>
                            </div>
@@ -487,12 +513,19 @@ const TimesheetAdminDashboard: React.FC = () => {
                         ) : (
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {projectsWithHours.map(proj => (
-                                 <div key={proj.id} className={`rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group transform hover:scale-[1.01] ${proj.entryCount > 0 ? '' : 'border-dashed opacity-75'}`}
-                                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                                 <div key={proj.id} className={`rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group transform hover:scale-[1.01] ${proj.entryCount > 0 ? '' : 'border-dashed opacity-75'} ${isProjectIncomplete(proj) ? 'ring-1 ring-yellow-500/30' : ''}`}
+                                    style={{ backgroundColor: 'var(--surface)', borderColor: isProjectIncomplete(proj) ? '#eab308' : 'var(--border)' }}
                                     onClick={() => navigate(`/admin/projects/${proj.id}`)}
                                  >
                                     <div className="flex justify-between items-start mb-2">
-                                       <h3 className="font-bold transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--text)' }}>{proj.name}</h3>
+                                       <div className="flex items-center gap-2">
+                                          <h3 className="font-bold transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--text)' }}>{proj.name}</h3>
+                                          {isProjectIncomplete(proj) && (
+                                             <span title="Cadastro Incompleto" className="text-yellow-500 animate-pulse">
+                                                <AlertTriangle size={14} />
+                                             </span>
+                                          )}
+                                       </div>
                                        <span className={`text-lg font-black transition-colors ${proj.totalHours > 0 ? 'text-[var(--primary)]' : 'opacity-30'}`}>
                                           {proj.totalHours.toFixed(1)}h
                                        </span>

@@ -135,14 +135,17 @@ const ProjectDetailView: React.FC = () => {
       return acc + Math.max(t.estimatedHours || 0, reported);
     }, 0);
 
-    const weightedProgress = totalEstimated > 0
+    const pStart = project.startDate ? new Date(project.startDate) : new Date();
+    const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery) : pStart;
+    const projectDuration = Math.max(1, Math.ceil((pEnd.getTime() - pStart.getTime()) / (1000 * 60 * 60 * 24)));
+
+    const weightedProgress = projectDuration > 0
       ? projectTasks.reduce((acc, t) => {
-        const reported = timesheetEntries
-          .filter(e => e.taskId === t.id)
-          .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
-        const taskWeight = Math.max(t.estimatedHours || 0, reported);
-        return acc + ((t.progress || 0) * taskWeight);
-      }, 0) / totalEstimated
+        const tStart = t.scheduledStart ? new Date(t.scheduledStart) : new Date();
+        const tEnd = t.estimatedDelivery ? new Date(t.estimatedDelivery) : tStart;
+        const duration = Math.max(1, Math.ceil((tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24)));
+        return acc + ((t.progress || 0) * duration);
+      }, 0) / projectDuration
       : (projectTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / (projectTasks.length || 1));
 
     let plannedProgress = 0;
@@ -202,6 +205,38 @@ const ProjectDetailView: React.FC = () => {
     });
   }, [absences, project, projectMembers, projectId]);
 
+  const isProjectIncomplete = useMemo(() => {
+    if (!project) return true;
+    const data = isEditing ? formData : {
+      name: project.name,
+      clientId: project.clientId,
+      partnerId: project.partnerId,
+      valor_total_rs: project.valor_total_rs,
+      horas_vendidas: project.horas_vendidas,
+      startDate: project.startDate,
+      estimatedDelivery: project.estimatedDelivery,
+      responsibleNicLabsId: project.responsibleNicLabsId,
+      managerClient: project.managerClient
+    };
+
+    return (
+      !data.name?.trim() ||
+      !data.clientId ||
+      !data.partnerId ||
+      !data.valor_total_rs ||
+      !data.horas_vendidas ||
+      !data.startDate ||
+      !data.estimatedDelivery ||
+      !data.responsibleNicLabsId ||
+      !data.managerClient ||
+      selectedUsers.length === 0
+    );
+  }, [project, formData, isEditing, selectedUsers]);
+
+  const hasTimeline = !!(project.startDate && project.estimatedDelivery);
+  const hasBudget = (project.valor_total_rs || 0) > 0;
+  const hasHours = (project.horas_vendidas || 0) > 0;
+
   // --- AUTOMATION: Auto-start project if there is activity ---
   useEffect(() => {
     if (!project || !projectId || !isAdmin) return;
@@ -222,6 +257,12 @@ const ProjectDetailView: React.FC = () => {
 
   const handleSaveProject = async () => {
     if (!project || !projectId) return;
+
+    if (isProjectIncomplete) {
+      alert('Por favor, preencha todos os campos obrigatórios (Finanças, Timeline, Responsáveis e Equipe) antes de salvar.');
+      return;
+    }
+
     setLoading(true);
     try {
       await updateProject(projectId, { ...formData, active: true } as any);
@@ -251,6 +292,8 @@ const ProjectDetailView: React.FC = () => {
     if (selectedStatus !== 'Todos') t = t.filter(task => task.status === selectedStatus);
     return t.sort((a, b) => (new Date(a.estimatedDelivery || '2099-12-31').getTime() - new Date(b.estimatedDelivery || '2099-12-31').getTime()));
   }, [projectTasks, selectedStatus]);
+
+  const canCreateTask = !isProjectIncomplete;
 
   const teamMetrics = useMemo(() => {
     if (!project || !projectId) return {};
@@ -286,15 +329,31 @@ const ProjectDetailView: React.FC = () => {
             {client?.logoUrl && <div className="w-12 h-12 bg-white rounded-xl p-1.5 shadow-xl"><img src={client.logoUrl} className="w-full h-full object-contain" /></div>}
             <div>
               {isEditing ? (
-                <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="bg-white/10 border-b border-white outline-none px-2 py-1 text-xl font-bold rounded" />
+                <input
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  className={`bg-white/10 border-b outline-none px-2 py-1 text-xl font-bold rounded transition-colors ${!formData.name?.trim() ? 'border-yellow-400 bg-yellow-400/20' : 'border-white'}`}
+                />
               ) : (
                 <h1 className="text-xl font-bold">{project.name}</h1>
               )}
               <div className="flex items-center gap-2 mt-1">
+                {isProjectIncomplete && (
+                  <span
+                    className="text-[10px] font-black uppercase bg-yellow-500 text-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg shadow-yellow-500/20 cursor-help"
+                    title="Cadastro incompleto. Clique no ícone de lápis ao lado para editar e preencher os campos amarelados."
+                  >
+                    <AlertTriangle size={10} /> INCOMPLETO
+                  </span>
+                )}
                 <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-0.5 rounded-full tracking-tighter">{project.status}</span>
                 <span className="text-xs text-white/60">{client?.name}</span>
                 {isAdmin && (
-                  <button onClick={() => setIsEditing(!isEditing)} className="ml-2 p-1 hover:bg-white/20 rounded transition-colors" title="Editar Projeto">
+                  <button
+                    onClick={() => setIsEditing(!isEditing)}
+                    className={`ml-2 p-1 hover:bg-white/20 rounded transition-colors ${isProjectIncomplete && !isEditing ? 'ring-2 ring-yellow-400 animate-pulse bg-yellow-400/20' : ''}`}
+                    title={isProjectIncomplete && !isEditing ? "Clique aqui para completar o cadastro (Campos Obrigatórios)" : "Editar Projeto"}
+                  >
                     <Edit size={14} />
                   </button>
                 )}
@@ -321,7 +380,7 @@ const ProjectDetailView: React.FC = () => {
 
           <div className="text-right">
             <p className="text-[10px] font-black uppercase text-white/40">Progresso Real</p>
-            <p className="text-2xl font-black">{Math.round(performance?.weightedProgress || 0)}%</p>
+            <p className="text-2xl font-black">{hasTimeline ? Math.round(performance?.weightedProgress || 0) : '--'}%</p>
           </div>
           <button
             onClick={() => navigate(`/tasks/new?project=${projectId}&client=${project.clientId}`)}
@@ -383,17 +442,19 @@ const ProjectDetailView: React.FC = () => {
                             .filter(e => e.taskId === task.id)
                             .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
 
-                          const totalProjectSize = projectTasks.reduce((acc, t) => {
-                            const reported = timesheetEntries
-                              .filter(e => e.taskId === t.id)
-                              .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
-                            return acc + Math.max(t.estimatedHours || 0, reported);
-                          }, 0);
+                          const pStart = project.startDate ? new Date(project.startDate) : new Date();
+                          const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery) : pStart;
+                          const projectDuration = Math.max(1, Math.ceil((pEnd.getTime() - pStart.getTime()) / (1000 * 60 * 60 * 24)));
 
-                          const taskSize = Math.max(task.estimatedHours || 0, taskReported);
-                          const weight = totalProjectSize > 0
-                            ? (taskSize / totalProjectSize) * 100
-                            : (100 / (projectTasks.length || 1));
+                          const tStart = task.scheduledStart ? new Date(task.scheduledStart) : new Date();
+                          const tEnd = task.estimatedDelivery ? new Date(task.estimatedDelivery) : tStart;
+                          const taskDuration = Math.max(1, Math.ceil((tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24)));
+
+                          const weight = (hasTimeline && projectDuration > 0)
+                            ? (taskDuration / projectDuration) * 100
+                            : 0;
+
+                          const isDateOut = (tStart < pStart || tEnd > pEnd);
                           const taskEntries = timesheetEntries.filter(entry => entry.taskId === task.id && entry.date);
                           const firstEntryDate = taskEntries.length > 0
                             ? new Date(Math.min(...taskEntries.map(e => new Date(e.date).getTime())))
@@ -410,65 +471,57 @@ const ProjectDetailView: React.FC = () => {
                           const startDate = task.scheduledStart ? new Date(task.scheduledStart + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--/--';
                           const deliveryDate = task.estimatedDelivery ? new Date(task.estimatedDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : null;
 
-                          const isHourOverrun = task.estimatedHours > 0 && taskReported > task.estimatedHours;
+                          const taskSoldHours = project.horas_vendidas > 0 ? (weight / 100) * project.horas_vendidas : 0;
+
+                          const isHourOverrun = taskSoldHours > 0 && taskReported > taskSoldHours;
                           const isDelayed = task.status !== 'Done' && (
                             (task.estimatedDelivery && new Date(task.estimatedDelivery + 'T23:59:59') < new Date()) ||
                             (task.actualDelivery && new Date(task.actualDelivery + 'T23:59:59') < new Date())
                           );
 
 
+                          const hasDates = task.scheduledStart && task.estimatedDelivery;
+
                           return (
-                            <div key={task.id} className={`flex items-center justify-between p-3 rounded-2xl border transition-all group/item cursor-pointer mb-2 ${isDelayed ? 'border-red-500/20 bg-red-500/5 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-transparent hover:border-[var(--border)] hover:bg-[var(--bg)]'}`} onClick={() => navigate(`/tasks/${task.id}`)}>
-                              <div className="flex-1 min-w-0 pr-4">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className={`text-[11px] font-black truncate group-hover/item:text-purple-500 transition-colors ${isDelayed ? 'text-red-500' : 'text-[var(--text)]'}`}>{task.title}</p>
-                                  {isDelayed && <AlertCircle size={10} className="text-red-500 animate-bounce" />}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-lg uppercase tracking-widest ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500' : isDelayed ? 'bg-red-500/10 text-red-500' : 'bg-[var(--surface-2)] text-[var(--muted)]'}`}>
-                                    {task.status === 'Todo' ? 'Fila' : task.status === 'In Progress' ? 'Andamento' : task.status === 'Review' ? 'Review' : 'Feito'}
+                            <div key={task.id} className={`p-2 rounded-xl border transition-all group/item cursor-pointer mb-1.5 flex flex-col gap-1.5 ${isDelayed || (isHourOverrun && task.status !== 'Done') ? 'border-red-500/10 bg-red-500/5 shadow-sm' : 'border-[var(--border)] hover:bg-[var(--bg)]'}`} onClick={() => navigate(`/tasks/${task.id}`)}>
+                              <div className="flex justify-between items-center gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                  <span className="text-[8px] font-black px-1 py-0.5 rounded bg-purple-500/10 text-purple-600 border border-purple-500/20 shrink-0">
+                                    {weight.toFixed(1)}%
                                   </span>
-
-                                  <div className="flex items-center gap-3 opacity-80">
-                                    <div className="flex items-center gap-1">
-                                      <Clock size={10} className={isDelayed ? "text-red-500" : (realStartStr ? "text-blue-500" : "")} />
-                                      <span className={`text-[8px] font-bold ${isDelayed ? "text-red-500" : (realStartStr ? "text-blue-500" : "")}`}>
-                                        {realStartStr || startDate}
-                                      </span>
-                                    </div>
-
-                                    {(realEndStr || deliveryDate) && (
-                                      <div className="flex items-center gap-1">
-                                        {realEndStr ? (
-                                          <>
-                                            <Check size={10} className={task.status === 'Done' ? "text-emerald-500" : (isDelayed ? "text-red-500" : "text-amber-500")} />
-                                            <span className={`text-[8px] font-bold ${task.status === 'Done' ? "text-emerald-500" : (isDelayed ? "text-red-500" : "text-amber-500")}`}>{realEndStr}</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Calendar size={10} className={isDelayed ? "text-red-500" : "opacity-40"} />
-                                            <span className={`text-[8px] font-bold ${isDelayed ? "text-red-500" : "opacity-40"}`}>{deliveryDate}</span>
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
+                                  <h4 className={`text-[12px] font-bold truncate group-hover/item:text-purple-500 transition-colors ${isDelayed || (isHourOverrun && task.status !== 'Done') ? 'text-red-500' : 'text-[var(--text)]'}`}>
+                                    {task.title}
+                                  </h4>
+                                </div>
+                                <div className={`text-[12px] font-black tabular-nums shrink-0 ${isHourOverrun ? 'text-red-500' : 'text-[var(--text)]'}`}>
+                                  {taskReported.toFixed(1)}h<span className="text-[9px] opacity-10 font-bold ml-0.5">/{taskSoldHours.toFixed(1)}h</span>
                                 </div>
                               </div>
 
-                              <div className="flex flex-col items-end shrink-0 gap-1">
-                                <div className="flex flex-col items-end">
-                                  <p className={`text-[12px] font-black leading-none ${task.estimatedHours === 0 && taskReported === 0 ? 'text-amber-500' : (isHourOverrun ? 'text-red-500' : 'text-[var(--primary)]')}`}>
-                                    {weight.toFixed(1)}%
-                                  </p>
-                                  <p className={`text-[9px] font-black leading-none mt-1 ${isHourOverrun ? 'text-red-500' : 'text-purple-400'}`}>{taskReported.toFixed(1)}h</p>
+                              <div className="flex items-center justify-between text-[8px] font-bold">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className={`px-1 py-px rounded uppercase tracking-wider shrink-0 ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500' : isDelayed ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                    {task.status === 'Todo' ? 'Fila' : task.status === 'In Progress' ? 'Andamento' : task.status === 'Review' ? 'Review' : 'Feito'}
+                                  </span>
+                                  <span className={`px-1 py-px rounded shrink-0 ${task.progress === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                    {task.progress}%
+                                  </span>
+                                  <span className="opacity-20 tabular-nums truncate">
+                                    {startDate} → {deliveryDate || '--/--'}
+                                  </span>
                                 </div>
-                                {isHourOverrun && (
-                                  <span className="text-[6px] font-black bg-red-500/10 text-red-500 px-1 rounded uppercase">Excedido</span>
-                                )}
-                                {task.estimatedHours === 0 && taskReported > 0 && !isHourOverrun && (
-                                  <span className="text-[6px] font-black bg-blue-500/10 text-blue-500 px-1 rounded uppercase">Realizado</span>
-                                )}
+
+                                <div className="flex gap-1 shrink-0">
+                                  {isHourOverrun && <span className="text-[7px] font-black bg-red-500/5 text-red-500/60 px-1 rounded uppercase border border-red-500/10">Excedido</span>}
+                                  {isDateOut && <span className="text-[7px] font-black bg-amber-500/5 text-amber-500/60 px-1 rounded uppercase border border-amber-500/10">Fora</span>}
+                                </div>
+                              </div>
+
+                              <div className="h-0.5 w-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full transition-all duration-1000 ${isHourOverrun ? 'bg-red-500' : 'bg-purple-600'}`}
+                                  style={{ width: `${Math.min(100, (taskReported / (taskSoldHours || 1)) * 100)}%` }}
+                                />
                               </div>
                             </div>
                           );
@@ -490,7 +543,16 @@ const ProjectDetailView: React.FC = () => {
                       <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>Status de Entrega</h4>
                       {(() => {
                         const delta = (performance?.weightedProgress || 0) - (performance?.plannedProgress || 0);
-                        const hourOverrun = project.horas_vendidas > 0 && (performance?.consumedHours || 0) > project.horas_vendidas;
+                        const hourOverrun = hasHours && (performance?.consumedHours || 0) > project.horas_vendidas;
+
+                        if (!hasTimeline) {
+                          return (
+                            <div className="flex flex-col items-center justify-center py-4 opacity-30">
+                              <Calendar size={20} className="mb-2" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">Aguardando Timeline</span>
+                            </div>
+                          );
+                        }
 
                         // Tolerance of 1% for "On Track"
                         const health = hourOverrun ? { label: 'Custo Excedido', color: 'text-red-500', bg: 'bg-red-500' } :
@@ -516,19 +578,19 @@ const ProjectDetailView: React.FC = () => {
                       <div>
                         <div className="flex justify-between text-[10px] font-black uppercase mb-1">
                           <span style={{ color: 'var(--text)' }}>Plano</span>
-                          <span style={{ color: 'var(--info)' }}>{Math.round(performance?.plannedProgress || 0)}%</span>
+                          <span style={{ color: 'var(--info)' }}>{hasTimeline ? Math.round(performance?.plannedProgress || 0) : '--'}%</span>
                         </div>
                         <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
-                          <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${performance?.plannedProgress || 0}%` }} />
+                          <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${hasTimeline ? (performance?.plannedProgress || 0) : 0}%` }} />
                         </div>
                       </div>
                       <div>
                         <div className="flex justify-between text-[10px] font-black uppercase mb-1">
                           <span style={{ color: 'var(--text)' }}>Real</span>
-                          <span style={{ color: 'var(--success)' }}>{Math.round(performance?.weightedProgress || 0)}%</span>
+                          <span style={{ color: 'var(--success)' }}>{hasTimeline ? Math.round(performance?.weightedProgress || 0) : '--'}%</span>
                         </div>
                         <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
-                          <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${performance?.weightedProgress || 0}%` }} />
+                          <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${Math.min(100, (hasTimeline ? performance?.weightedProgress : 0) || 0)}%` }} />
                         </div>
                       </div>
                     </div>
@@ -547,8 +609,8 @@ const ProjectDetailView: React.FC = () => {
                               type="number"
                               value={formData.valor_total_rs || ''}
                               onChange={e => setFormData({ ...formData, valor_total_rs: e.target.value === '' ? 0 : Number(e.target.value) })}
-                              className="text-xs p-2 rounded w-full border outline-none font-bold"
-                              style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                              className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.valor_total_rs ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
+                              style={{ backgroundColor: formData.valor_total_rs ? 'var(--bg)' : undefined, borderColor: formData.valor_total_rs ? 'var(--border)' : undefined, color: 'var(--text)' }}
                             />
                           </div>
                           <div>
@@ -557,8 +619,8 @@ const ProjectDetailView: React.FC = () => {
                               type="number"
                               value={formData.horas_vendidas || ''}
                               onChange={e => setFormData({ ...formData, horas_vendidas: e.target.value === '' ? 0 : Number(e.target.value) })}
-                              className="text-xs p-2 rounded w-full border outline-none font-bold"
-                              style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                              className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.horas_vendidas ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
+                              style={{ backgroundColor: formData.horas_vendidas ? 'var(--bg)' : undefined, borderColor: formData.horas_vendidas ? 'var(--border)' : undefined, color: 'var(--text)' }}
                             />
                           </div>
                         </div>
@@ -580,9 +642,11 @@ const ProjectDetailView: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <span className={`text-sm font-black tabular-nums ${((performance?.committedCost || 0) > (project.valor_total_rs || 0)) ? 'text-red-500' : 'text-emerald-500'}`}>
-                                    {Math.round(((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%
-                                  </span>
+                                  {hasBudget && (
+                                    <span className={`text-sm font-black tabular-nums ${((performance?.committedCost || 0) > (project.valor_total_rs || 0)) ? 'text-red-500' : 'text-emerald-500'}`}>
+                                      {Math.round(((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
@@ -617,9 +681,11 @@ const ProjectDetailView: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <span className={`text-sm font-black tabular-nums ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0)) ? 'text-red-500' : 'text-purple-500'}`}>
-                                    {Math.round(((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) * 100)}%
-                                  </span>
+                                  {hasHours && (
+                                    <span className={`text-sm font-black tabular-nums ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0)) ? 'text-red-500' : 'text-purple-500'}`}>
+                                      {Math.round(((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) * 100)}%
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
@@ -656,11 +722,22 @@ const ProjectDetailView: React.FC = () => {
                       <div className="space-y-4">
                         <div>
                           <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Início Planejado</label>
-                          <input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} className="text-xs p-2 rounded w-full border outline-none font-bold" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+                          <input
+                            type="date"
+                            value={formData.startDate}
+                            onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                            className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.startDate ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
+                            style={{ backgroundColor: formData.startDate ? 'var(--bg)' : undefined, borderColor: formData.startDate ? 'var(--border)' : undefined, color: 'var(--text)' }}
+                          />
                         </div>
                         <div>
                           <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Entrega Planejada</label>
-                          <input type="date" value={formData.estimatedDelivery} onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })} className="text-xs p-2 rounded w-full border outline-none font-bold" style={{ backgroundColor: 'var(--primary-soft)', borderColor: 'var(--primary)', color: 'var(--primary)' }} />
+                          <input
+                            type="date"
+                            value={formData.estimatedDelivery}
+                            onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })}
+                            className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.estimatedDelivery ? 'bg-yellow-500/10 border-yellow-500/50 text-[var(--text)]' : 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]'}`}
+                          />
                         </div>
                       </div>
                     ) : (
@@ -724,21 +801,35 @@ const ProjectDetailView: React.FC = () => {
                                 <Target size={10} className="text-purple-500" /> Cliente & Parceiro
                               </p>
                               <div className="flex items-center gap-3">
-                                <div>
+                                <div className="flex-1 min-w-0">
                                   <p className="text-[7px] font-bold opacity-50 uppercase">Final</p>
                                   {isEditing ? (
-                                    <select value={formData.clientId} onChange={e => setFormData({ ...formData, clientId: e.target.value })} className="p-1 rounded text-[10px] font-bold outline-none mt-1" style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                                  ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project.clientId)?.name || '--'}</p>}
+                                    <select
+                                      value={formData.clientId}
+                                      onChange={e => setFormData({ ...formData, clientId: e.target.value })}
+                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors ${!formData.clientId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
+                                      style={{ color: 'var(--text)' }}
+                                    >
+                                      <option value="">Selecione...</option>
+                                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project.clientId)?.name || '--'}</p>}
                                 </div>
-                                <div className="w-px h-5 bg-[var(--border)]" />
-                                <div>
+                                <div className="w-px h-5 bg-[var(--border)] opacity-20" />
+                                <div className="flex-1 min-w-0">
                                   <p className="text-[7px] font-bold opacity-50 uppercase">Parceiro</p>
                                   {isEditing ? (
-                                    <select value={formData.partnerId} onChange={e => setFormData({ ...formData, partnerId: e.target.value })} className="p-1 rounded text-[10px] font-bold outline-none mt-1" style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}>
-                                      <option value="">Direto</option>
+                                    <select
+                                      value={formData.partnerId}
+                                      onChange={e => setFormData({ ...formData, partnerId: e.target.value })}
+                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors ${!formData.partnerId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
+                                      style={{ color: 'var(--text)' }}
+                                    >
+                                      <option value="">Selecione...</option>
+                                      <option value="direto">Direto (Sem Parceiro)</option>
                                       {clients.filter(c => c.tipo_cliente === 'parceiro').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
-                                  ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project.partnerId)?.name || 'Nic-Labs'}</p>}
+                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project.partnerId)?.name || 'Nic-Labs'}</p>}
                                 </div>
                               </div>
                             </div>
@@ -748,7 +839,15 @@ const ProjectDetailView: React.FC = () => {
                                 <Shield size={10} className="text-emerald-500" /> Gestor Interno
                               </p>
                               {isEditing ? (
-                                <select value={formData.responsibleNicLabsId} onChange={e => setFormData({ ...formData, responsibleNicLabsId: e.target.value })} className="w-full p-1.5 rounded-lg text-xs font-bold" style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+                                <select
+                                  value={formData.responsibleNicLabsId}
+                                  onChange={e => setFormData({ ...formData, responsibleNicLabsId: e.target.value })}
+                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors ${!formData.responsibleNicLabsId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
+                                  style={{ color: 'var(--text)' }}
+                                >
+                                  <option value="">Selecione...</option>
+                                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                </select>
                               ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{users.find(u => u.id === project.responsibleNicLabsId)?.name || '--'}</p>}
                             </div>
 
@@ -757,7 +856,12 @@ const ProjectDetailView: React.FC = () => {
                                 <Target size={10} className="text-blue-500" /> Responsável Cliente
                               </p>
                               {isEditing ? (
-                                <input value={formData.managerClient} onChange={e => setFormData({ ...formData, managerClient: e.target.value })} className="w-full p-1.5 rounded-lg text-xs font-bold" style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }} />
+                                <input
+                                  value={formData.managerClient}
+                                  onChange={e => setFormData({ ...formData, managerClient: e.target.value })}
+                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors ${!formData.managerClient?.trim() ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
+                                  style={{ color: 'var(--text)' }}
+                                />
                               ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{project.managerClient || '--'}</p>}
                             </div>
                           </div>
@@ -864,7 +968,7 @@ const ProjectDetailView: React.FC = () => {
                       </div>
                       <div className="space-y-3">
                         {isEditing ? (
-                          <div className="border rounded-2xl p-4 max-h-[400px] overflow-y-auto space-y-2 custom-scrollbar shadow-inner" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+                          <div className={`border rounded-2xl p-4 max-h-[400px] overflow-y-auto space-y-2 custom-scrollbar shadow-inner transition-colors ${selectedUsers.length === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}>
                             {users.filter(u => u.active !== false && u.torre !== 'N/A').sort((a, b) => a.name.localeCompare(b.name)).map(user => (
                               <label key={user.id} className={`flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-hover)] p-2 rounded-xl transition-all border ${selectedUsers.includes(user.id) ? 'border-purple-500/30 bg-purple-500/5' : 'border-transparent opacity-60'}`}>
                                 <input
@@ -891,16 +995,16 @@ const ProjectDetailView: React.FC = () => {
                                       <p className="text-[8px] font-bold uppercase opacity-40 tracking-wider truncate" style={{ color: 'var(--text)' }}>{user.cargo || user.role}</p>
                                     </div>
                                   </div>
-                                </div>
 
-                                {selectedUsers.includes(user.id) && (
-                                  <div className="flex flex-col items-end gap-0.5 shrink-0">
-                                    <div className="flex items-center gap-1.5 glass-purple px-2 py-1 rounded-lg">
-                                      <Users className="w-3 h-3 text-purple-400" />
-                                      <span className="text-[8px] font-black text-purple-400 uppercase tracking-tighter">Membro</span>
+                                  {selectedUsers.includes(user.id) && (
+                                    <div className="flex flex-col items-end gap-0.5 shrink-0">
+                                      <div className="flex items-center gap-1.5 glass-purple px-2 py-1 rounded-lg">
+                                        <Users className="w-3 h-3 text-purple-400" />
+                                        <span className="text-[8px] font-black text-purple-400 uppercase tracking-tighter">Membro</span>
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                               </label>
 
                             ))}
@@ -1008,6 +1112,7 @@ const ProjectDetailView: React.FC = () => {
                     filteredTasks.map(task => (
                       <ProjectTaskCard
                         key={task.id}
+                        project={project}
                         task={task}
                         users={users}
                         timesheetEntries={timesheetEntries}
@@ -1020,8 +1125,14 @@ const ProjectDetailView: React.FC = () => {
                       <LayoutGrid className="w-12 h-12 mx-auto mb-4 opacity-20" style={{ color: 'var(--text)' }} />
                       <p className="font-bold uppercase text-xs tracking-widest" style={{ color: 'var(--muted)' }}>Nenhuma tarefa encontrada com os filtros atuais.</p>
                       <button
-                        onClick={() => navigate(`/tasks/new?project=${projectId}&client=${project.clientId}`)}
-                        className="mt-6 px-6 py-2 bg-purple-600 text-white rounded-xl font-bold text-sm"
+                        onClick={() => {
+                          if (!canCreateTask) {
+                            alert('Complete as informações obrigatórias do projeto (Finanças, Timeline, Responsáveis e Equipe) antes de criar tarefas.');
+                            return;
+                          }
+                          navigate(`/tasks/new?project=${projectId}&client=${project.clientId}`);
+                        }}
+                        className={`mt-6 px-6 py-2 rounded-xl font-bold text-sm transition-all ${canCreateTask ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-50'}`}
                       >
                         Criar Nova Tarefa
                       </button>
@@ -1070,9 +1181,27 @@ const ProjectDetailView: React.FC = () => {
 };
 
 // SUBCOMPONENT
-const ProjectTaskCard: React.FC<{ task: any, users: any[], timesheetEntries: any[], isAdmin: boolean, onClick: () => void }> = ({ task, users, timesheetEntries, isAdmin, onClick }) => {
+const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timesheetEntries: any[], isAdmin: boolean, onClick: () => void }> = ({ project, task, users, timesheetEntries, isAdmin, onClick }) => {
   const dev = users.find(u => u.id === task.developerId);
   const actualHours = timesheetEntries.filter(e => e.taskId === task.id).reduce((sum, e) => sum + e.totalHours, 0);
+
+  const distributedHours = useMemo(() => {
+    if (!project || !project.startDate || !project.estimatedDelivery || !task.scheduledStart || !task.estimatedDelivery) {
+      return 0;
+    }
+
+    const pStart = new Date(project.startDate).getTime();
+    const pEnd = new Date(project.estimatedDelivery).getTime();
+    const pDuration = pEnd - pStart;
+
+    const tStart = new Date(task.scheduledStart).getTime();
+    const tEnd = new Date(task.estimatedDelivery).getTime();
+    const tDuration = tEnd - tStart;
+
+    if (pDuration <= 0 || tDuration <= 0) return 0;
+    const weight = (tDuration / pDuration);
+    return weight * (project.horas_vendidas || 0);
+  }, [project, task]);
 
   const statusMap: Record<string, { label: string, color: string, bg: string }> = {
     'Todo': { label: 'A Fazer', color: 'text-slate-500', bg: 'bg-slate-500/10' },
@@ -1138,7 +1267,7 @@ const ProjectTaskCard: React.FC<{ task: any, users: any[], timesheetEntries: any
               {isAdmin && (
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--muted)' }}>
-                    / {task.estimatedHours || 0}h
+                    / {distributedHours.toFixed(1)}h
                   </span>
                 </div>
               )}

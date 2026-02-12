@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowLeft, Plus, Briefcase, CheckSquare, Clock, Edit,
   LayoutGrid, ListTodo, Filter, Trash2, Save, Upload,
-  User as UserIcon, Building2, Globe, Phone, FileText
+  User as UserIcon, Building2, Globe, Phone, FileText, AlertTriangle
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { motion } from 'framer-motion';
@@ -62,6 +62,21 @@ const ClientDetailsView: React.FC = () => {
     tasks.filter(t => t.clientId === clientId),
     [tasks, clientId]
   );
+
+  const isProjectIncomplete = (p: any) => {
+    return (
+      !p.name?.trim() ||
+      !p.clientId ||
+      !p.partnerId ||
+      !p.valor_total_rs ||
+      !p.horas_vendidas ||
+      !p.startDate ||
+      !p.estimatedDelivery ||
+      !p.responsibleNicLabsId ||
+      !p.managerClient ||
+      projectMembers.filter(pm => String(pm.id_projeto) === p.id).length === 0
+    );
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -406,14 +421,15 @@ const ClientDetailsView: React.FC = () => {
                     const projectTasks = tasks.filter(t => t.projectId === project.id);
                     const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
                     const progress = projectTasks.length > 0 ? Math.round((doneTasks / projectTasks.length) * 100) : 0;
+                    const isIncomplete = isProjectIncomplete(project);
 
                     return (
                       <motion.div
                         whileHover={{ y: -5 }}
                         key={project.id}
                         onClick={() => navigate(`/admin/projects/${project.id}`)}
-                        className="p-7 rounded-[32px] border shadow-sm hover:shadow-xl transition-all cursor-pointer group relative"
-                        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                        className={`p-7 rounded-[32px] border shadow-sm hover:shadow-xl transition-all cursor-pointer group relative ${isIncomplete ? 'ring-2 ring-yellow-500/20' : ''}`}
+                        style={{ backgroundColor: 'var(--surface)', borderColor: isIncomplete ? '#eab308' : 'var(--border)' }}
                       >
                         <button
                           onClick={(e) => { e.stopPropagation(); setItemToDelete({ id: project.id, type: 'project' }); }}
@@ -421,7 +437,14 @@ const ClientDetailsView: React.FC = () => {
                         >
                           <Trash2 size={16} />
                         </button>
-                        <h4 className="font-black text-slate-800 text-lg mb-6 pr-8 group-hover:text-purple-600 transition-colors uppercase tracking-tight line-clamp-1">{project.name}</h4>
+                        <h4 className="font-black text-slate-800 text-lg mb-6 pr-8 group-hover:text-purple-600 transition-colors uppercase tracking-tight line-clamp-1">
+                          {project.name}
+                          {isIncomplete && (
+                            <span className="ml-2 bg-yellow-500 text-black px-2 py-0.5 rounded-lg text-[9px] font-black inline-flex items-center gap-1 animate-pulse align-middle">
+                              <AlertTriangle size={8} /> INCOMPLETO
+                            </span>
+                          )}
+                        </h4>
 
                         <div className="space-y-6">
                           <div>
