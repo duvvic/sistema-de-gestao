@@ -686,10 +686,28 @@ export const KanbanBoard = () => {
 
   const confirmDelete = async () => {
     if (taskToDelete) {
-      await deleteTask(taskToDelete.id);
+      try {
+        await deleteTask(taskToDelete.id);
+        setDeleteModalOpen(false);
+        setTaskToDelete(null);
+      } catch (error: any) {
+        console.error('Erro ao excluir tarefa:', error);
+        const msg = error.message || "";
+        if (msg.includes("horas apontadas") || msg.includes("hasHours")) {
+          if (window.confirm("Esta tarefa possui horas apontadas. Deseja excluir a tarefa e TODOS os apontamentos de horas vinculados? Esta ação é irreversível.")) {
+            try {
+              await deleteTask(taskToDelete.id, true);
+              setDeleteModalOpen(false);
+              setTaskToDelete(null);
+            } catch (forceErr: any) {
+              alert('Erro na exclusão forçada: ' + (forceErr.message || 'Erro desconhecido'));
+            }
+          }
+        } else {
+          alert(msg || 'Erro ao excluir tarefa.');
+        }
+      }
     }
-    setDeleteModalOpen(false);
-    setTaskToDelete(null);
   };
 
   return (

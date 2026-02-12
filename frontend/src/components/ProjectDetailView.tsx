@@ -1046,7 +1046,20 @@ const ProjectDetailView: React.FC = () => {
               await deleteProject(itemToDelete.id);
               navigate(isAdmin ? '/admin/projects' : '/developer/projects');
             } catch (error: any) {
-              alert(error.message || 'Erro ao excluir projeto.');
+              const msg = error.message || "";
+              if (msg.includes("tarefas criadas") || msg.includes("hasTasks")) {
+                if (window.confirm("Este projeto possui tarefas e possivelmente horas apontadas. Deseja realizar a EXCLUSÃO FORÇADA de todos os dados vinculados? Esta ação é irreversível.")) {
+                  try {
+                    await deleteProject(itemToDelete.id, true);
+                    alert('Projeto e dados vinculados excluídos com sucesso!');
+                    navigate(isAdmin ? '/admin/projects' : '/developer/projects');
+                  } catch (forceErr: any) {
+                    alert('Erro na exclusão forçada: ' + (forceErr.message || 'Erro desconhecido'));
+                  }
+                }
+              } else {
+                alert(msg || 'Erro ao excluir projeto.');
+              }
             }
           }
           setItemToDelete(null);

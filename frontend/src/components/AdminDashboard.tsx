@@ -2247,7 +2247,19 @@ const AdminDashboard: React.FC = () => {
               setProjectToDelete(null);
             } catch (err: any) {
               console.error('Erro ao excluir projeto:', err);
-              alert(err.message || 'Erro ao excluir projeto.');
+              const msg = err.message || "";
+              if (msg.includes("tarefas criadas") || msg.includes("hasTasks")) {
+                if (window.confirm("Este projeto possui tarefas e possivelmente horas apontadas. Deseja realizar a EXCLUSÃO FORÇADA de todos os dados vinculados? Esta ação é irreversível.")) {
+                  try {
+                    await deleteProject(projectToDelete, true);
+                    setProjectToDelete(null);
+                  } catch (forceErr: any) {
+                    alert('Erro na exclusão forçada: ' + (forceErr.message || 'Erro desconhecido'));
+                  }
+                }
+              } else {
+                alert(msg || 'Erro ao excluir projeto.');
+              }
             }
           }
         }}

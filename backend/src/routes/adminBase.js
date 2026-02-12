@@ -94,31 +94,10 @@ router.delete('/projects/:id', requireAdmin, async (req, res) => {
             return res.status(400).json({ error: 'ID de projeto inválido' });
         }
 
-        // 1. Validar se o projeto tem tarefas
-        const hasTasks = await checkProjectHasTasks(projectId);
-        if (hasTasks) {
-            if (force === 'true') {
-                console.log(`[DELETE Project] Forced deletion: removing all tasks and data for project ${numericId}`);
-
-                // Buscar IDs das tarefas do projeto
-                const { data: projectTasks } = await supabaseAdmin
-                    .from('fato_tarefas')
-                    .select('id_tarefa_novo')
-                    .eq('ID_Projeto', numericId);
-
-                if (projectTasks && projectTasks.length > 0) {
-                    const taskIds = projectTasks.map(t => t.id_tarefa_novo);
-
-                    // Limpar Horas Trabalhadas
-                    await supabaseAdmin.from('horas_trabalhadas').delete().in('id_tarefa_novo', taskIds);
-
-                    // Limpar Colaboradores das Tarefas
-                    await supabaseAdmin.from('tarefa_colaboradores').delete().in('id_tarefa', taskIds);
-
-                    // Limpar as Tarefas
-                    await supabaseAdmin.from('fato_tarefas').delete().eq('ID_Projeto', numericId);
-                }
-            } else {
+        // 1. Validar se o projeto tem tarefas ou se o delete é forçado
+        if (force !== 'true') {
+            const hasTasks = await checkProjectHasTasks(numericId);
+            if (hasTasks) {
                 return res.status(400).json({
                     error: 'Não é possível excluir este projeto pois existem tarefas criadas nele.',
                     hasTasks: true
@@ -126,13 +105,7 @@ router.delete('/projects/:id', requireAdmin, async (req, res) => {
             }
         }
 
-        // 2. Limpar Membros do Projeto
-        await supabaseAdmin.from('project_members').delete().eq('id_projeto', numericId);
-
-        // 3. Limpar Custos/Budget se existirem
-        await supabaseAdmin.from('project_budgets').delete().eq('id_projeto', numericId);
-
-        // 4. Excluir o Projeto
+        // 2. Excluir o Projeto (O banco de dados cuidará das tarefas, horas, membros e budgets via CASCADE)
         const { data, error } = await supabaseAdmin
             .from('dim_projetos')
             .delete()
@@ -140,8 +113,12 @@ router.delete('/projects/:id', requireAdmin, async (req, res) => {
             .select();
 
         if (error) {
+            console.error('Erro ao excluir projeto no DB:', error);
             if (error.code === '23503') {
-                throw new Error('Não é possível excluir o projeto pois existem registros vinculados externos.');
+                return res.status(400).json({
+                    error: 'Não é possível excluir o projeto pois existem registros vinculados externos. Tente usar a opção de exclusão forçada.',
+                    code: error.code
+                });
             }
             throw error;
         }
@@ -165,32 +142,10 @@ router.delete('/tasks/:id', requireAdmin, async (req, res) => {
 
         console.log(`[DELETE Task] Attempting to delete task ID: ${taskId}, force: ${force}`);
 
-        // 1. Remover links de colaboradores para evitar FK constraint
-        const { error: collabError } = await supabaseAdmin
-            .from('tarefa_colaboradores')
-            .delete()
-            .eq('id_tarefa', taskId);
-
-        if (collabError) {
-            console.error('Erro ao remover colaboradores da tarefa:', collabError);
-            throw collabError;
-        }
-
-        // 2. Validar se a tarefa tem horas apontadas
-        const hasHours = await checkTaskHasHours(taskId);
-        if (hasHours) {
-            if (force === 'true') {
-                console.log(`[DELETE Task] Forcing deletion of hours for task ${taskId}`);
-                const { error: hoursError } = await supabaseAdmin
-                    .from('horas_trabalhadas')
-                    .delete()
-                    .eq('id_tarefa_novo', taskId);
-
-                if (hoursError) {
-                    console.error('Erro ao remover horas da tarefa:', hoursError);
-                    throw hoursError;
-                }
-            } else {
+        // 1. Validar se a tarefa tem horas apontadas ou se o delete é forçado
+        if (force !== 'true') {
+            const hasHours = await checkTaskHasHours(taskId);
+            if (hasHours) {
                 return res.status(400).json({
                     error: 'Não é possível excluir esta tarefa pois existem horas apontadas nela.',
                     hasHours: true
@@ -198,14 +153,17 @@ router.delete('/tasks/:id', requireAdmin, async (req, res) => {
             }
         }
 
-        // 3. Exclusão física da tarefa
+        // 2. Exclusão física da tarefa (O banco de dados cuidará dos colaboradores e horas via CASCADE)
         const { error, data } = await supabaseAdmin
             .from('fato_tarefas')
             .delete()
             .eq('id_tarefa_novo', taskId)
             .select();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Erro ao excluir tarefa no DB:', error);
+            throw error;
+        }
 
         if (!data || data.length === 0) {
             return res.status(404).json({ error: 'Tarefa não encontrada.' });
