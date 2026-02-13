@@ -396,37 +396,39 @@ const TaskDetail: React.FC = () => {
       </div>
 
       {/* Main Content Area - Grid Layout matching Project Dashboard */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+        <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-6">
 
           {/* ROW 1: 4 KPI CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
             {/* Card 1: Identificação */}
-            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col h-[260px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Identificação</h4>
-                <Briefcase size={14} className="text-purple-500" />
+            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-[280px] transition-all hover:shadow-md" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Identificação</h4>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-purple-500/10">
+                  <Briefcase size={14} className="text-purple-500" />
+                </div>
               </div>
-              <div className="space-y-3 flex-1">
+              <div className="space-y-4 flex-1">
                 <div>
-                  <label className={`text-[9px] font-black uppercase mb-1 block opacity-60 ${hasError('title') ? 'text-yellow-500 opacity-100' : ''}`}>Nome da Tarefa *</label>
+                  <label className={`text-[9px] font-black uppercase mb-2 block opacity-60 ${hasError('title') ? 'text-yellow-500 opacity-100' : ''}`}>Nome da Tarefa *</label>
                   <input
                     type="text"
                     value={formData.title}
                     onChange={e => { setFormData({ ...formData, title: e.target.value }); clearError('title'); }}
-                    className={`w-full px-3 py-2 text-sm font-bold border rounded-xl outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    className={`w-full px-4 py-2.5 text-sm font-bold border rounded-xl outline-none transition-all focus:ring-2 focus:ring-purple-500/20 ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                     style={{ color: 'var(--text)' }}
-                    placeholder="Nome da Tarefa"
+                    placeholder="Ex: Implementar login"
                     disabled={!canEditEverything}
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Status</label>
+                  <label className="text-[9px] font-black uppercase mb-2 block opacity-60">Status</label>
                   <select
                     value={formData.status}
                     onChange={e => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-3 py-2 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none"
+                    className="w-full px-4 py-2.5 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                     style={{ color: 'var(--text)' }}
                   >
                     <option value="Todo">Não Iniciado</option>
@@ -439,14 +441,16 @@ const TaskDetail: React.FC = () => {
             </div>
 
             {/* Card 2: Gestão */}
-            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col h-[260px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-[280px] transition-all hover:shadow-md" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Gestão</h4>
-                <Shield size={14} className="text-emerald-500" />
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Gestão</h4>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-emerald-500/10">
+                  <Shield size={14} className="text-emerald-500" />
+                </div>
               </div>
               <div className="space-y-4 flex-1">
                 <div>
-                  <label className={`text-[9px] font-black uppercase mb-1 block opacity-60 ${hasError('developerId') ? 'text-yellow-500 opacity-100' : ''}`}>Responsável *</label>
+                  <label className={`text-[9px] font-black uppercase mb-2 block opacity-60 ${hasError('developerId') ? 'text-yellow-500 opacity-100' : ''}`}>Responsável *</label>
                   <select
                     value={formData.developerId}
                     onChange={e => {
@@ -454,7 +458,7 @@ const TaskDetail: React.FC = () => {
                       setFormData({ ...formData, developerId: e.target.value, developer: u?.name || '' });
                       clearError('developerId');
                     }}
-                    className={`w-full px-3 py-2 text-xs font-bold border rounded-xl outline-none transition-all ${hasError('developerId') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    className={`w-full px-4 py-2.5 text-xs font-bold border rounded-xl outline-none transition-all focus:ring-2 focus:ring-purple-500/20 ${hasError('developerId') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                     style={{ color: 'var(--text)' }}
                     disabled={!canEditEverything}
                   >
@@ -463,11 +467,11 @@ const TaskDetail: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Prioridade</label>
+                  <label className="text-[9px] font-black uppercase mb-2 block opacity-60">Prioridade</label>
                   <select
                     value={formData.priority}
                     onChange={e => setFormData({ ...formData, priority: e.target.value as any })}
-                    className="w-full px-3 py-2 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none"
+                    className="w-full px-4 py-2.5 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                     style={{ color: 'var(--text)' }}
                   >
                     <option value="Low">Baixa</option>
@@ -480,10 +484,12 @@ const TaskDetail: React.FC = () => {
             </div>
 
             {/* Card 3: Esforço */}
-            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col h-[260px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-[280px] transition-all hover:shadow-md" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Esforço</h4>
-                <Activity size={14} className="text-amber-500" />
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Esforço</h4>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-500/10">
+                  <Activity size={14} className="text-amber-500" />
+                </div>
               </div>
               <div className="space-y-3">
                 {isNicLabs && (
@@ -526,10 +532,12 @@ const TaskDetail: React.FC = () => {
             </div>
 
             {/* Card 4: Timeline */}
-            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col h-[260px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Timeline</h4>
-                <Calendar size={14} className="text-blue-500" />
+            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-[280px] transition-all hover:shadow-md" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Timeline</h4>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-500/10">
+                  <Calendar size={14} className="text-blue-500" />
+                </div>
               </div>
               <div className="space-y-3">
                 {isNicLabs && (
@@ -573,9 +581,12 @@ const TaskDetail: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* Documentation Card (2/3 width) */}
-            <div className="lg:col-span-2 p-6 rounded-[24px] border shadow-sm space-y-4" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">
-                <FileSpreadsheet size={14} /> Documentação
+            <div className="lg:col-span-2 p-6 rounded-[24px] border shadow-sm space-y-5 transition-all hover:shadow-md" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-indigo-500/10">
+                  <FileSpreadsheet size={14} className="text-indigo-500" />
+                </div>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Documentação</h4>
               </div>
 
               <div>
@@ -592,10 +603,13 @@ const TaskDetail: React.FC = () => {
             </div>
 
             {/* Squad Card (1/3 width) with Scroll */}
-            <div className="p-5 rounded-[24px] border shadow-sm flex flex-col max-h-[320px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col max-h-[340px] transition-all hover:shadow-md" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">
-                  <Users size={14} /> Equipe Alocada
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-indigo-500/10">
+                    <Users size={14} className="text-indigo-500" />
+                  </div>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Equipe Alocada</h4>
                 </div>
                 <button
                   type="button"
@@ -611,15 +625,23 @@ const TaskDetail: React.FC = () => {
                 <div>
                   <label className="text-[8px] font-black uppercase opacity-40 mb-2 block">Responsável Principal</label>
                   {currentDeveloper ? (
-                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/20">
-                      <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-indigo-500 shadow-lg shadow-indigo-500/20">
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 relative">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-indigo-500 shadow-lg shadow-indigo-500/20 relative">
                         {currentDeveloper.avatarUrl ? <img src={currentDeveloper.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-[var(--surface-2)] font-bold text-xs">{currentDeveloper.name.substring(0, 2).toUpperCase()}</div>}
+                        {/* Crown Icon Badge */}
+                        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center shadow-lg border-2 border-white dark:border-indigo-950">
+                          <Crown size={10} className="text-amber-900" fill="currentColor" />
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold text-indigo-400 truncate">{currentDeveloper.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[11px] font-bold text-indigo-400 truncate">{currentDeveloper.name}</p>
+                        </div>
                         <p className="text-[8px] font-black uppercase opacity-40 truncate">{currentDeveloper.cargo || 'Responsável'}</p>
                       </div>
-                      <button type="button" onClick={() => setFormData({ ...formData, developerId: '' })} className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500/50 hover:text-red-500 transition-all"><X size={12} /></button>
+                      {canEditEverything && (
+                        <button type="button" onClick={() => setFormData({ ...formData, developerId: '' })} className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500/50 hover:text-red-500 transition-all"><X size={12} /></button>
+                      )}
                     </div>
                   ) : (
                     <button type="button" onClick={() => setIsAddMemberOpen(true)} className="w-full py-4 rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-2 opacity-50 hover:opacity-100 hover:bg-[var(--surface-hover)] transition-all">
