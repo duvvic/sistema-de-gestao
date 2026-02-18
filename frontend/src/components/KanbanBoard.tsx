@@ -1,5 +1,5 @@
 // components/KanbanBoard.tsx - Adaptado para Router
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
@@ -27,6 +27,7 @@ import {
   Calendar,
   User as UserIcon,
   AlertCircle,
+  AlertTriangle,
   Search,
   Trash2,
   ArrowLeft,
@@ -37,18 +38,43 @@ import {
   Filter,
   CheckSquare,
   Plus,
-  Briefcase
+  Briefcase,
+  Flag,
+  Archive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmationModal from './ConfirmationModal';
 import { TaskCreationModal } from './TaskCreationModal';
 
 const STATUS_COLUMNS: { id: Status; title: string; color: string; bg: string; badgeColor: string }[] = [
-  { id: 'Todo', title: 'A Fazer', color: 'var(--text)', bg: 'var(--status-todo)', badgeColor: 'var(--muted)' },
-  { id: 'In Progress', title: 'Em Progresso', color: 'var(--info-text)', bg: 'var(--status-progress)', badgeColor: 'var(--info)' },
-  { id: 'Review', title: 'Pendente', color: 'var(--warning-text)', bg: 'var(--status-review)', badgeColor: 'var(--warning)' },
+  { id: 'Todo', title: 'Pré-Projeto', color: 'var(--text)', bg: 'var(--status-todo)', badgeColor: 'var(--muted)' },
+  { id: 'Review', title: 'Análise', color: 'var(--warning-text)', bg: 'var(--status-review)', badgeColor: 'var(--warning)' },
+  { id: 'In Progress', title: 'Andamento', color: 'var(--info-text)', bg: 'var(--status-progress)', badgeColor: 'var(--info)' },
   { id: 'Done', title: 'Concluído', color: 'var(--success-text)', bg: 'var(--status-done)', badgeColor: 'var(--success)' },
 ];
+
+const STATUS_ORDER: Status[] = ['Todo', 'Review', 'In Progress', 'Done'];
+
+const PULSE_ANIMATIONS = `
+  @keyframes pulse-impediment {
+    0% { border-color: #f59e0b; box-shadow: 0 0 5px rgba(245, 158, 11, 0.2); background-color: rgba(245, 158, 11, 0.05); }
+    50% { border-color: #fbbf24; box-shadow: 0 0 20px rgba(245, 158, 11, 0.6); background-color: rgba(245, 158, 11, 0.15); }
+    100% { border-color: #f59e0b; box-shadow: 0 0 5px rgba(245, 158, 11, 0.2); background-color: rgba(245, 158, 11, 0.05); }
+  }
+  @keyframes pulse-delayed {
+    0% { border-color: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); background-color: rgba(239, 68, 68, 0.05); }
+    50% { border-color: #f87171; box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); background-color: rgba(239, 68, 68, 0.15); }
+    100% { border-color: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); background-color: rgba(239, 68, 68, 0.05); }
+  }
+  .pulse-impediment {
+    animation: pulse-impediment 1.5s infinite ease-in-out;
+    border-width: 2px !important;
+  }
+  .pulse-delayed {
+    animation: pulse-delayed 1.5s infinite ease-in-out;
+    border-width: 2px !important;
+  }
+`;
 
 /* ================== CARD ================== */
 const KanbanCard = ({
@@ -107,6 +133,18 @@ const KanbanCard = ({
     return name.includes('treinamento') || name.includes('capacitação');
   }, [project]);
 
+  const getCardTheme = () => {
+    if (task.is_impediment) return { color: '#f59e0b', pulseClass: 'pulse-impediment' };
+    if (isDelayed) return { color: '#ef4444', pulseClass: 'pulse-delayed' };
+    if (task.status === 'Done') return { color: '#10b981' };
+    if (task.status === 'Review') return { color: '#f59e0b' };
+    if (task.status === 'In Progress') return { color: '#3b82f6' };
+    if (isStudy) return { color: '#3b82f6' };
+    return { color: 'var(--border)' };
+  };
+
+  const theme = getCardTheme();
+
   const handleCreateTimesheet = (e: React.MouseEvent) => {
     e.stopPropagation();
     const url = `/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`;
@@ -125,29 +163,24 @@ const KanbanCard = ({
 
   return (
     <div ref={setNodeRef} style={style}>
+      <style>{PULSE_ANIMATIONS}</style>
       <div
         {...attributes}
         {...listeners}
         className={`
           relative group flex flex-col gap-3 p-4 rounded-xl border shadow-sm cursor-grab active:cursor-grabbing
           transition-all duration-300 ease-out
+          ${theme.pulseClass || ''}
         `}
         style={{
-          backgroundColor: isHighlighted ? 'var(--surface-hover)' : 'var(--surface)',
-          borderColor: isHighlighted
-            ? 'var(--primary)'
-            : isDelayed
-              ? '#ef4444'
-              : task.status === 'Review'
-                ? 'var(--warning-text)'
-                : task.status === 'Done'
-                  ? 'var(--success)'
-                  : isStudy
-                    ? '#3b82f6'
-                    : 'var(--border)',
-          boxShadow: isHighlighted ? '0 0 0 2px var(--primary)' : 'var(--shadow)',
+          backgroundColor: task.is_impediment ? 'rgba(245, 158, 11, 0.05)' : isHighlighted ? 'var(--surface-hover)' : 'var(--surface)',
+          borderColor: isHighlighted ? 'var(--primary)' : theme.color,
+          boxShadow: task.is_impediment || isDelayed
+            ? undefined
+            : isHighlighted ? '0 0 0 2px var(--primary)' : 'var(--shadow)',
           transform: isHighlighted ? 'scale(1.02)' : 'none',
-          borderTopWidth: (isDelayed || isStudy || task.status === 'Review' || task.status === 'Done') ? '4px' : '1px'
+          borderTopWidth: '4px',
+          borderTopColor: theme.color
         }}
         onClick={() => onTaskClick(task.id)}
       >
@@ -172,11 +205,18 @@ const KanbanCard = ({
               {client?.name || 'Sem Empresa'}
             </span>
           </div>
-          {isDelayed && (
-            <div style={{ color: 'var(--danger)' }} title="Atrasado">
-              <AlertCircle size={14} />
-            </div>
-          )}
+          <div className="flex items-center gap-1.5">
+            {task.is_impediment && (
+              <div style={{ color: '#f59e0b' }} title="Tarefa Travada / Impedimento">
+                <AlertCircle size={14} className="animate-pulse" />
+              </div>
+            )}
+            {isDelayed && (
+              <div style={{ color: 'var(--danger)' }} title="Atrasado">
+                <AlertTriangle size={14} />
+              </div>
+            )}
+          </div>
         </div>
 
         {onDelete && (
@@ -198,9 +238,11 @@ const KanbanCard = ({
           </span>
         </div>
 
-        <h4 className="font-semibold text-sm leading-snug line-clamp-2 text-left" style={{ color: 'var(--text)' }}>
-          {task.title || "(Sem título)"}
-        </h4>
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="font-semibold text-sm leading-snug line-clamp-2 text-left" style={{ color: 'var(--text)' }}>
+            {task.title || "(Sem título)"}
+          </h4>
+        </div>
 
         <div className="flex items-center gap-2">
           <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
@@ -208,7 +250,7 @@ const KanbanCard = ({
               className={`h-full rounded-full`}
               style={{
                 width: `${task.progress || 0}%`,
-                backgroundColor: isDelayed ? 'var(--danger)' : 'var(--primary)'
+                backgroundColor: task.is_impediment ? '#f59e0b' : isDelayed ? 'var(--danger)' : 'var(--primary)'
               }}
             />
           </div>
@@ -486,12 +528,13 @@ export const KanbanBoard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showTaskCreationModal, setShowTaskCreationModal] = useState(false);
   const [showOnlyDelayed, setShowOnlyDelayed] = useState(false);
-  const [periodFilter, setPeriodFilter] = useState<'all' | '7' | '15' | '30'>('all');
+  const [showOnlyImpediments, setShowOnlyImpediments] = useState(false);
   const [doneLimit, setDoneLimit] = useState(10);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>('');
+  const [showDoneColumn, setShowDoneColumn] = useState(true);
 
   // Auxiliar para detectar atraso
-  const isTaskDelayed = (t: Task) => {
+  const isTaskDelayed = useCallback((t: Task) => {
     if (t.status === 'Done' || t.status === 'Review' || (t.progress || 0) >= 100) return false;
     if (!t.estimatedDelivery) return false;
     const parts = t.estimatedDelivery.split('-');
@@ -500,7 +543,21 @@ export const KanbanBoard = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return today > due;
-  };
+  }, []);
+
+  // Memo para estatísticas de filtros
+  const stats = useMemo(() => {
+    const accessible = tasks.filter(t => {
+      const isOwner = t.developerId === currentUser?.id;
+      const isCollaborator = t.collaboratorIds?.includes(currentUser?.id || '');
+      return isAdmin || isOwner || isCollaborator;
+    });
+
+    return {
+      delayed: accessible.filter(isTaskDelayed).length,
+      impeded: accessible.filter(t => t.is_impediment).length
+    };
+  }, [tasks, currentUser, isAdmin, isTaskDelayed]);
 
   // Memo para identificar desenvolvedores com atrasos
   const lateDevelopers = useMemo(() => {
@@ -532,18 +589,21 @@ export const KanbanBoard = () => {
 
   const filteredTasks = useMemo(() => {
     let result = tasks.filter((t) => {
-      // 1. Core filters (Admin sees all, Dev sees own + collaborators)
+      // 1. Core filters (Admin sees all, Dev sees ONLY own)
       const isOwner = t.developerId === currentUser?.id;
       const isCollaborator = t.collaboratorIds?.includes(currentUser?.id || '');
       const hasPermission = isAdmin || isOwner || isCollaborator;
 
       if (!hasPermission) return false;
 
+      // Se não for admin, ele vê APENAS as dele obrigatoriamente
+      if (!isAdmin && !isOwner && !isCollaborator) return false;
+
       // 2. Client/Project context (from URL)
       if (filteredClientId && t.clientId !== filteredClientId) return false;
       if (filteredProjectId && t.projectId !== filteredProjectId) return false;
 
-      // 3. User Filter (from Select)
+      // 3. User Filter (from Select) - Only applies to Admin view or if Dev explicitly filters (though we hide UI)
       if (selectedDeveloperId) {
         const isSelectedOwner = t.developerId === selectedDeveloperId;
         const isSelectedCollaborator = t.collaboratorIds?.includes(selectedDeveloperId);
@@ -553,25 +613,8 @@ export const KanbanBoard = () => {
       // 4. Delayed Filter
       if (showOnlyDelayed && !isTaskDelayed(t)) return false;
 
-      // 5. Period Filter (based on task creation/update date)
-      if (periodFilter !== 'all') {
-        const daysAgo = parseInt(periodFilter);
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
-        cutoffDate.setHours(0, 0, 0, 0);
-
-        // Try to parse the task's estimated delivery or use a fallback
-        // Since we don't have a createdAt field visible, we'll use estimatedDelivery as a proxy
-        // Or we can filter based on whether the task was created recently
-        // For now, let's assume we want to show tasks with recent estimated delivery dates
-        if (t.estimatedDelivery) {
-          const parts = t.estimatedDelivery.split('-');
-          if (parts.length === 3) {
-            const taskDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-            if (taskDate < cutoffDate) return false;
-          }
-        }
-      }
+      // 5. Impediments Filter
+      if (showOnlyImpediments && !t.is_impediment) return false;
 
       // 6. Global Search
       if (searchTerm) {
@@ -585,7 +628,7 @@ export const KanbanBoard = () => {
     });
 
     return result;
-  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId, showOnlyDelayed, periodFilter, searchTerm]);
+  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId, showOnlyDelayed, showOnlyImpediments, searchTerm]);
 
   // Calcular empresas disponíveis para filtro (apenas empresas onde o usuário concluiu tarefas)
   const availableClientsForDoneFilter = useMemo(() => {
@@ -643,6 +686,15 @@ export const KanbanBoard = () => {
     }
 
     if (activeTask.status !== newStatus) {
+      // Regra: Não permitir voltar status
+      const oldIndex = STATUS_ORDER.indexOf(activeTask.status);
+      const newIndex = STATUS_ORDER.indexOf(newStatus);
+
+      if (newIndex < oldIndex) {
+        // Alerta opcional ou apenas ignore
+        return;
+      }
+
       // Calcular novo progresso automático
       let newProgress = activeTask.progress;
       // Progress calculation removed to allow manual control only
@@ -747,40 +799,9 @@ export const KanbanBoard = () => {
           </div>
         </div>
 
-        {/* Period Filter Buttons */}
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs font-bold uppercase tracking-wider opacity-50 mr-2" style={{ color: 'var(--muted)' }}>
-            Período:
-          </span>
-          {[
-            { value: 'all' as const, label: 'Todas' },
-            { value: '7' as const, label: '7 dias' },
-            { value: '15' as const, label: '15 dias' },
-            { value: '30' as const, label: '30 dias' }
-          ].map(period => (
-            <button
-              key={period.value}
-              onClick={() => setPeriodFilter(period.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${periodFilter === period.value
-                ? 'shadow-md'
-                : 'opacity-60 hover:opacity-100'
-                }`}
-              style={{
-                backgroundColor: periodFilter === period.value ? 'var(--primary)' : 'var(--surface)',
-                color: periodFilter === period.value ? 'white' : 'var(--text)',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: periodFilter === period.value ? 'var(--primary)' : 'var(--border)'
-              }}
-            >
-              {period.label}
-            </button>
-          ))}
-        </div>
-
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {/* Custom PREMIUM Developer Filter */}
-          {true && (
+          {/* Custom PREMIUM Developer Filter - APENAS PARA ADMINS */}
+          {isAdmin && (
             <div className="relative min-w-[240px]">
               <button
                 type="button"
@@ -918,23 +939,55 @@ export const KanbanBoard = () => {
           )}
 
           {/* Botão Atrasados Toggle (Para Todos) */}
-          {true && (
-            <button
-              type="button"
-              onClick={() => setShowOnlyDelayed(!showOnlyDelayed)}
-              className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all flex items-center gap-2 shadow-lg ${showOnlyDelayed ? 'bg-red-500 text-white border-red-400' : ''}`}
-              style={{
-                backgroundColor: showOnlyDelayed ? 'var(--danger)' : 'var(--surface)',
-                borderColor: showOnlyDelayed ? 'var(--danger)' : 'var(--border)',
-                color: showOnlyDelayed ? 'white' : 'var(--text)'
-              }}
-            >
-              <AlertCircle size={16} className={showOnlyDelayed ? 'animate-pulse' : ''} />
-              <span className="hidden sm:inline">{showOnlyDelayed ? 'Mostrando Atrasados' : 'Ver Atrasados'}</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => { setShowOnlyDelayed(!showOnlyDelayed); if (!showOnlyDelayed) setShowOnlyImpediments(false); }}
+            className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all flex items-center gap-2 shadow-lg ${showOnlyDelayed ? 'bg-red-500 text-white border-red-400' : ''}`}
+            style={{
+              backgroundColor: showOnlyDelayed ? 'var(--danger)' : 'var(--surface)',
+              borderColor: showOnlyDelayed ? 'var(--danger)' : 'var(--border)',
+              color: showOnlyDelayed ? 'white' : 'var(--text)'
+            }}
+          >
+            <AlertTriangle size={16} className={`${showOnlyDelayed ? 'animate-pulse' : ''}`} style={{ color: showOnlyDelayed ? 'white' : '#ef4444' }} />
+            <span className="hidden sm:inline" style={{ color: showOnlyDelayed ? 'white' : '#ef4444' }}>Atrasados</span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black min-w-[20px] ${showOnlyDelayed ? 'bg-white text-red-600' : 'bg-red-500/10 text-red-500'}`}>
+              {stats.delayed}
+            </span>
+          </button>
 
+          {/* Botão Impedidos Toggle (Para Todos) */}
+          <button
+            type="button"
+            onClick={() => { setShowOnlyImpediments(!showOnlyImpediments); if (!showOnlyImpediments) setShowOnlyDelayed(false); }}
+            className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all flex items-center gap-2 shadow-lg ${showOnlyImpediments ? 'bg-orange-500 text-white border-orange-400' : ''}`}
+            style={{
+              backgroundColor: showOnlyImpediments ? '#f59e0b' : 'var(--surface)',
+              borderColor: showOnlyImpediments ? '#f59e0b' : 'var(--border)',
+              color: showOnlyImpediments ? 'white' : 'var(--text)'
+            }}
+          >
+            <AlertCircle size={16} className={`${showOnlyImpediments ? 'animate-pulse' : ''}`} style={{ color: showOnlyImpediments ? 'white' : '#f59e0b' }} />
+            <span className="hidden sm:inline" style={{ color: showOnlyImpediments ? 'white' : '#f59e0b' }}>Impedidos</span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black min-w-[20px] ${showOnlyImpediments ? 'bg-white text-orange-600' : 'bg-orange-500/10 text-orange-500'}`}>
+              {stats.impeded}
+            </span>
+          </button>
 
+          {/* Botão Arquivo (Toggle Done) */}
+          <button
+            type="button"
+            onClick={() => setShowDoneColumn(!showDoneColumn)}
+            className={`p-2.5 rounded-xl border transition-all shadow-lg flex items-center justify-center`}
+            style={{
+              backgroundColor: showDoneColumn ? 'var(--surface)' : 'var(--primary)',
+              borderColor: showDoneColumn ? 'var(--border)' : 'var(--primary)',
+              color: showDoneColumn ? 'var(--text)' : 'white'
+            }}
+            title={showDoneColumn ? "Ocultar Concluídos" : "Exibir Concluídos"}
+          >
+            <Archive size={18} />
+          </button>
 
           {/* Botão Nova Tarefa (Minhas Tarefas - Modal) */}
           {location.pathname.includes('/developer/tasks') && (
@@ -958,9 +1011,9 @@ export const KanbanBoard = () => {
         preSelectedProjectId={filteredProjectId || undefined}
       />
 
-      {/* NOVO: Lista de Avatares Atrasados */}
+      {/* NOVO: Lista de Avatares Atrasados - APENAS ADMIN */}
       <AnimatePresence>
-        {showOnlyDelayed && lateDevelopers.length > 0 && (
+        {isAdmin && showOnlyDelayed && lateDevelopers.length > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -1043,7 +1096,11 @@ export const KanbanBoard = () => {
           >
             <div className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4 px-2 custom-scrollbar h-full">
               {STATUS_COLUMNS
-                .filter(col => !showOnlyDelayed || col.id !== 'Done')
+                .filter(col => {
+                  if (showOnlyDelayed && col.id === 'Done') return false;
+                  if (!showDoneColumn && col.id === 'Done') return false;
+                  return true;
+                })
                 .map((col) => {
                   let columnTasks = filteredTasks.filter(t => t.status === col.id);
                   const isDone = col.id === 'Done';

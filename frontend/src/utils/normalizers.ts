@@ -4,10 +4,10 @@ import { Task, Status, Priority, Impact, TimesheetEntry, Client, Project, User, 
 export function normalizeStatus(raw: string | null): Status {
     if (!raw) return "Todo";
     const s = raw.toLowerCase().trim();
-    if (s.includes("não iniciado")) return "Todo";
+    if (s.includes("pré-projeto") || s.includes("projeto") || s.includes("não iniciado")) return "Todo";
     if (s.includes("conclu") || s.includes("done") || s.includes("finaliz")) return "Done";
-    if (s.includes("trabalhando") || s.includes("andamento") || s.includes("progresso") || s.includes("progress") || s.includes("execu") || s.includes("iniciado")) return "In Progress";
-    if (s.includes("teste") || s.includes("revis") || s.includes("review") || s.includes("valida") || s.includes("pendente")) return "Review";
+    if (s.includes("analise") || s.includes("análise") || s.includes("revis") || s.includes("review") || s.includes("valida") || s.includes("pendente")) return "Review";
+    if (s.includes("andamento") || s.includes("progresso") || s.includes("progress") || s.includes("execu") || s.includes("iniciado") || s.includes("trabalhando")) return "In Progress";
     return "Todo";
 }
 
@@ -99,6 +99,7 @@ export function mapDbTaskToTask(row: any, userMap?: Map<string, any>, projectNam
         link_ef: row.link_ef || undefined,
         id_tarefa_novo: row.id_tarefa_novo,
         estimatedHours: row.estimated_hours ? Number(row.estimated_hours) : undefined,
+        is_impediment: !!row.is_impediment,
         daysOverdue: calculateDaysOverdue(row.entrega_estimada, row.entrega_real, status)
     };
 }

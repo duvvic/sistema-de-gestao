@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
 import { Task, Status, Priority, Impact } from '@/types';
 import {
-  ArrowLeft, Save, Calendar, Clock, Users, StickyNote, CheckSquare, Plus, Trash2, X, CheckCircle, Activity, Zap, AlertTriangle, Briefcase, Info, Target, LayoutGrid, Shield, FileSpreadsheet, Crown, ExternalLink
+  ArrowLeft, Save, Calendar, Clock, Users, StickyNote, CheckSquare, Plus, Trash2, X, CheckCircle, Activity, Zap, AlertTriangle, Briefcase, Info, Target, LayoutGrid, Shield, FileSpreadsheet, Crown, ExternalLink, Flag
 } from 'lucide-react';
 import { useUnsavedChangesPrompt } from '@/hooks/useUnsavedChangesPrompt';
 import ConfirmationModal from './ConfirmationModal';
@@ -49,7 +49,8 @@ const TaskDetail: React.FC = () => {
     risks: '',
     collaboratorIds: [],
     estimatedHours: 0,
-    link_ef: ''
+    link_ef: '',
+    is_impediment: false
   });
 
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -98,6 +99,7 @@ const TaskDetail: React.FC = () => {
         description: task.description || '',
         link_ef: task.link_ef || '',
         estimatedHours: task.estimatedHours || 0,
+        is_impediment: !!task.is_impediment
       });
     } else {
       const qClient = preSelectedClientId as string || '';
@@ -197,9 +199,9 @@ const TaskDetail: React.FC = () => {
       const payload: any = {
         ...formData,
         progress: Number(formData.progress),
-        description: formData.description,
         notes: formData.notes,
-        link_ef: formData.link_ef
+        link_ef: formData.link_ef,
+        is_impediment: formData.is_impediment
       };
       if (payload.status === 'In Progress' && !formData.actualStart) payload.actualStart = new Date().toISOString().split('T')[0];
       if (payload.status === 'Done' && !formData.actualDelivery) payload.actualDelivery = new Date().toISOString().split('T')[0];
@@ -278,11 +280,24 @@ const TaskDetail: React.FC = () => {
                 <div>
                   <label className="text-[9px] font-black uppercase mb-2 block opacity-60">Status</label>
                   <select value={formData.status} onChange={e => { setFormData({ ...formData, status: e.target.value as any }); markDirty(); }} className="w-full px-4 py-2.5 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }}>
-                    <option value="Todo">Não Iniciado</option>
-                    <option value="In Progress">Iniciado</option>
-                    <option value="Review">Pendente</option>
+                    <option value="Todo">Pré-Projeto</option>
+                    <option value="Review">Análise</option>
+                    <option value="In Progress">Andamento</option>
                     <option value="Done">Concluído</option>
                   </select>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setFormData({ ...formData, is_impediment: !formData.is_impediment }); markDirty(); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all font-bold text-xs ${formData.is_impediment ? 'bg-orange-500/10 border-orange-500 text-orange-500' : 'bg-transparent border-[var(--border)] opacity-60'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Flag size={14} className={formData.is_impediment ? "fill-orange-500" : ""} />
+                      IMPEDIMENTO
+                    </div>
+                    {formData.is_impediment && <span className="text-[8px] bg-orange-500 text-white px-1.5 py-0.5 rounded">ATIVO</span>}
+                  </button>
                 </div>
               </div>
             </div>

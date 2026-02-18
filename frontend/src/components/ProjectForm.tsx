@@ -122,19 +122,14 @@ const ProjectForm: React.FC = () => {
     }
   }, [isEdit, projectId, projectMembers]);
 
-  const isProjectIncomplete = (
-    !name.trim() ||
-    !clientId ||
-    !responsibleNicLabsId ||
-    !managerClient ||
-    selectedUsers.length === 0
-  );
+  // Validação simplificada (apenas o nome continua sendo necessário para a estrutura básica)
+  const isProjectIncomplete = !name.trim();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isProjectIncomplete) {
-      alert('Por favor, preencha os campos obrigatórios (Identificação, Responsáveis e Equipe) antes de salvar.');
+    if (!name.trim()) {
+      alert('Por favor, defina pelo menos o nome do projeto.');
       return;
     }
 
@@ -236,11 +231,6 @@ const ProjectForm: React.FC = () => {
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
               {isEdit ? 'Editar Projeto' : 'Novo Projeto'}
-              {isProjectIncomplete && (
-                <span className="text-[10px] font-black uppercase bg-yellow-500 text-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <AlertCircle size={10} /> INCOMPLETO
-                </span>
-              )}
             </h1>
             <div className="flex items-center gap-2 mt-1 opacity-60">
               <span className="text-xs font-medium uppercase tracking-tighter">Fluxo de Cadastro Premium</span>
@@ -287,7 +277,7 @@ const ProjectForm: React.FC = () => {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className={`w-full px-3 py-2 text-sm font-bold border rounded-xl outline-none transition-all ${!name.trim() ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    className={`w-full px-3 py-2 text-sm font-bold border rounded-xl outline-none transition-all ${!name.trim() ? 'bg-orange-500/5 border-orange-500/30' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                     style={{ color: 'var(--text)' }}
                     placeholder="Nome do Projeto"
                   />
@@ -331,7 +321,7 @@ const ProjectForm: React.FC = () => {
                   <select
                     value={responsibleNicLabsId}
                     onChange={(e) => setResponsibleNicLabsId(e.target.value)}
-                    className={`w-full px-3 py-2 text-xs font-bold border rounded-xl outline-none transition-all ${!responsibleNicLabsId ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    className={`w-full px-3 py-2 text-xs font-bold border rounded-xl outline-none transition-all ${!responsibleNicLabsId ? 'bg-orange-500/5 border-orange-500/30' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                     style={{ color: 'var(--text)' }}
                   >
                     <option value="">Selecione...</option>
@@ -344,7 +334,7 @@ const ProjectForm: React.FC = () => {
                     type="text"
                     value={managerClient}
                     onChange={(e) => setManagerClient(e.target.value)}
-                    className={`w-full px-3 py-2 text-sm font-bold border rounded-xl outline-none transition-all ${!managerClient.trim() ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    className={`w-full px-3 py-2 text-sm font-bold border rounded-xl outline-none transition-all ${!managerClient.trim() ? 'bg-orange-500/5 border-orange-500/30' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                     style={{ color: 'var(--text)' }}
                     placeholder="Nome na Empresa"
                   />
@@ -440,7 +430,7 @@ const ProjectForm: React.FC = () => {
                   <select
                     value={clientId}
                     onChange={(e) => setClientId(e.target.value)}
-                    className={`w-full px-4 py-3 border rounded-xl font-bold bg-[var(--bg)] outline-none border-[var(--border)] ${!clientId ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
+                    className={`w-full px-4 py-3 border rounded-xl font-bold bg-[var(--bg)] outline-none border-[var(--border)] ${!clientId ? 'bg-orange-500/5 border-orange-500/30' : ''}`}
                     style={{ color: 'var(--text)' }}
                     disabled={isEdit}
                   >
@@ -532,7 +522,7 @@ const ProjectForm: React.FC = () => {
                 />
               </div>
 
-              <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-2 p-2 rounded-2xl transition-colors min-h-[400px] ${selectedUsers.length === 0 ? 'bg-yellow-500/10 border border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}>
+              <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-2 p-2 rounded-2xl transition-colors min-h-[400px] ${selectedUsers.length === 0 ? 'bg-orange-500/5 border border-orange-500/30' : 'bg-[var(--bg)] border-[var(--border)]'}`}>
                 {filteredUsers.map(user => {
                   const isSelected = selectedUsers.includes(user.id);
                   return (

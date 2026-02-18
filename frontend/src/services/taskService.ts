@@ -31,10 +31,10 @@ async function getCollaboratorIdByName(name: string | undefined): Promise<number
 function mapStatusToDb(status: string | undefined): string {
   switch (status) {
     case 'Done': return 'Concluído';
-    case 'In Progress': return 'Iniciado';
-    case 'Review': return 'Pendente';
+    case 'In Progress': return 'Andamento';
+    case 'Review': return 'Análise';
     case 'Todo':
-    default: return 'Não Iniciado';
+    default: return 'Pré-Projeto';
   }
 }
 
@@ -97,6 +97,7 @@ export async function createTask(data: Partial<Task>): Promise<number> {
     em_testes: data.em_testes ? 1 : 0,
     link_ef: data.link_ef || null,
     estimated_hours: data.estimatedHours || null,
+    is_impediment: data.is_impediment ?? false,
   };
 
   const { data: inserted, error } = await supabase
@@ -230,6 +231,9 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
   }
   if (data.estimatedHours !== undefined) {
     payload.estimated_hours = data.estimatedHours || null;
+  }
+  if (data.is_impediment !== undefined) {
+    payload.is_impediment = data.is_impediment;
   }
 
   // Se não há nada para atualizar, retorna

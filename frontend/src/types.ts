@@ -98,6 +98,7 @@ export interface Task {
   collaboratorIds?: string[]; // IDs dos colaboradores vinculados
   estimatedHours?: number; // Horas previstas para execução
   allocatedHours?: number; // Horas alocadas para o colaborador (mapa de capacidade)
+  is_impediment?: boolean; // Flag de impedimento
 }
 
 export interface TimesheetEntry {

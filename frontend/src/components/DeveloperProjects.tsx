@@ -4,7 +4,7 @@ import AbsenceStatusWidget from "./AbsenceStatusWidget";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
-import { Briefcase, CheckSquare, LayoutGrid, List, Building2, FolderKanban, AlertTriangle } from 'lucide-react';
+import { Briefcase, CheckSquare, LayoutGrid, List, Building2, FolderKanban } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
 
@@ -67,17 +67,14 @@ const DeveloperProjects: React.FC = () => {
     return projects.filter(p => myProjectIdsFromTasks.has(p.id) || myMemberProjectIds.has(p.id));
   }, [projects, myProjectIdsFromTasks, myMemberProjectIds, currentUser]);
 
-  // Clientes vinculados aos projetos filtrados
   const myClients = React.useMemo(() => {
     const clientIds = new Set(myProjects.map(p => p.clientId));
     return clients.filter(c => clientIds.has(c.id));
   }, [clients, myProjects]);
-  // ========================================================
 
   return (
     <div className="h-full flex flex-col p-8 bg-[var(--bgApp)]">
 
-      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
@@ -90,7 +87,6 @@ const DeveloperProjects: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* View Toggle */}
           <div className="flex bg-white/10 p-1 rounded-xl border mr-2" style={{ borderColor: 'var(--border)' }}>
             <button
               onClick={() => handleToggleViewMode('grid')}
@@ -116,7 +112,6 @@ const DeveloperProjects: React.FC = () => {
         <AbsenceStatusWidget />
       </div>
 
-      {/* Lista de Projetos */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -132,13 +127,11 @@ const DeveloperProjects: React.FC = () => {
             <p className="text-sm">Solicite acesso a um administrador.</p>
           </div>
         ) : viewMode === 'list' ? (
-          /* MODO LISTA */
           <div className="space-y-8 pb-10">
             {myClients.map(client => {
               const clientProjects = myProjects.filter(p => p.clientId === client.id);
               return (
                 <div key={client.id} className="space-y-4">
-                  {/* Linha do Cliente */}
                   <div className="flex items-center gap-4 py-3 px-4 border-l-4 rounded-r-xl bg-white/5 border-[var(--brand)]" style={{ borderColor: 'var(--brand)' }}>
                     <div className="w-10 h-10 rounded-lg border p-1.5 flex items-center justify-center bg-[var(--surface)]" style={{ borderColor: 'var(--border)' }}>
                       {client.logoUrl ? (
@@ -153,44 +146,38 @@ const DeveloperProjects: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Projetos do Cliente */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pl-4 md:pl-10">
                     {clientProjects.map(project => {
-                      const getMyTasks = () => {
-                        const allProjectTasks = tasks.filter(t => t.projectId === project.id);
-                        if (!currentUser) return [];
-                        if (isAdmin) return allProjectTasks;
-                        return allProjectTasks.filter(t =>
-                          t.developerId === currentUser.id ||
-                          (t.collaboratorIds && t.collaboratorIds.includes(currentUser.id))
-                        );
-                      };
-
-                      const myProjectTasks = getMyTasks();
+                      const allProjectTasks = tasks.filter(t => t.projectId === project.id);
+                      const myProjectTasks = isAdmin ? allProjectTasks : allProjectTasks.filter(t =>
+                        t.developerId === currentUser?.id ||
+                        (t.collaboratorIds && t.collaboratorIds.includes(currentUser?.id || ''))
+                      );
                       const myDoneTasks = myProjectTasks.filter(t => t.status === 'Done').length;
-                      const isIncomplete = isProjectIncomplete(project);
 
-                      // Lógica de Cor do Card
                       const getStatusColor = () => {
-                        const now = new Date();
-                        if (isIncomplete) return { borderColor: '#eab308', shadowColor: 'rgba(234, 179, 8, 0.2)', borderWidth: '2px' };
-
-                        const hasDelay = myProjectTasks.some(t => {
+                        const hasDelayed = myProjectTasks.some(t => {
                           if (t.status === 'Done' || t.status === 'Review') return false;
                           if (!t.estimatedDelivery) return false;
-                          return new Date(t.estimatedDelivery) < now;
+                          const parts = t.estimatedDelivery.split('-');
+                          if (parts.length !== 3) return false;
+                          const due = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return today > due;
                         });
+                        if (hasDelayed) return { borderColor: '#ef4444', shadowColor: 'rgba(239, 68, 68, 0.2)', borderWidth: '2px' };
 
-                        if (hasDelay) return { borderColor: '#ef4444', shadowColor: 'rgba(239, 68, 68, 0.2)', borderWidth: '2px' };
+                        const hasImpediment = myProjectTasks.some(t => t.is_impediment);
+                        if (hasImpediment) return { borderColor: '#f59e0b', shadowColor: 'rgba(245, 158, 11, 0.2)', borderWidth: '2px' };
 
-                        const hasInProgress = myProjectTasks.some(t => t.status === 'In Progress');
-                        if (hasInProgress) return { borderColor: '#9333ea', shadowColor: 'rgba(147, 51, 234, 0.2)', borderWidth: '2px' };
+                        const hasInProgress = myProjectTasks.some(t => t.status === 'In Progress' || t.status === 'Review');
+                        if (hasInProgress) return { borderColor: '#3b82f6', shadowColor: 'rgba(59, 130, 246, 0.2)', borderWidth: '2px' };
 
                         const isAllDone = myProjectTasks.length > 0 && myProjectTasks.every(t => t.status === 'Done');
                         if (isAllDone) return { borderColor: '#10b981', shadowColor: 'rgba(16, 185, 129, 0.2)', borderWidth: '2px' };
 
-                        // Default
-                        return { borderColor: 'var(--border)', shadowColor: 'rgba(0,0,0,0.1)', borderWidth: '1px' };
+                        return { borderColor: 'var(--border)', shadowColor: 'rgba(0,0,0,0.05)', borderWidth: '1px' };
                       };
 
                       const statusStyle = getStatusColor();
@@ -199,21 +186,13 @@ const DeveloperProjects: React.FC = () => {
                         <button
                           key={project.id}
                           onClick={() => navigate(`/developer/projects/${project.id}`)}
-                          className={`rounded-xl p-5 hover:shadow-lg transition-all text-left group relative overflow-hidden ${isIncomplete ? 'ring-2 ring-yellow-500/20' : ''}`}
+                          className="rounded-xl p-5 hover:shadow-lg transition-all text-left group relative overflow-hidden"
                           style={{
                             backgroundColor: 'var(--surface)',
                             borderColor: statusStyle.borderColor,
                             borderWidth: statusStyle.borderWidth,
                             borderStyle: 'solid',
                             boxShadow: `0 4px 6px -1px ${statusStyle.shadowColor}`
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = `0 10px 15px -3px ${statusStyle.shadowColor}`;
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = `0 4px 6px -1px ${statusStyle.shadowColor}`;
                           }}
                         >
                           <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)]" style={{ color: 'var(--textTitle)' }}>
@@ -232,7 +211,6 @@ const DeveloperProjects: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Equipe do Projeto */}
                           <div className="mt-4 pt-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
                             <div className="flex -space-x-2">
                               {projectMembers
@@ -274,42 +252,36 @@ const DeveloperProjects: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myProjects.map(project => {
               const client = clients.find(c => c.id === project.clientId);
-
-              const getMyTasks = () => {
-                const allProjectTasks = tasks.filter(t => t.projectId === project.id);
-                if (!currentUser) return [];
-                if (isAdmin) return allProjectTasks;
-                return allProjectTasks.filter(t =>
-                  t.developerId === currentUser.id ||
-                  (t.collaboratorIds && t.collaboratorIds.includes(currentUser.id))
-                );
-              };
-
-              const myProjectTasks = getMyTasks();
+              const allProjectTasks = tasks.filter(t => t.projectId === project.id);
+              const myProjectTasks = isAdmin ? allProjectTasks : allProjectTasks.filter(t =>
+                t.developerId === currentUser?.id ||
+                (t.collaboratorIds && t.collaboratorIds.includes(currentUser?.id || ''))
+              );
               const myDoneTasks = myProjectTasks.filter(t => t.status === 'Done').length;
-              const isIncomplete = isProjectIncomplete(project);
 
-              // Lógica de Cor do Card (Duplicada para manter consistência)
               const getStatusColor = () => {
-                const now = new Date();
-                if (isIncomplete) return { borderColor: '#eab308', shadowColor: 'rgba(234, 179, 8, 0.2)', borderWidth: '2px' };
-
-                const hasDelay = myProjectTasks.some(t => {
+                const hasDelayed = myProjectTasks.some(t => {
                   if (t.status === 'Done' || t.status === 'Review') return false;
                   if (!t.estimatedDelivery) return false;
-                  return new Date(t.estimatedDelivery) < now;
+                  const parts = t.estimatedDelivery.split('-');
+                  if (parts.length !== 3) return false;
+                  const due = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return today > due;
                 });
+                if (hasDelayed) return { borderColor: '#ef4444', shadowColor: 'rgba(239, 68, 68, 0.2)', borderWidth: '2px' };
 
-                if (hasDelay) return { borderColor: '#ef4444', shadowColor: 'rgba(239, 68, 68, 0.2)', borderWidth: '2px' };
+                const hasImpediment = myProjectTasks.some(t => t.is_impediment);
+                if (hasImpediment) return { borderColor: '#f59e0b', shadowColor: 'rgba(245, 158, 11, 0.2)', borderWidth: '2px' };
 
-                const hasInProgress = myProjectTasks.some(t => t.status === 'In Progress');
-                if (hasInProgress) return { borderColor: '#9333ea', shadowColor: 'rgba(147, 51, 234, 0.2)', borderWidth: '2px' };
+                const hasInProgress = myProjectTasks.some(t => t.status === 'In Progress' || t.status === 'Review');
+                if (hasInProgress) return { borderColor: '#3b82f6', shadowColor: 'rgba(59, 130, 246, 0.2)', borderWidth: '2px' };
 
                 const isAllDone = myProjectTasks.length > 0 && myProjectTasks.every(t => t.status === 'Done');
                 if (isAllDone) return { borderColor: '#10b981', shadowColor: 'rgba(16, 185, 129, 0.2)', borderWidth: '2px' };
 
-                // Default
-                return { borderColor: 'var(--border)', shadowColor: 'rgba(0,0,0,0.1)', borderWidth: '1px' };
+                return { borderColor: 'var(--border)', shadowColor: 'rgba(0,0,0,0.05)', borderWidth: '1px' };
               };
 
               const statusStyle = getStatusColor();
@@ -318,7 +290,7 @@ const DeveloperProjects: React.FC = () => {
                 <button
                   key={project.id}
                   onClick={() => navigate(`/developer/projects/${project.id}`)}
-                  className={`rounded-xl p-6 hover:shadow-lg transition-all text-left group relative overflow-hidden ${isIncomplete ? 'ring-2 ring-yellow-500/20' : ''}`}
+                  className="rounded-xl p-6 hover:shadow-lg transition-all text-left group relative overflow-hidden"
                   style={{
                     backgroundColor: 'var(--surface)',
                     borderColor: statusStyle.borderColor,
@@ -326,16 +298,7 @@ const DeveloperProjects: React.FC = () => {
                     borderStyle: 'solid',
                     boxShadow: `0 4px 6px -1px ${statusStyle.shadowColor}`
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = `0 10px 15px -3px ${statusStyle.shadowColor}`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = `0 4px 6px -1px ${statusStyle.shadowColor}`;
-                  }}
                 >
-                  {/* Cliente Logo */}
                   {client && (
                     <div className="flex items-center gap-2 mb-4 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
                       <div className="w-8 h-8 rounded p-1 flex items-center justify-center bg-[var(--bgApp)]">
@@ -366,7 +329,6 @@ const DeveloperProjects: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Equipe do Projeto */}
                   <div className="mt-4 pt-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex -space-x-2">
                       {projectMembers
@@ -395,9 +357,6 @@ const DeveloperProjects: React.FC = () => {
                           );
                         })}
                     </div>
-                    {projectMembers.filter(pm => String(pm.id_projeto) === String(project.id)).length === 0 && (
-                      <span className="text-[10px] italic" style={{ color: 'var(--textMuted)' }}>Sem equipe</span>
-                    )}
                   </div>
                 </button>
               );

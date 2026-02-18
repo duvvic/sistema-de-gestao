@@ -85,6 +85,7 @@ export interface DbTaskRow {
   em_testes?: boolean | null;
   link_ef?: string | null;
   dias_atraso?: number | null;
+  is_impediment?: boolean | null;
 }
 
 // =====================================================
@@ -214,7 +215,7 @@ export async function fetchTasks(): Promise<DbTaskRow[]> {
   try {
     const { data, error } = await supabase
       .from("fato_tarefas")
-      .select('id_tarefa_novo, ID_Tarefa, ID_Cliente, ID_Projeto, Afazer, ID_Colaborador, StatusTarefa, entrega_estimada, entrega_real, inicio_previsto, inicio_real, Porcentagem, Prioridade, Impacto, Riscos, "Observações", attachment, description, em_testes, link_ef, dias_atraso')
+      .select('id_tarefa_novo, ID_Tarefa, ID_Cliente, ID_Projeto, Afazer, ID_Colaborador, StatusTarefa, entrega_estimada, entrega_real, inicio_previsto, inicio_real, Porcentagem, Prioridade, Impacto, Riscos, "Observações", attachment, description, em_testes, link_ef, dias_atraso, is_impediment')
       .order('id_tarefa_novo', { ascending: false })
       .limit(10000);
 

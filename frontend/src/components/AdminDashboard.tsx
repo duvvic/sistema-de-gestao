@@ -107,11 +107,6 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
       <td className="p-3 sticky left-[290px] z-10 font-black text-xs group-hover:bg-[var(--surface-hover)] shadow-[2px_0_8px_rgba(0,0,0,0.05)] truncate border-r border-white/5" style={{ backgroundColor: rowBg, color: 'var(--text)' }}>
         <div className="flex items-center gap-2">
           {p.name}
-          {isIncomplete && (
-            <span title="Cadastro Incompleto">
-              <AlertTriangle className="w-3 h-3 text-yellow-500 animate-pulse" />
-            </span>
-          )}
         </div>
       </td>
       <td className="p-3 border-r border-white/5 bg-blue-500/[0.02]"><span className="text-[10px] text-blue-400 whitespace-nowrap">{statusP}</span></td>
@@ -211,20 +206,7 @@ const AdminDashboard: React.FC = () => {
   const [showPartnerDetailsId, setShowPartnerDetailsId] = useState<string | null>(null);
   const [showClientDetailsId, setShowClientDetailsId] = useState<string | null>(null);
 
-  const isProjectIncomplete = (p: Project) => {
-    return (
-      !p.name?.trim() ||
-      !p.clientId ||
-      !p.partnerId ||
-      !p.valor_total_rs ||
-      !p.horas_vendidas ||
-      !p.startDate ||
-      !p.estimatedDelivery ||
-      !p.responsibleNicLabsId ||
-      !p.managerClient ||
-      projectMembers.filter(pm => String(pm.id_projeto) === p.id).length === 0
-    );
-  };
+  const isProjectIncomplete = (p: Project) => false;
 
   const toggleViewMode = (mode: 'grid' | 'list' | 'tasks') => {
     setViewMode(mode);
@@ -1550,7 +1532,7 @@ const AdminDashboard: React.FC = () => {
                   return (
                     <div
                       key={client.id}
-                      className={`group border rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col h-[220px] relative ${hasIncomplete ? 'ring-2 ring-yellow-500/30' : ''}`}
+                      className={`group border rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col h-[220px] relative`}
                       style={{
                         backgroundColor: 'var(--surface)',
                         borderColor: 'var(--border)',
@@ -1559,11 +1541,6 @@ const AdminDashboard: React.FC = () => {
                         navigate(`/admin/clients/${client.id}`);
                       }}
                     >
-                      {hasIncomplete && (
-                        <div className="absolute top-2 right-2 z-20 bg-yellow-500 text-black p-1.5 rounded-full shadow-lg animate-pulse" title="Cliente possui projetos com cadastro incompleto">
-                          <AlertTriangle size={12} />
-                        </div>
-                      )}
                       <div className="w-full flex-1 bg-white dark:bg-white/95 p-3 flex items-center justify-center transition-all overflow-hidden border-b border-[var(--border)]">
                         <img
                           src={client.logoUrl}
@@ -1602,8 +1579,8 @@ const AdminDashboard: React.FC = () => {
                       <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 rounded-2xl border group transition-all shadow-lg relative overflow-hidden"
                         style={{
                           background: 'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)', // Gradiente Roxo
-                          borderColor: hasIncomplete ? '#eab308' : '#7C3AED',
-                          borderWidth: hasIncomplete ? '2px' : '1px'
+                          borderColor: '#7C3AED',
+                          borderWidth: '1px'
                         }}
                       >
                         <div
@@ -1612,14 +1589,6 @@ const AdminDashboard: React.FC = () => {
                             navigate(`/admin/clients/${client.id}`);
                           }}
                         >
-                          {hasIncomplete && (
-                            <div
-                              className="absolute top-4 right-4 z-20 bg-yellow-500 text-black p-2 rounded-full shadow-lg animate-pulse cursor-help"
-                              title="Este cliente possui projetos com cadastro incompleto. Clique aqui para ver detalhes e editar."
-                            >
-                              <AlertTriangle size={16} />
-                            </div>
-                          )}
                           <div className="w-16 h-16 rounded-xl border p-2 flex items-center justify-center shadow-lg bg-white border-white/20">
                             <img
                               src={client.logoUrl}
@@ -1675,7 +1644,7 @@ const AdminDashboard: React.FC = () => {
                                   whileHover={{ y: -4 }}
                                   key={project.id}
                                   onClick={() => navigate(`/admin/projects/${project.id}`)}
-                                  className={`min-w-[280px] max-w-[280px] border rounded-2xl p-5 cursor-pointer transition-all group/card shadow-sm hover:shadow-md relative overflow-hidden ${isIncomplete ? 'ring-1 ring-yellow-500/50' : ''}`}
+                                  className={`min-w-[280px] max-w-[280px] border rounded-2xl p-5 cursor-pointer transition-all group/card shadow-sm hover:shadow-md relative overflow-hidden`}
                                   style={{
                                     backgroundColor: 'var(--surface)',
                                     borderColor: 'var(--border)'
@@ -1683,11 +1652,6 @@ const AdminDashboard: React.FC = () => {
                                 >
                                   {/* Accent line at the top to keep the premium purple identity */}
                                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-70" />
-                                  {isIncomplete && (
-                                    <div className="absolute top-2 left-2 z-10 bg-yellow-500 text-black px-2 py-0.5 rounded-md text-[8px] font-black flex items-center gap-1 shadow-md animate-pulse">
-                                      <AlertTriangle size={8} /> INCOMPLETO
-                                    </div>
-                                  )}
                                   {isAdmin && (
                                     <button
                                       onClick={(e) => {
@@ -1702,7 +1666,6 @@ const AdminDashboard: React.FC = () => {
                                   )}
                                   <h4 className="font-bold mb-3 line-clamp-1 transition-colors uppercase text-[11px] tracking-wider text-purple-600 dark:text-purple-400">
                                     {project.name}
-                                    {isIncomplete && <span className="ml-2 text-[8px] text-yellow-600 block mt-1 lowercase font-medium italic">Clique para completar cadastro</span>}
                                   </h4>
 
                                   <div className="space-y-4">
