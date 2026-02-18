@@ -1001,10 +1001,10 @@ const AdminDashboard: React.FC = () => {
                                 </span>
                               </td>
                               <td className="py-3 px-2 text-center text-[10px] font-bold text-[var(--text)] border-b border-r border-[var(--border)]">
-                                {formatDecimalToTime(res.assigned)}H
+                                {formatDecimalToTime(res.assigned)}
                               </td>
                               <td className="py-3 px-2 text-center text-[10px] font-bold text-blue-500 border-b border-r border-[var(--border)]">
-                                {formatDecimalToTime(res.performed)}H
+                                {formatDecimalToTime(res.performed)}
                               </td>
                               <td className="py-3 px-2 text-center border-b border-r border-[var(--border)]">
                                 <div className="flex flex-col items-center">
@@ -1016,7 +1016,7 @@ const AdminDashboard: React.FC = () => {
                               </td>
                               <td className="py-3 px-3 text-right font-black border-b border-[var(--border)]">
                                 <span className={`text-[11px] ${res.available < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                  {formatDecimalToTime(res.available)}H
+                                  {formatDecimalToTime(res.available)}
                                 </span>
                               </td>
                             </tr>
@@ -1730,7 +1730,7 @@ const AdminDashboard: React.FC = () => {
                                         <div>
                                           <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
                                             <span>Consumo de Horas</span>
-                                            <span className={hourPercentage > 100 ? 'text-red-500' : ''} style={{ color: hourPercentage > 100 ? undefined : 'var(--text)' }}>{hoursConsumed.toFixed(0)}h / {hoursSold}h</span>
+                                            <span className={hourPercentage > 100 ? 'text-red-500' : ''} style={{ color: hourPercentage > 100 ? undefined : 'var(--text)' }}>{formatDecimalToTime(hoursConsumed)} / {formatDecimalToTime(hoursSold)}</span>
                                           </div>
                                           <div className="w-full h-1 rounded-full overflow-hidden mt-1" style={{ backgroundColor: 'var(--surface-2)' }}>
                                             <div

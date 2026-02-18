@@ -400,10 +400,10 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                   </h2>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-black uppercase tracking-widest text-white/60">
                     <span className="flex items-center gap-1 text-white/90">
-                      <Clock className="w-3 h-3 text-white/40" /> {formatDecimalToTime(selectedUserStats.totalHours)}h no Mês
+                      <Clock className="w-3 h-3 text-white/40" /> {formatDecimalToTime(selectedUserStats.totalHours)} no Mês
                     </span>
                     <span className="flex items-center gap-1 text-white/90">
-                      {selectedUserStats.balanceHours >= 0 ? '+' : ''}{formatDecimalToTime(selectedUserStats.balanceHours)}h
+                      {selectedUserStats.balanceHours >= 0 ? '+' : ''}{formatDecimalToTime(selectedUserStats.balanceHours)}
                       {selectedUserStats.balanceHours >= 0 ? ' Extra' : ' Débito'}
                     </span>
                     {selectedUserStats.missing > 0 && (
@@ -572,7 +572,7 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                             ? 'bg-emerald-600' // Meta atingida
                             : 'bg-blue-500' // Parcial
                           }`}>
-                          {formatDecimalToTime(totalDayHours)}h
+                          {formatDecimalToTime(totalDayHours)}
                         </span>
                       )}
                     </div>
@@ -648,7 +648,7 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                             <div className="flex w-full justify-between items-center gap-2">
                               <div className="flex items-center gap-1.5 truncate flex-1 min-w-0">
                                 <span className={`px-2 py-1 rounded-md text-[10px] font-black text-white shrink-0 shadow-sm leading-none ${entry.totalHours >= 4 ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                                  {formatDecimalToTime(entry.totalHours)}h
+                                  {formatDecimalToTime(entry.totalHours)}
                                 </span>
                                 <div className="flex flex-col flex-1 min-w-0">
                                   <span className="truncate font-black leading-tight" style={{ color: 'var(--text)' }}>{displayTitle}</span>

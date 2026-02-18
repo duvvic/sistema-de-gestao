@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
 import { Dialog } from '@headlessui/react';
 import { X, Save, AlertCircle } from 'lucide-react';
-import { Priority } from '@/types';
+import { Priority, Status } from '@/types';
 
 interface TaskCreationModalProps {
     isOpen: boolean;
@@ -25,9 +25,11 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [notes, setNotes] = useState('');
+    const [link_ef, setLinkEf] = useState('');
     const [priority, setPriority] = useState<Priority>('Medium');
+    const [status, setStatus] = useState<Status>('Todo');
+    const [scheduledStart, setScheduledStart] = useState('');
     const [estimatedDelivery, setEstimatedDelivery] = useState('');
-    const [estimatedHours, setEstimatedHours] = useState<string>('');
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -54,10 +56,14 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
             setTitle('');
             setDescription('');
             setNotes('');
+            setLinkEf('');
             setPriority('Medium');
-            setEstimatedHours('');
+            setStatus('Todo');
 
-            // Set default estimated delivery to 7 days from now
+            // Set default dates: Start today, delivery +7 days
+            const today = new Date();
+            setScheduledStart(today.toISOString().split('T')[0]);
+
             const nextWeek = new Date();
             nextWeek.setDate(nextWeek.getDate() + 7);
             setEstimatedDelivery(nextWeek.toISOString().split('T')[0]);
@@ -134,13 +140,15 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                 title,
                 description,
                 notes,
+                link_ef: link_ef || undefined,
                 developerId: developerId || undefined,
                 collaboratorIds: collaboratorIds || undefined,
                 priority,
-                estimatedDelivery: estimatedDelivery || undefined,
-                estimatedHours: estimatedHours ? Number(estimatedHours) : undefined,
-                status: 'Todo',
-                progress: 0
+                status,
+                actualStart: status === 'In Progress' ? new Date().toISOString().split('T')[0] : undefined,
+                actualDelivery: status === 'Done' ? new Date().toISOString().split('T')[0] : undefined,
+                scheduledStart: scheduledStart || undefined,
+                estimatedDelivery: estimatedDelivery || undefined
             });
 
             onClose();
@@ -276,26 +284,20 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                         {/* Responsável Principal (apenas membros da equipe alocada) */}
                         <div>
                             <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Responsável Principal *</label>
-                            {isAdmin ? (
-                                <select
-                                    value={developerId}
-                                    onChange={(e) => setDeveloperId(e.target.value)}
-                                    disabled={collaboratorIds.length === 0}
-                                    className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)] disabled:opacity-50"
-                                >
-                                    <option value="">Selecione o Responsável...</option>
-                                    {eligibleUsers
-                                        .filter(u => collaboratorIds.includes(u.id))
-                                        .map(u => (
-                                            <option key={u.id} value={u.id}>{u.name}</option>
-                                        ))
-                                    }
-                                </select>
-                            ) : (
-                                <div className="w-full p-2.5 border rounded-lg bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] font-medium text-sm opacity-70 cursor-not-allowed">
-                                    {currentUser?.name || 'Seu Usuário'} (Você)
-                                </div>
-                            )}
+                            <select
+                                value={developerId}
+                                onChange={(e) => setDeveloperId(e.target.value)}
+                                disabled={collaboratorIds.length === 0}
+                                className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)] disabled:opacity-50"
+                            >
+                                <option value="">Selecione o Responsável...</option>
+                                {eligibleUsers
+                                    .filter(u => collaboratorIds.includes(u.id))
+                                    .map(u => (
+                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                    ))
+                                }
+                            </select>
                             <p className="text-[10px] text-[var(--muted)] mt-1">
                                 Escolha o responsável dentre os membros da equipe alocada.
                             </p>
@@ -332,33 +334,41 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                             />
                         </div>
 
-                        {/* Observações Rápidas */}
-                        <div>
-                            <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Observações Rápidas</label>
-                            <input
-                                type="text"
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Notas rápidas..."
-                                className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
-                            />
+                        {/* Anotações e Documentação */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Anotações Internas</label>
+                                <input
+                                    type="text"
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    placeholder="Observações rápidas..."
+                                    className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70 text-blue-400">Link de Documentação (URL)</label>
+                                <input
+                                    type="url"
+                                    value={link_ef}
+                                    onChange={(e) => setLinkEf(e.target.value)}
+                                    placeholder="https://..."
+                                    className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-blue-500/50 bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
+                                />
+                            </div>
                         </div>
 
-                        {/* Extra Row */}
+                        {/* Datas e Esforço */}
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Prioridade */}
+                            {/* Previsão Início */}
                             <div>
-                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Prioridade</label>
-                                <select
-                                    value={priority}
-                                    onChange={(e) => setPriority(e.target.value as Priority)}
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Previsão Início</label>
+                                <input
+                                    type="date"
+                                    value={scheduledStart}
+                                    onChange={(e) => setScheduledStart(e.target.value)}
                                     className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
-                                >
-                                    <option value="Low">Baixa</option>
-                                    <option value="Medium">Média</option>
-                                    <option value="High">Alta</option>
-                                    <option value="Critical">Crítica</option>
-                                </select>
+                                />
                             </div>
 
                             {/* Entrega Estimada */}
@@ -371,21 +381,39 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                     className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
                                 />
                             </div>
-
-                            {/* Horas Estimadas */}
-                            <div className="col-span-2">
-                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Horas Estimadas (Opcional)</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={estimatedHours}
-                                    onChange={(e) => setEstimatedHours(e.target.value)}
-                                    placeholder="Ex: 8"
-                                    className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
-                                />
-                            </div>
                         </div>
 
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Status */}
+                            <div>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Status Inicial</label>
+                                <select
+                                    value={status}
+                                    onChange={(e) => setStatus(e.target.value as Status)}
+                                    className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
+                                >
+                                    <option value="Todo">A Fazer</option>
+                                    <option value="In Progress">Em Andamento</option>
+                                    <option value="Review">Pendente / Revisão</option>
+                                    <option value="Done">Concluído</option>
+                                </select>
+                            </div>
+
+                            {/* Prioridade */}
+                            <div>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70 text-amber-400">Prioridade</label>
+                                <select
+                                    value={priority}
+                                    onChange={(e) => setPriority(e.target.value as Priority)}
+                                    className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-amber-500/50 bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
+                                >
+                                    <option value="Low">Baixa</option>
+                                    <option value="Medium">Média</option>
+                                    <option value="High">Alta</option>
+                                    <option value="Critical">Crítica</option>
+                                </select>
+                            </div>
+                        </div>
 
                     </div>
 
@@ -412,7 +440,6 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                         </button>
                     </div>
                 </form>
-
             </div>
         </div>
     );

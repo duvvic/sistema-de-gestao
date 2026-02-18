@@ -4,6 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
 import { Building2, ArrowRight, Clock, Briefcase, Users, TrendingUp, BarChart3, CheckSquare, ChevronDown, ChevronUp, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Project } from '@/types';
+import { formatDecimalToTime } from '@/utils/normalizers';
 
 const TimesheetAdminDashboard: React.FC = () => {
    const [searchParams, setSearchParams] = useSearchParams();
@@ -292,7 +293,7 @@ const TimesheetAdminDashboard: React.FC = () => {
                                  <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--muted)' }}>
                                     <TrendingUp className="w-3 h-3 text-emerald-500" /> Horas Totais
                                  </span>
-                                 <span className="text-lg font-black text-emerald-600">{stats.totalHours.toFixed(1)}h</span>
+                                 <span className="text-lg font-black text-emerald-600">{formatDecimalToTime(stats.totalHours)}</span>
                               </div>
                               <div className="text-[10px] font-bold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--muted)' }}>
                                  <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {clientProjects.length} Projetos</span>
@@ -368,8 +369,8 @@ const TimesheetAdminDashboard: React.FC = () => {
                                        <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
                                     </div>
                                     <div className="text-right">
-                                       <p className="text-sm font-black" style={{ color: 'var(--success-text)' }}>{s.totalHours.toFixed(0)}h</p>
-                                       <p className="text-[8px] font-black uppercase" style={{ color: 'var(--muted)' }}>v. {s.expectedHours.toFixed(0)}h</p>
+                                       <p className="text-sm font-black" style={{ color: 'var(--success-text)' }}>{formatDecimalToTime(s.totalHours)}</p>
+                                       <p className="text-[8px] font-black uppercase" style={{ color: 'var(--muted)' }}>v. {formatDecimalToTime(s.expectedHours)}</p>
                                     </div>
                                  </div>
                               ))}
@@ -412,8 +413,8 @@ const TimesheetAdminDashboard: React.FC = () => {
                                        </div>
                                        <div className="text-right">
                                           <div className="flex flex-col items-end">
-                                             <p className="text-sm font-black" style={{ color: 'var(--warning-text)' }}>{s.totalHours.toFixed(0)}h</p>
-                                             <p className="text-[8px] font-black uppercase" style={{ color: 'var(--muted)' }}>v. {s.expectedHours.toFixed(0)}h</p>
+                                             <p className="text-sm font-black" style={{ color: 'var(--warning-text)' }}>{formatDecimalToTime(s.totalHours)}</p>
+                                             <p className="text-[8px] font-black uppercase" style={{ color: 'var(--muted)' }}>v. {formatDecimalToTime(s.expectedHours)}</p>
                                           </div>
                                        </div>
                                     </div>
@@ -527,7 +528,7 @@ const TimesheetAdminDashboard: React.FC = () => {
                                           )}
                                        </div>
                                        <span className={`text-lg font-black transition-colors ${proj.totalHours > 0 ? 'text-[var(--primary)]' : 'opacity-30'}`}>
-                                          {proj.totalHours.toFixed(1)}h
+                                          {formatDecimalToTime(proj.totalHours)}
                                        </span>
                                     </div>
                                     <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
@@ -584,7 +585,7 @@ const TimesheetAdminDashboard: React.FC = () => {
                                              </div>
                                           </div>
                                           <div className="flex items-center gap-4">
-                                             <span className="text-xl font-black" style={{ color: 'var(--primary)' }}>{collab.hours.toFixed(1)}h</span>
+                                             <span className="text-xl font-black" style={{ color: 'var(--primary)' }}>{formatDecimalToTime(collab.hours)}</span>
                                              {isExpanded ? <ChevronUp className="w-4 h-4" style={{ color: 'var(--muted)' }} /> : <ChevronDown className="w-4 h-4" style={{ color: 'var(--muted)' }} />}
                                           </div>
                                        </div>
@@ -598,7 +599,7 @@ const TimesheetAdminDashboard: React.FC = () => {
                                                       <p className="font-bold" style={{ color: 'var(--text)' }}>{task.taskName}</p>
                                                       <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{new Date(task.date).toLocaleDateString()} • {task.startTime} - {task.endTime}</p>
                                                    </div>
-                                                   <span className="font-black text-[var(--primary)]">{task.totalHours.toFixed(2)}h</span>
+                                                   <span className="font-black text-[var(--primary)]">{formatDecimalToTime(task.totalHours)}</span>
                                                 </div>
                                              ))}
                                           </div>

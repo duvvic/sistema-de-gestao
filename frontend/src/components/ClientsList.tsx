@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
+import { formatDecimalToTime } from '@/utils/normalizers';
 import {
   Building2,
   Search,
@@ -36,20 +37,20 @@ const ClientsList: React.FC = () => {
     return clients.map(client => {
       const clientProjects = projects.filter(p => p.clientId === client.id && p.active !== false);
       const activeProjects = clientProjects.filter(p => p.status !== 'Concluído' && p.status !== 'Done');
-      
+
       const totalRevenue = clientProjects.reduce((sum, p) => sum + (p.valor_total_rs || 0), 0);
-      
+
       const projectIds = clientProjects.map(p => p.id);
       const clientTimesheets = timesheetEntries.filter(e => projectIds.includes(e.projectId));
-      
+
       const totalCost = clientTimesheets.reduce((sum, e) => {
         const user = users.find(u => u.id === e.userId);
         return sum + (e.totalHours * (user?.hourlyCost || 0));
       }, 0);
-      
+
       const totalHours = clientTimesheets.reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
       const margin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
-      
+
       return {
         ...client,
         projectCount: clientProjects.length,
@@ -197,9 +198,8 @@ const ClientsList: React.FC = () => {
         <div className="flex gap-2">
           <button
             onClick={() => setViewMode('cards')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${
-              viewMode === 'cards' ? 'shadow-sm' : ''
-            }`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${viewMode === 'cards' ? 'shadow-sm' : ''
+              }`}
             style={{
               backgroundColor: viewMode === 'cards' ? 'var(--primary)' : 'var(--surface-2)',
               color: viewMode === 'cards' ? 'white' : 'var(--text-2)'
@@ -209,9 +209,8 @@ const ClientsList: React.FC = () => {
           </button>
           <button
             onClick={() => setViewMode('table')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${
-              viewMode === 'table' ? 'shadow-sm' : ''
-            }`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${viewMode === 'table' ? 'shadow-sm' : ''
+              }`}
             style={{
               backgroundColor: viewMode === 'table' ? 'var(--primary)' : 'var(--surface-2)',
               color: viewMode === 'table' ? 'white' : 'var(--text-2)'
@@ -259,11 +258,10 @@ const ClientsList: React.FC = () => {
                     </div>
                   </div>
                   <span
-                    className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                      client.activeProjectCount > 0
+                    className={`px-2 py-1 rounded-lg text-xs font-bold ${client.activeProjectCount > 0
                         ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
                         : 'bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'
-                    }`}
+                      }`}
                   >
                     {client.activeProjectCount > 0 ? 'Ativo' : 'Inativo'}
                   </span>
@@ -392,7 +390,7 @@ const ClientsList: React.FC = () => {
                       {client.margin.toFixed(1)}%
                     </td>
                     <td className="px-4 py-3 text-sm font-mono text-right" style={{ color: 'var(--text-2)' }}>
-                      {client.totalHours.toFixed(0)}h
+                      {formatDecimalToTime(client.totalHours)}
                     </td>
                   </tr>
                 ))}

@@ -4,12 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
 import { Task, Status, Priority, Impact } from '@/types';
 import {
-  ArrowLeft, Save, Calendar, Clock, Users, StickyNote, CheckSquare, Plus, Trash2, X, CheckCircle, Activity, Zap, AlertTriangle, Briefcase, Info, Target, LayoutGrid, Shield, FileSpreadsheet, Crown
+  ArrowLeft, Save, Calendar, Clock, Users, StickyNote, CheckSquare, Plus, Trash2, X, CheckCircle, Activity, Zap, AlertTriangle, Briefcase, Info, Target, LayoutGrid, Shield, FileSpreadsheet, Crown, ExternalLink
 } from 'lucide-react';
 import { useUnsavedChangesPrompt } from '@/hooks/useUnsavedChangesPrompt';
 import ConfirmationModal from './ConfirmationModal';
 import TransferResponsibilityModal from './TransferResponsibilityModal';
 import BackButton from './shared/BackButton';
+import { formatDecimalToTime } from '@/utils/normalizers';
 
 const TaskDetail: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
@@ -47,7 +48,8 @@ const TaskDetail: React.FC = () => {
     impact: 'Medium',
     risks: '',
     collaboratorIds: [],
-    estimatedHours: 0
+    estimatedHours: 0,
+    link_ef: ''
   });
 
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -66,7 +68,6 @@ const TaskDetail: React.FC = () => {
       return hasTeam && !formData.developerId;
     }
     const value = formData[field as keyof typeof formData];
-    if (field === 'estimatedHours') return !value || Number(value) <= 0;
     return !value;
   };
 
@@ -74,15 +75,8 @@ const TaskDetail: React.FC = () => {
   const isNicLabs = selectedClient?.name?.toUpperCase().includes('NIC-LABS') || false;
 
   const hasError = (field: string) => {
-    if (isNicLabs) {
-      const mandatoryFields = ['projectId', 'title'];
-      if (mandatoryFields.includes(field)) return isFieldMissing(field);
-      return false;
-    }
-    const mandatoryFields = ['projectId', 'clientId', 'title', 'scheduledStart', 'estimatedDelivery', 'estimatedHours'];
+    const mandatoryFields = ['projectId', 'clientId', 'title', 'developerId', 'team'];
     if (mandatoryFields.includes(field)) return isFieldMissing(field);
-    if (field === 'developerId') return isFieldMissing('developerId');
-    if (field === 'team') return isFieldMissing('team');
     return false;
   };
 
@@ -101,6 +95,8 @@ const TaskDetail: React.FC = () => {
         priority: task.priority || 'Medium',
         impact: task.impact || 'Medium',
         risks: task.risks || '',
+        description: task.description || '',
+        link_ef: task.link_ef || '',
         estimatedHours: task.estimatedHours || 0,
       });
     } else {
@@ -139,6 +135,7 @@ const TaskDetail: React.FC = () => {
       .filter(entry => entry.taskId === taskId)
       .reduce((sum, entry) => sum + (Number(entry.totalHours) || 0), 0);
   }, [timesheetEntries, taskId, isNew]);
+
 
   const taskWeight = useMemo(() => {
     const project = projects.find(p => p.id === formData.projectId);
@@ -179,9 +176,6 @@ const TaskDetail: React.FC = () => {
     if (isFieldMissing('title')) errors.push('title');
     if (isFieldMissing('team')) errors.push('team');
     if (isFieldMissing('developerId')) errors.push('developerId');
-    if (isFieldMissing('scheduledStart')) errors.push('scheduledStart');
-    if (isFieldMissing('estimatedDelivery')) errors.push('estimatedDelivery');
-    if (isFieldMissing('estimatedHours')) errors.push('estimatedHours');
 
     if (errors.length > 0) {
       const missingFields = errors.map(e => {
@@ -191,9 +185,6 @@ const TaskDetail: React.FC = () => {
           case 'title': return 'Título';
           case 'developerId': return 'Responsável';
           case 'team': return 'Equipe Alocada';
-          case 'scheduledStart': return 'Previsão Início';
-          case 'estimatedDelivery': return 'Previsão Entrega';
-          case 'estimatedHours': return 'Horas Planejadas';
           default: return e;
         }
       });
@@ -203,7 +194,13 @@ const TaskDetail: React.FC = () => {
 
     try {
       setLoading(true);
-      const payload: any = { ...formData, progress: Number(formData.progress), estimatedHours: Number(formData.estimatedHours) };
+      const payload: any = {
+        ...formData,
+        progress: Number(formData.progress),
+        description: formData.description,
+        notes: formData.notes,
+        link_ef: formData.link_ef
+      };
       if (payload.status === 'In Progress' && !formData.actualStart) payload.actualStart = new Date().toISOString().split('T')[0];
       if (payload.status === 'Done' && !formData.actualDelivery) payload.actualDelivery = new Date().toISOString().split('T')[0];
       if (isNew) await createTask(payload);
@@ -276,7 +273,7 @@ const TaskDetail: React.FC = () => {
               <div className="space-y-4 flex-1">
                 <div>
                   <label className={`text-[9px] font-black uppercase mb-2 block opacity-60 ${hasError('title') ? 'text-yellow-500' : ''}`}>Nome da Tarefa *</label>
-                  <input type="text" value={formData.title} onChange={e => { setFormData({ ...formData, title: e.target.value }); markDirty(); }} className={`w-full px-4 py-2.5 text-sm font-bold border rounded-xl outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} disabled={!canEditEverything} />
+                  <input type="text" value={formData.title} onChange={e => { setFormData({ ...formData, title: e.target.value }); markDirty(); }} className={`w-full px-4 py-2.5 text-sm font-bold border rounded-xl outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase mb-2 block opacity-60">Status</label>
@@ -313,7 +310,7 @@ const TaskDetail: React.FC = () => {
                     }}
                     className={`w-full px-4 py-2.5 text-xs font-bold border rounded-xl outline-none transition-all ${hasError('developerId') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                     style={{ color: 'var(--text)' }}
-                    disabled={!canEditEverything || !formData.projectId}
+                    disabled={!formData.projectId}
                   >
                     <option value="">Selecione...</option>
                     {responsibleUsers.map(u => <option key={u.id} value={u.id}>{u.name.split(' (')[0]}</option>)}
@@ -339,10 +336,13 @@ const TaskDetail: React.FC = () => {
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className={`text-[9px] font-black uppercase mb-1 block opacity-60 ${hasError('estimatedHours') ? 'text-yellow-500' : ''}`}>Horas Estimadas *</label>
+                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Horas Apontadas (Total)</label>
                   <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-                    <input type="number" value={formData.estimatedHours || ''} onChange={e => { setFormData({ ...formData, estimatedHours: Number(e.target.value) }); markDirty(); }} className={`w-full pl-9 pr-3 py-3 text-lg font-black border rounded-xl outline-none ${hasError('estimatedHours') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} disabled={!canEditEverything} />
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30 text-emerald-500" />
+                    <div className="w-full pl-9 pr-3 py-3 text-lg font-black border rounded-xl bg-emerald-500/5 border-emerald-500/20 text-emerald-500 flex items-baseline gap-2">
+                      <span>{formatDecimalToTime(actualHoursSpent)}</span>
+                      <span className="text-[10px] opacity-40 font-normal">({actualHoursSpent.toFixed(2)}h decimal)</span>
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -353,58 +353,169 @@ const TaskDetail: React.FC = () => {
             </div>
 
             {/* Card 4: Timeline */}
-            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-[280px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-auto min-h-[280px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Timeline</h4>
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-500/10"><Calendar size={14} className="text-blue-500" /></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[8px] font-black uppercase opacity-40">Planejado *</label>
-                  <input type="date" value={formData.scheduledStart} onChange={e => { setFormData({ ...formData, scheduledStart: e.target.value }); markDirty(); }} className={`w-full p-2 text-[10px] font-bold rounded-lg border outline-none ${hasError('scheduledStart') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} disabled={!canEditEverything} />
-                  <input type="date" value={formData.estimatedDelivery} onChange={e => { setFormData({ ...formData, estimatedDelivery: e.target.value }); markDirty(); }} className={`w-full p-2 text-[10px] font-bold rounded-lg border outline-none ${hasError('estimatedDelivery') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} disabled={!canEditEverything} />
+
+              <div className="space-y-6">
+                {/* Seção Planejado */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                    <span className="text-[9px] font-black uppercase tracking-wider opacity-60">Planejado</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="relative group">
+                      <label className="text-[8px] font-bold opacity-40 mb-1 block">Início</label>
+                      <input
+                        type="date"
+                        value={formData.scheduledStart}
+                        onChange={e => { setFormData({ ...formData, scheduledStart: e.target.value }); markDirty(); }}
+                        className="w-full p-2.5 text-[11px] font-bold rounded-xl border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all"
+                        style={{ color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div className="relative group">
+                      <label className="text-[8px] font-bold opacity-40 mb-1 block">Entrega</label>
+                      <input
+                        type="date"
+                        value={formData.estimatedDelivery}
+                        onChange={e => { setFormData({ ...formData, estimatedDelivery: e.target.value }); markDirty(); }}
+                        className="w-full p-2.5 text-[11px] font-bold rounded-xl border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all"
+                        style={{ color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[8px] font-black uppercase opacity-40">Realizado</label>
-                  <input type="date" value={formData.actualStart} onChange={e => { setFormData({ ...formData, actualStart: e.target.value }); markDirty(); }} className="w-full p-2 text-[10px] font-bold rounded-lg bg-[var(--bg)] border border-[var(--border)] outline-none" style={{ color: 'var(--text)' }} />
-                  <input type="date" value={formData.actualDelivery} onChange={e => { setFormData({ ...formData, actualDelivery: e.target.value }); markDirty(); }} className="w-full p-2 text-[10px] font-bold rounded-lg bg-[var(--bg)] border border-[var(--border)] outline-none" style={{ color: 'var(--text)' }} />
+
+                {/* Seção Realizado */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span className="text-[9px] font-black uppercase tracking-wider opacity-60">Executado (Real)</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-bold opacity-40">Início Real</label>
+                      <div className={`flex items-center gap-2 p-2.5 rounded-xl border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[38px] ${formData.actualStart ? 'text-emerald-500' : 'text-[var(--muted)]'}`}>
+                        <Zap size={12} className={formData.actualStart ? 'animate-pulse' : 'opacity-20'} />
+                        <span className="text-[11px] font-bold">
+                          {formData.actualStart ? new Date(formData.actualStart + 'T12:00:00').toLocaleDateString('pt-BR') : 'Aguardando...'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-bold opacity-40">Entrega Real</label>
+                      <div className={`flex items-center gap-2 p-2.5 rounded-xl border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[38px] ${formData.actualDelivery ? 'text-emerald-600' : 'text-[var(--muted)]'}`}>
+                        <CheckSquare size={12} className={formData.actualDelivery ? '' : 'opacity-20'} />
+                        <span className="text-[11px] font-bold">
+                          {formData.actualDelivery ? new Date(formData.actualDelivery + 'T12:00:00').toLocaleDateString('pt-BR') : 'Pendente'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 p-6 rounded-[24px] border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-3 mb-4">
-                <StickyNote size={14} className="text-indigo-500" />
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Notas e Documentação</h4>
+            <div className="lg:col-span-2 p-6 rounded-[24px] border shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <LayoutGrid size={14} className="text-indigo-500" />
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Descrição da Atividade</h4>
+                </div>
+                <textarea
+                  value={formData.description}
+                  onChange={e => { setFormData({ ...formData, description: e.target.value }); markDirty(); }}
+                  className="w-full h-20 p-4 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-indigo-500/30"
+                  style={{ color: 'var(--text)' }}
+                  placeholder="Instruções e detalhamento..."
+                />
               </div>
-              <textarea value={formData.notes} onChange={e => { setFormData({ ...formData, notes: e.target.value }); markDirty(); }} className="w-full h-32 p-4 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }} placeholder="Links, observações técnicas..." />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <StickyNote size={14} className="text-amber-500" />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-500">Anotações Internas</h4>
+                  </div>
+                  <textarea
+                    value={formData.notes}
+                    onChange={e => { setFormData({ ...formData, notes: e.target.value }); markDirty(); }}
+                    className="w-full h-20 p-4 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-amber-500/30"
+                    style={{ color: 'var(--text)' }}
+                    placeholder="Observações técnicas, credenciais..."
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <FileSpreadsheet size={14} className="text-blue-500" />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-500">Link de Documentação</h4>
+                    </div>
+                    {formData.link_ef && (
+                      <a
+                        href={formData.link_ef.startsWith('http') ? formData.link_ef : `https://${formData.link_ef}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-bold text-blue-500 hover:underline flex items-center gap-1"
+                      >
+                        ABRIR <ExternalLink size={10} />
+                      </a>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={formData.link_ef}
+                      onChange={e => { setFormData({ ...formData, link_ef: e.target.value }); markDirty(); }}
+                      className="w-full p-4 pr-10 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-blue-500/30 font-mono"
+                      style={{ color: 'var(--text)' }}
+                      placeholder="https://docs.google.com/..."
+                    />
+                    <Zap size={14} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20 text-blue-500" />
+                  </div>
+                  <p className="mt-2 text-[9px] opacity-40 italic">Cole aqui o link direto para o documento ou repositório.</p>
+                </div>
+              </div>
             </div>
 
             <div className="p-6 rounded-[24px] border shadow-sm flex flex-col max-h-[340px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Users size={14} className="text-indigo-500" />
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Equipe ({formData.collaboratorIds?.length || 0})</h4>
+                  {/* Inclui o responsável principal no contador se ele existir */}
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                    Equipe ({Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])])).filter(Boolean).length})
+                  </h4>
                 </div>
                 <button type="button" onClick={() => setIsAddMemberOpen(true)} className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500"><Plus size={14} /></button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                {formData.collaboratorIds?.map(id => {
-                  const u = users.find(usr => usr.id === id);
-                  if (!u) return null;
-                  return (
-                    <div key={id} className="flex items-center gap-2 p-2 rounded-xl border bg-[var(--bg)] border-[var(--border)]">
-                      <div className="w-6 h-6 rounded-lg bg-[var(--surface-2)] flex items-center justify-center text-[8px] font-bold overflow-hidden">
-                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : u.name[0]}
+                {Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])]))
+                  .filter(Boolean)
+                  .map(id => {
+                    const u = users.find(usr => usr.id === id);
+                    if (!u) return null;
+                    return (
+                      <div key={id} className="flex items-center gap-2 p-2 rounded-xl border bg-[var(--bg)] border-[var(--border)]">
+                        <div className="w-6 h-6 rounded-lg bg-[var(--surface-2)] flex items-center justify-center text-[8px] font-bold overflow-hidden">
+                          {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : u.name[0]}
+                        </div>
+                        <span className="text-[10px] font-bold flex-1 truncate" style={{ color: 'var(--text)' }}>{u.name.split(' (')[0]}</span>
+                        {id === formData.developerId ? (
+                          <Crown size={12} className="text-yellow-500 shrink-0" />
+                        ) : (
+                          <button type="button" onClick={() => setFormData({ ...formData, collaboratorIds: formData.collaboratorIds?.filter(cid => cid !== id) })} className="p-1 text-red-500/50 hover:text-red-500"><X size={10} /></button>
+                        )}
                       </div>
-                      <span className="text-[10px] font-bold flex-1 truncate" style={{ color: 'var(--text)' }}>{u.name.split(' (')[0]}</span>
-                      {id === formData.developerId && <Crown size={10} className="text-yellow-500" />}
-                      <button type="button" onClick={() => setFormData({ ...formData, collaboratorIds: formData.collaboratorIds?.filter(cid => cid !== id) })} className="p-1 text-red-500/50 hover:text-red-500"><X size={10} /></button>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             </div>
           </div>

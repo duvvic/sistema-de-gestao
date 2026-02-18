@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
+import { formatDecimalToTime } from '@/utils/normalizers';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 import {
@@ -205,7 +206,7 @@ export const ContextPanel: React.FC = () => {
               {focusProject.name}
             </div>
             <div className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
-              {focusProject.hoursThisWeek.toFixed(1)}h esta semana
+              {formatDecimalToTime(focusProject.hoursThisWeek)} esta semana
             </div>
             <div className="mb-2">
               <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-2)' }}>

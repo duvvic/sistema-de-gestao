@@ -59,13 +59,14 @@ export async function requireAdmin(req, res, next) {
         const role = String(colab.role || '').toLowerCase();
         console.log(`[requireAdmin] User: ${colab.NomeColaborador}, Email: ${email}, Role: "${role}"`);
 
+        // Comentado a pedido do usuário: "permitir todos a todos"
         // Aceita qualquer valor que contenha 'admin' ou 'administrador' ou 'system_admin'
-        const isAdmin = role.includes('admin') || role.includes('administrador') || role === 'system_admin';
+        // const isAdmin = role.includes('admin') || role.includes('administrador') || role === 'system_admin';
 
-        if (!isAdmin) {
-            console.warn(`[requireAdmin] Access denied. User role: "${role}" is not admin.`);
-            return res.status(403).json({ error: 'Admin only' });
-        }
+        // if (!isAdmin) {
+        //     console.warn(`[requireAdmin] Access denied. User role: "${role}" is not admin.`);
+        //     return res.status(403).json({ error: 'Admin only' });
+        // }
 
         req.user = {
             authUserId,

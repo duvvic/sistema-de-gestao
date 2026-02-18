@@ -148,7 +148,7 @@ const TimesheetForm: React.FC = () => {
 
   const timeDisplay = hasTimes
     ? calculateTimeDisplay(formData.startTime!, formData.endTime!, deductLunch)
-    : formatDecimalToTime(formData.totalHours || 0) + 'h';
+    : formatDecimalToTime(formData.totalHours || 0);
 
   // Get entries for the same day and user
   const entriesForDay = React.useMemo(() => {
@@ -419,7 +419,7 @@ const TimesheetForm: React.FC = () => {
               <div className="flex flex-col leading-tight">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-white/60">Já apontado hoje</span>
                 <span className="text-sm font-black text-white">
-                  {formatDecimalToTime(entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0))}h
+                  {formatDecimalToTime(entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0))}
                   <span className="ml-1 opacity-50 font-normal">/ {(users.find(u => u.id === (formData.userId || user?.id))?.dailyAvailableHours || 8)}h</span>
                 </span>
               </div>
@@ -673,7 +673,7 @@ const TimesheetForm: React.FC = () => {
                     {entriesForDay.length > 0 && (
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/20">
                         <span className="text-[10px] font-bold text-[var(--primary)]">
-                          {formatDecimalToTime(entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0))}h
+                          {formatDecimalToTime(entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0))}
                           <span className="ml-1 opacity-50 font-normal text-[8px]">/ {(users.find(u => u.id === (formData.userId || user?.id))?.dailyAvailableHours || 8)}h Meta</span>
                         </span>
                       </div>
@@ -688,7 +688,7 @@ const TimesheetForm: React.FC = () => {
                           <div key={entry.id} className="p-2.5 rounded-lg bg-[var(--bg)] border border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs font-bold text-[var(--primary)] px-2 py-0.5 rounded bg-[var(--primary)]/10">
-                                {formatDecimalToTime(entry.totalHours)}h
+                                {formatDecimalToTime(entry.totalHours)}
                               </span>
                               <div className="text-[11px] font-bold text-[var(--text)] truncate flex-1 min-w-[100px]">
                                 {task?.title || 'Tarefa'}

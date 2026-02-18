@@ -83,7 +83,7 @@ const KanbanCard = ({
   } = useSortable({
     id: task.id,
     data: { type: 'Task', task },
-    disabled: !isAdmin && task.developerId !== currentUserId
+    disabled: false // Todos podem mover tarefas agora
   });
 
   const style = {
@@ -129,7 +129,7 @@ const KanbanCard = ({
         {...attributes}
         {...listeners}
         className={`
-          relative group flex flex-col gap-3 p-4 rounded-xl border shadow-sm ${(!isAdmin && task.developerId !== currentUserId) ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}
+          relative group flex flex-col gap-3 p-4 rounded-xl border shadow-sm cursor-grab active:cursor-grabbing
           transition-all duration-300 ease-out
         `}
         style={{
@@ -154,11 +154,7 @@ const KanbanCard = ({
         <div className="flex justify-between items-start text-left">
           <div className="flex items-center gap-2 max-w-[85%]">
             <div style={{ color: 'var(--muted)' }}>
-              {(!isAdmin && task.developerId !== currentUserId) ? (
-                <div className="w-3.5" /> // Spacer
-              ) : (
-                <GripVertical size={14} />
-              )}
+              <GripVertical size={14} />
             </div>
             {client?.logoUrl && (
               <img
@@ -183,7 +179,7 @@ const KanbanCard = ({
           )}
         </div>
 
-        {(isAdmin || (task.developerId === currentUserId)) && onDelete && (
+        {onDelete && (
           <button
             onClick={(e) => onDelete(e, task)}
             className="absolute top-2 right-2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
@@ -331,7 +327,7 @@ const KanbanCard = ({
           </div>
         </div>
 
-        {task.status !== 'Done' && !isAdmin && (
+        {task.status !== 'Done' && (
           <button
             onClick={handleCreateTimesheet}
             className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg transition-all text-[11px] font-bold border shadow-sm"
@@ -784,7 +780,7 @@ export const KanbanBoard = () => {
 
         <div className="flex items-center gap-3 w-full md:w-auto">
           {/* Custom PREMIUM Developer Filter */}
-          {isAdmin && (
+          {true && (
             <div className="relative min-w-[240px]">
               <button
                 type="button"
@@ -864,7 +860,7 @@ export const KanbanBoard = () => {
                         <div className="h-px bg-white/5 my-1 mx-2" />
 
                         {(() => {
-                          const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead'];
+                          const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'resource'];
                           return users
                             .filter(u => u.active !== false &&
                               (u.torre !== 'N/A' || activeRoles.includes(u.role?.toLowerCase() || '')) &&
@@ -921,8 +917,8 @@ export const KanbanBoard = () => {
             </div>
           )}
 
-          {/* Botão Atrasados Toggle (Apenas Admin) */}
-          {isAdmin && (
+          {/* Botão Atrasados Toggle (Para Todos) */}
+          {true && (
             <button
               type="button"
               onClick={() => setShowOnlyDelayed(!showOnlyDelayed)}

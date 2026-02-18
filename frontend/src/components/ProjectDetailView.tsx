@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getUserStatus } from '@/utils/userStatus';
 import * as CapacityUtils from '@/utils/capacity';
+import { formatDecimalToTime } from '@/utils/normalizers';
 
 const ProjectDetailView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -503,7 +504,7 @@ const ProjectDetailView: React.FC = () => {
                                   </h4>
                                 </div>
                                 <div className={`text-[12px] font-black tabular-nums shrink-0 ${isHourOverrun ? 'text-red-500' : 'text-[var(--text)]'}`}>
-                                  {taskReported.toFixed(1)}h<span className="text-[9px] opacity-10 font-bold ml-0.5">/{taskSoldHours.toFixed(1)}h</span>
+                                  {formatDecimalToTime(taskReported)}<span className="text-[9px] opacity-10 font-bold ml-0.5">/{formatDecimalToTime(taskSoldHours)}</span>
                                 </div>
                               </div>
 
@@ -682,7 +683,7 @@ const ProjectDetailView: React.FC = () => {
                                   <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Horas Apontadas</span>
                                   <div className="flex items-baseline gap-2 mt-0.5">
                                     <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
-                                      {performance?.consumedHours.toFixed(1)}h
+                                      {formatDecimalToTime(performance?.consumedHours || 0)}
                                     </span>
                                     <span className="text-[10px] font-bold opacity-20 tracking-tight">
                                       de {project.horas_vendidas || 0}h
@@ -708,7 +709,7 @@ const ProjectDetailView: React.FC = () => {
                               <div className="flex justify-between items-center mt-2">
                                 {((project.horas_vendidas || 0) - (performance?.consumedHours || 0)) > 0 ? (
                                   <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500/50">
-                                    Disponíveis: {((project.horas_vendidas || 0) - (performance?.consumedHours || 0)).toFixed(1)}h
+                                    Disponíveis: {formatDecimalToTime((project.horas_vendidas || 0) - (performance?.consumedHours || 0))}
                                   </span>
                                 ) : (
                                   <span className="text-[8px] font-black uppercase tracking-widest text-red-500/50">
@@ -1041,7 +1042,7 @@ const ProjectDetailView: React.FC = () => {
                                         return (
                                           <div className="flex items-center gap-3">
                                             <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
-                                            <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{reported.toFixed(1)}h</p>
+                                            <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
                                           </div>
                                         );
                                       })()}
@@ -1272,11 +1273,11 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
           </div>
           <div className="text-right">
             <div className="flex items-center gap-1 justify-end">
-              <span className="text-sm font-black tabular-nums" style={{ color: 'var(--text)' }}>{actualHours}h</span>
+              <span className="text-sm font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(actualHours)}</span>
               {isAdmin && (
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--muted)' }}>
-                    / {distributedHours.toFixed(1)}h
+                    / {formatDecimalToTime(distributedHours)}
                   </span>
                 </div>
               )}

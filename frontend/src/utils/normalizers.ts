@@ -225,26 +225,22 @@ export function mapDbAbsenceToAbsence(row: any): any {
 }
 
 /**
- * Converte horas decimais (ex: 5.75) para o formato de tempo (ex: 5:45).
+ * Converte horas decimais (ex: 5.75) para o formato de tempo (ex: 5h 45m).
  */
 export function formatDecimalToTime(decimalHours: number): string {
-    if (isNaN(decimalHours) || decimalHours === 0) return "0:00";
+    if (isNaN(decimalHours) || decimalHours === 0) return "0h 00m";
 
-    // Obter o sinal das horas (positivo ou negativo)
     const isNegative = decimalHours < 0;
     const absHours = Math.abs(decimalHours);
 
-    const hours = Math.floor(absHours);
-    const minutes = Math.round((absHours - hours) * 60);
+    let hours = Math.floor(absHours);
+    let minutes = Math.round((absHours - hours) * 60);
 
-    // Ajuste se o arredondamento dos minutos resultar em 60
-    let adjustedHours = hours;
-    let adjustedMinutes = minutes;
-    if (adjustedMinutes === 60) {
-        adjustedHours += 1;
-        adjustedMinutes = 0;
+    if (minutes === 60) {
+        hours += 1;
+        minutes = 0;
     }
 
-    const timeStr = `${adjustedHours}:${adjustedMinutes.toString().padStart(2, '0')}`;
+    const timeStr = `${hours}h ${minutes.toString().padStart(2, '0')}m`;
     return isNegative ? `-${timeStr}` : timeStr;
 }

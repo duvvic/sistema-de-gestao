@@ -7,7 +7,7 @@ import { Task, Role } from '@/types';
 import { User as UserIcon, Mail, Briefcase, Shield, Edit, Save, Trash2, ArrowLeft, CheckCircle, Clock, AlertCircle, Calendar, Zap, Info, LayoutGrid, ChevronRight } from 'lucide-react';
 import OrganizationalStructureSelector from './OrganizationalStructureSelector';
 import ConfirmationModal from './ConfirmationModal';
-import { getRoleDisplayName } from '@/utils/normalizers';
+import { getRoleDisplayName, formatDecimalToTime } from '@/utils/normalizers';
 import { supabase } from '@/services/supabaseClient';
 
 import TimesheetCalendar from './TimesheetCalendar';
@@ -400,7 +400,7 @@ const TeamMemberDetail: React.FC = () => {
                               <div className="pt-4 border-t border-[var(--border)] space-y-3">
                                  <div className="flex justify-between items-end">
                                     <p className="text-[10px] uppercase font-black text-[var(--muted)]">Minha Alocação</p>
-                                    <p className="text-xs font-black text-[var(--text)]">{userReported.toFixed(1)}h <span className="text-[var(--muted)] font-bold text-[10px]">/ {userEstimated}h</span></p>
+                                    <p className="text-xs font-black text-[var(--text)]">{formatDecimalToTime(userReported)} <span className="text-[var(--muted)] font-bold text-[10px]">/ {userEstimated}h</span></p>
                                  </div>
                                  <div className="w-full h-1.5 bg-[var(--surface-2)] rounded-full overflow-hidden">
                                     <div
@@ -413,7 +413,7 @@ const TeamMemberDetail: React.FC = () => {
                                        {Math.round(userEstimated > 0 ? (userReported / userEstimated) * 100 : 0)}% Consumido
                                     </span>
                                     <span style={{ color: 'var(--muted)' }}>
-                                       Restam {remaining.toFixed(1)}h
+                                       Restam {formatDecimalToTime(remaining)}
                                     </span>
                                  </div>
                               </div>

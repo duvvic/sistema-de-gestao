@@ -13,6 +13,7 @@ import {
     ProjectTotal,
     ReportPreviewResponse
 } from '@/services/reportApi';
+import { formatDecimalToTime } from '@/utils/normalizers';
 import {
     Download,
     BarChart3,
@@ -340,7 +341,7 @@ const ReportDashboard: React.FC = () => {
                                 <div className="bg-indigo-600 p-6 rounded-3xl text-white shadow-lg overflow-hidden relative">
                                     <Clock className="w-20 h-20 absolute -right-4 -bottom-4 opacity-10" />
                                     <p className="text-white/70 text-sm font-bold uppercase tracking-wider">Total de Horas</p>
-                                    <h4 className="text-4xl font-black mt-2">{reportData.totals.horas_total.toFixed(1)}h</h4>
+                                    <h4 className="text-4xl font-black mt-2">{formatDecimalToTime(reportData.totals.horas_total)}</h4>
                                     <div className="mt-4 flex items-center gap-2 text-xs font-medium bg-white/10 w-fit px-2 py-1 rounded-lg">
                                         Período selecionado
                                     </div>
@@ -385,7 +386,7 @@ const ReportDashboard: React.FC = () => {
                                                     </td>
                                                     <td className="px-6 py-4 font-medium text-sm text-[var(--text)]">{row.colaborador}</td>
                                                     <td className="px-6 py-4 text-xs text-[var(--muted)] italic">{row.tarefa || 'N/A'}</td>
-                                                    <td className="px-6 py-4 text-center font-black text-sm text-[var(--primary)]">{row.horas.toFixed(1)}</td>
+                                                    <td className="px-6 py-4 text-center font-black text-sm text-[var(--primary)]">{formatDecimalToTime(row.horas)}</td>
                                                     <td className="px-6 py-4 text-right font-bold text-sm text-emerald-600">
                                                         {row.valor_rateado ? `R$ ${row.valor_rateado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}
                                                     </td>
@@ -515,7 +516,7 @@ const ProjectCostRow: React.FC<ProjectCostRowProps> = ({ pt, onUpdate }) => {
                 <div className="font-bold text-sm text-[var(--text)]">{pt.projeto}</div>
                 <div className="text-xs text-[var(--muted)]">{pt.cliente}</div>
             </td>
-            <td className="px-6 py-4 text-center font-medium text-[var(--text)]">{pt.horas_projeto_total.toFixed(1)}h</td>
+            <td className="px-6 py-4 text-center font-medium text-[var(--text)]">{formatDecimalToTime(pt.horas_projeto_total)}</td>
             <td className="px-6 py-4">
                 <div className="relative max-w-[150px]">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--muted)]" />

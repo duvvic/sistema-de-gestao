@@ -18,6 +18,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Project } from '@/types';
+import { formatDecimalToTime } from '@/utils/normalizers';
 
 type SortConfig = {
   key: string;
@@ -214,7 +215,7 @@ const ExecutiveDashboard: React.FC = () => {
               <span className="text-xs font-bold uppercase" style={{ color: 'var(--muted)' }}>Horas Consumidas</span>
             </div>
             <div className="text-2xl font-black" style={{ color: 'var(--text)' }}>
-              {summary.totalHoursConsumed.toFixed(0)}h / {summary.totalHoursSold.toFixed(0)}h
+              {formatDecimalToTime(summary.totalHoursConsumed)} / {formatDecimalToTime(summary.totalHoursSold)}
             </div>
           </div>
 
@@ -346,10 +347,10 @@ const ExecutiveDashboard: React.FC = () => {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-sm font-mono text-right" style={{ color: 'var(--text)' }}>
-                  {project.hoursSold.toFixed(0)}h
+                  {formatDecimalToTime(project.hoursSold)}
                 </td>
                 <td className="px-4 py-3 text-sm font-mono text-right" style={{ color: 'var(--text)' }}>
-                  {project.hoursConsumed.toFixed(0)}h
+                  {formatDecimalToTime(project.hoursConsumed)}
                 </td>
                 <td className="px-4 py-3 text-sm font-bold text-right" style={{
                   color: project.burnRate > 90 ? 'var(--danger)' : project.burnRate > 75 ? 'var(--warning)' : 'var(--success)'

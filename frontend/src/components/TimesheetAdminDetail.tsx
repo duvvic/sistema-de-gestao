@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { TimesheetEntry, Client, Project, User, Task } from '@/types';
 import { ArrowLeft, Edit2, Calendar, Clock, Users, Briefcase, ChevronDown, ChevronUp, CheckSquare } from 'lucide-react';
+import { formatDecimalToTime } from '@/utils/normalizers';
 
 interface TimesheetAdminDetailProps {
   client: Client;
@@ -122,7 +123,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
             <div>
               <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>{client.name} - Resumo de Horas</h1>
               <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>
-                Total Acumulado: <span className="font-black" style={{ color: 'var(--primary)' }}>{totalClientHours.toFixed(1)}h</span>
+                Total Acumulado: <span className="font-black" style={{ color: 'var(--primary)' }}>{formatDecimalToTime(totalClientHours)}</span>
               </p>
             </div>
           </div>
@@ -161,7 +162,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-black text-xl" style={{ color: 'var(--primary)' }}>{user.totalHours.toFixed(1)}h</span>
+                    <span className="font-black text-xl" style={{ color: 'var(--primary)' }}>{formatDecimalToTime(user.totalHours)}</span>
                     {expandedUsers.has(user.userId) ? (
                       <ChevronUp className="w-5 h-5" style={{ color: 'var(--muted)' }} />
                     ) : (
@@ -192,7 +193,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                           <span className="italic truncate max-w-[250px]" style={{ color: 'var(--text)' }}>{entry.description || '-'}</span>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="font-black w-16 text-right" style={{ color: 'var(--text)' }}>{entry.totalHours.toFixed(1)}h</span>
+                          <span className="font-black w-16 text-right" style={{ color: 'var(--text)' }}>{formatDecimalToTime(entry.totalHours)}</span>
                           <Edit2 className="w-4 h-4 transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--muted)' }} />
                         </div>
                       </div>
@@ -234,7 +235,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-black text-xl" style={{ color: 'var(--primary)' }}>{project.totalHours.toFixed(1)}h</span>
+                    <span className="font-black text-xl" style={{ color: 'var(--primary)' }}>{formatDecimalToTime(project.totalHours)}</span>
                     {expandedProjects.has(project.projectId) ? (
                       <ChevronUp className="w-5 h-5" style={{ color: 'var(--muted)' }} />
                     ) : (
@@ -277,7 +278,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="font-black" style={{ color: 'var(--primary)' }}>{taskGroup.totalHours.toFixed(1)}h</span>
+                              <span className="font-black" style={{ color: 'var(--primary)' }}>{formatDecimalToTime(taskGroup.totalHours)}</span>
                               {expandedTasks.has(taskGroup.taskId) ? (
                                 <ChevronUp className="w-4 h-4" style={{ color: 'var(--muted)' }} />
                               ) : (
@@ -308,7 +309,7 @@ const TimesheetAdminDetail: React.FC<TimesheetAdminDetailProps> = ({
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-4">
-                                    <span className="font-black w-16 text-right" style={{ color: 'var(--text)' }}>{entry.totalHours.toFixed(1)}h</span>
+                                    <span className="font-black w-16 text-right" style={{ color: 'var(--text)' }}>{formatDecimalToTime(entry.totalHours)}</span>
                                     <Edit2 className="w-4 h-4 transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--muted)' }} />
                                   </div>
                                 </div>

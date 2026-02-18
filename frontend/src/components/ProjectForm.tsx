@@ -125,11 +125,6 @@ const ProjectForm: React.FC = () => {
   const isProjectIncomplete = (
     !name.trim() ||
     !clientId ||
-    !partnerId ||
-    !valorTotalRs ||
-    !horasVendidas ||
-    !startDate ||
-    !estimatedDelivery ||
     !responsibleNicLabsId ||
     !managerClient ||
     selectedUsers.length === 0
@@ -139,7 +134,7 @@ const ProjectForm: React.FC = () => {
     e.preventDefault();
 
     if (isProjectIncomplete) {
-      alert('Por favor, preencha todos os campos obrigatórios (Finanças, Timeline, Responsáveis e Equipe) antes de salvar.');
+      alert('Por favor, preencha os campos obrigatórios (Identificação, Responsáveis e Equipe) antes de salvar.');
       return;
     }
 
@@ -372,7 +367,7 @@ const ProjectForm: React.FC = () => {
                       type="number"
                       value={valorTotalRs || ''}
                       onChange={(e) => setValorTotalRs(Number(e.target.value))}
-                      className={`w-full pl-8 pr-3 py-4 text-xl font-black border rounded-2xl outline-none transition-all tabular-nums ${!valorTotalRs ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                      className={`w-full pl-8 pr-3 py-4 text-xl font-black border rounded-2xl outline-none transition-all tabular-nums bg-[var(--bg)] border-[var(--border)]`}
                       style={{ color: 'var(--text)' }}
                     />
                   </div>
@@ -385,7 +380,7 @@ const ProjectForm: React.FC = () => {
                       type="number"
                       value={horasVendidas || ''}
                       onChange={(e) => setHorasVendidas(Number(e.target.value))}
-                      className={`w-full pl-9 pr-3 py-4 text-xl font-black border rounded-2xl outline-none transition-all tabular-nums ${!horasVendidas ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                      className={`w-full pl-9 pr-3 py-4 text-xl font-black border rounded-2xl outline-none transition-all tabular-nums bg-[var(--bg)] border-[var(--border)]`}
                       style={{ color: 'var(--text)' }}
                     />
                   </div>
@@ -407,14 +402,14 @@ const ProjectForm: React.FC = () => {
                       type="date"
                       value={startDate}
                       onChange={e => setStartDate(e.target.value)}
-                      className={`w-full text-xs font-bold p-2 rounded-lg border outline-none ${!startDate ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-transparent border-[var(--border)]'}`}
+                      className="w-full text-xs font-bold p-2 rounded-lg border outline-none bg-transparent border-[var(--border)]"
                       style={{ color: 'var(--text)' }}
                     />
                     <input
                       type="date"
                       value={estimatedDelivery}
                       onChange={e => setEstimatedDelivery(e.target.value)}
-                      className={`w-full text-xs font-bold p-2 rounded-lg border outline-none ${!estimatedDelivery ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-purple-500/10 border-purple-500/50 text-purple-500'}`}
+                      className="w-full text-xs font-bold p-2 rounded-lg border outline-none bg-transparent border-[var(--border)]"
                       style={{ color: !estimatedDelivery ? 'var(--text)' : undefined }}
                     />
                   </div>
