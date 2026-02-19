@@ -55,19 +55,20 @@ const Badge = ({ children, status, className = "" }: { children: React.ReactNode
 
 const SectionHeader = ({ label, icon: Icon, colorClass, children }: { label: string, icon: any, colorClass: string, children?: React.ReactNode }) => (
     <div className="flex items-center gap-2 sm:gap-3 2xl:gap-6 mb-1.5 sm:mb-2 lg:mb-3 2xl:mb-4">
-        <div className={`w-1.5 h-4 sm:h-5 lg:h-6 2xl:h-8 rounded-full ${colorClass}`} />
-        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 2xl:w-6 2xl:h-6 text-slate-400 shrink-0" />
-        <h2 className="text-[6px] sm:text-[7px] lg:text-[8px] 2xl:text-xs font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] 2xl:tracking-[0.2em] text-slate-600 whitespace-nowrap">{label}</h2>
+        <div className={`w-1.5 h-3 sm:h-4 lg:h-5 2xl:h-7 rounded-full ${colorClass}`} />
+        <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 2xl:w-5 2xl:h-5 text-slate-400 shrink-0" />
+        <h2 className="text-[5px] sm:text-[6px] lg:text-[7px] 2xl:text-[10px] font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] 2xl:tracking-[0.2em] text-slate-500 whitespace-nowrap">{label}</h2>
         <div className="h-[1px] flex-1 bg-slate-200 ml-2 opacity-50" />
         {children && <div className="flex items-center gap-1 sm:gap-1.5 2xl:gap-3 ml-2">{children}</div>}
     </div>
 );
 
-const CompactStat = ({ label, count, icon: Icon, colorClass, countColorClass }: { label: string, count: number, icon: any, colorClass: string, countColorClass: string }) => (
-    <div className="bg-white/80 backdrop-blur-sm px-1.5 py-0.5 2xl:px-3 2xl:py-1.5 rounded-md border border-slate-200 shadow-sm flex items-center gap-1.5 2xl:gap-2 transition-all hover:shadow-md hover:border-slate-300">
-        <Icon className={`${colorClass} w-2.5 h-2.5 2xl:w-4 2xl:h-4`} />
-        <span className={`text-[6px] 2xl:text-[10px] font-black uppercase tracking-tight ${colorClass}`}>{label}</span>
-        <span className={`${countColorClass} text-[6px] 2xl:text-[10px] font-black min-w-[12px] h-[12px] 2xl:min-w-[20px] 2xl:h-[20px] flex items-center justify-center rounded-full border border-current/20`}>{count}</span>
+const CompactStat = ({ label, count, icon: Icon, colorClass }: { label: string, count: number, icon: any, colorClass: string }) => (
+    <div className="bg-white/60 backdrop-blur-sm px-1.5 py-0.5 2xl:px-2.5 2xl:py-1 rounded-md border border-slate-100 shadow-sm flex items-center gap-1.5 transition-all hover:bg-white/90">
+        <Icon className={`${colorClass} w-2 h-2 2xl:w-3.5 2xl:h-3.5 opacity-80`} />
+        <span className={`text-[5px] sm:text-[5.5px] 2xl:text-[9.5px] font-black uppercase tracking-tighter ${colorClass}`}>
+            {label} <span className="opacity-60 ml-0.5">({count})</span>
+        </span>
     </div>
 );
 
@@ -557,9 +558,13 @@ const AdminMonitoringView: React.FC = () => {
             done: allTasks.filter(t => t.status === 'Done').length,
         };
 
+        const todayStr = new Date().toISOString().split('T')[0];
+        const entregaHoje = allTasks.filter(t => t.estimatedDelivery && t.estimatedDelivery.startsWith(todayStr) && t.status !== 'Done').length;
+
         return {
             atrasados: delayed,
             impedidos: review,
+            entregaHoje,
             preProjeto,
             analise,
             andamento,
@@ -676,8 +681,10 @@ const AdminMonitoringView: React.FC = () => {
                                 icon={Activity}
                                 colorClass={reviewCount > 0 ? "bg-yellow-500" : "bg-purple-600"}
                             >
-                                <CompactStat label="Atrasados" count={stats.atrasados} icon={AlertCircle} colorClass="text-red-600" countColorClass="bg-red-50 text-red-600" />
-                                <CompactStat label="Impedidos" count={stats.impedidos} icon={Ban} colorClass="text-amber-600" countColorClass="bg-amber-50 text-amber-600" />
+                                <CompactStat label="Entrega Hoje" count={stats.entregaHoje} icon={Zap} colorClass="text-sky-600" />
+                                <CompactStat label="Andamento" count={stats.tasksByStatus.inProgress} icon={Activity} colorClass="text-blue-600" />
+                                <CompactStat label="Atrasados" count={stats.atrasados} icon={AlertCircle} colorClass="text-red-600" />
+                                <CompactStat label="Impedido" count={stats.impedidos} icon={Ban} colorClass="text-amber-600" />
                             </SectionHeader>
                         );
                     })()}
@@ -866,9 +873,9 @@ const AdminMonitoringView: React.FC = () => {
                     {activeProjects.length > 0 && (
                         <section className="flex flex-col min-h-0 overflow-hidden">
                             <SectionHeader label="Ecossistema de Projetos Ativos" icon={Timer} colorClass="bg-blue-600">
-                                <CompactStat label="Pré-Projeto" count={stats.preProjeto} icon={Layout} colorClass="text-slate-600" countColorClass="bg-slate-50 text-slate-600" />
-                                <CompactStat label="Análise" count={stats.analise} icon={Cpu} colorClass="text-yellow-600" countColorClass="bg-yellow-50 text-yellow-600" />
-                                <CompactStat label="Andamento" count={stats.andamento} icon={Activity} colorClass="text-blue-600" countColorClass="bg-blue-50 text-blue-600" />
+                                <CompactStat label="Pré-Projeto" count={stats.preProjeto} icon={Layout} colorClass="text-slate-600" />
+                                <CompactStat label="Análise" count={stats.analise} icon={Cpu} colorClass="text-yellow-600" />
+                                <CompactStat label="Andamento" count={stats.andamento} icon={Activity} colorClass="text-blue-600" />
                             </SectionHeader>
                             <div className="relative w-full overflow-hidden pb-1.5 sm:pb-2">
                                 <div className="flex gap-2 sm:gap-3 lg:gap-4 w-max animate-marquee hover:[animation-play-state:paused]">
@@ -944,15 +951,10 @@ const AdminMonitoringView: React.FC = () => {
                     {/* TIME & DISPONIBILIDADE */}
                     <section className="flex flex-col min-h-0 overflow-hidden">
                         <SectionHeader label="Time & Disponibilidade" icon={Users} colorClass="bg-emerald-600">
-                            <CompactStat label="Livre" count={stats.team.livre} icon={CheckCircle2} colorClass="text-emerald-600" countColorClass="bg-emerald-50 text-emerald-600" />
-                            <CompactStat label="Em Atividade" count={stats.team.iniciado + stats.team.apontado} icon={PlayCircle} colorClass="text-purple-600" countColorClass="bg-purple-50 text-purple-600" />
-                            <CompactStat label="Atrasados" count={stats.team.atrasado} icon={AlertTriangle} colorClass="text-red-600" countColorClass="bg-red-50 text-red-600" />
-                            <div className="w-[1px] h-4 bg-slate-200 mx-1 2xl:mx-2" />
-                            <CompactStat label="Pré-Projeto" count={stats.tasksByStatus.todo} icon={Layout} colorClass="text-slate-500" countColorClass="bg-slate-50 text-slate-500" />
-                            <CompactStat label="Andamento" count={stats.tasksByStatus.inProgress} icon={Activity} colorClass="text-blue-500" countColorClass="bg-blue-50 text-blue-500" />
-                            <CompactStat label="Análise" count={stats.tasksByStatus.review} icon={Cpu} colorClass="text-yellow-600" countColorClass="bg-yellow-50 text-yellow-600" />
-                            <CompactStat label="Teste" count={stats.tasksByStatus.testing} icon={Timer} colorClass="text-purple-500" countColorClass="bg-purple-50 text-purple-500" />
-                            <CompactStat label="Concluído" count={stats.tasksByStatus.done} icon={CheckCircle2} colorClass="text-emerald-500" countColorClass="bg-emerald-50 text-emerald-500" />
+                            <CompactStat label="Livre" count={stats.team.livre} icon={CheckCircle2} colorClass="text-emerald-600" />
+                            <CompactStat label="Em Atividade" count={stats.team.iniciado + stats.team.apontado} icon={PlayCircle} colorClass="text-purple-600" />
+                            <CompactStat label="Estudando" count={stats.team.estudando} icon={Box} colorClass="text-blue-500" />
+                            <CompactStat label="Atrasados" count={stats.team.atrasado} icon={AlertTriangle} colorClass="text-red-600" />
                         </SectionHeader>
                         <div className="relative w-full overflow-hidden pb-1.5">
                             <div className="flex gap-2 sm:gap-3 lg:gap-4 w-max animate-marquee-reverse hover:[animation-play-state:paused]">
