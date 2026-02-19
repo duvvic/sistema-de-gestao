@@ -112,6 +112,7 @@ export async function checkProjectHasTasks(projectId) {
         .from('fato_tarefas')
         .select('id_tarefa_novo')
         .eq('ID_Projeto', projectId)
+        .is('deleted_at', null)
         .limit(1);
 
     if (error) {
@@ -131,6 +132,7 @@ export async function checkTaskHasHours(taskId) {
         .from('horas_trabalhadas')
         .select('ID_Horas_Trabalhadas')
         .eq('id_tarefa_novo', taskId)
+        .is('deleted_at', null)
         .limit(1);
 
     if (error) {

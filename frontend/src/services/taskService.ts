@@ -260,8 +260,12 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
 // DELETE
 // ===========================
 
-export async function deleteTask(taskId: string, force: boolean = false): Promise<void> {
-  const query = force ? '?force=true' : '';
+export async function deleteTask(taskId: string, force: boolean = false, deleteHours: boolean = false): Promise<void> {
+  const params = new URLSearchParams();
+  if (force) params.append('force', 'true');
+  if (deleteHours) params.append('deleteHours', 'true');
+
+  const query = params.toString() ? `?${params.toString()}` : '';
   await apiRequest(`/admin/tasks/${taskId}${query}`, {
     method: 'DELETE'
   });

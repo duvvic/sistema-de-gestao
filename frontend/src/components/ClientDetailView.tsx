@@ -187,6 +187,17 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         {/* COMPACT KPI CARDS */}
         <div className="flex items-center gap-3">
           <div
+            onClick={() => setActiveTab('details')}
+            className={`px-4 py-2 rounded-xl border transition-all cursor-pointer flex flex-col justify-center min-w-[120px] ${activeTab === 'details' ? 'border-white bg-white/20 shadow-md' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
+          >
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <FileText size={12} className="text-white/70" />
+              <span className="text-[8px] font-bold uppercase tracking-widest text-white/70">INFORMAÇÕES</span>
+            </div>
+            <span className="text-xs font-black text-white leading-tight">Dados do Cliente</span>
+          </div>
+
+          <div
             onClick={() => setActiveTab('projects')}
             className={`px-4 py-2 rounded-xl border transition-all cursor-pointer flex flex-col justify-center min-w-[120px] ${activeTab === 'projects' ? 'border-white bg-white/20 shadow-md' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
           >
@@ -201,23 +212,12 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           </div>
 
           <div
-            onClick={() => setActiveTab('details')}
-            className={`px-4 py-2 rounded-xl border transition-all cursor-pointer flex flex-col justify-center min-w-[120px] ${activeTab === 'details' ? 'border-white bg-white/20 shadow-md' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
-          >
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <FileText size={12} className="text-white/70" />
-              <span className="text-[8px] font-bold uppercase tracking-widest text-white/70">INFORMAÇÕES</span>
-            </div>
-            <span className="text-xs font-black text-white leading-tight">Dados do Cliente</span>
-          </div>
-
-          <div
             onClick={() => setActiveTab('tasks')}
             className={`px-4 py-2 rounded-xl border transition-all cursor-pointer flex flex-col justify-center min-w-[120px] ${activeTab === 'tasks' ? 'border-white bg-white/20 shadow-md' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
           >
             <div className="flex items-center gap-1.5 mb-0.5">
               <CheckSquare size={12} className="text-white/70" />
-              <span className="text-[8px] font-bold uppercase tracking-widest text-white/70">ENTREGAS</span>
+              <span className="text-[8px] font-bold uppercase tracking-widest text-white/70">TAREFAS</span>
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-black text-white">{clientTasks.length}</span>

@@ -217,10 +217,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const value = React.useMemo(() => ({
         clients,
-        projects,
-        tasks,
+        projects: projects.filter(p => p.active !== false),
+        tasks: tasks.filter(t => !t.deleted_at),
         users,
-        timesheetEntries,
+        timesheetEntries: timesheetEntries.filter(e => !(e as any).deleted_at),
         projectMembers,
         absences,
         holidays,

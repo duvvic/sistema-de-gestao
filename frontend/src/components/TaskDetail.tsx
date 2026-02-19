@@ -57,6 +57,8 @@ const TaskDetail: React.FC = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ force: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [shouldDeleteHours, setShouldDeleteHours] = useState(false);
 
   // Validação Reativa
   const isFieldMissing = (field: string) => {
@@ -211,15 +213,39 @@ const TaskDetail: React.FC = () => {
     } catch (error) { alert("Erro ao salvar"); } finally { setLoading(false); }
   };
 
+  const taskHours = timesheetEntries.filter(e => e.taskId === taskId);
+  const totalTaskHours = taskHours.reduce((acc, current) => acc + current.totalHours, 0);
+
   const performDelete = async () => {
     if (!taskId || !deleteConfirmation) return;
+
+    // Se houver horas e NÃO for system_admin, bloqueia no front também
+    if (deleteConfirmation.force && currentUser?.role !== 'system_admin') {
+      alert("Apenas o Administrador do Sistema pode excluir tarefas que já possuem horas apontadas.");
+      setDeleteConfirmation(null);
+      return;
+    }
+
+    // Validação de texto para exclusão forçada
+    if (deleteConfirmation.force && deleteConfirmText !== task?.title) {
+      alert("Para confirmar a exclusão com horas, você deve digitar o nome exato da tarefa.");
+      return;
+    }
+
     try {
       setLoading(true);
-      await deleteTask(taskId, deleteConfirmation.force);
+      await deleteTask(taskId, deleteConfirmation.force, shouldDeleteHours);
       discardChanges(); navigate(-1);
     } catch (error: any) {
-      if (error.message?.includes("horas apontadas")) setDeleteConfirmation({ force: true });
-      else alert("Erro ao excluir");
+      if (error.message?.includes("horas apontadas") || error.message?.includes("seguinte erro: 400")) {
+        setDeleteConfirmation({ force: true });
+        setDeleteConfirmText('');
+      } else if (error.message?.includes("403")) {
+        alert("Acesso Negado: Apenas Administradores do Sistema podem excluir tarefas com horas.");
+        setDeleteConfirmation(null);
+      } else {
+        alert("Erro ao excluir: " + error.message);
+      }
     } finally { setLoading(false); }
   };
 
@@ -252,7 +278,14 @@ const TaskDetail: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           {!isNew && (isAdmin || isOwner) && (
-            <button onClick={() => setDeleteConfirmation({ force: false })} className="px-4 py-2.5 rounded-xl font-bold text-xs text-red-100 hover:bg-white/10 transition-all flex items-center gap-2">
+            <button
+              onClick={() => {
+                const hasHours = taskHours.length > 0;
+                setDeleteConfirmation({ force: hasHours });
+                setShouldDeleteHours(hasHours); // Default to true if has hours? Actually let user decide.
+              }}
+              className="px-4 py-2.5 rounded-xl font-bold text-xs text-red-100 hover:bg-white/10 transition-all flex items-center gap-2"
+            >
               <Trash2 size={16} /> EXCLUIR
             </button>
           )}
@@ -275,14 +308,42 @@ const TaskDetail: React.FC = () => {
               <div className="space-y-4 flex-1">
                 <div>
                   <label className={`text-[9px] font-black uppercase mb-2 block opacity-60 ${hasError('title') ? 'text-yellow-500' : ''}`}>Nome da Tarefa *</label>
-                  <input type="text" value={formData.title} onChange={e => { setFormData({ ...formData, title: e.target.value }); markDirty(); }} className={`w-full px-4 py-2.5 text-sm font-bold border rounded-xl outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} />
+                  <input type="text" value={formData.title || ''} onChange={e => { setFormData({ ...formData, title: e.target.value }); markDirty(); }} className={`w-full px-4 py-2.5 text-sm font-bold border rounded-xl outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase mb-2 block opacity-60">Status</label>
-                  <select value={formData.status} onChange={e => { setFormData({ ...formData, status: e.target.value as any }); markDirty(); }} className="w-full px-4 py-2.5 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }}>
+                  <select
+                    value={formData.status || 'Todo'}
+                    onChange={e => {
+                      const newStatus = e.target.value as any;
+                      let newProgress = formData.progress;
+                      let newActualDelivery = formData.actualDelivery;
+
+                      if (newStatus === 'Done') {
+                        newProgress = 100;
+                        if (!newActualDelivery) {
+                          newActualDelivery = new Date().toISOString().split('T')[0];
+                        }
+                      } else if (formData.status === 'Done') {
+                        // Reverting from Done to something else
+                        newActualDelivery = '';
+                      }
+
+                      setFormData({
+                        ...formData,
+                        status: newStatus,
+                        progress: newProgress,
+                        actualDelivery: newActualDelivery
+                      });
+                      markDirty();
+                    }}
+                    className="w-full px-4 py-2.5 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none"
+                    style={{ color: 'var(--text)' }}
+                  >
                     <option value="Todo">Pré-Projeto</option>
                     <option value="Review">Análise</option>
                     <option value="In Progress">Andamento</option>
+                    <option value="Testing">Teste</option>
                     <option value="Done">Concluído</option>
                   </select>
                 </div>
@@ -314,7 +375,7 @@ const TaskDetail: React.FC = () => {
                     <Crown size={10} className={formData.developerId ? "text-yellow-500" : ""} /> Responsável *
                   </label>
                   <select
-                    value={formData.developerId}
+                    value={formData.developerId || ''}
                     onChange={e => {
                       const selectedId = e.target.value;
                       const u = users.find(usr => usr.id === selectedId);
@@ -333,7 +394,7 @@ const TaskDetail: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase mb-2 block opacity-60">Prioridade</label>
-                  <select value={formData.priority} onChange={e => { setFormData({ ...formData, priority: e.target.value as any }); markDirty(); }} className="w-full px-4 py-2.5 text-xs font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }}>
+                  <select value={formData.priority || 'Medium'} onChange={e => { setFormData({ ...formData, priority: e.target.value as any }); markDirty(); }} className="w-full px-4 py-2.5 text-xs font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }}>
                     <option value="Low">Baixa</option>
                     <option value="Medium">Média</option>
                     <option value="High">Alta</option>
@@ -362,7 +423,35 @@ const TaskDetail: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Progresso ({formData.progress}%)</label>
-                  <input type="range" min="0" max="100" value={formData.progress} onChange={e => { setFormData({ ...formData, progress: Number(e.target.value) }); markDirty(); }} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={formData.progress || 0}
+                    onChange={e => {
+                      const newProgress = Number(e.target.value);
+                      let newStatus = formData.status;
+                      let newActualDelivery = formData.actualDelivery;
+
+                      if (formData.status === 'Done' && newProgress < 100) {
+                        newStatus = 'In Progress';
+                        newActualDelivery = '';
+                      } else if (newProgress === 100 && formData.status !== 'Done') {
+                        // Optional: auto-complete if reaches 100%? 
+                        // The user didn't explicitly ask for this direction but it feels consistent.
+                        // However, let's stick to the prompt.
+                      }
+
+                      setFormData({
+                        ...formData,
+                        progress: newProgress,
+                        status: newStatus,
+                        actualDelivery: newActualDelivery
+                      });
+                      markDirty();
+                    }}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                  />
                 </div>
               </div>
             </div>
@@ -386,7 +475,7 @@ const TaskDetail: React.FC = () => {
                       <label className="text-[8px] font-bold opacity-40 mb-1 block">Início</label>
                       <input
                         type="date"
-                        value={formData.scheduledStart}
+                        value={formData.scheduledStart || ''}
                         onChange={e => { setFormData({ ...formData, scheduledStart: e.target.value }); markDirty(); }}
                         className="w-full p-2.5 text-[11px] font-bold rounded-xl border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all"
                         style={{ color: 'var(--text)' }}
@@ -396,7 +485,7 @@ const TaskDetail: React.FC = () => {
                       <label className="text-[8px] font-bold opacity-40 mb-1 block">Entrega</label>
                       <input
                         type="date"
-                        value={formData.estimatedDelivery}
+                        value={formData.estimatedDelivery || ''}
                         onChange={e => { setFormData({ ...formData, estimatedDelivery: e.target.value }); markDirty(); }}
                         className="w-full p-2.5 text-[11px] font-bold rounded-xl border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all"
                         style={{ color: 'var(--text)' }}
@@ -444,7 +533,7 @@ const TaskDetail: React.FC = () => {
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Descrição da Atividade</h4>
                 </div>
                 <textarea
-                  value={formData.description}
+                  value={formData.description || ''}
                   onChange={e => { setFormData({ ...formData, description: e.target.value }); markDirty(); }}
                   className="w-full h-20 p-4 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-indigo-500/30"
                   style={{ color: 'var(--text)' }}
@@ -459,7 +548,7 @@ const TaskDetail: React.FC = () => {
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-500">Anotações Internas</h4>
                   </div>
                   <textarea
-                    value={formData.notes}
+                    value={formData.notes || ''}
                     onChange={e => { setFormData({ ...formData, notes: e.target.value }); markDirty(); }}
                     className="w-full h-20 p-4 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-amber-500/30"
                     style={{ color: 'var(--text)' }}
@@ -487,7 +576,7 @@ const TaskDetail: React.FC = () => {
                   <div className="relative">
                     <input
                       type="url"
-                      value={formData.link_ef}
+                      value={formData.link_ef || ''}
                       onChange={e => { setFormData({ ...formData, link_ef: e.target.value }); markDirty(); }}
                       className="w-full p-4 pr-10 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-blue-500/30 font-mono"
                       style={{ color: 'var(--text)' }}
@@ -539,10 +628,63 @@ const TaskDetail: React.FC = () => {
 
       <ConfirmationModal
         isOpen={!!deleteConfirmation}
-        title={deleteConfirmation?.force ? "Excluir com Horas?" : "Excluir Tarefa"}
-        message={deleteConfirmation?.force ? "Esta tarefa possui horas. Excluir mesmo assim?" : "Deseja realmente excluir esta tarefa?"}
+        title={deleteConfirmation?.force ? "⚠️ EXCLUSÃO CRÍTICA (COM HORAS)" : "Excluir Tarefa"}
+        message={
+          deleteConfirmation?.force ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 dark:bg-red-500/10 rounded-2xl border border-red-200 dark:border-red-500/20">
+                <p className="text-red-600 dark:text-red-400 font-black text-sm mb-2">
+                  ATENÇÃO: Foram encontrados {taskHours.length} apontamentos ({totalTaskHours}h total).
+                </p>
+                <div className="max-h-32 overflow-y-auto space-y-2 mb-4 scrollbar-hide">
+                  {taskHours.map(h => (
+                    <div key={h.id} className="text-[10px] flex justify-between items-center p-2 bg-white dark:bg-black/20 rounded-lg">
+                      <span className="font-bold">{new Date(h.date).toLocaleDateString()}</span>
+                      <span className="opacity-70">{h.userName}</span>
+                      <span className="font-black text-red-500">{h.totalHours}h</span>
+                    </div>
+                  ))}
+                </div>
+
+                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white dark:bg-black/20 rounded-xl border border-red-200 dark:border-red-500/10 hover:border-red-500 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={shouldDeleteHours}
+                    onChange={e => setShouldDeleteHours(e.target.checked)}
+                    className="w-4 h-4 rounded accent-red-600"
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black uppercase">Excluir horas apontadas?</span>
+                    <span className="text-[9px] opacity-60">Se desmarcado, as horas ficarão órfãs mas salvas no banco.</span>
+                  </div>
+                </label>
+              </div>
+
+              {currentUser?.role !== 'system_admin' ? (
+                <p className="text-xs p-3 bg-red-500/10 rounded-lg text-red-600 font-bold border border-red-500/20">
+                  Bloqueado: Apenas o Administrador do Sistema pode realizar esta operação.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase font-bold opacity-50">Para habilitar, digite o nome da tarefa abaixo:</p>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={e => setDeleteConfirmText(e.target.value)}
+                    placeholder={task?.title}
+                    className="w-full p-3 rounded-xl border-2 border-red-500/30 outline-none focus:border-red-500 text-xs font-black bg-red-500/5 text-red-600"
+                  />
+                </div>
+              )
+              }
+            </div>
+          ) : "Deseja realmente excluir esta tarefa?"
+        }
+        confirmText={deleteConfirmation?.force ? "EXCLUIR TUDO" : "Excluir"}
+        confirmColor="red"
         onConfirm={performDelete}
-        onCancel={() => setDeleteConfirmation(null)}
+        onCancel={() => { setDeleteConfirmation(null); setDeleteConfirmText(''); setShouldDeleteHours(false); }}
+        disabled={!!(deleteConfirmation?.force && (currentUser?.role !== 'system_admin' || deleteConfirmText !== task?.title))}
       />
 
       {showPrompt && (

@@ -72,7 +72,8 @@ export async function requireAdmin(req, res, next) {
             authUserId,
             email,
             colaboradorId: colab.ID_Colaborador,
-            nome: colab.NomeColaborador
+            nome: colab.NomeColaborador,
+            role: role
         };
 
         next();

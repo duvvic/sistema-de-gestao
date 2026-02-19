@@ -100,7 +100,8 @@ export function mapDbTaskToTask(row: any, userMap?: Map<string, any>, projectNam
         id_tarefa_novo: row.id_tarefa_novo,
         estimatedHours: row.estimated_hours ? Number(row.estimated_hours) : undefined,
         is_impediment: !!row.is_impediment,
-        daysOverdue: calculateDaysOverdue(row.entrega_estimada, row.entrega_real, status)
+        daysOverdue: calculateDaysOverdue(row.entrega_estimada, row.entrega_real, status),
+        deleted_at: row.deleted_at || undefined
     };
 }
 
@@ -149,6 +150,7 @@ export function mapDbTimesheetToEntry(r: any, taskExternalMap?: Map<string, stri
         totalHours: Number(r.Horas_Trabalhadas || 0),
         lunchDeduction: !!r.Almoco_Deduzido,
         description: r.Descricao || undefined,
+        deleted_at: r.deleted_at || undefined
     };
 }
 export function mapDbProjectToProject(row: any): Project {

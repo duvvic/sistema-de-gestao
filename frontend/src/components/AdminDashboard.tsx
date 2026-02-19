@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
 import * as CapacityUtils from '@/utils/capacity';
 import { formatDecimalToTime } from '@/utils/normalizers';
+import { getProjectStatusByTimeline, getProjectStatusColor } from '@/utils/projectStatus';
 
 type SortOption = 'recent' | 'alphabetical' | 'creation';
 
@@ -121,10 +122,16 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
         </div>
       </td>
       <td className="p-3 bg-emerald-500/[0.02]">
-        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border flex items-center gap-1 w-fit ${p.status === 'Concluído' || p.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border-slate-500/20'}`}>
-          <div className={`w-1 h-1 rounded-full ${p.status === 'Concluído' || p.status === 'Done' ? 'bg-emerald-500' : 'bg-slate-500'}`} />
-          {p.status === 'Concluído' || p.status === 'Done' ? 'CONCLUÍDO' : p.status === 'Iniciado' || p.status === 'In Progress' ? 'INICIADO' : String(p.status || 'ATIVO').toUpperCase()}
-        </span>
+        {(() => {
+          const projStatus = getProjectStatusByTimeline(p);
+          const colors = getProjectStatusColor(projStatus);
+          return (
+            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border flex items-center gap-1 w-fit ${colors.bg} ${colors.text} ${colors.border}`}>
+              <div className={`w-1 h-1 rounded-full ${colors.dot}`} />
+              {projStatus}
+            </span>
+          );
+        })()}
       </td>
       <td className="p-3 text-[10px] font-mono bg-emerald-500/[0.02]" style={{ color: 'var(--text-2)' }}>{formatDate(p.startDateReal)}</td>
       <td className="p-3 text-[10px] font-mono bg-emerald-500/[0.02]" style={{ color: 'var(--text-2)' }}>{formatDate(p.endDateReal)}</td>
@@ -1367,11 +1374,20 @@ const AdminDashboard: React.FC = () => {
                     {viewMode === 'grid' ? 'Clientes' : viewMode === 'list' ? 'Clientes -> Projetos' : 'Projetos -> Tarefas'}
                     <InfoTooltip title="Visão de Gestão" content="Espaço dedicado ao acompanhamento operacional. Alterne entre as visualizações de Clientes, Projetos ou Tarefas nos ícones à direita." />
                   </h1>
-                  <p className="text-[9px] font-bold uppercase tracking-widest leading-none" style={{ color: 'var(--muted)' }}>
+                  <p className="text-[8px] font-black uppercase tracking-widest leading-none flex items-center gap-3" style={{ color: 'var(--muted)' }}>
                     {searchTerm ? (
                       <span className="text-purple-500">{filteredSortedClients.length} Encontrados</span>
                     ) : (
-                      <>{activeClients.length} Clientes • {safeProjects.length} Projetos</>
+                      <>
+                        <span>{activeClients.length} Clientes • {safeProjects.length} Projetos</span>
+                        <div className="flex items-center gap-2 border-l border-[var(--border)] pl-3 ml-1">
+                          <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-slate-400" /> {safeTasks.filter(t => t.status === 'Todo').length} Pré-Proj.</span>
+                          <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-yellow-500" /> {safeTasks.filter(t => t.status === 'Review').length} Análise</span>
+                          <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-blue-500" /> {safeTasks.filter(t => t.status === 'In Progress').length} Andamento</span>
+                          <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-purple-500" /> {safeTasks.filter(t => t.status === 'Testing').length} Teste</span>
+                          <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-emerald-500" /> {safeTasks.filter(t => t.status === 'Done').length} Concluído</span>
+                        </div>
+                      </>
                     )}
                   </p>
                 </div>
@@ -1710,15 +1726,16 @@ const AdminDashboard: React.FC = () => {
                                         <CheckSquare className="w-3 h-3 text-purple-500" />
                                         <span className="dark:text-slate-400">{doneTasks}/{projectTasks.length}</span>
                                       </div>
-                                      <div className={`p-1 px-2 rounded-lg text-[8px] font-black uppercase tracking-tighter border flex items-center gap-1 shadow-sm ${project.status === 'Concluído' || project.status === 'Done'
-                                        ? 'text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 bg-emerald-500/5 dark:bg-emerald-500/10'
-                                        : 'text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 bg-blue-500/5 dark:bg-blue-500/10'
-                                        }`}>
-                                        <div className={`w-1 h-1 rounded-full ${project.status === 'Concluído' || project.status === 'Done' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                                        {project.status === 'Done' || project.status === 'Concluído' ? 'CONCLUÍDO' :
-                                          project.status === 'In Progress' || project.status === 'Iniciado' ? 'INICIADO' :
-                                            String(project.status || 'ATIVO').toUpperCase()}
-                                      </div>
+                                      {(() => {
+                                        const projStatus = getProjectStatusByTimeline(project);
+                                        const colors = getProjectStatusColor(projStatus);
+                                        return (
+                                          <div className={`p-1 px-2 rounded-lg text-[8px] font-black uppercase tracking-tighter border flex items-center gap-1 shadow-sm ${colors.text} ${colors.border} ${colors.bg}`}>
+                                            <div className={`w-1 h-1 rounded-full ${colors.dot}`} />
+                                            {projStatus}
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
 
                                     {/* Project Team Avatars */}
@@ -1792,12 +1809,15 @@ const AdminDashboard: React.FC = () => {
                                           )}
                                         </div>
                                         <div className="flex items-center gap-3">
-                                          <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${project.status === 'Concluído' || project.status === 'Done' ? 'text-emerald-500 border-emerald-200 bg-emerald-500/5' : 'text-blue-600 border-blue-200 bg-blue-500/5'
-                                            }`}>
-                                            {project.status === 'Done' || project.status === 'Concluído' ? 'CONCLUÍDO' :
-                                              project.status === 'In Progress' || project.status === 'Iniciado' ? 'INICIADO' :
-                                                String(project.status || 'ATIVO').toUpperCase()}
-                                          </div>
+                                          {(() => {
+                                            const projStatus = getProjectStatusByTimeline(project);
+                                            const colors = getProjectStatusColor(projStatus);
+                                            return (
+                                              <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${colors.text} ${colors.border} ${colors.bg}`}>
+                                                {projStatus}
+                                              </div>
+                                            );
+                                          })()}
                                           <span className="text-[10px] font-bold opacity-30 text-purple-900 dark:text-purple-300">•</span>
                                           <span className="text-[10px] font-bold" style={{ color: 'var(--muted)' }}>
                                             {projectTasks.length} {projectTasks.length === 1 ? 'Tarefa' : 'Tarefas'}
@@ -1861,15 +1881,17 @@ const AdminDashboard: React.FC = () => {
                                                 {task.title}
                                               </h5>
                                               <div className="mt-1 flex items-center gap-2">
-                                                <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-md border ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                                  task.status === 'Review' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
-                                                    task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                                      'bg-slate-500/10 text-slate-500 border-slate-500/20'
+                                                <span className={`text-[6px] font-black uppercase px-2 py-0.5 rounded-md border ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                                  task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                                                    task.status === 'Testing' ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' :
+                                                      task.status === 'Review' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                                                        'bg-slate-500/10 text-slate-500 border-slate-500/20'
                                                   }`}>
-                                                  {task.status === 'Done' ? 'CONCLUÍDO' :
-                                                    task.status === 'Review' ? 'PENDENTE' :
-                                                      task.status === 'In Progress' ? 'INICIADO' :
-                                                        'NÃO INICIADO'}
+                                                  {task.status === 'Todo' ? 'Pré-Projeto' :
+                                                    task.status === 'Review' ? 'Análise' :
+                                                      task.status === 'In Progress' ? 'Andamento' :
+                                                        task.status === 'Testing' ? 'Teste' :
+                                                          task.status === 'Done' ? 'Concluído' : task.status}
                                                 </span>
                                               </div>
                                             </div>

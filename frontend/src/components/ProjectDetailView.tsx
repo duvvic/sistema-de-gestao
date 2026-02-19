@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getUserStatus } from '@/utils/userStatus';
 import * as CapacityUtils from '@/utils/capacity';
 import { formatDecimalToTime } from '@/utils/normalizers';
+import { getProjectStatusByTimeline } from '@/utils/projectStatus';
 
 const ProjectDetailView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -29,10 +30,11 @@ const ProjectDetailView: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'technical'>('technical');
   const [isEditing, setIsEditing] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project' | 'task' } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project', force?: boolean } | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   // Redirecionar colaboradores para aba de tarefas
   useEffect(() => {
@@ -354,7 +356,9 @@ const ProjectDetailView: React.FC = () => {
                     <AlertTriangle size={10} /> INCOMPLETO
                   </span>
                 )}
-                <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-0.5 rounded-full tracking-tighter">{project.status}</span>
+                <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-0.5 rounded-full tracking-tighter">
+                  {getProjectStatusByTimeline(project)}
+                </span>
                 <span className="text-xs text-white/60">{client?.name}</span>
                 {isAdmin && (
                   <button
@@ -431,10 +435,11 @@ const ProjectDetailView: React.FC = () => {
                           const getStatusPriority = (status?: string) => {
                             switch (status) {
                               case 'In Progress': return 1;
-                              case 'Todo': return 2;
-                              case 'Review': return 3;
-                              case 'Done': return 4;
-                              default: return 5;
+                              case 'Testing': return 2;
+                              case 'Todo': return 3;
+                              case 'Review': return 4;
+                              case 'Done': return 5;
+                              default: return 6;
                             }
                           };
 
@@ -510,8 +515,14 @@ const ProjectDetailView: React.FC = () => {
 
                               <div className="flex items-center justify-between text-[8px] font-bold">
                                 <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className={`px-1 py-px rounded uppercase tracking-wider shrink-0 ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500' : isDelayed ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
-                                    {task.status === 'Todo' ? 'Fila' : task.status === 'In Progress' ? 'Andamento' : task.status === 'Review' ? 'Review' : 'Feito'}
+                                  <span className={`px-1 py-px rounded uppercase tracking-wider shrink-0 ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500' :
+                                    task.status === 'Testing' ? 'bg-purple-500/10 text-purple-500' :
+                                      isDelayed ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
+                                    }`}>
+                                    {task.status === 'Todo' ? 'Pré-Projeto' :
+                                      task.status === 'Review' ? 'Análise' :
+                                        task.status === 'In Progress' ? 'Andamento' :
+                                          task.status === 'Testing' ? 'Teste' : 'Concluído'}
                                   </span>
                                   <span className={`px-1 py-px rounded shrink-0 ${task.progress === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
                                     {task.progress}%
@@ -1020,38 +1031,87 @@ const ProjectDetailView: React.FC = () => {
                             ))}
                           </div>
                         ) : (
-                          projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
-                            const u = users.find(user => user.id === String(pm.id_colaborador));
-                            return u ? (
-                              <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--bg)' }}>
-                                <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
-                                  {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
+                          <>
+                            {projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
+                              const u = users.find(user => user.id === String(pm.id_colaborador));
+                              return u ? (
+                                <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--bg)' }}>
+                                  <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
+                                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
                                   </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
+                                    </div>
 
-                                  <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
-                                    <div>
-                                      {(() => {
-                                        const reported = timesheetEntries
-                                          .filter(e => e.projectId === projectId && e.userId === u.id)
-                                          .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
-                                        return (
-                                          <div className="flex items-center gap-3">
-                                            <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
-                                            <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
-                                          </div>
-                                        );
-                                      })()}
+                                    <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
+                                      <div>
+                                        {(() => {
+                                          const reported = timesheetEntries
+                                            .filter(e => e.projectId === projectId && e.userId === u.id)
+                                            .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+                                          return (
+                                            <div className="flex items-center gap-3">
+                                              <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
+                                              <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            ) : null;
-                          })
+                              ) : null;
+                            })}
+
+                            {/* EX-COLABORADORES (Com horas mas sem vínculo atual) */}
+                            {(() => {
+                              const currentMemberIds = new Set(projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => String(pm.id_colaborador)));
+                              const formerMembersWithHours = Array.from(new Set(
+                                timesheetEntries
+                                  .filter(e => e.projectId === projectId && !currentMemberIds.has(String(e.userId)))
+                                  .map(e => String(e.userId))
+                              )).map(userId => users.find(u => String(u.id) === userId)).filter(Boolean);
+
+                              if (formerMembersWithHours.length === 0) return null;
+
+                              return (
+                                <div className="mt-6 space-y-3">
+                                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40 px-2">Histórico de Contribuição</p>
+                                  {formerMembersWithHours.map(u => u && (
+                                    <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border border-dashed transition-all opacity-60 grayscale-[0.5]" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+                                      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
+                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--muted)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{u.cargo || 'Consultor (Antigo)'}</p>
+                                        </div>
+
+                                        <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
+                                          <div>
+                                            {(() => {
+                                              const reported = timesheetEntries
+                                                .filter(e => e.projectId === projectId && e.userId === u.id)
+                                                .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+                                              return (
+                                                <div className="flex items-center gap-3">
+                                                  <p className="text-[7px] font-black uppercase opacity-40">Total Apontado</p>
+                                                  <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
+                                                </div>
+                                              );
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </>
                         )}
                       </div>
                     </div>
@@ -1073,7 +1133,17 @@ const ProjectDetailView: React.FC = () => {
                     )}
 
                     {isEditing && (
-                      <button onClick={() => setItemToDelete({ id: projectId, type: 'project' })} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border transition-all" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', borderColor: 'var(--danger)' }}><Trash2 size={14} className="inline mr-2" /> Deletar Projeto</button>
+                      <button
+                        onClick={() => {
+                          const projectTasks = tasks.filter(t => t.projectId === projectId);
+                          const hasTasks = projectTasks.length > 0;
+                          setItemToDelete({ id: projectId!, type: 'project', force: hasTasks });
+                        }}
+                        className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border transition-all"
+                        style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                      >
+                        <Trash2 size={14} className="inline mr-2" /> Deletar Projeto
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1100,8 +1170,10 @@ const ProjectDetailView: React.FC = () => {
                     <div className="flex bg-white/5 p-1 rounded-xl gap-1">
                       {[
                         { label: 'Todos', value: 'Todos' },
-                        { label: 'A Fazer', value: 'Todo' },
-                        { label: 'Em Progresso', value: 'In Progress' },
+                        { label: 'Pré-Projeto', value: 'Todo' },
+                        { label: 'Análise', value: 'Review' },
+                        { label: 'Andamento', value: 'In Progress' },
+                        { label: 'Teste', value: 'Testing' },
                         { label: 'Concluído', value: 'Done' }
                       ].map(item => (
                         <button
@@ -1158,33 +1230,70 @@ const ProjectDetailView: React.FC = () => {
 
       <ConfirmationModal
         isOpen={!!itemToDelete}
-        title="Confirmar Exclusão"
-        message="Esta ação é definitiva. Deseja continuar?"
+        title={itemToDelete?.force ? "⚠️ EXCLUSÃO CRÍTICA (PROJETO COM DADOS)" : "Confirmar Exclusão"}
+        message={
+          itemToDelete?.force ? (
+            <div className="space-y-4">
+              <p className="text-red-500 font-black">
+                Este projeto possui tarefas e possivelmente horas apontadas. A exclusão forçada removerá permanentemente TODO o histórico do projeto!
+              </p>
+              {currentUser?.role !== 'system_admin' ? (
+                <p className="text-xs p-3 bg-red-500/10 rounded-lg text-red-600 font-bold border border-red-500/20">
+                  Bloqueado: Apenas o Administrador do Sistema pode realizar a exclusão forçada de projetos com dados.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase font-bold opacity-50">Para habilitar, digite o nome do projeto abaixo:</p>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={e => setDeleteConfirmText(e.target.value)}
+                    placeholder={project?.name}
+                    className="w-full p-3 rounded-xl border-2 border-red-500/30 outline-none focus:border-red-500 text-xs font-black bg-red-500/5 text-red-600"
+                  />
+                </div>
+              )
+              }
+            </div>
+          ) : "Esta ação é definitiva. Deseja continuar?"
+        }
+        confirmText={itemToDelete?.force ? "EXCLUIR TUDO" : "Confirmar"}
         onConfirm={async () => {
           if (itemToDelete?.type === 'project') {
+            // Validações de segurança para delete forçado
+            if (itemToDelete.force) {
+              if (currentUser?.role !== 'system_admin') {
+                alert('Apenas Administradores do Sistema podem excluir projetos com dados ativos.');
+                return;
+              }
+              if (deleteConfirmText !== project?.name) {
+                alert('O nome do projeto digitado está incorreto.');
+                return;
+              }
+            }
+
             try {
-              await deleteProject(itemToDelete.id);
+              setLoading(true);
+              await deleteProject(itemToDelete.id, itemToDelete.force);
               navigate(isAdmin ? '/admin/projects' : '/developer/projects');
             } catch (error: any) {
               const msg = error.message || "";
-              if (msg.includes("tarefas criadas") || msg.includes("hasTasks")) {
-                if (window.confirm("Este projeto possui tarefas e possivelmente horas apontadas. Deseja realizar a EXCLUSÃO FORÇADA de todos os dados vinculados? Esta ação é irreversível.")) {
-                  try {
-                    await deleteProject(itemToDelete.id, true);
-                    alert('Projeto e dados vinculados excluídos com sucesso!');
-                    navigate(isAdmin ? '/admin/projects' : '/developer/projects');
-                  } catch (forceErr: any) {
-                    alert('Erro na exclusão forçada: ' + (forceErr.message || 'Erro desconhecido'));
-                  }
-                }
+              if (msg.includes("tarefas criadas") || msg.includes("hasTasks") || msg.includes("400")) {
+                setItemToDelete({ id: itemToDelete.id, type: 'project', force: true });
+                setDeleteConfirmText('');
+              } else if (error.message?.includes("403")) {
+                alert("Acesso Negado: Apenas Administradores do Sistema podem excluir projetos com tarefas.");
+                setItemToDelete(null);
               } else {
                 alert(msg || 'Erro ao excluir projeto.');
               }
+            } finally {
+              setLoading(false);
             }
           }
-          setItemToDelete(null);
         }}
-        onCancel={() => setItemToDelete(null)}
+        onCancel={() => { setItemToDelete(null); setDeleteConfirmText(''); }}
+        disabled={!!(itemToDelete?.force && (currentUser?.role !== 'system_admin' || deleteConfirmText !== project?.name))}
       />
     </div >
   );
@@ -1214,9 +1323,10 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
   }, [project, task]);
 
   const statusMap: Record<string, { label: string, color: string, bg: string }> = {
-    'Todo': { label: 'A Fazer', color: 'text-slate-500', bg: 'bg-slate-500/10' },
-    'In Progress': { label: 'Em Progresso', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    'Review': { label: 'Pendente', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    'Todo': { label: 'Pré-Projeto', color: 'text-slate-500', bg: 'bg-slate-500/10' },
+    'In Progress': { label: 'Andamento', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+    'Review': { label: 'Análise', color: 'text-yellow-600', bg: 'bg-yellow-500/10' },
+    'Testing': { label: 'Teste', color: 'text-purple-500', bg: 'bg-purple-500/10' },
     'Done': { label: 'Concluído', color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
   };
 

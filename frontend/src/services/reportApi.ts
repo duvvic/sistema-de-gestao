@@ -56,17 +56,21 @@ export type ReportPreviewResponse = {
     };
 };
 
-export async function fetchClients(): Promise<Array<{ id: number; name: string }>> {
-    return apiRequest('/admin/clients');
+export async function fetchClients(includeInactive: boolean = false): Promise<Array<{ id: number; name: string }>> {
+    return apiRequest(`/admin/clients${includeInactive ? '?includeInactive=true' : ''}`);
 }
 
-export async function fetchProjects(clientIds?: number[]): Promise<Array<{ id: number; name: string; clientId: number; clientName: string }>> {
-    const qs = clientIds?.length ? `?clientIds=${clientIds.join(',')}` : '';
+export async function fetchProjects(clientIds?: number[], includeInactive: boolean = false): Promise<Array<{ id: number; name: string; clientId: number; clientName: string }>> {
+    const params = new URLSearchParams();
+    if (clientIds?.length) params.set('clientIds', clientIds.join(','));
+    if (includeInactive) params.set('includeInactive', 'true');
+
+    const qs = params.toString() ? `?${params.toString()}` : '';
     return apiRequest(`/admin/projects${qs}`);
 }
 
-export async function fetchCollaborators(): Promise<Array<{ id: number; name: string; email: string; role: string }>> {
-    return apiRequest('/admin/collaborators');
+export async function fetchCollaborators(includeInactive: boolean = false): Promise<Array<{ id: number; name: string; email: string; role: string }>> {
+    return apiRequest(`/admin/collaborators${includeInactive ? '?includeInactive=true' : ''}`);
 }
 
 export async function fetchTasks(projectIds?: number[]): Promise<Array<{ id: string; name: string; projectId: number }>> {

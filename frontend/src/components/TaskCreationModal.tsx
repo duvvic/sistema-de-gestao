@@ -394,6 +394,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                 >
                                     <option value="Todo">A Fazer</option>
                                     <option value="In Progress">Em Andamento</option>
+                                    <option value="Testing">Em Teste</option>
                                     <option value="Review">Pendente / Revisão</option>
                                     <option value="Done">Concluído</option>
                                 </select>

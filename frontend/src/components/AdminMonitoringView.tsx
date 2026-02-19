@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/services/supabaseClient';
 import { Task, Project, User, Client } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getProjectStatusByTimeline, getProjectStatusColor } from '@/utils/projectStatus';
 import {
     Activity,
     Timer,
@@ -18,7 +19,12 @@ import {
     Cloud,
     Shield,
     Box,
-    Maximize
+    Maximize,
+    AlertCircle,
+    Ban,
+    Layout,
+    PlayCircle,
+    AlertTriangle
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -26,32 +32,42 @@ import ThemeToggle from './ThemeToggle';
 
 const Badge = ({ children, status, className = "" }: { children: React.ReactNode, status: string, className?: string }) => {
     const colors: any = {
-        'iniciado': 'bg-purple-50 text-purple-600 border-purple-100',
-        'pendente': 'bg-amber-50 text-amber-600 border-amber-100',
-        'nao iniciado': 'bg-emerald-50 text-emerald-600 border-emerald-100',
-        'concluido': 'bg-green-50 text-green-600 border-green-100',
-        'atraso': 'bg-red-50 text-red-600 border-red-100',
-        // Fallbacks keys if needed
-        'execucao': 'bg-purple-50 text-purple-600 border-purple-100',
-        'revisao': 'bg-amber-50 text-amber-600 border-amber-100',
-        'planejamento': 'bg-emerald-50 text-emerald-600 border-emerald-100',
+        'andamento': 'bg-blue-50 text-blue-600 border-blue-100',
+        'impedido': 'bg-amber-50 text-amber-600 border-amber-100',
+        'analise': 'bg-purple-50 text-purple-600 border-purple-100',
+        'nao-iniciado': 'bg-slate-100 text-slate-700 border-slate-200',
+        'concluido': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+        'atrasado': 'bg-red-100 text-red-700 border-red-200',
+        'entrega-hoje': 'bg-sky-100 text-sky-700 border-sky-200',
+        'pre-projeto': 'bg-slate-100 text-slate-700 border-slate-200',
+        'saudavel': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+        'critico': 'bg-red-100 text-red-700 border-red-200',
     };
-    const key = status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const colorClass = colors[key] || 'bg-slate-50 text-slate-600 border-slate-100';
+    const key = status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
+    const colorClass = colors[key] || 'bg-slate-100 text-slate-600 border-slate-200';
 
     return (
-        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${colorClass} ${className}`}>
+        <span className={`px-2 py-0.5 2xl:px-4 2xl:py-1.5 rounded-lg text-[9px] sm:text-[10px] 2xl:text-xs 3xl:text-sm font-black uppercase tracking-wide border-2 ${colorClass} ${className} whitespace-nowrap`}>
             {children}
         </span>
     );
 };
 
-const SectionHeader = ({ label, icon: Icon, colorClass }: { label: string, icon: any, colorClass: string }) => (
-    <div className="flex items-center gap-3 mb-4">
-        <div className={`w-2 h-7 rounded-full ${colorClass}`} />
-        <Icon className="w-5 h-5 text-slate-400" />
-        <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">{label}</h2>
-        <div className="h-[1px] flex-1 bg-slate-100 ml-4" />
+const SectionHeader = ({ label, icon: Icon, colorClass, children }: { label: string, icon: any, colorClass: string, children?: React.ReactNode }) => (
+    <div className="flex items-center gap-2 sm:gap-3 2xl:gap-6 mb-1.5 sm:mb-2 lg:mb-3 2xl:mb-4">
+        <div className={`w-1.5 h-4 sm:h-5 lg:h-6 2xl:h-8 rounded-full ${colorClass}`} />
+        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 2xl:w-6 2xl:h-6 text-slate-400 shrink-0" />
+        <h2 className="text-[6px] sm:text-[7px] lg:text-[8px] 2xl:text-xs font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] 2xl:tracking-[0.2em] text-slate-600 whitespace-nowrap">{label}</h2>
+        <div className="h-[1px] flex-1 bg-slate-200 ml-2 opacity-50" />
+        {children && <div className="flex items-center gap-1 sm:gap-1.5 2xl:gap-3 ml-2">{children}</div>}
+    </div>
+);
+
+const CompactStat = ({ label, count, icon: Icon, colorClass, countColorClass }: { label: string, count: number, icon: any, colorClass: string, countColorClass: string }) => (
+    <div className="bg-white/80 backdrop-blur-sm px-1.5 py-0.5 2xl:px-3 2xl:py-1.5 rounded-md border border-slate-200 shadow-sm flex items-center gap-1.5 2xl:gap-2 transition-all hover:shadow-md hover:border-slate-300">
+        <Icon className={`${colorClass} w-2.5 h-2.5 2xl:w-4 2xl:h-4`} />
+        <span className={`text-[6px] 2xl:text-[10px] font-black uppercase tracking-tight ${colorClass}`}>{label}</span>
+        <span className={`${countColorClass} text-[6px] 2xl:text-[10px] font-black min-w-[12px] h-[12px] 2xl:min-w-[20px] 2xl:h-[20px] flex items-center justify-center rounded-full border border-current/20`}>{count}</span>
     </div>
 );
 
@@ -394,6 +410,30 @@ const AdminMonitoringView: React.FC = () => {
     }, [notifications, currentNotification]);
 
     const [taskPage, setTaskPage] = useState(0);
+    const [windowSize, setWindowSize] = useState({
+        width: typeof window !== 'undefined' ? window.innerWidth : 1920,
+        height: typeof window !== 'undefined' ? window.innerHeight : 1080
+    });
+
+    useEffect(() => {
+        const handleResize = () => {
+            setWindowSize({
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const itemsPerPage = useMemo(() => {
+        const { width, height } = windowSize;
+        if (width >= 2500 && height >= 1300) return 12; // 4x3 ou 6x2
+        if (width >= 1800 && height >= 900) return 8;  // 4x2
+        if (width >= 1200 && height >= 800) return 6;  // 3x2
+        return 4; // Mobile/Compact
+    }, [windowSize]);
+
 
     const tasksInProgressRaw = useMemo(() =>
         allTasks.filter(t => {
@@ -405,26 +445,22 @@ const AdminMonitoringView: React.FC = () => {
     const tasksInProgress = tasksInProgressRaw;
 
     useEffect(() => {
-        const totalPages = Math.ceil(tasksInProgress.length / 6);
+        const totalPages = Math.ceil(tasksInProgress.length / itemsPerPage);
         if (totalPages <= 1) {
             if (taskPage !== 0) setTaskPage(0);
             return;
         }
 
-        // Se a página atual ficar fora do range por mudança nos dados, reseta pra 0
         if (taskPage >= totalPages) {
             setTaskPage(0);
         }
 
         const interval = setInterval(() => {
-            setTaskPage((prev) => {
-                const newPage = (prev + 1) % totalPages;
-                return newPage;
-            });
-        }, 10000);
+            setTaskPage((prev) => (prev + 1) % totalPages);
+        }, 12000); // Um pouco mais de tempo para ler cards maiores
 
         return () => clearInterval(interval);
-    }, [tasksInProgress.length, taskPage]);
+    }, [tasksInProgress.length, taskPage, itemsPerPage]);
 
     const filteredUsers = useMemo(() => {
         const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'developer'];
@@ -444,8 +480,8 @@ const AdminMonitoringView: React.FC = () => {
     const activeProjects = useMemo(() => {
         return allProjects.filter(p => {
             const projTasks = allTasks.filter(t => t.projectId === p.id);
-            const hasIncomplete = projTasks.some(t => t.status !== 'Done');
-            return projTasks.length > 0 && hasIncomplete;
+            const hasActiveTasks = projTasks.some(t => t.status !== 'Done');
+            return projTasks.length > 0 && hasActiveTasks;
         });
     }, [allProjects, allTasks]);
 
@@ -462,10 +498,10 @@ const AdminMonitoringView: React.FC = () => {
                 (t.collaboratorIds && t.collaboratorIds.includes(user.id))
             );
 
-            // Tarefas ativas: Não Iniciado (Todo) ou Iniciado (In Progress)
+            // Tarefas ativas: Não Iniciado, Análise, Andamento ou Teste
             const activeTasks = userTasks.filter(t => {
                 const s = (t.status || '').toLowerCase();
-                return s === 'todo' || s === 'in progress';
+                return s === 'todo' || s === 'in progress' || s === 'testing' || s === 'review';
             });
 
             // Tarefas em atraso (entre as ativas)
@@ -500,11 +536,49 @@ const AdminMonitoringView: React.FC = () => {
         return members;
     }, [allUsers, allTasks, allTimesheets]);
 
+    const stats = useMemo(() => {
+        const delayed = allTasks.filter(t => t.status !== 'Done' && (t.status === 'In Progress' || t.status === 'Testing') && (t.progress || 0) < 100 && (t.daysOverdue ?? 0) > 0).length;
+        const review = allTasks.filter(t => t.status === 'Review').length;
+        const preProjeto = allProjects.filter(p => !allTasks.some(t => t.projectId === p.id)).length;
+        const analise = allProjects.filter(p => {
+            const tasks = allTasks.filter(t => t.projectId === p.id);
+            return tasks.length > 0 && tasks.every(t => t.status === 'Todo');
+        }).length;
+        const andamento = allProjects.filter(p => {
+            const tasks = allTasks.filter(t => t.projectId === p.id);
+            return tasks.some(t => t.status === 'In Progress' || t.status === 'Testing');
+        }).length;
+
+        const tasksByStatus = {
+            todo: allTasks.filter(t => t.status === 'Todo').length,
+            inProgress: allTasks.filter(t => t.status === 'In Progress').length,
+            testing: allTasks.filter(t => t.status === 'Testing').length,
+            review: allTasks.filter(t => t.status === 'Review').length,
+            done: allTasks.filter(t => t.status === 'Done').length,
+        };
+
+        return {
+            atrasados: delayed,
+            impedidos: review,
+            preProjeto,
+            analise,
+            andamento,
+            tasksByStatus,
+            team: {
+                livre: teamStatus.filter(m => m.boardStatus === 'LIVRE').length,
+                iniciado: teamStatus.filter(m => m.boardStatus === 'INICIADO').length,
+                atrasado: teamStatus.filter(m => m.boardStatus === 'ATRASADO').length,
+                estudando: teamStatus.filter(m => m.boardStatus === 'ESTUDANDO').length,
+                apontado: teamStatus.filter(m => m.boardStatus === 'APONTADO').length
+            }
+        };
+    }, [allTasks, allProjects, teamStatus]);
+
     if (loading) return (
-        <div className="h-screen flex items-center justify-center bg-[#f5f3ff]">
+        <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-slate-50">
             <div className="flex flex-col items-center gap-4">
                 <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Inicializando Sistemas...</span>
+                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] sm:tracking-widest text-slate-500">Inicializando Sistemas...</span>
             </div>
         </div>
     );
@@ -512,64 +586,74 @@ const AdminMonitoringView: React.FC = () => {
     const weekDay = currentTime.toLocaleDateString('pt-BR', { weekday: 'long' }).toUpperCase();
 
     return (
-        <div className="h-screen w-full bg-[#f5f3ff] flex flex-col overflow-hidden font-sans text-slate-900 selection:bg-purple-100">
+        <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-white to-slate-100 flex flex-col overflow-hidden font-sans text-slate-900 selection:bg-purple-100">
 
             {/* --- BARRA INFORMATIVA --- */}
-            <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-purple-800 px-8 h-[85px] flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
+            <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-white/10 px-4 sm:px-6 h-[56px] 2xl:h-[80px] flex items-center justify-between shrink-0 shadow-xl overflow-hidden z-50">
                 {/* Clima - Esquerda */}
-                <div className="flex items-center min-w-max h-full">
+                <div className="flex items-center h-full min-w-fit">
                     {weather ? (
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 flex items-center justify-center filter drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
                                 <img src={weather.icon} alt="Clima" className="w-full h-full object-contain scale-110" />
                             </div>
                             <div className="flex flex-col">
                                 <div className="flex items-start">
-                                    <span className="text-3xl font-black text-white tabular-nums leading-none drop-shadow-md">{weather.temp}</span>
-                                    <span className="text-base font-bold text-purple-300 ml-0.5 mt-0.5 leading-none">°C</span>
+                                    <span className="text-xl sm:text-2xl 2xl:text-4xl font-black text-white tabular-nums leading-none">{weather.temp}</span>
+                                    <span className="text-xs font-bold text-slate-400 ml-0.5 mt-0.5 leading-none 2xl:text-base">°C</span>
                                 </div>
-                                <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] mt-1 opacity-80 leading-none">{weather.condition}</span>
+                                <span className="text-[8px] 2xl:text-xs font-black text-slate-400 uppercase tracking-[0.2em] mt-1 leading-none">{weather.condition}</span>
                             </div>
                         </div>
                     ) : (
-                        <div className="w-32 h-14 rounded-2xl bg-white/5 animate-pulse" />
+                        <div className="w-24 h-8 rounded-lg bg-white/5 animate-pulse" />
                     )}
                 </div>
 
                 {/* Notificações - Centro */}
-                <div className="flex-1 flex items-center justify-center px-8">
+                <div className="flex-1 flex items-center justify-center px-4 overflow-hidden">
                     <AnimatePresence mode="wait">
                         {currentNotification && (
                             <motion.div
                                 key={currentNotification.id}
-                                initial={{ opacity: 0, y: -60 }}
+                                initial={{ opacity: 0, y: -20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 40 }}
-                                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                                className="px-12 py-3"
+                                exit={{ opacity: 0, y: 20 }}
+                                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                                className="px-4 py-1"
                             >
-                                <span className="text-[22px] font-black text-white tracking-wide drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                <div className="text-sm sm:text-base lg:text-lg font-black text-white tracking-wide text-center line-clamp-1">
                                     {currentNotification.message}
-                                </span>
+                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
 
                 {/* Hora e Data - Direita */}
-                <div className="flex items-center gap-6 min-w-[320px] justify-end">
+                <div className="flex items-center gap-4 min-w-fit justify-end">
                     <div className="flex flex-col items-end">
-                        <span className="text-3xl font-black text-white tabular-nums tracking-tight leading-none">
+                        <span className="text-xl sm:text-2xl 2xl:text-4xl font-black text-white tabular-nums tracking-tight leading-none">
                             {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </span>
-                        <span className="text-[9px] font-bold text-purple-300 uppercase tracking-widest mt-1.5 leading-none">SISTEMA ATIVO</span>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[8px] 2xl:text-xs font-black text-emerald-400 uppercase tracking-widest leading-none">AO VIVO</span>
+                            <div className="w-1.5 h-1.5 2xl:w-2.5 2xl:h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        </div>
                     </div>
-                    <div className="w-[1px] h-10 bg-purple-700" />
+                    <div className="w-[1px] h-8 bg-white/10" />
+                    <button
+                        onClick={handleFullScreen}
+                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
+                        title="Modo TV / Tela Cheia"
+                    >
+                        <Maximize size={18} />
+                    </button>
                     <div className="flex flex-col items-end">
-                        <span className="text-lg font-black text-white tabular-nums leading-none uppercase tracking-tight">
+                        <span className="text-xs sm:text-sm font-black text-white tabular-nums leading-none uppercase tracking-tight">
                             {weekDay}
                         </span>
-                        <span className="text-[13px] font-bold text-purple-300 tabular-nums leading-none mt-1.5">
+                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 tabular-nums leading-none mt-1">
                             {currentTime.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </span>
                     </div>
@@ -577,101 +661,87 @@ const AdminMonitoringView: React.FC = () => {
             </header>
 
             {/* --- MAIN CONTENT --- */}
-            <main className="flex-1 p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-
+            <main className="flex-1 p-2 sm:p-2.5 flex flex-col gap-2 overflow-hidden">
                 {/* Section 1: OPERAÇÕES EM EXECUÇÃO (Snake Carousel) */}
-                <section className="shrink-0 flex flex-col">
+                <section className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     {(() => {
                         const reviewCount = tasksInProgress.filter(t => t.status === 'Review').length;
                         return (
                             <SectionHeader
-                                label={`Operações Iniciadas & Pendentes ${reviewCount > 0 ? `• Atenção: ${reviewCount} em pendência` : ''}`}
+                                label="Operações Iniciadas & Pendentes"
                                 icon={Activity}
-                                colorClass={reviewCount > 0 ? "bg-amber-500" : "bg-purple-600"}
-                            />
+                                colorClass={reviewCount > 0 ? "bg-yellow-500" : "bg-purple-600"}
+                            >
+                                <CompactStat label="Atrasados" count={stats.atrasados} icon={AlertCircle} colorClass="text-red-600" countColorClass="bg-red-50 text-red-600" />
+                                <CompactStat label="Impedidos" count={stats.impedidos} icon={Ban} colorClass="text-amber-600" countColorClass="bg-amber-50 text-amber-600" />
+                            </SectionHeader>
                         );
                     })()}
 
-                    <div className="relative min-h-[470px]">
-                        <AnimatePresence mode="wait">
+                    <div className="relative flex-1 min-h-0">
+                        <AnimatePresence mode='wait'>
                             <motion.div
-                                key={taskPage}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
+                                key={`${taskPage}-${itemsPerPage}`}
+                                initial={{ opacity: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 1.02 }}
                                 transition={{ duration: 0.5 }}
-                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                                className={`grid gap-2 sm:gap-3 lg:gap-4 h-full ${itemsPerPage >= 12 ? 'grid-cols-4 lg:grid-cols-6' :
+                                    itemsPerPage >= 8 ? 'grid-cols-2 lg:grid-cols-4' :
+                                        itemsPerPage >= 6 ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'
+                                    }`}
                             >
                                 {(() => {
-                                    const itemsPerPage = 6;
                                     const startIdx = taskPage * itemsPerPage;
                                     const pageItems = tasksInProgress.slice(startIdx, startIdx + itemsPerPage);
 
-                                    // PADDING: Se a página não estiver cheia e houver tarefas, preencher com o início da lista
-                                    const paddedItems = [...pageItems];
-                                    if (paddedItems.length > 0 && paddedItems.length < itemsPerPage) {
-                                        let i = 0;
-                                        while (paddedItems.length < itemsPerPage) {
-                                            paddedItems.push(tasksInProgress[i % tasksInProgress.length]);
-                                            i++;
-                                        }
-                                    }
-
-                                    return paddedItems.map((task, idx) => {
+                                    return pageItems.map((task, idx) => {
+                                        const project = projectMap.get(task.projectId);
+                                        const client = clientMap.get(task.clientId);
                                         const dev = userMap.get(task.developerId || '');
-                                        if (!dev && task.developerId) return null;
 
-                                        const client = clientMap.get(task.clientId || '');
-                                        const project = projectMap.get(task.projectId || '');
                                         const delayed = isTaskDelayed(task);
+                                        const isDueToday = task.estimatedDelivery && new Date(task.estimatedDelivery + 'T12:00:00').toDateString() === new Date().toDateString();
                                         const isReview = task.status === 'Review';
 
-                                        // Lógica de Prazo
-                                        let isDueToday = false;
+                                        let finalStatusLabel = task.status === 'In Progress' ? 'ANDAMENTO' :
+                                            task.status === 'Review' ? 'IMPEDIDO' :
+                                                task.status === 'Todo' ? 'ANÁLISE' : 'CONCLUÍDO';
+
+                                        if (delayed) finalStatusLabel = 'ATRASADO';
+                                        else if (isDueToday) finalStatusLabel = 'ENTREGA HOJE';
+
+                                        const statusLabelKey = finalStatusLabel.toLowerCase().replace(' ', '-');
+                                        const formattedDate = task.estimatedDelivery ? new Date(task.estimatedDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'S/D';
+
                                         let countdownText = '';
-                                        let formattedDate = '';
                                         if (task.estimatedDelivery) {
                                             const parts = task.estimatedDelivery.split('-');
                                             const deadline = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                                            formattedDate = deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-
                                             const now = new Date();
                                             now.setHours(0, 0, 0, 0);
                                             const diffTime = deadline.getTime() - now.getTime();
                                             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
                                             if (diffDays < 0) countdownText = 'Atrasado';
-                                            else if (diffDays === 0) {
-                                                countdownText = 'Hoje';
-                                                isDueToday = true;
-                                            }
+                                            else if (diffDays === 0) countdownText = 'Hoje';
                                             else if (diffDays === 1) countdownText = 'Amanhã';
                                             else if (diffDays <= 3) countdownText = `Faltam ${diffDays}d`;
                                         }
 
-                                        const statusLabel = task.status === 'In Progress' ? 'Iniciado' :
-                                            task.status === 'Review' ? 'Pendente' :
-                                                (task.status as any) === 'Todo' ? 'Não Iniciado' : 'Concluído';
+                                        const shadowClass = delayed ? 'shadow-[0_8px_30px_rgb(239,68,68,0.2)] border-red-200' :
+                                            isDueToday ? 'shadow-[0_8px_30px_rgb(14,165,233,0.2)] border-sky-200' :
+                                                isReview ? 'shadow-[0_8px_30px_rgb(234,179,8,0.2)] border-yellow-200' :
+                                                    'shadow-[0_8px_30px_rgb(147,51,234,0.1)] border-purple-100';
 
-                                        const shadowClass = delayed
-                                            ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)] border-red-500 border-2'
-                                            : isDueToday
-                                                ? 'shadow-[0_0_30px_rgba(14,165,233,0.4)] border-sky-400 border-2 animate-glow'
-                                                : isReview
-                                                    ? 'shadow-[0_0_20px_rgba(245,158,11,0.2)] border-amber-200'
-                                                    : 'shadow-sm';
-
-                                        const finalStatusLabel = delayed ? `Atrasado` : isDueToday ? 'Entrega Hoje' : statusLabel;
                                         const extraCollaborators = (task.collaboratorIds || [])
-                                            .filter(id => id !== task.developerId) // Evitar duplicar o dono
                                             .map(id => userMap.get(id))
                                             .filter(Boolean) as User[];
 
                                         return (
-                                            <div key={`${task.id}-${idx}`} className={`bg-white border rounded-2xl p-5 relative flex flex-col group h-[225px] hover:border-purple-200 transition-all ${shadowClass} overflow-hidden shadow-md`}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <Badge status={delayed ? 'atraso' : isDueToday ? 'atraso' : statusLabel.toLowerCase()} className={`text-[10px] py-1 px-3 ${isDueToday ? 'bg-sky-50 text-sky-600 border-sky-100' : ''}`}>{finalStatusLabel}</Badge>
-                                                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 p-2 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
+                                            <div key={`${task.id}-${idx}`} className={`bg-white border rounded-xl p-2.5 sm:p-3 2xl:p-5 relative flex flex-col group hover:border-purple-400 transition-all ${shadowClass} overflow-hidden h-full min-h-[140px]`}>
+                                                <div className="flex justify-between items-start mb-1.5 sm:mb-2 2xl:mb-4 gap-2">
+                                                    <Badge className="2xl:text-xs 2xl:px-3 2xl:py-1" status={statusLabelKey}>{finalStatusLabel}</Badge>
+                                                    <div className="w-8 h-8 2xl:w-12 2xl:h-12 rounded-lg bg-slate-50 border border-slate-200 p-1 flex items-center justify-center overflow-hidden shadow-sm group-hover:bg-white transition-all shrink-0">
                                                         <img
                                                             src={client?.logoUrl || 'https://placehold.co/100x100?text=Logo'}
                                                             className="w-full h-full object-contain"
@@ -684,29 +754,29 @@ const AdminMonitoringView: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex-1 flex flex-col justify-start gap-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="text-[18px] font-bold text-slate-800 uppercase leading-snug line-clamp-1 flex-1">{task.title}</h3>
+                                                <div className="flex-1 flex flex-col justify-start gap-1 2xl:gap-2 min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <h3 className="text-xs sm:text-sm 2xl:text-xl font-black text-slate-800 uppercase leading-tight line-clamp-2 flex-1 tracking-tight">{task.title}</h3>
                                                         {isDueToday && (
-                                                            <div className="flex items-center gap-1 bg-sky-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-bounce shrink-0">
-                                                                <Zap size={10} /> HOJE
+                                                            <div className="flex items-center gap-0.5 bg-sky-500 text-white text-[7px] 2xl:text-[10px] font-black px-1.5 py-0.5 rounded-full animate-bounce shrink-0 shadow-lg shadow-sky-200">
+                                                                <Zap size={10} className="shrink-0" /> HOJE
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <span className="text-[12px] font-semibold text-slate-500 uppercase truncate">Cliente: {client?.name || 'Interno'}</span>
-                                                        <span className="text-[12px] font-bold text-purple-700 uppercase truncate">
-                                                            Proj: {project?.name || 'N/A'}
+                                                    <div className="flex flex-col gap-0.5 2xl:gap-1">
+                                                        <span className="text-[8px] sm:text-[10px] 2xl:text-xs font-black text-slate-400 uppercase truncate">CLIENTE: {client?.name || 'Interno'}</span>
+                                                        <span className="text-[8px] sm:text-[10px] 2xl:text-xs font-black text-purple-600 uppercase truncate leading-none">
+                                                            PROJ: {project?.name || 'N/A'}
                                                         </span>
                                                         {task.status === 'Done' ? (
                                                             task.actualDelivery && (
-                                                                <span className="text-[12px] font-black uppercase flex items-center gap-1 mt-1 text-emerald-600">
+                                                                <span className="text-[8px] sm:text-[10px] 2xl:text-xs font-black uppercase flex items-center gap-1 mt-0.5 text-emerald-600">
                                                                     ✅ Entregue em {new Date(task.actualDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                                                                 </span>
                                                             )
                                                         ) : (
                                                             task.estimatedDelivery && (
-                                                                <span className={`text-[12px] font-black uppercase flex items-center gap-1 mt-1 ${isDueToday ? 'text-sky-600' : 'text-purple-600'}`}>
+                                                                <span className={`text-[8px] sm:text-[10px] 2xl:text-xs font-black uppercase flex items-center gap-1 mt-0.5 ${isDueToday ? 'text-sky-600' : 'text-slate-500'}`}>
                                                                     📅 {formattedDate}{countdownText ? ` • ${countdownText}` : ''}
                                                                 </span>
                                                             )
@@ -714,20 +784,19 @@ const AdminMonitoringView: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Barra de Progresso Visual Compacta */}
-                                                <div className="mt-1.5 mb-1">
-                                                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="mt-2 2xl:mt-6 mb-1">
+                                                    <div className="w-full h-1.5 2xl:h-2 bg-slate-100 rounded-full overflow-hidden">
                                                         <div
-                                                            className={`h-full transition-all duration-500 ${delayed ? 'bg-red-500' : 'bg-purple-600'}`}
+                                                            className={`h-full transition-all duration-500 ${delayed ? 'bg-red-500' : isDueToday ? 'bg-sky-500' : isReview ? 'bg-yellow-500' : 'bg-purple-600'}`}
                                                             style={{ width: `${task.progress}%` }}
                                                         />
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center justify-between mt-auto pt-1 border-t border-slate-100">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <div className="flex -space-x-1.5">
-                                                            <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm shrink-0 z-10 bg-white">
+                                                <div className="flex items-center justify-between mt-auto pt-2 2xl:pt-4 border-t border-slate-50">
+                                                    <div className="flex items-center gap-1.5 sm:gap-2 2xl:gap-4 min-w-0">
+                                                        <div className="flex -space-x-1.5 2xl:-space-x-3">
+                                                            <div className="w-6 h-6 2xl:w-10 2xl:h-10 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 z-10 bg-slate-50">
                                                                 <img
                                                                     src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(task.developer)}&background=f8fafc&color=475569`}
                                                                     className="w-full h-full object-cover"
@@ -738,27 +807,27 @@ const AdminMonitoringView: React.FC = () => {
                                                                     }}
                                                                 />
                                                             </div>
-                                                            {(extraCollaborators || []).slice(0, 3).map((collab) => (
-                                                                <div key={collab.id} className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white">
+                                                            {(extraCollaborators || []).slice(0, 2).map((collab) => (
+                                                                <div key={collab.id} className="w-6 h-6 2xl:w-10 2xl:h-10 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white">
                                                                     <img src={collab.avatarUrl || `https://ui-avatars.com/api/?name=${collab.name}`} className="w-full h-full object-cover" />
                                                                 </div>
                                                             ))}
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
-                                                            <span className="text-[7px] font-black uppercase text-slate-400 leading-none">Equipe</span>
-                                                            <span className="text-[10px] font-bold text-slate-700 truncate max-w-[100px] leading-tight">
+                                                            <span className="text-[7px] sm:text-[8px] 2xl:text-[10px] font-black uppercase text-slate-400 leading-none">Equipe</span>
+                                                            <span className="text-[8px] sm:text-[9px] 2xl:text-sm font-bold text-slate-700 truncate max-w-[60px] sm:max-w-[70px] 2xl:max-w-[120px] leading-tight">
                                                                 {dev?.name ? dev.name.split(' ')[0] : task.developer}
                                                                 {extraCollaborators.length > 0 && ` +${extraCollaborators.length}`}
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    <div className="flex flex-col items-end gap-0.5 shrink-0 ml-4">
-                                                        <span className={`text-xl font-black tabular-nums leading-none ${delayed ? 'text-red-500' : 'text-purple-600'}`}>{task.progress}%</span>
+                                                    <div className="flex flex-col items-end gap-0 shrink-0 ml-2">
+                                                        <span className={`text-sm sm:text-base 2xl:text-2xl font-black tabular-nums leading-none ${delayed ? 'text-red-500' : isDueToday ? 'text-sky-600' : isReview ? 'text-yellow-600' : 'text-purple-600'}`}>{task.progress}%</span>
                                                         {(() => {
                                                             if (task.status === 'Done') return null;
                                                             const daysLate = task.daysOverdue || 0;
                                                             if (daysLate > 0) {
-                                                                return <span className="text-[9px] font-black text-red-500 uppercase whitespace-nowrap leading-none">{daysLate} dia{daysLate > 1 ? 's' : ''} de atraso</span>;
+                                                                return <span className="text-[7px] 2xl:text-[11px] font-black text-red-500 uppercase whitespace-nowrap leading-none">atrasado {daysLate}d</span>;
                                                             }
                                                             return null;
                                                         })()}
@@ -773,13 +842,13 @@ const AdminMonitoringView: React.FC = () => {
                     </div>
 
                     {/* Pagination Indicators */}
-                    {Math.ceil(tasksInProgress.length / 6) > 1 && (
-                        <div className="flex justify-center gap-2 mt-1">
-                            {Array.from({ length: Math.ceil(tasksInProgress.length / 6) }).map((_, idx) => (
+                    {Math.ceil(tasksInProgress.length / itemsPerPage) > 1 && (
+                        <div className="flex justify-center gap-1.5 sm:gap-2 mt-1.5">
+                            {Array.from({ length: Math.ceil(tasksInProgress.length / itemsPerPage) }).map((_, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setTaskPage(idx)}
-                                    className={`h-1.5 rounded-full transition-all duration-300 ${taskPage === idx ? 'w-8 bg-purple-600' : 'w-2 bg-slate-200 hover:bg-purple-300'}`}
+                                    className={`h-1 rounded-full transition-all duration-300 ${taskPage === idx ? 'w-6 sm:w-8 bg-purple-600' : 'w-1.5 bg-slate-200 hover:bg-purple-400'}`}
                                 />
                             ))}
                         </div>
@@ -787,101 +856,78 @@ const AdminMonitoringView: React.FC = () => {
                 </section>
 
                 {/* Row 2: Projects and Team */}
-                <div className="flex flex-col gap-4 min-h-0 flex-1">
+                <div className="flex flex-col gap-2 shrink-0">
 
                     {/* ECOSSISTEMA DE PROJETOS ATIVOS */}
                     {activeProjects.length > 0 && (
                         <section className="flex flex-col min-h-0 overflow-hidden">
-                            <SectionHeader label="Ecossistema de Projetos Ativos" icon={Timer} colorClass="bg-blue-600" />
-                            <div className="relative w-full overflow-hidden pb-3">
-                                <div className="flex gap-4 w-max animate-marquee hover:[animation-play-state:paused]">
+                            <SectionHeader label="Ecossistema de Projetos Ativos" icon={Timer} colorClass="bg-blue-600">
+                                <CompactStat label="Pré-Projeto" count={stats.preProjeto} icon={Layout} colorClass="text-slate-600" countColorClass="bg-slate-50 text-slate-600" />
+                                <CompactStat label="Análise" count={stats.analise} icon={Cpu} colorClass="text-yellow-600" countColorClass="bg-yellow-50 text-yellow-600" />
+                                <CompactStat label="Andamento" count={stats.andamento} icon={Activity} colorClass="text-blue-600" countColorClass="bg-blue-50 text-blue-600" />
+                            </SectionHeader>
+                            <div className="relative w-full overflow-hidden pb-1.5 sm:pb-2">
+                                <div className="flex gap-2 sm:gap-3 lg:gap-4 w-max animate-marquee hover:[animation-play-state:paused]">
                                     {[...activeProjects, ...activeProjects, ...activeProjects].map((proj, idx) => { // Triplicated for infinite loop
                                         const Icons = [Cloud, Database, Zap, Shield, Box, Activity, Cpu, Wifi];
                                         const ProjIcon = Icons[idx % Icons.length];
 
-                                        // LOGICA DE STATUS REAL
                                         const projTasks = allTasks.filter(t => t.projectId === proj.id);
                                         const hasDelay = projTasks.some(t => isTaskDelayed(t));
                                         const hasReview = projTasks.some(t => t.status === 'Review');
                                         const hasInProgress = projTasks.some(t => t.status === 'In Progress');
 
-                                        let statusLabel = 'SAUDÁVEL';
-                                        let statusColor = 'text-emerald-500';
-                                        let dotColor = 'bg-emerald-500';
-
-                                        if (hasDelay) {
-                                            statusLabel = 'CRÍTICO';
-                                            statusColor = 'text-red-500';
-                                            dotColor = 'bg-red-500';
-                                        } else if (hasReview) {
-                                            statusLabel = 'PENDENTE';
-                                            statusColor = 'text-amber-500';
-                                            dotColor = 'bg-amber-500';
-                                        } else if (hasInProgress) {
-                                            statusLabel = 'INICIADO';
-                                            statusColor = 'text-blue-500';
-                                            dotColor = 'bg-blue-500';
-                                        }
+                                        const projStatus = getProjectStatusByTimeline(proj);
+                                        const colors = getProjectStatusColor(projStatus);
+                                        const statusLabel = projStatus;
+                                        const statusColor = colors.text;
+                                        const dotColor = colors.dot;
 
                                         const client = clientMap.get(proj.clientId || '');
 
                                         return (
-                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-md min-w-[360px] h-[95px] group hover:border-blue-300 transition-all">
-                                                <div className="flex items-center gap-5 min-w-0">
-                                                    <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center border border-slate-100 group-hover:border-blue-200 transition-all overflow-hidden p-1.5 shadow-sm">
+                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-between shadow-lg min-w-[220px] sm:min-w-[250px] 2xl:min-w-[320px] h-[56px] 2xl:h-[75px] group hover:border-blue-400 hover:shadow-xl transition-all">
+                                                <div className="flex items-center gap-2 sm:gap-2.5 2xl:gap-4 min-w-0 flex-1">
+                                                    <div className="w-8 h-8 2xl:w-12 2xl:h-12 bg-white rounded-lg flex items-center justify-center border border-slate-100 group-hover:border-blue-300 transition-all overflow-hidden p-1 shadow-sm shrink-0">
                                                         {client?.logoUrl ? (
                                                             <img
                                                                 src={client.logoUrl}
                                                                 alt={client.name}
                                                                 className="w-full h-full object-contain"
-                                                                onError={(e) => {
-                                                                    const target = e.target as HTMLImageElement;
-                                                                    target.onerror = null;
-                                                                    target.style.display = 'none';
-                                                                    // Fallback to icon
-                                                                    const parent = target.parentElement;
-                                                                    if (parent) {
-                                                                        const icon = document.createElement('div');
-                                                                        icon.className = "flex items-center justify-center w-full h-full text-slate-300";
-                                                                        icon.innerHTML = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-box'><path d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/><path d='m3.3 7 8.7 5 8.7-5'/><path d='M12 22V12'/></svg>";
-                                                                        parent.appendChild(icon);
-                                                                    }
-                                                                }}
                                                             />
                                                         ) : (
-                                                            <ProjIcon className="w-6 h-6 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                                            <ProjIcon className="w-6 h-6 2xl:w-8 2xl:h-8 text-slate-300 group-hover:text-blue-500 transition-colors" />
                                                         )}
                                                     </div>
-                                                    <div className="flex flex-col min-w-0">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{client?.name || 'Tecnologia'}</span>
-                                                        <span className="text-[17px] font-black text-slate-800 uppercase truncate max-w-[200px] tracking-tight leading-tight">{proj.name}</span>
+                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                        <span className="text-[7px] sm:text-[8px] 2xl:text-[10px] font-black text-slate-400 uppercase tracking-tight leading-none mb-0.5">{client?.name || 'Interno'}</span>
+                                                        <span className="text-[11px] sm:text-xs 2xl:text-lg font-black text-slate-800 uppercase truncate tracking-tight leading-tight">{proj.name}</span>
 
-                                                        {/* Task Summary Metrics */}
-                                                        <div className="flex items-center gap-3 mt-1.5 overflow-hidden">
+                                                        <div className="flex items-center gap-1.5 mt-0.5 2xl:mt-1 overflow-hidden">
                                                             {hasInProgress && (
-                                                                <div className="flex items-center gap-1 shrink-0">
-                                                                    <div className="w-1 h-1 rounded-full bg-blue-500" />
-                                                                    <span className="text-[8px] font-bold text-slate-500 uppercase">{projTasks.filter(t => t.status === 'In Progress').length} iniciado</span>
+                                                                <div className="flex items-center gap-0.5 shrink-0">
+                                                                    <div className="w-1 h-1 2xl:w-1.5 2xl:h-1.5 rounded-full bg-blue-500" />
+                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">{projTasks.filter(t => t.status === 'In Progress').length} inI</span>
                                                                 </div>
                                                             )}
                                                             {hasReview && (
-                                                                <div className="flex items-center gap-1 shrink-0">
-                                                                    <div className="w-1 h-1 rounded-full bg-amber-500" />
-                                                                    <span className="text-[8px] font-bold text-slate-500 uppercase">{projTasks.filter(t => t.status === 'Review').length} pendente</span>
+                                                                <div className="flex items-center gap-0.5 shrink-0">
+                                                                    <div className="w-1 h-1 2xl:w-1.5 2xl:h-1.5 rounded-full bg-amber-500" />
+                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">{projTasks.filter(t => t.status === 'Review').length} rev</span>
                                                                 </div>
                                                             )}
                                                             {hasDelay && (
-                                                                <div className="flex items-center gap-1 shrink-0">
-                                                                    <div className="w-1 h-1 rounded-full bg-red-500" />
-                                                                    <span className="text-[8px] font-bold text-red-600 uppercase">{projTasks.filter(t => isTaskDelayed(t)).length} atrasadas</span>
+                                                                <div className="flex items-center gap-0.5 shrink-0">
+                                                                    <div className="w-1 h-1 2xl:w-1.5 2xl:h-1.5 rounded-full bg-red-500" />
+                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold text-red-600 uppercase whitespace-nowrap">{projTasks.filter(t => isTaskDelayed(t)).length} atras</span>
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-col items-end shrink-0 pl-4 border-l border-slate-50 ml-2">
-                                                    <div className={`w-2 h-2 rounded-full mb-1 ${dotColor} shadow-sm`} />
-                                                    <span className={`text-[9px] font-black uppercase tracking-widest ${statusColor}`}>{statusLabel}</span>
+                                                <div className="flex flex-col items-end justify-center shrink-0 pl-1.5 border-l border-slate-100 ml-1.5 h-full">
+                                                    <div className={`w-1.5 h-1.5 2xl:w-2.5 2xl:h-2.5 rounded-full mb-0.5 2xl:mb-1 ${dotColor} shadow-md`} />
+                                                    <span className={`text-[7px] sm:text-[8px] 2xl:text-xs font-black uppercase tracking-tight ${statusColor} whitespace-nowrap`}>{statusLabel}</span>
                                                 </div>
                                             </div>
                                         );
@@ -893,16 +939,26 @@ const AdminMonitoringView: React.FC = () => {
 
                     {/* TIME & DISPONIBILIDADE */}
                     <section className="flex flex-col min-h-0 overflow-hidden">
-                        <SectionHeader label="Time & Disponibilidade" icon={Users} colorClass="bg-emerald-600" />
-                        <div className="relative w-full overflow-hidden pb-2">
-                            <div className="flex gap-4 w-max animate-marquee-reverse hover:[animation-play-state:paused]">
+                        <SectionHeader label="Time & Disponibilidade" icon={Users} colorClass="bg-emerald-600">
+                            <CompactStat label="Livre" count={stats.team.livre} icon={CheckCircle2} colorClass="text-emerald-600" countColorClass="bg-emerald-50 text-emerald-600" />
+                            <CompactStat label="Em Atividade" count={stats.team.iniciado + stats.team.apontado} icon={PlayCircle} colorClass="text-purple-600" countColorClass="bg-purple-50 text-purple-600" />
+                            <CompactStat label="Atrasados" count={stats.team.atrasado} icon={AlertTriangle} colorClass="text-red-600" countColorClass="bg-red-50 text-red-600" />
+                            <div className="w-[1px] h-4 bg-slate-200 mx-1 2xl:mx-2" />
+                            <CompactStat label="Pré-Projeto" count={stats.tasksByStatus.todo} icon={Layout} colorClass="text-slate-500" countColorClass="bg-slate-50 text-slate-500" />
+                            <CompactStat label="Andamento" count={stats.tasksByStatus.inProgress} icon={Activity} colorClass="text-blue-500" countColorClass="bg-blue-50 text-blue-500" />
+                            <CompactStat label="Análise" count={stats.tasksByStatus.review} icon={Cpu} colorClass="text-yellow-600" countColorClass="bg-yellow-50 text-yellow-600" />
+                            <CompactStat label="Teste" count={stats.tasksByStatus.testing} icon={Timer} colorClass="text-purple-500" countColorClass="bg-purple-50 text-purple-500" />
+                            <CompactStat label="Concluído" count={stats.tasksByStatus.done} icon={CheckCircle2} colorClass="text-emerald-500" countColorClass="bg-emerald-50 text-emerald-500" />
+                        </SectionHeader>
+                        <div className="relative w-full overflow-hidden pb-1.5">
+                            <div className="flex gap-2 sm:gap-3 lg:gap-4 w-max animate-marquee-reverse hover:[animation-play-state:paused]">
                                 {[...teamStatus, ...teamStatus, ...teamStatus].map((member, idx) => { // Triplicated for infinite loop
                                     const colors: any = {
-                                        'LIVRE': 'text-emerald-500 border-emerald-500 bg-emerald-50',
-                                        'INICIADO': 'text-purple-500 border-purple-500 bg-purple-50',
-                                        'ESTUDANDO': 'text-blue-500 border-blue-500 bg-blue-50',
-                                        'ATRASADO': 'text-red-500 border-red-500 bg-red-50',
-                                        'APONTADO': 'text-indigo-600 border-indigo-400 bg-indigo-50'
+                                        'LIVRE': 'text-emerald-600 border-emerald-500 bg-emerald-50',
+                                        'INICIADO': 'text-purple-600 border-purple-500 bg-purple-50',
+                                        'ESTUDANDO': 'text-blue-600 border-blue-500 bg-blue-50',
+                                        'ATRASADO': 'text-red-600 border-red-500 bg-red-50',
+                                        'APONTADO': 'text-indigo-700 border-indigo-500 bg-indigo-50'
                                     };
                                     const dotColors: any = {
                                         'LIVRE': 'bg-emerald-500',
@@ -913,9 +969,9 @@ const AdminMonitoringView: React.FC = () => {
                                     };
 
                                     return (
-                                        <div key={`${member.id}-${idx}`} className="min-w-[270px] h-[125px] bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between shadow-md group hover:border-emerald-300 transition-all relative overflow-hidden">
-                                            <div className="flex items-center gap-4 mb-3">
-                                                <div className="w-13 h-13 rounded-full p-0.5 border-2 border-slate-100 shadow-sm shrink-0">
+                                        <div key={`${member.id}-${idx}`} className="min-w-[170px] sm:min-w-[190px] 2xl:min-w-[260px] h-[65px] sm:h-[70px] 2xl:h-[100px] bg-white border border-slate-200 rounded-xl p-2 2xl:p-4 flex flex-col justify-between shadow-lg group hover:border-emerald-400 hover:shadow-xl transition-all relative overflow-hidden">
+                                            <div className="flex items-center gap-2 2xl:gap-4 mb-1">
+                                                <div className="w-7 h-7 2xl:w-11 2xl:h-11 rounded-full p-0.5 border border-slate-200 shadow-sm shrink-0">
                                                     <img
                                                         src={member.avatarUrl || `https://ui-avatars.com/api/?name=${member.name}&background=f8fafc&color=475569`}
                                                         className="w-full h-full rounded-full object-cover"
@@ -926,17 +982,17 @@ const AdminMonitoringView: React.FC = () => {
                                                         }}
                                                     />
                                                 </div>
-                                                <div className="flex flex-col min-w-0">
-                                                    <h4 className="text-[15px] font-black text-slate-800 uppercase tracking-tight truncate leading-tight">{member.name}</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{member.cargo || 'Especialista'}</p>
+                                                <div className="flex flex-col min-w-0 flex-1">
+                                                    <h4 className="text-[10px] 2xl:text-base font-black text-slate-800 uppercase tracking-tight truncate leading-tight">{member.name}</h4>
+                                                    <p className="text-[7px] 2xl:text-xs font-black text-slate-400 uppercase tracking-widest truncate">{member.cargo || 'Especialista'}</p>
                                                 </div>
                                             </div>
 
-                                            <div className="border-t border-slate-50 pt-3 flex items-center justify-between">
-                                                <span className={`text-[10px] font-black px-3 py-1 rounded-lg border ${colors[member.boardStatus]}`}>
+                                            <div className="border-t border-slate-50 pt-1 2xl:pt-3 flex items-center justify-between">
+                                                <span className={`text-[7px] 2xl:text-[10px] font-black px-2 py-0.5 rounded-lg border ${colors[member.boardStatus]} whitespace-nowrap`}>
                                                     {member.boardStatus}
                                                 </span>
-                                                <div className={`w-2.5 h-2.5 rounded-full ${dotColors[member.boardStatus]} shadow-[0_0_8px_rgba(0,0,0,0.1)]`} />
+                                                <div className={`w-1.5 h-1.5 2xl:w-2.5 2xl:h-2.5 rounded-full ${dotColors[member.boardStatus]} shadow-md`} />
                                             </div>
                                         </div>
                                     );
@@ -949,31 +1005,37 @@ const AdminMonitoringView: React.FC = () => {
                 <style>{`
                     @keyframes marquee {
                         0% { transform: translateX(0); }
-                        100% { transform: translateX(-50%); } 
+                        100% { transform: translateX(-33.33%); } 
                     }
                     @keyframes marquee-reverse {
-                        0% { transform: translateX(-50%); }
+                        0% { transform: translateX(-33.33%); }
                         100% { transform: translateX(0); } 
                     }
                     @keyframes glow {
-                        0%, 100% { box-shadow: 0 0 20px rgba(14, 165, 233, 0.2); border-color: rgba(56, 189, 248, 0.5); }
-                        50% { box-shadow: 0 0 35px rgba(14, 165, 233, 0.5); border-color: rgba(14, 165, 233, 1); }
+                        0%, 100% { 
+                            box-shadow: 0 0 25px rgba(14, 165, 233, 0.3), 0 0 15px rgba(14, 165, 233, 0.2); 
+                            border-color: rgba(56, 189, 248, 0.6); 
+                        }
+                        50% { 
+                            box-shadow: 0 0 40px rgba(14, 165, 233, 0.6), 0 0 25px rgba(14, 165, 233, 0.4); 
+                            border-color: rgba(14, 165, 233, 1); 
+                        }
                     }
                     .animate-glow {
-                        animation: glow 3s ease-in-out infinite;
+                        animation: glow 2.5s ease-in-out infinite;
                     }
                     .animate-pulse-subtle {
                         animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
                     }
                     .animate-marquee {
-                        animation: marquee 200s linear infinite; /* Super slow speed */
+                        animation: marquee 160s linear infinite;
                     }
                     .animate-marquee-reverse {
-                        animation: marquee-reverse 200s linear infinite; /* Super slow speed */
+                        animation: marquee-reverse 160s linear infinite;
                     }
                 `}</style>
 
-            </main >
+            </main>
         </div >
     );
 };

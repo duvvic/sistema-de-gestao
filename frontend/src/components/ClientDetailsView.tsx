@@ -22,7 +22,7 @@ const ClientDetailsView: React.FC = () => {
   } = useDataController();
   const { isAdmin } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<ViewTab>('projects');
+  const [activeTab, setActiveTab] = useState<ViewTab>('details');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project' | 'task' | 'client' } | null>(null);
@@ -171,18 +171,18 @@ const ClientDetailsView: React.FC = () => {
         {/* COMPACT TABS INTEGRATED IN HEADER (FUNCTIONAL VERSION) */}
         <div className="flex items-center gap-2">
           <div
+            onClick={() => setActiveTab('details')}
+            className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-3 ${activeTab === 'details' ? 'border-white bg-white/20 shadow-sm' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest text-white">Informações</span>
+          </div>
+
+          <div
             onClick={() => setActiveTab('projects')}
             className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-3 ${activeTab === 'projects' ? 'border-white bg-white/20 shadow-sm' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
           >
             <span className="text-[10px] font-black uppercase tracking-widest text-white">Projetos</span>
             <span className="text-sm font-black text-white">{clientProjects.length}</span>
-          </div>
-
-          <div
-            onClick={() => setActiveTab('details')}
-            className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-3 ${activeTab === 'details' ? 'border-white bg-white/20 shadow-sm' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
-          >
-            <span className="text-[10px] font-black uppercase tracking-widest text-white">Informações</span>
           </div>
 
           <div
@@ -227,77 +227,102 @@ const ClientDetailsView: React.FC = () => {
                   <fieldset disabled={!isEditing} className="space-y-10">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
                       <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Nome da Empresa</label>
+                        <label className="block text-xs font-black uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--text-muted)' }}>Nome da Empresa</label>
                         <div className="relative group">
                           {isEditing && (
-                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-purple-500 transition-colors" size={18} />
+                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors" style={{ color: 'var(--text-placeholder)' }} size={18} />
                           )}
                           <input
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-2xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-xl"
+                            className="w-full pl-12 pr-4 py-4 border-2 border-transparent focus:border-purple-500 rounded-2xl outline-none transition-all font-bold disabled:bg-transparent disabled:px-0 disabled:border-b disabled:rounded-none disabled:text-xl"
+                            style={{
+                              backgroundColor: isEditing ? 'var(--input-bg)' : 'transparent',
+                              color: 'var(--text)',
+                              borderBottomColor: isEditing ? 'transparent' : 'var(--border)'
+                            }}
                             required
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">CNPJ / Identificação</label>
+                        <label className="block text-xs font-black uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--text-muted)' }}>CNPJ / Identificação</label>
                         <div className="relative group">
                           {isEditing && (
-                            <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-purple-500 transition-colors" size={18} />
+                            <FileText className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors" style={{ color: 'var(--text-placeholder)' }} size={18} />
                           )}
                           <input
                             type="text"
                             value={formData.cnpj}
                             onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-2xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-xl"
+                            className="w-full pl-12 pr-4 py-4 border-2 border-transparent focus:border-purple-500 rounded-2xl outline-none transition-all font-bold disabled:bg-transparent disabled:px-0 disabled:border-b disabled:rounded-none disabled:text-xl"
+                            style={{
+                              backgroundColor: isEditing ? 'var(--input-bg)' : 'transparent',
+                              color: 'var(--text)',
+                              borderBottomColor: isEditing ? 'transparent' : 'var(--border)'
+                            }}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">País de Atuação</label>
+                        <label className="block text-xs font-black uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--text-muted)' }}>País de Atuação</label>
                         <div className="relative group">
                           {isEditing && (
-                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-purple-500 transition-colors" size={18} />
+                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors" style={{ color: 'var(--text-placeholder)' }} size={18} />
                           )}
                           <input
                             type="text"
                             value={formData.pais}
                             onChange={(e) => setFormData({ ...formData, pais: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-2xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-xl"
+                            className="w-full pl-12 pr-4 py-4 border-2 border-transparent focus:border-purple-500 rounded-2xl outline-none transition-all font-bold disabled:bg-transparent disabled:px-0 disabled:border-b disabled:rounded-none disabled:text-xl"
+                            style={{
+                              backgroundColor: isEditing ? 'var(--input-bg)' : 'transparent',
+                              color: 'var(--text)',
+                              borderBottomColor: isEditing ? 'transparent' : 'var(--border)'
+                            }}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Telefone Comercial</label>
+                        <label className="block text-xs font-black uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--text-muted)' }}>Telefone Comercial</label>
                         <div className="relative group">
                           {isEditing && (
-                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-purple-500 transition-colors" size={18} />
+                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors" style={{ color: 'var(--text-placeholder)' }} size={18} />
                           )}
                           <input
                             type="text"
                             value={formData.telefone}
                             onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-2xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-xl"
+                            className="w-full pl-12 pr-4 py-4 border-2 border-transparent focus:border-purple-500 rounded-2xl outline-none transition-all font-bold disabled:bg-transparent disabled:px-0 disabled:border-b disabled:rounded-none disabled:text-xl"
+                            style={{
+                              backgroundColor: isEditing ? 'var(--input-bg)' : 'transparent',
+                              color: 'var(--text)',
+                              borderBottomColor: isEditing ? 'transparent' : 'var(--border)'
+                            }}
                           />
                         </div>
                       </div>
 
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">URL da Logomarca</label>
+                        <label className="block text-xs font-black uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--text-muted)' }}>URL da Logomarca</label>
                         <div className="flex gap-4">
                           <input
                             type="text"
                             value={formData.logoUrl}
                             onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                            className="flex-1 px-4 py-4 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-2xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none"
+                            className="flex-1 px-4 py-4 border-2 border-transparent focus:border-purple-500 rounded-2xl outline-none transition-all font-bold disabled:bg-transparent disabled:px-0 disabled:border-b disabled:rounded-none"
+                            style={{
+                              backgroundColor: isEditing ? 'var(--input-bg)' : 'transparent',
+                              color: 'var(--text)',
+                              borderBottomColor: isEditing ? 'transparent' : 'var(--border)'
+                            }}
                           />
                           {isEditing && (
-                            <button type="button" className="px-6 py-4 border-2 border-slate-200 rounded-2xl hover:bg-slate-50 transition-colors text-slate-500">
+                            <button type="button" className="px-6 py-4 border-2 rounded-2xl transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
                               <Upload size={20} />
                             </button>
                           )}
@@ -305,17 +330,18 @@ const ClientDetailsView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="p-8 rounded-[24px] bg-slate-50 border border-slate-100 mt-12">
-                      <h4 className="text-xs font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-3">
+                    <div className="p-8 rounded-[24px] border mt-12" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                      <h4 className="text-xs font-black uppercase mb-6 tracking-widest flex items-center gap-3" style={{ color: 'var(--text-muted)' }}>
                         <FileText size={16} className="text-purple-500" /> Configuração de Filtros & Categorias
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Classificação</label>
+                          <label className="block text-[10px] font-black uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Classificação</label>
                           <select
                             value={formData.tipo_cliente}
                             onChange={(e) => setFormData({ ...formData, tipo_cliente: e.target.value as any })}
-                            className="w-full px-4 py-3 bg-white border-2 border-slate-100 focus:border-purple-500 rounded-xl font-bold text-slate-700 outline-none disabled:bg-transparent disabled:border-none disabled:px-0 disabled:appearance-none"
+                            className="w-full px-4 py-3 border-2 focus:border-purple-500 rounded-xl font-bold outline-none disabled:bg-transparent disabled:border-none disabled:px-0 disabled:appearance-none"
+                            style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                           >
                             <option value="cliente_final">Cliente Final</option>
                             <option value="parceiro">Parceiro Nic-Labs</option>
@@ -323,11 +349,12 @@ const ClientDetailsView: React.FC = () => {
                         </div>
                         {formData.tipo_cliente === 'cliente_final' && (
                           <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Parceiro Vinculado</label>
+                            <label className="block text-[10px] font-black uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Parceiro Vinculado</label>
                             <select
                               value={formData.partner_id}
                               onChange={(e) => setFormData({ ...formData, partner_id: e.target.value })}
-                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 focus:border-purple-500 rounded-xl font-bold text-slate-700 outline-none disabled:bg-transparent disabled:border-none disabled:px-0 disabled:appearance-none"
+                              className="w-full px-4 py-3 border-2 focus:border-purple-500 rounded-xl font-bold outline-none disabled:bg-transparent disabled:border-none disabled:px-0 disabled:appearance-none"
+                              style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                             >
                               <option value="">Direto (Sem intermédio)</option>
                               {clients.filter(c => c.tipo_cliente === 'parceiro' && c.id !== clientId).map(p => (
@@ -340,9 +367,9 @@ const ClientDetailsView: React.FC = () => {
                     </div>
 
                     {/* NOVO: Equipe Geral do Cliente */}
-                    <div className="mt-10 border-t border-slate-100 pt-10">
-                      <h4 className="text-sm font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-3">
-                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><UserIcon size={14} /></div>
+                    <div className="mt-10 border-t pt-10" style={{ borderColor: 'var(--border)' }}>
+                      <h4 className="text-sm font-black uppercase mb-6 tracking-widest flex items-center gap-3" style={{ color: 'var(--text-muted)' }}>
+                        <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg"><UserIcon size={14} /></div>
                         Equipe Envolvida
                       </h4>
                       <div className="flex flex-wrap gap-3">
@@ -353,31 +380,31 @@ const ClientDetailsView: React.FC = () => {
                           const user = users.find(u => u.id === uId);
                           if (!user) return null;
                           return (
-                            <div key={user.id} className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-purple-300 transition-all">
+                            <div key={user.id} className="flex items-center gap-3 px-4 py-2 border rounded-2xl shadow-sm hover:border-purple-300 transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                               {user.avatarUrl ? (
                                 <img src={user.avatarUrl} className="w-8 h-8 rounded-xl object-cover" />
                               ) : (
-                                <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-[10px] uppercase text-slate-500 border border-slate-200">{user.name.substring(0, 2)}</div>
+                                <div className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-[10px] uppercase border" style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>{user.name.substring(0, 2)}</div>
                               )}
                               <div className="flex flex-col">
-                                <span className="text-xs font-black text-slate-700">{user.name}</span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{user.cargo || 'Membro'}</span>
+                                <span className="text-xs font-black" style={{ color: 'var(--text)' }}>{user.name}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-tighter" style={{ color: 'var(--text-muted)' }}>{user.cargo || 'Membro'}</span>
                               </div>
                             </div>
                           );
                         })}
                         {clientProjects.length === 0 && clientTasks.length === 0 && (
-                          <span className="text-sm italic text-slate-400">Nenhum colaborador alocado ainda.</span>
+                          <span className="text-sm italic" style={{ color: 'var(--text-muted)' }}>Nenhum colaborador alocado ainda.</span>
                         )}
                       </div>
                     </div>
 
                     {isEditing && (
-                      <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+                      <div className="flex items-center justify-between pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
                         <button
                           type="button"
                           onClick={() => setItemToDelete({ id: clientId, type: 'client' })}
-                          className="px-6 py-3 text-red-500 hover:bg-red-50 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+                          className="px-6 py-3 text-red-500 hover:bg-red-500/10 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
                         >
                           Excluir Cliente
                         </button>
@@ -385,14 +412,15 @@ const ClientDetailsView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setIsEditing(false)}
-                            className="px-6 py-3 bg-slate-100 text-slate-500 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                            className="px-6 py-3 rounded-2xl font-bold transition-all"
+                            style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-muted)' }}
                           >
                             Cancelar
                           </button>
                           <button
                             type="submit"
                             disabled={loading}
-                            className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold shadow-xl shadow-purple-200 transition-all flex items-center gap-2"
+                            className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold shadow-xl transition-all flex items-center gap-2"
                           >
                             <Save className="w-4 h-4" /> {loading ? 'Salvando...' : 'Salvar Perfil'}
                           </button>
@@ -437,7 +465,7 @@ const ClientDetailsView: React.FC = () => {
                         >
                           <Trash2 size={16} />
                         </button>
-                        <h4 className="font-black text-slate-800 text-lg mb-6 pr-8 group-hover:text-purple-600 transition-colors uppercase tracking-tight line-clamp-1">
+                        <h4 className="font-black text-lg mb-6 pr-8 group-hover:text-purple-600 transition-colors uppercase tracking-tight line-clamp-1" style={{ color: 'var(--text)' }}>
                           {project.name}
                           {isIncomplete && (
                             <span className="ml-2 bg-yellow-500 text-black px-2 py-0.5 rounded-lg text-[9px] font-black inline-flex items-center gap-1 animate-pulse align-middle">
@@ -489,9 +517,9 @@ const ClientDetailsView: React.FC = () => {
                     );
                   })}
                   {clientProjects.length === 0 && (
-                    <div className="col-span-full py-20 bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200 text-center">
-                      <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                      <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Sem projetos cadastrados</p>
+                    <div className="col-span-full py-20 rounded-[32px] border-2 border-dashed text-center" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                      <Briefcase className="w-12 h-12 mx-auto mb-4 opacity-20" style={{ color: 'var(--text)' }} />
+                      <p className="font-bold uppercase tracking-widest text-sm" style={{ color: 'var(--text-muted)' }}>Sem projetos cadastrados</p>
                       <button onClick={() => navigate(`/admin/clients/${clientId}/projects/new`)} className="mt-4 text-purple-600 font-black text-xs uppercase hover:underline">Criar Primeiro Projeto</button>
                     </div>
                   )}
@@ -600,10 +628,16 @@ const ClientDetailsView: React.FC = () => {
                                     </h5>
                                     <div className="mt-1 flex items-center gap-2">
                                       <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md border ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                        task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                          'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                          task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                            task.status === 'Testing' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                              task.status === 'Review' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                                                'bg-slate-500/10 text-slate-400 border-slate-500/20'
                                         }`}>
-                                        {task.status}
+                                        {task.status === 'Todo' ? 'Pré-Projeto' :
+                                          task.status === 'Review' ? 'Análise' :
+                                            task.status === 'In Progress' ? 'Andamento' :
+                                              task.status === 'Testing' ? 'Teste' :
+                                                task.status === 'Done' ? 'Concluído' : task.status}
                                       </span>
                                       {task.estimatedDelivery && (
                                         <span className="text-[9px] font-medium" style={{ color: 'var(--muted)' }}>
@@ -697,7 +731,7 @@ const ClientDetailsView: React.FC = () => {
         }}
         onCancel={() => setItemToDelete(null)}
       />
-    </div>
+    </div >
   );
 };
 

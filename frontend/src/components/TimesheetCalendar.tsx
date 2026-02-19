@@ -162,8 +162,8 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
 
     const userEntries = allEntries.filter(e => {
       if (!e.date) return false;
-      const d = new Date(e.date + 'T12:00:00');
-      return e.userId === uid && d.getMonth() === month && d.getFullYear() === year;
+      const [y, m] = e.date.split('-').map(Number);
+      return e.userId === uid && (m - 1) === month && y === year;
     });
 
     const userAbsences = (absences || []).filter(a => a.userId === uid);
@@ -234,8 +234,8 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
     // 1. Filtrar lançamentos do mês/ano selecionados
     const monthEntries = currentEntries.filter(e => {
       if (!e.date) return false;
-      const d = new Date(e.date);
-      return d.getMonth() === month && d.getFullYear() === year;
+      const [y, m] = e.date.split('-').map(Number);
+      return (m - 1) === month && y === year;
     });
 
     // 2. Calcular Saldo de Horas (Diferença de 8h/dia) - APENAS DIAS APONTADOS

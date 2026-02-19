@@ -81,10 +81,19 @@
   --modal-bg: #FFFFFF;
 
   /* Kanban Specific - Light Mode */
-  --status-todo: #F8FAFB;
-  --status-progress: rgba(59, 130, 246, 0.08);
-  --status-review: rgba(251, 191, 36, 0.08);
+  --status-todo: rgba(100, 116, 139, 0.05);
+  --status-review: rgba(245, 158, 11, 0.08);
+  --status-progress: rgba(14, 165, 233, 0.08);
+  --status-testing: rgba(139, 92, 246, 0.08);
   --status-done: rgba(16, 185, 129, 0.08);
+  
+  /* Card Status Colors */
+  --card-delayed: #dc2626;        /* Red 600 - Urgent */
+  --card-impediment: #ea580c;     /* Orange 600 - Blocked (darker than Análise) */
+  --card-study: #eab308;          /* Yellow 500 - Learning */
+  --card-delayed-bg: rgba(220, 38, 38, 0.06);
+  --card-impediment-bg: rgba(234, 88, 12, 0.06);
+  --card-study-bg: rgba(234, 179, 8, 0.06);
 
   /* Note Colors - Light Mode */
   --note-yellow: #F59E0B;
@@ -188,11 +197,20 @@ html.dark {
   --overlay: rgba(0, 0, 0, 0.7);
   --modal-bg: #1A1825;
 
-  /* Kanban Specific */
-  --status-todo: #13121C;
-  --status-progress: rgba(59, 130, 246, 0.15);
-  --status-review: rgba(251, 191, 36, 0.15);
+  /* Kanban Specific - Dark Mode */
+  --status-todo: rgba(100, 116, 139, 0.12);
+  --status-review: rgba(245, 158, 11, 0.15);
+  --status-progress: rgba(14, 165, 233, 0.15);
+  --status-testing: rgba(139, 92, 246, 0.15);
   --status-done: rgba(52, 211, 153, 0.15);
+  
+  /* Card Status Colors - Dark Mode */
+  --card-delayed: #ef4444;        /* Red 500 - Brighter for dark */
+  --card-impediment: #f97316;     /* Orange 500 - Brighter but distinct */
+  --card-study: #fbbf24;          /* Yellow 400 - Brighter */
+  --card-delayed-bg: rgba(239, 68, 68, 0.12);
+  --card-impediment-bg: rgba(249, 115, 22, 0.12);
+  --card-study-bg: rgba(251, 191, 36, 0.12);
 
   /* Note Colors */
   --note-yellow: #FBBF24;

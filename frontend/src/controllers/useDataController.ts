@@ -186,9 +186,12 @@ export const useDataController = () => {
         }
     };
 
-    const deleteTask = async (taskId: string, force: boolean = false): Promise<void> => {
-        await taskService.deleteTask(taskId, force);
+    const deleteTask = async (taskId: string, force: boolean = false, deleteHours: boolean = false): Promise<void> => {
+        await taskService.deleteTask(taskId, force, deleteHours);
         setTasks(prev => prev.filter(t => t.id !== taskId));
+        if (deleteHours) {
+            setTimesheetEntries(prev => prev.filter(e => e.taskId !== taskId));
+        }
     };
 
     // === TIMESHEET CONTROLLERS ===

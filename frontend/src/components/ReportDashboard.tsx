@@ -58,8 +58,8 @@ const ReportDashboard: React.FC = () => {
         const loadInitialData = async () => {
             try {
                 const [c, co] = await Promise.all([
-                    fetchClients(),
-                    fetchCollaborators()
+                    fetchClients(true),      // Inclui inativos
+                    fetchCollaborators(true) // Inclui inativos
                 ]);
                 setClients(c);
                 setCollaborators(co);
@@ -74,7 +74,7 @@ const ReportDashboard: React.FC = () => {
     useEffect(() => {
         const loadProjects = async () => {
             try {
-                const p = await fetchProjects(filters.clientIds.length > 0 ? filters.clientIds : undefined);
+                const p = await fetchProjects(filters.clientIds.length > 0 ? filters.clientIds : undefined, true); // Inclui inativos
                 setProjects(p);
             } catch (err) {
                 console.error('Erro ao carregar projetos:', err);

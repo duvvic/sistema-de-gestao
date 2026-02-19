@@ -1,7 +1,7 @@
 // types.ts
 // Interface ORIGINAL do front-end - NÃO ALTERAR
 
-export type Status = 'Todo' | 'In Progress' | 'Review' | 'Done';
+export type Status = 'Todo' | 'In Progress' | 'Testing' | 'Review' | 'Done';
 
 export type Role = 'admin' | 'developer' | 'gestor' | 'diretoria' | 'pmo' | 'rh' | 'financeiro' | 'financial' | 'tech_lead' | 'consultor' | 'system_admin' | 'executive' | 'resource' | 'ceo';
 
@@ -99,6 +99,7 @@ export interface Task {
   estimatedHours?: number; // Horas previstas para execução
   allocatedHours?: number; // Horas alocadas para o colaborador (mapa de capacidade)
   is_impediment?: boolean; // Flag de impedimento
+  deleted_at?: string;
 }
 
 export interface TimesheetEntry {
@@ -114,6 +115,7 @@ export interface TimesheetEntry {
   totalHours: number;
   description?: string;
   lunchDeduction?: boolean;
+  deleted_at?: string;
 }
 
 export type View =

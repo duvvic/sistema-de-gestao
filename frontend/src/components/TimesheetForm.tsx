@@ -321,9 +321,14 @@ const TimesheetForm: React.FC = () => {
       .filter(t => t.developerId === targetUserId || t.collaboratorIds?.includes(targetUserId))
       .map(t => t.projectId);
 
-    // Combinar ambos e remover duplicatas
-    return [...new Set([...memberProjectIds, ...taskProjectIds])];
-  }, [projectMembers, tasks, formData.userId, currentUser, projects, users]);
+    // Projetos que contêm apontamentos do usuário alvo (Histórico)
+    const timesheetProjectIds = timesheetEntries
+      .filter(e => e.userId === targetUserId)
+      .map(e => e.projectId);
+
+    // Combinar todos e remover duplicatas
+    return [...new Set([...memberProjectIds, ...taskProjectIds, ...timesheetProjectIds])];
+  }, [projectMembers, tasks, timesheetEntries, formData.userId, currentUser, projects, users]);
 
   const availableProjects = projects.filter(p =>
     availableProjectsIds.includes(p.id) &&
@@ -367,6 +372,9 @@ const TimesheetForm: React.FC = () => {
     const validTitle = t.title && t.title !== '(Sem título)' && t.title.trim() !== '';
 
     if (!validStatus || !validTitle) return false;
+
+    // Se a tarefa for a que já está salva neste lançamento, permite que ela apareça mesmo se concluída
+    if (formData.taskId && t.id === formData.taskId) return true;
 
     // Se for admin, mostra todas as tarefas do projeto que passaram no filtro de status
     if (isAdmin) return true;
@@ -477,7 +485,7 @@ const TimesheetForm: React.FC = () => {
                         style={{ backgroundColor: isEditing ? 'var(--surface-2)' : 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                       >
                         <option value="">Selecione...</option>
-                        {users.filter(u => u.active !== false).map(u => (
+                        {users.filter(u => u.active !== false || u.id === formData.userId).map(u => (
                           <option key={u.id} value={u.id}>{u.name}</option>
                         ))}
                       </select>

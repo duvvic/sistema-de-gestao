@@ -7,6 +7,7 @@ import { Save, Users, Briefcase, Calendar, Info, Zap, DollarSign, Target, Shield
 import BackButton from './shared/BackButton';
 import { getUserStatus } from '@/utils/userStatus';
 import * as CapacityUtils from '@/utils/capacity';
+import { getProjectStatusByTimeline } from '@/utils/projectStatus';
 
 const ProjectForm: React.FC = () => {
   const { projectId, clientId: routeClientId } = useParams<{ projectId?: string; clientId?: string }>();
@@ -142,7 +143,6 @@ const ProjectForm: React.FC = () => {
         name,
         clientId,
         partnerId: partnerId || undefined,
-        status,
         description,
         managerClient,
         responsibleNicLabsId: responsibleNicLabsId || undefined,
@@ -150,6 +150,12 @@ const ProjectForm: React.FC = () => {
         estimatedDelivery: estimatedDelivery || undefined,
         startDateReal: startDateReal || undefined,
         endDateReal: endDateReal || undefined,
+        status: getProjectStatusByTimeline({
+          startDate,
+          estimatedDelivery,
+          startDateReal,
+          endDateReal
+        } as any),
         risks,
         successFactor,
         criticalDate: criticalDate || undefined,
@@ -294,17 +300,16 @@ const ProjectForm: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Status</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-3 py-2 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none"
-                    style={{ color: 'var(--text)' }}
-                  >
-                    {['Não Iniciado', 'Iniciado', 'Pendente', 'Concluído', 'Em Pausa', 'Cancelado'].map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Status (Automático via Timeline)</label>
+                  <div className="w-full px-3 py-2 text-sm font-black border rounded-xl bg-purple-500/5 border-purple-500/20 text-purple-600 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                    {getProjectStatusByTimeline({
+                      startDate,
+                      estimatedDelivery,
+                      startDateReal,
+                      endDateReal
+                    } as any)}
+                  </div>
                 </div>
               </div>
             </div>
