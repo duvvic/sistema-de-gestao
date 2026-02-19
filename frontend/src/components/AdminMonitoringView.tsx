@@ -654,7 +654,11 @@ const AdminMonitoringView: React.FC = () => {
                             {weekDay}
                         </span>
                         <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 tabular-nums leading-none mt-1">
-                            {currentTime.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            {(() => {
+                                const d = new Date(currentTime);
+                                if (d.getFullYear() < 2025) d.setFullYear(2026);
+                                return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                            })()}
                         </span>
                     </div>
                 </div>
