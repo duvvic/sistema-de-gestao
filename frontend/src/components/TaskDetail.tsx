@@ -10,6 +10,7 @@ import { useUnsavedChangesPrompt } from '@/hooks/useUnsavedChangesPrompt';
 import ConfirmationModal from './ConfirmationModal';
 import TransferResponsibilityModal from './TransferResponsibilityModal';
 import BackButton from './shared/BackButton';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatDecimalToTime } from '@/utils/normalizers';
 
 const TaskDetail: React.FC = () => {
@@ -118,7 +119,7 @@ const TaskDetail: React.FC = () => {
   }, [task, preSelectedClientId, preSelectedProjectId, projects]);
 
   useEffect(() => {
-    if (formData.status === 'Review' || formData.status === 'Done') return;
+    if (formData.status === 'Review' || formData.status === 'Testing' || formData.status === 'Done') return;
 
     if (formData.scheduledStart) {
       const startParts = formData.scheduledStart.split('-');
@@ -140,23 +141,32 @@ const TaskDetail: React.FC = () => {
       .reduce((sum, entry) => sum + (Number(entry.totalHours) || 0), 0);
   }, [timesheetEntries, taskId, isNew]);
 
+  const actualStartDate = useMemo(() => {
+    if (isNew || !taskId) return null;
+    const taskHours = timesheetEntries.filter(e => e.taskId === taskId);
+    if (taskHours.length === 0) return null;
+    return new Date(Math.min(...taskHours.map(e => new Date(e.date).getTime())));
+  }, [timesheetEntries, taskId, isNew]);
+
 
   const taskWeight = useMemo(() => {
     const project = projects.find(p => p.id === formData.projectId);
-    if (!project || !project.startDate || !project.estimatedDelivery || !formData.scheduledStart || !formData.estimatedDelivery) {
+    const taskStartValue = formData.scheduledStart || (actualStartDate ? actualStartDate.toISOString().split('T')[0] : null);
+
+    if (!project || !project.startDate || !project.estimatedDelivery || !taskStartValue || !formData.estimatedDelivery) {
       return { weight: 0, soldHours: 0 };
     }
     const projStart = new Date(project.startDate).getTime();
     const projEnd = new Date(project.estimatedDelivery).getTime();
     const projDuration = projEnd - projStart;
-    const taskStart = new Date(formData.scheduledStart).getTime();
+    const taskStart = new Date(taskStartValue).getTime();
     const taskEnd = new Date(formData.estimatedDelivery).getTime();
     const taskDuration = taskEnd - taskStart;
     if (projDuration <= 0 || taskDuration <= 0) return { weight: 0, soldHours: 0 };
     const weight = (taskDuration / projDuration) * 100;
-    const soldHours = project.horas_vendidas > 0 ? (weight / 100) * project.horas_vendidas : 0;
+    const soldHours = (project.horas_vendidas || 0) > 0 ? (weight / 100) * project.horas_vendidas : 0;
     return { weight, soldHours };
-  }, [formData.scheduledStart, formData.estimatedDelivery, formData.projectId, projects]);
+  }, [formData.scheduledStart, formData.estimatedDelivery, formData.projectId, projects, actualStartDate]);
 
   const isOwner = task && task.developerId === currentUser?.id;
   const isCollaborator = !isNew && task && task.collaboratorIds?.includes(currentUser?.id || '');
@@ -205,7 +215,6 @@ const TaskDetail: React.FC = () => {
         link_ef: formData.link_ef,
         is_impediment: formData.is_impediment
       };
-      if (payload.status === 'In Progress' && !formData.actualStart) payload.actualStart = new Date().toISOString().split('T')[0];
       if (payload.status === 'Done' && !formData.actualDelivery) payload.actualDelivery = new Date().toISOString().split('T')[0];
       if (isNew) await createTask(payload);
       else if (taskId) await updateTask(taskId, payload);
@@ -417,7 +426,20 @@ const TaskDetail: React.FC = () => {
                     <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30 text-emerald-500" />
                     <div className="w-full pl-9 pr-3 py-3 text-lg font-black border rounded-xl bg-emerald-500/5 border-emerald-500/20 text-emerald-500 flex items-baseline gap-2">
                       <span>{formatDecimalToTime(actualHoursSpent)}</span>
-                      <span className="text-[10px] opacity-40 font-normal">({actualHoursSpent.toFixed(2)}h decimal)</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-2 grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Peso no Projeto</label>
+                    <div className="px-3 py-2 rounded-xl bg-purple-500/5 border border-purple-500/20 text-purple-600 font-black text-sm">
+                      {taskWeight.weight.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Forecast (Previsto)</label>
+                    <div className="px-3 py-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-600 font-black text-sm">
+                      {formatDecimalToTime(taskWeight.soldHours)}
                     </div>
                   </div>
                 </div>
@@ -436,10 +458,6 @@ const TaskDetail: React.FC = () => {
                       if (formData.status === 'Done' && newProgress < 100) {
                         newStatus = 'In Progress';
                         newActualDelivery = '';
-                      } else if (newProgress === 100 && formData.status !== 'Done') {
-                        // Optional: auto-complete if reaches 100%? 
-                        // The user didn't explicitly ask for this direction but it feels consistent.
-                        // However, let's stick to the prompt.
                       }
 
                       setFormData({
@@ -503,10 +521,10 @@ const TaskDetail: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[8px] font-bold opacity-40">Início Real</label>
-                      <div className={`flex items-center gap-2 p-2.5 rounded-xl border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[38px] ${formData.actualStart ? 'text-emerald-500' : 'text-[var(--muted)]'}`}>
-                        <Zap size={12} className={formData.actualStart ? 'animate-pulse' : 'opacity-20'} />
+                      <div className={`flex items-center gap-2 p-2.5 rounded-xl border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[38px] ${actualStartDate ? 'text-emerald-500' : 'text-[var(--muted)]'}`}>
+                        <Zap size={12} className={actualStartDate ? 'animate-pulse' : 'opacity-20'} />
                         <span className="text-[11px] font-bold">
-                          {formData.actualStart ? new Date(formData.actualStart + 'T12:00:00').toLocaleDateString('pt-BR') : 'Aguardando...'}
+                          {actualStartDate ? actualStartDate.toLocaleDateString('pt-BR') : 'Aguardando...'}
                         </span>
                       </div>
                     </div>
@@ -606,23 +624,135 @@ const TaskDetail: React.FC = () => {
                   .map(id => {
                     const u = users.find(usr => usr.id === id);
                     if (!u) return null;
+                    const memberInfo = projectMembers.find(pm => String(pm.id_projeto) === formData.projectId && String(pm.id_colaborador) === id);
+                    const teamCount = Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])])).filter(Boolean).length;
+                    const individualForecast = taskWeight.soldHours / (teamCount || 1);
+                    const memberRealHours = taskHours.filter(h => h.userId === id).reduce((sum, h) => sum + (Number(h.totalHours) || 0), 0);
+
                     return (
-                      <div key={id} className="flex items-center gap-2 p-2 rounded-xl border bg-[var(--bg)] border-[var(--border)]">
-                        <div className="w-6 h-6 rounded-lg bg-[var(--surface-2)] flex items-center justify-center text-[8px] font-bold overflow-hidden">
-                          {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : u.name[0]}
+                      <div key={id} className="flex flex-col gap-1.5 p-3 rounded-xl border bg-[var(--bg)] border-[var(--border)] group/member relative">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-[var(--surface-2)] flex items-center justify-center text-[10px] font-bold overflow-hidden shadow-sm">
+                            {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : u.name[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-extrabold truncate uppercase" style={{ color: 'var(--text)' }}>{u.name.split(' (')[0]}</p>
+                            <div className="flex items-center gap-2">
+                              {id === formData.developerId ? (
+                                <span className="text-[7px] font-black bg-yellow-400 text-black px-1 rounded flex items-center gap-0.5">
+                                  <Crown size={6} /> RESPONSÁVEL
+                                </span>
+                              ) : (
+                                <span className="text-[7px] font-black bg-indigo-500/10 text-indigo-500 px-1 rounded">MEMBRO</span>
+                              )}
+                            </div>
+                          </div>
+                          {id !== formData.developerId && (
+                            <button type="button" onClick={() => setFormData({ ...formData, collaboratorIds: formData.collaboratorIds?.filter(cid => cid !== id) })} className="p-1.5 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><X size={12} /></button>
+                          )}
                         </div>
-                        <span className="text-[10px] font-bold flex-1 truncate" style={{ color: 'var(--text)' }}>{u.name.split(' (')[0]}</span>
-                        {id === formData.developerId ? (
-                          <Crown size={12} className="text-yellow-500 shrink-0" />
-                        ) : (
-                          <button type="button" onClick={() => setFormData({ ...formData, collaboratorIds: formData.collaboratorIds?.filter(cid => cid !== id) })} className="p-1 text-red-500/50 hover:text-red-500"><X size={10} /></button>
-                        )}
+
+                        <div className="grid grid-cols-2 gap-2 mt-1 border-t border-[var(--border)] pt-2 border-dashed">
+                          <div className="flex flex-col">
+                            <span className="text-[7px] font-black uppercase opacity-40">Forecast T.</span>
+                            <span className="text-[10px] font-black text-blue-500">{formatDecimalToTime(individualForecast)}</span>
+                          </div>
+                          <div className="flex flex-col border-l border-[var(--border)] pl-2">
+                            <span className="text-[7px] font-black uppercase opacity-40">Real Exec.</span>
+                            <span className={`text-[10px] font-black ${memberRealHours > individualForecast && individualForecast > 0 ? 'text-red-500' : memberRealHours > 0 ? 'text-emerald-500' : 'opacity-30'}`}>
+                              {formatDecimalToTime(memberRealHours)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
               </div>
             </div>
           </div>
+
+          {/* Timesheet Detail Section */}
+          {!isNew && taskHours.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-8 rounded-[32px] border shadow-sm overflow-hidden"
+              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+            >
+              <div className="flex items-center justify-between mb-8 overflow-hidden">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center shadow-inner">
+                    <Clock size={24} className="text-emerald-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-widest text-emerald-500">Histórico de Apontamentos</h4>
+                    <p className="text-[10px] font-bold opacity-40 uppercase tracking-tighter" style={{ color: 'var(--muted)' }}>Detalhamento das horas registradas nesta tarefa</p>
+                  </div>
+                </div>
+                <div className="text-right bg-[var(--bg)] px-6 py-3 rounded-2xl border border-[var(--border)]">
+                  <p className="text-[9px] font-black uppercase opacity-40 tracking-widest mb-1" style={{ color: 'var(--muted)' }}>Total Acumulado</p>
+                  <p className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+                    {formatDecimalToTime(actualHoursSpent)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto custom-scrollbar-thin">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-[var(--border)]">
+                      <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Data</th>
+                      <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Colaborador</th>
+                      <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Horas</th>
+                      <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Descrição</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {[...taskHours].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
+                      <tr key={entry.id} className="group hover:bg-[var(--surface-2)] transition-all">
+                        <td className="py-5 px-4 whitespace-nowrap">
+                          <span className="text-[11px] font-black" style={{ color: 'var(--border-strong)' }}>
+                            {new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                        </td>
+                        <td className="py-5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-[var(--bg)] border border-[var(--border)] overflow-hidden flex items-center justify-center text-[11px] font-black shadow-sm">
+                              {users.find(u => u.id === entry.userId)?.avatarUrl ? (
+                                <img src={users.find(u => u.id === entry.userId)?.avatarUrl} className="w-full h-full object-cover" />
+                              ) : (
+                                <span style={{ color: 'var(--muted)' }}>{entry.userName?.substring(0, 2).toUpperCase()}</span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-bold m-0" style={{ color: 'var(--text)' }}>{entry.userName}</p>
+                              <p className="text-[8px] font-black uppercase tracking-widest opacity-30" style={{ color: 'var(--muted)' }}>Colaborador</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-5 px-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-black text-emerald-500 tabular-nums">{formatDecimalToTime(entry.totalHours)}</span>
+                            <div className="flex items-center gap-1 opacity-40 text-[9px] font-bold" style={{ color: 'var(--muted)' }}>
+                              <Clock size={8} />
+                              <span>{entry.startTime} - {entry.endTime}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-5 px-4 min-w-[300px]">
+                          <div className="p-3 rounded-xl bg-[var(--bg)] border border-dashed border-[var(--border)] group-hover:border-[var(--primary-soft)] transition-colors">
+                            <p className="text-[11px] leading-relaxed opacity-80" style={{ color: 'var(--text)' }}>
+                              {entry.description || <span className="italic opacity-30">Sem descrição detalhada...</span>}
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
         </form>
       </div>
 

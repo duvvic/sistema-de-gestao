@@ -88,6 +88,9 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 
+  const isDelayed = progress < (plannedProgress - 5);
+  const isHourOverrun = hoursReal > hoursSold && hoursSold > 0;
+
   const isEven = idx % 2 === 0;
   const rowBg = isEven ? 'var(--surface)' : 'var(--surface-2)';
 
@@ -105,9 +108,22 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
       <td className="p-3 sticky left-[150px] z-10 font-black text-[10px] group-hover:bg-[var(--surface-hover)] shadow-[1px_0_5px_rgba(0,0,0,0.05)] truncate border-r border-white/5" style={{ backgroundColor: rowBg, color: 'var(--text)' }}>
         {client?.name || "-"}
       </td>
-      <td className="p-3 sticky left-[290px] z-10 font-black text-xs group-hover:bg-[var(--surface-hover)] shadow-[2px_0_8px_rgba(0,0,0,0.05)] truncate border-r border-white/5" style={{ backgroundColor: rowBg, color: 'var(--text)' }}>
-        <div className="flex items-center gap-2">
-          {p.name}
+      <td className="p-3 sticky left-[290px] z-10 group-hover:bg-[var(--surface-hover)] shadow-[2px_0_8px_rgba(0,0,0,0.05)] truncate border-r border-white/5" style={{ backgroundColor: rowBg, color: 'var(--text)' }}>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-xs">{p.name}</span>
+            {isIncomplete && (
+              <span className="flex-shrink-0 bg-yellow-400 text-black text-[7px] font-black px-1 rounded flex items-center gap-0.5">
+                <AlertTriangle size={8} /> INC
+              </span>
+            )}
+            {isDelayed && (
+              <span className="flex-shrink-0 bg-red-500 text-white text-[7px] font-black px-1 rounded flex items-center gap-0.5 animate-pulse">
+                <Clock size={8} /> ATRASO
+              </span>
+            )}
+          </div>
+          {isHourOverrun && <span className="text-[7px] font-black text-red-500 uppercase tracking-tighter">Budget Estourado</span>}
         </div>
       </td>
       <td className="p-3 border-r border-white/5 bg-blue-500/[0.02]"><span className="text-[10px] text-blue-400 whitespace-nowrap">{statusP}</span></td>
@@ -138,13 +154,13 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
       <td className="p-3 border-r border-white/5 bg-emerald-500/[0.02]">
         <div className="flex items-center gap-1.5">
           <div className="w-12 h-1 bg-emerald-500/10 rounded-full overflow-hidden border border-emerald-500/20">
-            <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
+            <div className={`h-full ${isDelayed ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${progress}%` }} />
           </div>
-          <span className="text-[10px] font-black" style={{ color: 'var(--text)' }}>{Math.round(progress)}%</span>
+          <span className={`text-[10px] font-black ${isDelayed ? 'text-red-500 font-black' : 'text-[var(--text)]'}`}>{Math.round(progress)}%</span>
         </div>
       </td>
       <td className="p-3 border-l border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02]" style={{ color: 'var(--text-2)' }}>{Math.round(hoursSold)}h</td>
-      <td className={`p-3 border-r border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02] ${hoursReal > hoursSold ? 'text-red-400' : 'text-emerald-400'}`}>{Math.round(hoursReal)}h</td>
+      <td className={`p-3 border-r border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02] ${isHourOverrun ? 'text-red-500 font-black' : 'text-emerald-400'}`}>{Math.round(hoursReal)}h</td>
       <td className="p-3 border-r border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02]" style={{ color: 'var(--text)' }}>{sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
       <td className="p-3 border-r border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02]" style={{ color: 'var(--text-2)' }}>{costToday.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
       <td className={`p-3 text-[11px] font-black font-mono border-l bg-amber-500/5 ${result < 0 ? 'text-red-500' : 'text-emerald-500'}`} style={{ borderColor: 'var(--border)' }}>
@@ -213,7 +229,11 @@ const AdminDashboard: React.FC = () => {
   const [showPartnerDetailsId, setShowPartnerDetailsId] = useState<string | null>(null);
   const [showClientDetailsId, setShowClientDetailsId] = useState<string | null>(null);
 
-  const isProjectIncomplete = (p: Project) => false;
+  // Lógica de projeto incompleto (campos obrigatórios ausentes)
+  const isProjectIncomplete = (p: Project) => {
+    return !p.name?.trim() || !p.startDate || !p.estimatedDelivery || !p.horas_vendidas || p.horas_vendidas <= 0 ||
+      !p.clientId || !p.partnerId || !p.responsibleNicLabsId || !p.managerClient || (p.valor_total_rs || 0) <= 0;
+  };
 
   const toggleViewMode = (mode: 'grid' | 'list' | 'tasks') => {
     setViewMode(mode);
@@ -1557,6 +1577,11 @@ const AdminDashboard: React.FC = () => {
                         navigate(`/admin/clients/${client.id}`);
                       }}
                     >
+                      {hasIncomplete && (
+                        <div className="absolute top-2 right-2 z-10 bg-yellow-400 text-black px-1.5 py-0.5 rounded-full text-[7px] font-black flex items-center gap-1 shadow-lg shadow-yellow-500/20">
+                          <AlertTriangle size={8} /> INCOMPLETO
+                        </div>
+                      )}
                       <div className="w-full flex-1 bg-white dark:bg-white/95 p-3 flex items-center justify-center transition-all overflow-hidden border-b border-[var(--border)]">
                         <img
                           src={client.logoUrl}
@@ -1653,7 +1678,21 @@ const AdminDashboard: React.FC = () => {
                               const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
                               const progress = projectTasks.length > 0 ? Math.round((doneTasks / projectTasks.length) * 100) : 0;
 
+                              const startP = project.startDate ? new Date(project.startDate) : null;
+                              const endP = project.estimatedDelivery ? new Date(project.estimatedDelivery) : null;
+                              const now = new Date();
+                              let plannedProgress = 0;
+                              if (startP && endP && startP < endP) {
+                                if (now > endP) plannedProgress = 100;
+                                else if (now > startP) {
+                                  const total = endP.getTime() - startP.getTime();
+                                  const elapsed = now.getTime() - startP.getTime();
+                                  plannedProgress = (elapsed / total) * 100;
+                                }
+                              }
+
                               const isIncomplete = isProjectIncomplete(project);
+                              const isDelayed = progress < (plannedProgress - 5);
 
                               return (
                                 <motion.div
@@ -1667,7 +1706,7 @@ const AdminDashboard: React.FC = () => {
                                   }}
                                 >
                                   {/* Accent line at the top to keep the premium purple identity */}
-                                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-70" />
+                                  <div className={`absolute top-0 left-0 right-0 h-1 ${isIncomplete ? 'bg-yellow-400' : isDelayed ? 'bg-red-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'} opacity-80`} />
                                   {isAdmin && (
                                     <button
                                       onClick={(e) => {
@@ -1680,9 +1719,23 @@ const AdminDashboard: React.FC = () => {
                                       <Trash2 className="w-4 h-4" />
                                     </button>
                                   )}
-                                  <h4 className="font-bold mb-3 line-clamp-1 transition-colors uppercase text-[11px] tracking-wider text-purple-600 dark:text-purple-400">
-                                    {project.name}
-                                  </h4>
+                                  <div className="flex items-start justify-between mb-3 gap-2">
+                                    <h4 className="font-bold line-clamp-1 transition-colors uppercase text-[11px] tracking-wider text-purple-600 dark:text-purple-400 flex-1">
+                                      {project.name}
+                                    </h4>
+                                    <div className="flex gap-1 shrink-0">
+                                      {isIncomplete && (
+                                        <span className="bg-yellow-400 text-black text-[7px] font-black px-1 rounded flex items-center gap-0.5">
+                                          <AlertTriangle size={8} /> INC
+                                        </span>
+                                      )}
+                                      {isDelayed && (
+                                        <span className="bg-red-500 text-white text-[7px] font-black px-1 rounded flex items-center gap-0.5">
+                                          <Clock size={8} /> ATR
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
 
                                   <div className="space-y-4">
                                     {/* Evolução Física */}
@@ -1804,9 +1857,29 @@ const AdminDashboard: React.FC = () => {
                                           </h4>
                                           {isProjectIncomplete(project) && (
                                             <div className="bg-yellow-500 text-black px-1.5 py-0.5 rounded text-[7px] font-black flex items-center gap-1 self-center">
-                                              <AlertTriangle size={8} /> INCOMPLETO
+                                              <AlertTriangle size={8} /> INC
                                             </div>
                                           )}
+                                          {(() => {
+                                            const startP = project.startDate ? new Date(project.startDate) : null;
+                                            const endP = project.estimatedDelivery ? new Date(project.estimatedDelivery) : null;
+                                            const now = new Date();
+                                            let plannedProgress = 0;
+                                            if (startP && endP && startP < endP) {
+                                              if (now > endP) plannedProgress = 100;
+                                              else if (now > startP) {
+                                                const total = endP.getTime() - startP.getTime();
+                                                const elapsed = now.getTime() - startP.getTime();
+                                                plannedProgress = (elapsed / total) * 100;
+                                              }
+                                            }
+                                            const isDelayed = avgProgress < (plannedProgress - 5);
+                                            return isDelayed && (
+                                              <div className="bg-red-500 text-white px-1.5 py-0.5 rounded text-[7px] font-black flex items-center gap-1 self-center animate-pulse">
+                                                <Clock size={8} /> ATR
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                         <div className="flex items-center gap-3">
                                           {(() => {
@@ -1893,6 +1966,11 @@ const AdminDashboard: React.FC = () => {
                                                         task.status === 'Testing' ? 'Teste' :
                                                           task.status === 'Done' ? 'Concluído' : task.status}
                                                 </span>
+                                                {task.status !== 'Done' && task.estimatedDelivery && new Date(task.estimatedDelivery) < new Date() && (
+                                                  <span className="text-[6px] font-black uppercase px-2 py-0.5 rounded-md bg-red-500 text-white animate-pulse">
+                                                    ATRASADA
+                                                  </span>
+                                                )}
                                               </div>
                                             </div>
 

@@ -137,8 +137,23 @@ const AllProjectsView: React.FC = () => {
                       {clientProjects.map(project => {
                         const projectTasks = tasks.filter(t => t.projectId === project.id);
                         const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
+                        const progress = projectTasks.length > 0 ? (doneTasks / projectTasks.length) * 100 : 0;
+
+                        const startP = project.startDate ? new Date(project.startDate) : null;
+                        const endP = project.estimatedDelivery ? new Date(project.estimatedDelivery) : null;
+                        const now = new Date();
+                        let plannedProgress = 0;
+                        if (startP && endP && startP < endP) {
+                          if (now > endP) plannedProgress = 100;
+                          else if (now > startP) {
+                            const total = endP.getTime() - startP.getTime();
+                            const elapsed = now.getTime() - startP.getTime();
+                            plannedProgress = (elapsed / total) * 100;
+                          }
+                        }
 
                         const isIncomplete = isProjectIncomplete(project);
+                        const isDelayed = progress < (plannedProgress - 5);
 
                         return (
                           <button
@@ -147,24 +162,29 @@ const AllProjectsView: React.FC = () => {
                             className={`border-2 rounded-xl p-5 hover:shadow-lg transition-all text-left group relative overflow-hidden ${isIncomplete ? 'ring-1 ring-yellow-500/50' : ''}`}
                             style={{
                               backgroundColor: 'var(--surface)',
-                              borderColor: isIncomplete ? '#eab308' : 'var(--border)'
+                              borderColor: isIncomplete ? '#eab308' : isDelayed ? '#ef4444' : 'var(--border)'
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.borderColor = isIncomplete ? '#eab308' : 'var(--brand)'}
-                            onMouseLeave={(e) => e.currentTarget.style.borderColor = isIncomplete ? '#eab308' : 'var(--border)'}
                           >
-                            {isIncomplete && (
-                              <div className="absolute top-0 right-0 p-1 px-2 bg-yellow-500 text-black text-[8px] font-black uppercase rounded-bl-lg animate-pulse z-10">
-                                Incompleto
-                              </div>
-                            )}
+                            <div className="absolute top-0 right-0 flex">
+                              {isIncomplete && (
+                                <div className="p-1 px-2 bg-yellow-400 text-black text-[8px] font-black uppercase rounded-bl-lg z-10">
+                                  INC
+                                </div>
+                              )}
+                              {isDelayed && (
+                                <div className="p-1 px-2 bg-red-500 text-white text-[8px] font-black uppercase rounded-bl-lg z-10 animate-pulse">
+                                  ATR
+                                </div>
+                              )}
+                            </div>
                             <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)]" style={{ color: 'var(--textTitle)' }}>
                               {project.name}
                             </h3>
 
                             <div className="space-y-2">
                               <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
-                                <CheckSquare className="w-4 h-4 text-green-500" />
-                                <span>{doneTasks}/{projectTasks.length} tarefas concluídas</span>
+                                <CheckSquare className={`w-4 h-4 ${isDelayed ? 'text-red-500' : 'text-green-500'}`} />
+                                <span className={isDelayed ? 'text-red-500 font-bold' : ''}>{doneTasks}/{projectTasks.length} tarefas ({Math.round(progress)}%)</span>
                               </div>
                             </div>
 
@@ -212,7 +232,23 @@ const AllProjectsView: React.FC = () => {
               const client = clients.find(c => c.id === project.clientId);
               const projectTasks = tasks.filter(t => t.projectId === project.id);
               const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
+              const progress = projectTasks.length > 0 ? (doneTasks / projectTasks.length) * 100 : 0;
+
+              const startP = project.startDate ? new Date(project.startDate) : null;
+              const endP = project.estimatedDelivery ? new Date(project.estimatedDelivery) : null;
+              const now = new Date();
+              let plannedProgress = 0;
+              if (startP && endP && startP < endP) {
+                if (now > endP) plannedProgress = 100;
+                else if (now > startP) {
+                  const total = endP.getTime() - startP.getTime();
+                  const elapsed = now.getTime() - startP.getTime();
+                  plannedProgress = (elapsed / total) * 100;
+                }
+              }
+
               const isIncomplete = isProjectIncomplete(project);
+              const isDelayed = progress < (plannedProgress - 5);
 
               return (
                 <button
@@ -221,16 +257,21 @@ const AllProjectsView: React.FC = () => {
                   className={`border-2 rounded-xl p-6 hover:shadow-lg transition-all text-left group relative overflow-hidden ${isIncomplete ? 'ring-1 ring-yellow-500/50' : ''}`}
                   style={{
                     backgroundColor: 'var(--surface)',
-                    borderColor: isIncomplete ? '#eab308' : 'var(--border)'
+                    borderColor: isIncomplete ? '#eab308' : isDelayed ? '#ef4444' : 'var(--border)'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = isIncomplete ? '#eab308' : 'var(--brand)'}
-                  onMouseLeave={(e) => e.currentTarget.style.borderColor = isIncomplete ? '#eab308' : 'var(--border)'}
                 >
-                  {isIncomplete && (
-                    <div className="absolute top-0 right-0 p-1 px-2 bg-yellow-500 text-black text-[8px] font-black uppercase rounded-bl-lg animate-pulse z-10">
-                      Incompleto
-                    </div>
-                  )}
+                  <div className="absolute top-0 right-0 flex">
+                    {isIncomplete && (
+                      <div className="p-1 px-2 bg-yellow-400 text-black text-[8px] font-black uppercase rounded-bl-lg z-10">
+                        INC
+                      </div>
+                    )}
+                    {isDelayed && (
+                      <div className="p-1 px-2 bg-red-500 text-white text-[8px] font-black uppercase rounded-bl-lg z-10 animate-pulse">
+                        ATR
+                      </div>
+                    )}
+                  </div>
                   {/* Cliente Logo */}
                   {client && (
                     <div className="flex items-center gap-2 mb-4 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -247,8 +288,8 @@ const AllProjectsView: React.FC = () => {
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
-                      <CheckSquare className="w-4 h-4 text-green-500" />
-                      <span>{doneTasks}/{projectTasks.length} tarefas concluídas</span>
+                      <CheckSquare className={`w-4 h-4 ${isDelayed ? 'text-red-500' : 'text-green-500'}`} />
+                      <span className={isDelayed ? 'text-red-500 font-bold' : ''}>{doneTasks}/{projectTasks.length} tarefas ({Math.round(progress)}%)</span>
                     </div>
 
                     {project.status && (

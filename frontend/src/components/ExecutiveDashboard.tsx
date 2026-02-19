@@ -80,7 +80,21 @@ const ExecutiveDashboard: React.FC = () => {
           return new Date(t.estimatedDelivery) < new Date();
         }).length;
 
-        const isCritical = overdueTasks > 0 || burnRate > 90 || margin < 15;
+        const now = new Date();
+        const startP = p.startDate ? new Date(p.startDate) : null;
+        const endP = p.estimatedDelivery ? new Date(p.estimatedDelivery) : null;
+        let plannedProgress = 0;
+        if (startP && endP && startP < endP) {
+          if (now > endP) plannedProgress = 100;
+          else if (now > startP) {
+            const total = endP.getTime() - startP.getTime();
+            const elapsed = now.getTime() - startP.getTime();
+            plannedProgress = (elapsed / total) * 100;
+          }
+        }
+        const isProjectDelayed = progress < (plannedProgress - 5);
+
+        const isCritical = overdueTasks > 0 || burnRate > 90 || margin < 15 || isProjectDelayed;
 
         return {
           id: p.id,
@@ -100,6 +114,7 @@ const ExecutiveDashboard: React.FC = () => {
           completedTasks,
           overdueTasks,
           isCritical,
+          isProjectDelayed,
           isIncomplete: isProjectIncomplete(p)
         };
       });
@@ -313,6 +328,11 @@ const ExecutiveDashboard: React.FC = () => {
                     {project.isIncomplete && (
                       <span title="Cadastro Incompleto">
                         <AlertTriangle className="w-4 h-4 text-yellow-500 animate-pulse" />
+                      </span>
+                    )}
+                    {project.isProjectDelayed && (
+                      <span title="Projeto com Atraso de Cronograma">
+                        <Clock className="w-4 h-4 text-red-500 animate-pulse" />
                       </span>
                     )}
                     {project.projectName}

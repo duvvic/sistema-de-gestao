@@ -7,6 +7,7 @@ export function normalizeStatus(raw: string | null): Status {
     if (s.includes("pré-projeto") || s.includes("projeto") || s.includes("não iniciado")) return "Todo";
     if (s.includes("conclu") || s.includes("done") || s.includes("finaliz")) return "Done";
     if (s.includes("analise") || s.includes("análise") || s.includes("revis") || s.includes("review") || s.includes("valida") || s.includes("pendente")) return "Review";
+    if (s.includes("teste") || s.includes("testing")) return "Testing";
     if (s.includes("andamento") || s.includes("progresso") || s.includes("progress") || s.includes("execu") || s.includes("iniciado") || s.includes("trabalhando")) return "In Progress";
     return "Todo";
 }
@@ -100,6 +101,7 @@ export function mapDbTaskToTask(row: any, userMap?: Map<string, any>, projectNam
         id_tarefa_novo: row.id_tarefa_novo,
         estimatedHours: row.estimated_hours ? Number(row.estimated_hours) : undefined,
         is_impediment: !!row.is_impediment,
+        task_weight: row.task_weight ? Number(row.task_weight) : undefined,
         daysOverdue: calculateDaysOverdue(row.entrega_estimada, row.entrega_real, status),
         deleted_at: row.deleted_at || undefined
     };

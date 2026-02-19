@@ -123,14 +123,14 @@ const ProjectForm: React.FC = () => {
     }
   }, [isEdit, projectId, projectMembers]);
 
-  // Validação simplificada (apenas o nome continua sendo necessário para a estrutura básica)
-  const isProjectIncomplete = !name.trim();
+  // Validação obrigatória conforme nova regra de negócio
+  const isProjectIncomplete = !name.trim() || !startDate || !estimatedDelivery || !horasVendidas || horasVendidas <= 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim()) {
-      alert('Por favor, defina pelo menos o nome do projeto.');
+    if (isProjectIncomplete) {
+      alert('Por favor, preencha todos os campos obrigatórios: Nome, Data de Início, Entrega Estimada e Horas Vendidas (> 0).');
       return;
     }
 
@@ -368,14 +368,14 @@ const ProjectForm: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Horas Vendidas (Budget)</label>
+                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Horas Vendidas (Budget) *</label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
                     <input
                       type="number"
                       value={horasVendidas || ''}
                       onChange={(e) => setHorasVendidas(Number(e.target.value))}
-                      className={`w-full pl-9 pr-3 py-4 text-xl font-black border rounded-2xl outline-none transition-all tabular-nums bg-[var(--bg)] border-[var(--border)]`}
+                      className={`w-full pl-9 pr-3 py-4 text-xl font-black border rounded-2xl outline-none transition-all tabular-nums ${!horasVendidas ? 'bg-orange-500/5 border-orange-500/30' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                       style={{ color: 'var(--text)' }}
                     />
                   </div>
@@ -391,20 +391,20 @@ const ProjectForm: React.FC = () => {
               </div>
               <div className="space-y-4">
                 <div className="p-4 rounded-2xl border border-dashed" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg)' }}>
-                  <label className="text-[9px] font-black uppercase mb-2 block text-blue-500">Planejado</label>
+                  <label className="text-[9px] font-black uppercase mb-2 block text-blue-500">Planejado (Ini / Fim) *</label>
                   <div className="space-y-3">
                     <input
                       type="date"
                       value={startDate}
                       onChange={e => setStartDate(e.target.value)}
-                      className="w-full text-xs font-bold p-2 rounded-lg border outline-none bg-transparent border-[var(--border)]"
+                      className={`w-full text-xs font-bold p-2 rounded-lg border outline-none bg-transparent ${!startDate ? 'bg-orange-500/5 border-orange-500/30' : 'border-[var(--border)]'}`}
                       style={{ color: 'var(--text)' }}
                     />
                     <input
                       type="date"
                       value={estimatedDelivery}
                       onChange={e => setEstimatedDelivery(e.target.value)}
-                      className="w-full text-xs font-bold p-2 rounded-lg border outline-none bg-transparent border-[var(--border)]"
+                      className={`w-full text-xs font-bold p-2 rounded-lg border outline-none bg-transparent ${!estimatedDelivery ? 'bg-orange-500/5 border-orange-500/30' : 'border-[var(--border)]'}`}
                       style={{ color: !estimatedDelivery ? 'var(--text)' : undefined }}
                     />
                   </div>

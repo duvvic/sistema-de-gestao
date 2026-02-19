@@ -99,6 +99,7 @@ export interface Task {
   estimatedHours?: number; // Horas previstas para execução
   allocatedHours?: number; // Horas alocadas para o colaborador (mapa de capacidade)
   is_impediment?: boolean; // Flag de impedimento
+  task_weight?: number; // Peso percentual da tarefa no projeto
   deleted_at?: string;
 }
 

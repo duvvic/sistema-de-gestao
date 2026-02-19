@@ -33,6 +33,7 @@ function mapStatusToDb(status: string | undefined): string {
     case 'Done': return 'Concluído';
     case 'In Progress': return 'Andamento';
     case 'Review': return 'Análise';
+    case 'Testing': return 'Teste';
     case 'Todo':
     default: return 'Pré-Projeto';
   }

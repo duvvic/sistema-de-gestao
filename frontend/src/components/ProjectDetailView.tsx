@@ -350,13 +350,21 @@ const ProjectDetailView: React.FC = () => {
               <div className="flex items-center gap-2 mt-1">
                 {isAdmin && isProjectIncomplete && (
                   <span
-                    className="text-[10px] font-black uppercase bg-yellow-500 text-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg shadow-yellow-500/20 cursor-help"
-                    title="Cadastro incompleto. Clique no ícone de lápis ao lado para editar e preencher os campos amarelados."
+                    className="text-[10px] font-black uppercase bg-yellow-400 text-black px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-yellow-500/20 cursor-help"
+                    title="Cadastro incompleto. Preencha todos os campos obrigatórios."
                   >
-                    <AlertTriangle size={10} /> INCOMPLETO
+                    <AlertTriangle size={12} /> INC
                   </span>
                 )}
-                <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-0.5 rounded-full tracking-tighter">
+                {isAdmin && performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5) && (
+                  <span
+                    className="text-[10px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-red-500/20 animate-pulse"
+                    title="Projeto com progresso abaixo do planejado."
+                  >
+                    <Clock size={12} /> ATR
+                  </span>
+                )}
+                <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-lg tracking-widest border border-white/10">
                   {getProjectStatusByTimeline(project)}
                 </span>
                 <span className="text-xs text-white/60">{client?.name}</span>
@@ -408,6 +416,49 @@ const ProjectDetailView: React.FC = () => {
       {/* CONTENT */}
       <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         <div className="max-w-7xl mx-auto space-y-5">
+
+          {/* CRITICAL STATUS BANNER */}
+          {isAdmin && (isProjectIncomplete || (performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5)) || (performance && performance.consumedHours > (project.horas_vendidas || 0) && (project.horas_vendidas || 0) > 0)) && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-4 rounded-[2rem] border flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl ${isProjectIncomplete ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-red-500/10 border-red-500/50'}`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-2xl ${isProjectIncomplete ? 'bg-yellow-500 text-black' : 'bg-red-500 text-white shadow-lg shadow-red-500/20'}`}>
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className={`text-sm font-black uppercase tracking-tight ${isProjectIncomplete ? 'text-yellow-700' : 'text-red-700'}`}>
+                    {isProjectIncomplete ? 'Cadastro de Projeto Incompleto' : 'Atenção: Indicadores Críticos'}
+                  </h3>
+                  <p className="text-[10px] font-bold opacity-70" style={{ color: isProjectIncomplete ? 'var(--yellow-700)' : 'var(--red-700)' }}>
+                    {isProjectIncomplete
+                      ? 'Este projeto possui campos obrigatórios ausentes. Complete as informações para garantir a precisão dos cálculos e relatórios.'
+                      : `Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (performance && performance.consumedHours > (project.horas_vendidas || 0)) ? ' e ' : ''}${(performance && performance.consumedHours > (project.horas_vendidas || 0)) ? 'estouro de orçamento de horas' : ''}.`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {isProjectIncomplete && !isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-6 py-2 bg-yellow-500 text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-600 transition-all shadow-lg"
+                  >
+                    Completar Agora
+                  </button>
+                )}
+                {(!isProjectIncomplete || isEditing) && (
+                  <button
+                    onClick={() => setActiveTab('tasks')}
+                    className="px-6 py-2 bg-red-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg"
+                  >
+                    Ver Detalhes
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
 
           <AnimatePresence mode="wait">
             {activeTab === 'technical' ? (
@@ -509,7 +560,10 @@ const ProjectDetailView: React.FC = () => {
                                   </h4>
                                 </div>
                                 <div className={`text-[12px] font-black tabular-nums shrink-0 ${isHourOverrun ? 'text-red-500' : 'text-[var(--text)]'}`}>
-                                  {formatDecimalToTime(taskReported)}<span className="text-[9px] opacity-10 font-bold ml-0.5">/{formatDecimalToTime(taskSoldHours)}</span>
+                                  {formatDecimalToTime(taskReported)}
+                                  <span className={`text-[10px] font-black ml-1 ${isHourOverrun ? 'text-red-500/40' : 'opacity-60'}`}>
+                                    / {formatDecimalToTime(taskSoldHours)}
+                                  </span>
                                 </div>
                               </div>
 
@@ -533,8 +587,8 @@ const ProjectDetailView: React.FC = () => {
                                 </div>
 
                                 <div className="flex gap-1 shrink-0">
-                                  {isHourOverrun && <span className="text-[7px] font-black bg-red-500/5 text-red-500/60 px-1 rounded uppercase border border-red-500/10">Excedido</span>}
-                                  {isDateOut && <span className="text-[7px] font-black bg-amber-500/5 text-amber-500/60 px-1 rounded uppercase border border-amber-500/10">Fora</span>}
+                                  {isHourOverrun && <span className="text-[7px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded uppercase shadow-sm shadow-red-500/20 border border-red-600">Excedido</span>}
+                                  {isDateOut && <span className="text-[7px] font-black bg-amber-500 text-black px-1.5 py-0.5 rounded uppercase border border-amber-600 shadow-sm shadow-amber-500/10">Fora</span>}
                                 </div>
                               </div>
 
@@ -1051,10 +1105,32 @@ const ProjectDetailView: React.FC = () => {
                                           const reported = timesheetEntries
                                             .filter(e => e.projectId === projectId && e.userId === u.id)
                                             .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+
+                                          // Involvement calc: total days in tasks / total project duration
+                                          const memberTasks = projectTasks.filter(t => t.developerId === u.id || (t.collaboratorIds && t.collaboratorIds.includes(u.id)));
+                                          const pStart = project.startDate ? new Date(project.startDate + 'T12:00:00') : new Date();
+                                          const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery + 'T12:00:00') : pStart;
+                                          const projectDuration = Math.max(1, (pEnd.getTime() - pStart.getTime()) / (1000 * 60 * 60 * 24));
+
+                                          const involvementDays = memberTasks.reduce((acc, t) => {
+                                            if (!t.scheduledStart || !t.estimatedDelivery) return acc + 1;
+                                            const tStart = new Date(t.scheduledStart + 'T12:00:00');
+                                            const tEnd = new Date(t.estimatedDelivery + 'T12:00:00');
+                                            return acc + Math.max(1, (tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24));
+                                          }, 0);
+
+                                          const involvementPercent = Math.min(100, (involvementDays / projectDuration) * 100);
+
                                           return (
-                                            <div className="flex items-center gap-3">
-                                              <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
-                                              <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
+                                            <div className="flex items-center justify-start gap-6">
+                                              <div className="flex items-center gap-3">
+                                                <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
+                                                <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
+                                              </div>
+                                              <div className="flex items-center gap-3">
+                                                <p className="text-[7px] font-black uppercase opacity-40">ENV.</p>
+                                                <p className="text-[12px] font-black text-purple-500">{involvementPercent.toFixed(0)}%</p>
+                                              </div>
                                             </div>
                                           );
                                         })()}
@@ -1331,6 +1407,7 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
   };
 
   const statusInfo = statusMap[task.status] || { label: task.status, color: 'text-slate-400', bg: 'bg-slate-400/10' };
+  const isLate = task.status !== 'Done' && task.estimatedDelivery && new Date(task.estimatedDelivery) < new Date();
 
   return (
     <motion.div
@@ -1342,12 +1419,19 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
       <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-600 opacity-0 group-hover:opacity-100 transition-all" />
 
       <div className="flex justify-between items-center mb-6">
-        <span className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest ${statusInfo.bg} ${statusInfo.color}`}>
-          {statusInfo.label}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest ${statusInfo.bg} ${statusInfo.color}`}>
+            {statusInfo.label}
+          </span>
+          {isLate && (
+            <span className="flex items-center gap-1.5 text-[9px] font-black text-white bg-red-500 px-3 py-1.5 rounded-full uppercase tracking-widest animate-pulse shadow-lg shadow-red-500/20">
+              <Clock size={12} /> ATRASADA
+            </span>
+          )}
+        </div>
         {task.priority === 'Critical' && (
           <div className="flex items-center gap-1.5 text-[9px] font-black text-red-500 uppercase tracking-tighter animate-pulse">
-            <ShieldAlert size={14} /> CRÍTICO
+            <AlertCircle size={14} /> CRÍTICO
           </div>
         )}
       </div>
@@ -1386,7 +1470,7 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
               <span className="text-sm font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(actualHours)}</span>
               {isAdmin && (
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--muted)' }}>
+                  <span className="text-[11px] font-black opacity-70" style={{ color: 'var(--muted)' }}>
                     / {formatDecimalToTime(distributedHours)}
                   </span>
                 </div>

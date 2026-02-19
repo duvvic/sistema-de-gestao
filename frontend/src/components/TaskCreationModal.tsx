@@ -125,6 +125,33 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
             setError('A equipe alocada é obrigatória. Selecione pelo menos um colaborador.');
             return;
         }
+        if (!scheduledStart) {
+            setError('A data de início da tarefa é obrigatória.');
+            return;
+        }
+        if (!estimatedDelivery) {
+            setError('A data de entrega estimada é obrigatória.');
+            return;
+        }
+
+        // Validar intervalo do projeto
+        const project = projects.find(p => String(p.id) === String(projectId));
+        if (project) {
+            const pStart = project.startDate ? new Date(project.startDate + 'T00:00:00') : null;
+            const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery + 'T23:59:59') : null;
+            const tStart = new Date(scheduledStart + 'T00:00:00');
+            const tEnd = new Date(estimatedDelivery + 'T00:00:00');
+
+            if (pStart && tStart < pStart) {
+                setError(`A data de início da tarefa (${scheduledStart}) não pode ser anterior ao início do projeto (${project.startDate}).`);
+                return;
+            }
+            if (pEnd && tEnd > pEnd) {
+                setError(`A data de entrega da tarefa (${estimatedDelivery}) não pode ser posterior à entrega do projeto (${project.estimatedDelivery}).`);
+                return;
+            }
+        }
+
         if (!developerId) {
             setError('O responsável principal é obrigatório.');
             return;
@@ -362,7 +389,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                         <div className="grid grid-cols-2 gap-4">
                             {/* Previsão Início */}
                             <div>
-                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Previsão Início</label>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Previsão Início *</label>
                                 <input
                                     type="date"
                                     value={scheduledStart}
@@ -373,7 +400,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
 
                             {/* Entrega Estimada */}
                             <div>
-                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Entrega Estimada</label>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70">Entrega Estimada *</label>
                                 <input
                                     type="date"
                                     value={estimatedDelivery}

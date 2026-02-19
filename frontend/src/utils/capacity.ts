@@ -208,49 +208,20 @@ export const calculateIndividualReleaseDate = (
     timesheetEntries: any[],
     tasks: Task[] = []
 ): string => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const today = new Date(todayStr + 'T12:00:00');
-    const dailyGoal = user.dailyAvailableHours || 8;
-
-    // 1. Filtrar tarefas ativas do usuário
-    const userTasks = tasks.filter(t =>
+    // 1. Filtrar tarefas ativas (não concluídas) do usuário
+    const activeTasks = tasks.filter(t =>
         (t.developerId === user.id || (t.collaboratorIds && t.collaboratorIds.includes(user.id))) &&
-        t.status !== 'Done'
+        t.status !== 'Done' &&
+        t.estimatedDelivery
     );
 
-    let totalRemainingDemand = 0;
+    if (activeTasks.length === 0) return 'Livre';
 
-    userTasks.forEach(task => {
-        const estimated = task.estimatedHours || 0;
-        if (estimated <= 0) return;
+    // 2. Encontrar a data de entrega mais tardia
+    const deliveryDates = activeTasks.map(t => new Date(t.estimatedDelivery + 'T12:00:00').getTime());
+    const latestTimestamp = Math.max(...deliveryDates);
+    const latestDate = new Date(latestTimestamp);
 
-        // Horas já realizadas NESTA tarefa específica
-        const performedOnTask = timesheetEntries
-            .filter(te => String(te.taskId) === String(task.id) && String(te.userId) === String(user.id))
-            .reduce((sum, te) => sum + (Number(te.totalHours || te.hours) || 0), 0);
-
-        const userCount = 1 + (task.collaboratorIds?.length || 0);
-        const individualTarget = estimated / userCount;
-
-        totalRemainingDemand += Math.max(0, individualTarget - performedOnTask);
-    });
-
-    if (totalRemainingDemand <= 0) return 'Disponível';
-
-    // 2. Calcular dias necessários
-    const workingDaysNeeded = Math.ceil(totalRemainingDemand / dailyGoal);
-
-    let currentDate = new Date(today);
-    let daysAdded = 0;
-
-    while (daysAdded < workingDaysNeeded) {
-        currentDate.setDate(currentDate.getDate() + 1);
-        const dayOfWeek = currentDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-            daysAdded++;
-        }
-    }
-
-    return currentDate.toLocaleDateString('pt-BR');
+    return latestDate.toLocaleDateString('pt-BR');
 };
 
