@@ -108,6 +108,8 @@ export async function createTask(data: Partial<Task>): Promise<number> {
     .single();
 
   if (error) {
+    console.error("Supabase createTask error:", error);
+    console.error("Payload was:", payload);
     throw error;
   }
 
@@ -248,6 +250,8 @@ export async function updateTask(taskId: string, data: Partial<Task>): Promise<v
     .eq("id_tarefa_novo", Number(taskId));
 
   if (error) {
+    console.error("Supabase updateTask error:", error);
+    console.error("Payload was:", payload);
     throw error;
   }
 

@@ -119,7 +119,7 @@ const TaskDetail: React.FC = () => {
   }, [task, preSelectedClientId, preSelectedProjectId, projects]);
 
   useEffect(() => {
-    if (formData.status === 'Review' || formData.status === 'Testing' || formData.status === 'Done') return;
+    if (formData.status === 'In Progress' || formData.status === 'Review' || formData.status === 'Testing' || formData.status === 'Done') return;
 
     if (formData.scheduledStart) {
       const startParts = formData.scheduledStart.split('-');
@@ -151,22 +151,41 @@ const TaskDetail: React.FC = () => {
 
   const taskWeight = useMemo(() => {
     const project = projects.find(p => p.id === formData.projectId);
-    const taskStartValue = formData.scheduledStart || (actualStartDate ? actualStartDate.toISOString().split('T')[0] : null);
+    if (!project || !project.startDate || !project.estimatedDelivery) return { weight: 0, soldHours: 0 };
 
-    if (!project || !project.startDate || !project.estimatedDelivery || !taskStartValue || !formData.estimatedDelivery) {
-      return { weight: 0, soldHours: 0 };
-    }
-    const projStart = new Date(project.startDate).getTime();
-    const projEnd = new Date(project.estimatedDelivery).getTime();
-    const projDuration = projEnd - projStart;
-    const taskStart = new Date(taskStartValue).getTime();
-    const taskEnd = new Date(formData.estimatedDelivery).getTime();
-    const taskDuration = taskEnd - taskStart;
-    if (projDuration <= 0 || taskDuration <= 0) return { weight: 0, soldHours: 0 };
-    const weight = (taskDuration / projDuration) * 100;
-    const soldHours = (project.horas_vendidas || 0) > 0 ? (weight / 100) * project.horas_vendidas : 0;
+    const ONE_DAY = 86400000;
+    const parseSafeDate = (d: string | null | undefined) => {
+      if (!d) return null;
+      const s = d.split('T')[0];
+      return new Date(s + 'T12:00:00').getTime();
+    };
+
+    const pStartTs = parseSafeDate(project.startDate)!;
+    const pEndTs = parseSafeDate(project.estimatedDelivery)!;
+
+    // Calcula a duração de TODAS as tarefas do projeto (mesma fórmula do ProjectDetailView)
+    const projectTasks = tasks.filter(t => t.projectId === formData.projectId);
+    const siblingsFactors = projectTasks.map(t => {
+      const tStart = parseSafeDate(t.scheduledStart || t.actualStart) || pStartTs;
+      const tEnd = parseSafeDate(t.estimatedDelivery) || tStart;
+      return Math.max(0, tEnd - tStart) + ONE_DAY;
+    });
+    const totalSiblingDuration = siblingsFactors.reduce((a, b) => a + b, 0);
+    if (totalSiblingDuration <= 0) return { weight: 0, soldHours: 0 };
+
+    const firstEntryTs = (timesheetEntries || [])
+      .filter(e => e.taskId === taskId)
+      .map(e => new Date(e.date + 'T12:00:00').getTime());
+    const firstEntryDateTs = firstEntryTs.length > 0 ? Math.min(...firstEntryTs) : null;
+
+    const tStartTs = parseSafeDate(formData.scheduledStart || formData.actualStart) || firstEntryDateTs || pStartTs;
+    const tEndTs = parseSafeDate(formData.estimatedDelivery) || tStartTs;
+    const taskDurationTs = Math.max(0, tEndTs - tStartTs) + ONE_DAY;
+
+    const weight = (taskDurationTs / totalSiblingDuration) * 100;
+    const soldHours = (project?.horas_vendidas || 0) > 0 ? (weight / 100) * project.horas_vendidas : 0;
     return { weight, soldHours };
-  }, [formData.scheduledStart, formData.estimatedDelivery, formData.projectId, projects, actualStartDate]);
+  }, [formData.scheduledStart, formData.actualStart, formData.estimatedDelivery, formData.projectId, projects, tasks, timesheetEntries, taskId]);
 
   const isOwner = task && task.developerId === currentUser?.id;
   const isCollaborator = !isNew && task && task.collaboratorIds?.includes(currentUser?.id || '');
@@ -175,9 +194,9 @@ const TaskDetail: React.FC = () => {
 
   const getDelayDays = () => {
     if (formData.status === 'Done' || formData.status === 'Review' || !formData.estimatedDelivery) return 0;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(12, 0, 0, 0);
     const parts = formData.estimatedDelivery.split('-');
-    const due = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const due = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0, 0);
     return today > due ? Math.ceil((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)) : 0;
   };
   const daysDelayed = getDelayDays();
@@ -206,6 +225,30 @@ const TaskDetail: React.FC = () => {
       return;
     }
 
+    // Validação de intervalo do projeto
+    const project = projects.find(p => String(p.id) === String(formData.projectId));
+    if (project) {
+      const parseSafeDate = (d: string | null | undefined) => {
+        if (!d) return null;
+        const s = d.split('T')[0];
+        return new Date(s + 'T12:00:00').getTime();
+      };
+
+      const pStart = parseSafeDate(project.startDate);
+      const pEnd = parseSafeDate(project.estimatedDelivery);
+      const tStart = parseSafeDate(formData.scheduledStart);
+      const tEnd = parseSafeDate(formData.estimatedDelivery);
+
+      if (pStart && tStart && tStart < pStart) {
+        alert(`A data de início da tarefa (${formData.scheduledStart}) não pode ser anterior ao início do projeto (${project.startDate}).`);
+        return;
+      }
+      if (pEnd && tEnd && tEnd > pEnd) {
+        alert(`A data de entrega da tarefa (${formData.estimatedDelivery}) não pode ser posterior à entrega do projeto (${project.estimatedDelivery}).`);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       const payload: any = {
@@ -215,11 +258,14 @@ const TaskDetail: React.FC = () => {
         link_ef: formData.link_ef,
         is_impediment: formData.is_impediment
       };
+      console.log("Saving task payload:", payload);
       if (payload.status === 'Done' && !formData.actualDelivery) payload.actualDelivery = new Date().toISOString().split('T')[0];
       if (isNew) await createTask(payload);
       else if (taskId) await updateTask(taskId, payload);
       discardChanges(); navigate(-1);
-    } catch (error) { alert("Erro ao salvar"); } finally { setLoading(false); }
+    } catch (error: any) {
+      alert("Erro ao salvar: " + (error?.message || "Erro desconhecido"));
+    } finally { setLoading(false); }
   };
 
   const taskHours = timesheetEntries.filter(e => e.taskId === taskId);

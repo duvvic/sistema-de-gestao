@@ -97,6 +97,8 @@ export async function updateProject(projectId: string, data: Partial<Project>): 
     .eq("ID_Projeto", Number(projectId));
 
   if (error) {
+    console.error("Supabase updateProject error:", error);
+    console.log("Payload was:", payload);
 
     throw error;
   }

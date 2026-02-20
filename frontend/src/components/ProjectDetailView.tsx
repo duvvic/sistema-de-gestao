@@ -16,6 +16,15 @@ import * as CapacityUtils from '@/utils/capacity';
 import { formatDecimalToTime } from '@/utils/normalizers';
 import { getProjectStatusByTimeline } from '@/utils/projectStatus';
 
+// --- UTILS ---
+const parseSafeDate = (d: string | null | undefined) => {
+  if (!d) return null;
+  const s = d.split('T')[0];
+  // Use noon to stay on the same local date regardless of offset < 12h
+  return new Date(s + 'T12:00:00').getTime();
+};
+const ONE_DAY = 86400000;
+
 const ProjectDetailView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -145,17 +154,26 @@ const ProjectDetailView: React.FC = () => {
       return acc + Math.max(t.estimatedHours || 0, reported);
     }, 0);
 
-    const pStart = project.startDate ? new Date(project.startDate) : new Date();
-    const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery) : pStart;
-    const projectDuration = Math.max(1, Math.ceil((pEnd.getTime() - pStart.getTime()) / (1000 * 60 * 60 * 24)));
+    const pStartTs = parseSafeDate(project.startDate) || Date.now();
+    const pEndTs = parseSafeDate(project.estimatedDelivery) || pStartTs;
+    const projectDurationTs = Math.max(0, pEndTs - pStartTs) + ONE_DAY;
 
-    const weightedProgress = projectDuration > 0
-      ? projectTasks.reduce((acc, t) => {
-        const tStart = t.scheduledStart ? new Date(t.scheduledStart) : new Date();
-        const tEnd = t.estimatedDelivery ? new Date(t.estimatedDelivery) : tStart;
-        const duration = Math.max(1, Math.ceil((tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24)));
-        return acc + ((t.progress || 0) * duration);
-      }, 0) / projectDuration
+    const memberIds = new Set(
+      projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => String(pm.id_colaborador))
+    );
+
+    const projectFactors = projectTasks.map(t => {
+      const taskEntries = timesheetEntries.filter(entry => entry.taskId === t.id && entry.date);
+      const firstEntryTs = taskEntries.length > 0 ? Math.min(...taskEntries.map(e => new Date(e.date + 'T12:00:00').getTime())) : null;
+      const tStartTs = parseSafeDate(t.scheduledStart || t.actualStart) || firstEntryTs || Date.now();
+      const tEndTs = parseSafeDate(t.estimatedDelivery) || tStartTs;
+      const duration = Math.max(0, tEndTs - tStartTs) + ONE_DAY;
+      return { id: t.id, factor: duration, progress: t.progress || 0 };
+    });
+    const totalFactor = projectFactors.reduce((acc, f) => acc + f.factor, 0);
+
+    const weightedProgress = totalFactor > 0
+      ? projectFactors.reduce((acc, f) => acc + (f.progress * f.factor), 0) / totalFactor
       : (projectTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / (projectTasks.length || 1));
 
     let plannedProgress = 0;
@@ -179,17 +197,19 @@ const ProjectDetailView: React.FC = () => {
       }
     }
 
-    const realStartDate = pTimesheets.length > 0
-      ? new Date(Math.min(...pTimesheets.map(e => new Date(e.date).getTime())))
+    const memberTimesheets = pTimesheets.filter(e => memberIds.has(String(e.userId)));
+
+    const realStartDate = memberTimesheets.length > 0
+      ? new Date(Math.min(...memberTimesheets.map(e => new Date(e.date + 'T12:00:00').getTime())))
       : null;
 
     const allTasksDone = projectTasks.length > 0 && projectTasks.every(t => t.status === 'Done');
-    const realEndDate = allTasksDone && pTimesheets.length > 0
-      ? new Date(Math.max(...pTimesheets.map(e => new Date(e.date).getTime())))
+    const realEndDate = allTasksDone && memberTimesheets.length > 0
+      ? new Date(Math.max(...memberTimesheets.map(e => new Date(e.date + 'T12:00:00').getTime())))
       : null;
 
-    return { committedCost, consumedHours, weightedProgress, totalEstimated, plannedProgress, projection, realStartDate, realEndDate };
-  }, [project, projectTasks, timesheetEntries, users, projectId]);
+    return { committedCost, consumedHours, weightedProgress, totalEstimated, plannedProgress, projection, realStartDate, realEndDate, projectFactors, totalFactor };
+  }, [project, projectTasks, timesheetEntries, users, projectId, projectMembers]);
 
   const projectHolidays = useMemo(() => {
     if (!project || !project.startDate || !project.estimatedDelivery) return [];
@@ -275,7 +295,40 @@ const ProjectDetailView: React.FC = () => {
 
     setLoading(true);
     try {
-      await updateProject(projectId, { ...formData, active: true } as any);
+      const { ...cleanData } = formData;
+      console.log("Saving project payload:", cleanData);
+
+      const pStart = parseSafeDate(cleanData.startDate);
+      const pEnd = parseSafeDate(cleanData.estimatedDelivery);
+
+      const outTasks = projectTasks.filter(t => {
+        const taskEntries = timesheetEntries.filter(entry => entry.taskId === t.id && entry.date);
+        const firstEntryTs = taskEntries.length > 0 ? Math.min(...taskEntries.map(e => new Date(e.date + 'T12:00:00').getTime())) : null;
+        const ts = parseSafeDate(t.scheduledStart || t.actualStart) || firstEntryTs;
+        const te = parseSafeDate(t.estimatedDelivery) || ts;
+        return ts && te && (ts < pStart! || te > pEnd!);
+      });
+      if (outTasks.length > 0) {
+        const taskDetails = outTasks.map(t => {
+          const taskEntries = timesheetEntries.filter(entry => entry.taskId === t.id && entry.date);
+          const firstEntryTs = taskEntries.length > 0 ? Math.min(...taskEntries.map(e => new Date(e.date + 'T12:00:00').getTime())) : null;
+          const ts = parseSafeDate(t.scheduledStart || t.actualStart) || firstEntryTs;
+          const te = parseSafeDate(t.estimatedDelivery) || ts;
+          const ds = ts ? new Date(ts).toLocaleDateString('pt-BR') : 'N/A';
+          const de = te ? new Date(te).toLocaleDateString('pt-BR') : 'N/A';
+          return `${t.title} (${ds} - ${de})`;
+        }).slice(0, 5).join('\n - ');
+
+        const proceed = window.confirm(
+          `⚠️ Atenção: ${outTasks.length} tarefa(s) têm datas fora do intervalo do projeto (${cleanData.startDate} a ${cleanData.estimatedDelivery}).\n\nTarefas:\n - ${taskDetails}${outTasks.length > 5 ? '\n ... e outras.' : ''}\n\nAs horas já apontadas continuarão distribuídas. Deseja salvar mesmo assim?`
+        );
+        if (!proceed) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      await updateProject(projectId, cleanData as any);
       const initialMembers = getProjectMembers(projectId);
       const initialMembersSet = new Set(initialMembers);
 
@@ -482,25 +535,10 @@ const ProjectDetailView: React.FC = () => {
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
                       {projectTasks
+                        .slice()
                         .sort((a, b) => {
-                          const getStatusPriority = (status?: string) => {
-                            switch (status) {
-                              case 'In Progress': return 1;
-                              case 'Testing': return 2;
-                              case 'Todo': return 3;
-                              case 'Review': return 4;
-                              case 'Done': return 5;
-                              default: return 6;
-                            }
-                          };
-
-                          const priorityA = getStatusPriority(a.status);
-                          const priorityB = getStatusPriority(b.status);
-
-                          if (priorityA !== priorityB) return priorityA - priorityB;
-
-                          const dateA = new Date(a.scheduledStart || 0).getTime();
-                          const dateB = new Date(b.scheduledStart || 0).getTime();
+                          const dateA = a.estimatedDelivery ? new Date(a.estimatedDelivery + 'T12:00:00').getTime() : Number.MAX_SAFE_INTEGER;
+                          const dateB = b.estimatedDelivery ? new Date(b.estimatedDelivery + 'T12:00:00').getTime() : Number.MAX_SAFE_INTEGER;
                           return dateA - dateB;
                         })
                         .map(task => {
@@ -508,45 +546,28 @@ const ProjectDetailView: React.FC = () => {
                             .filter(e => e.taskId === task.id)
                             .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
 
-                          const pStart = project.startDate ? new Date(project.startDate) : new Date();
-                          const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery) : pStart;
-                          const projectDuration = Math.max(1, Math.ceil((pEnd.getTime() - pStart.getTime()) / (1000 * 60 * 60 * 24)));
+                          const pStartTs = parseSafeDate(project.startDate) || Date.now();
+                          const pEndTs = parseSafeDate(project.estimatedDelivery) || pStartTs;
+                          const tStartTs = parseSafeDate(task.scheduledStart || task.actualStart) || pStartTs;
+                          const tEndTs = parseSafeDate(task.estimatedDelivery) || tStartTs;
 
-                          const tStart = task.scheduledStart ? new Date(task.scheduledStart) : new Date();
-                          const tEnd = task.estimatedDelivery ? new Date(task.estimatedDelivery) : tStart;
-                          const taskDuration = Math.max(1, Math.ceil((tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24)));
-
-                          const weight = (hasTimeline && projectDuration > 0)
-                            ? (taskDuration / projectDuration) * 100
-                            : 0;
-
-                          const isDateOut = (tStart < pStart || tEnd > pEnd);
-                          const taskEntries = timesheetEntries.filter(entry => entry.taskId === task.id && entry.date);
-                          const firstEntryDate = taskEntries.length > 0
-                            ? new Date(Math.min(...taskEntries.map(e => new Date(e.date).getTime())))
-                            : null;
-
-                          const realStartStr = task.actualStart
-                            ? new Date(task.actualStart + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                            : firstEntryDate?.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-
-                          const realEndStr = task.actualDelivery
-                            ? new Date(task.actualDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                            : null;
+                          const isDateOut = (tStartTs < pStartTs || tEndTs > pEndTs);
 
                           const startDate = task.scheduledStart ? new Date(task.scheduledStart + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--/--';
                           const deliveryDate = task.estimatedDelivery ? new Date(task.estimatedDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : null;
 
-                          const taskSoldHours = project.horas_vendidas > 0 ? (weight / 100) * project.horas_vendidas : 0;
+                          // Peso = duração da tarefa / soma de todas as durações (= mesma fórmula do TaskDetail)
+                          const taskFactor = performance?.projectFactors?.find(f => f.id === task.id)?.factor || 0;
+                          const weight = (performance?.totalFactor || 0) > 0 ? (taskFactor / performance!.totalFactor) * 100 : 0;
 
+                          const taskSoldHours = project.horas_vendidas > 0 ? (weight / 100) * project.horas_vendidas : 0;
+                          const collaboratorCount = (task.collaboratorIds?.length || 0);
                           const isHourOverrun = taskSoldHours > 0 && taskReported > taskSoldHours;
                           const isDelayed = task.status !== 'Done' && (
                             (task.estimatedDelivery && new Date(task.estimatedDelivery + 'T23:59:59') < new Date()) ||
                             (task.actualDelivery && new Date(task.actualDelivery + 'T23:59:59') < new Date())
                           );
 
-
-                          const hasDates = task.scheduledStart && task.estimatedDelivery;
 
                           return (
                             <div key={task.id} className={`p-2 rounded-xl border transition-all group/item cursor-pointer mb-1.5 flex flex-col gap-1.5 ${isDelayed || (isHourOverrun && task.status !== 'Done') ? 'border-red-500/10 bg-red-500/5 shadow-sm' : 'border-[var(--border)] hover:bg-[var(--bg)]'}`} onClick={() => navigate(`/tasks/${task.id}`)}>
@@ -584,11 +605,16 @@ const ProjectDetailView: React.FC = () => {
                                   <span className="opacity-20 tabular-nums truncate">
                                     {startDate} → {deliveryDate || '--/--'}
                                   </span>
+                                  {collaboratorCount > 1 && (
+                                    <span className="bg-amber-500/10 text-amber-600 px-1 py-px rounded flex items-center gap-0.5 shrink-0" title={`${collaboratorCount} colaboradores`}>
+                                      <Users size={8} />{collaboratorCount}
+                                    </span>
+                                  )}
                                 </div>
 
                                 <div className="flex gap-1 shrink-0">
                                   {isHourOverrun && <span className="text-[7px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded uppercase shadow-sm shadow-red-500/20 border border-red-600">Excedido</span>}
-                                  {isDateOut && <span className="text-[7px] font-black bg-amber-500 text-black px-1.5 py-0.5 rounded uppercase border border-amber-600 shadow-sm shadow-amber-500/10">Fora</span>}
+                                  {isDateOut && <span className="text-[7px] font-black bg-amber-500 text-black px-1.5 py-0.5 rounded uppercase border border-amber-600 shadow-sm shadow-amber-500/10" title="Fora do intervalo do projeto">Data Out ⚠</span>}
                                 </div>
                               </div>
 
@@ -1381,20 +1407,18 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
   const actualHours = timesheetEntries.filter(e => e.taskId === task.id).reduce((sum, e) => sum + e.totalHours, 0);
 
   const distributedHours = useMemo(() => {
-    if (!project || !project.startDate || !project.estimatedDelivery || !task.scheduledStart || !task.estimatedDelivery) {
-      return 0;
-    }
+    const pStartTs = parseSafeDate(project.startDate);
+    const pEndTs = parseSafeDate(project.estimatedDelivery);
+    const tStartTs = parseSafeDate(task.scheduledStart || task.actualStart);
+    const tEndTs = parseSafeDate(task.estimatedDelivery);
 
-    const pStart = new Date(project.startDate).getTime();
-    const pEnd = new Date(project.estimatedDelivery).getTime();
-    const pDuration = pEnd - pStart;
+    if (!pStartTs || !pEndTs || !tStartTs || !tEndTs) return 0;
 
-    const tStart = new Date(task.scheduledStart).getTime();
-    const tEnd = new Date(task.estimatedDelivery).getTime();
-    const tDuration = tEnd - tStart;
+    const projectDurationTs = Math.max(0, pEndTs - pStartTs) + ONE_DAY;
+    const taskDurationTs = Math.max(0, tEndTs - tStartTs) + ONE_DAY;
 
-    if (pDuration <= 0 || tDuration <= 0) return 0;
-    const weight = (tDuration / pDuration);
+    if (projectDurationTs <= 0 || taskDurationTs <= 0) return 0;
+    const weight = (taskDurationTs / projectDurationTs);
     return weight * (project.horas_vendidas || 0);
   }, [project, task]);
 

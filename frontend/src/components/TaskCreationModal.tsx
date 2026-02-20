@@ -181,7 +181,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
             onClose();
         } catch (err) {
             console.error(err);
-            setError('Erro ao criar tarefa. Tente novamente.');
+            setError('Erro ao criar tarefa: ' + (err as any)?.message || 'Tente novamente.');
         } finally {
             setLoading(false);
         }
