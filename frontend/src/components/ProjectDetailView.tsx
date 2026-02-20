@@ -288,13 +288,29 @@ const ProjectDetailView: React.FC = () => {
   const handleSaveProject = async () => {
     if (!project || !projectId) return;
 
-    if (isProjectIncomplete) {
+    // Validação de campos obrigatórios apenas para admins
+    if (isAdmin && isProjectIncomplete) {
       alert('Por favor, preencha todos os campos obrigatórios (Finanças, Timeline, Responsáveis e Equipe) antes de salvar.');
       return;
     }
 
     setLoading(true);
     try {
+      // Colaboradores só podem editar campos não-sensíveis
+      if (!isAdmin) {
+        const collaboratorData = {
+          description: formData.description,
+          weeklyStatusReport: formData.weeklyStatusReport,
+          gapsIssues: formData.gapsIssues,
+          importantConsiderations: formData.importantConsiderations,
+        };
+        await updateProject(projectId, collaboratorData as any);
+        setIsEditing(false);
+        alert('Alterações salvas!');
+        return;
+      }
+
+      // Fluxo completo para admins
       const { ...cleanData } = formData;
       console.log("Saving project payload:", cleanData);
 
@@ -330,7 +346,6 @@ const ProjectDetailView: React.FC = () => {
 
       await updateProject(projectId, cleanData as any);
       const initialMembers = getProjectMembers(projectId);
-      const initialMembersSet = new Set(initialMembers);
 
       // Para cada usuário selecionado, adicionamos sempre como 100% (flag)
       for (const userId of selectedUsers) {
