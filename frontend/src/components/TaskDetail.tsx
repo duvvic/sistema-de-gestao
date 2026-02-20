@@ -109,13 +109,23 @@ const TaskDetail: React.FC = () => {
       const proj = qProject ? projects.find(p => p.id === qProject) : null;
       const finalClient = qClient || (proj ? proj.clientId : '');
 
-      setFormData(prev => ({
-        ...prev,
-        clientId: finalClient || prev.clientId,
-        projectId: qProject || prev.projectId,
-      }));
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          clientId: finalClient || prev.clientId,
+          projectId: qProject || prev.projectId,
+        };
+
+        // Auto-allocate if not admin and new task
+        if (isNew && !isAdmin && currentUser) {
+          newData.collaboratorIds = [currentUser.id];
+          newData.developerId = currentUser.id;
+        }
+
+        return newData;
+      });
     }
-  }, [task, preSelectedClientId, preSelectedProjectId, projects]);
+  }, [task, preSelectedClientId, preSelectedProjectId, projects, isNew, isAdmin, currentUser]);
 
   useEffect(() => {
     if (formData.status === 'In Progress' || formData.status === 'Review' || formData.status === 'Testing' || formData.status === 'Done') return;
@@ -345,10 +355,10 @@ const TaskDetail: React.FC = () => {
                 </>
               )}
               {taskClient && (
-                <span className="text-[10px] font-medium uppercase tracking-tight truncate max-w-[140px]">{taskClient.name}</span>
+                <span className="text-[10px] font-medium uppercase tracking-tight truncate max-w-[140px] text-white/70">{taskClient.name}</span>
               )}
               {!taskProject && !taskClient && (
-                <span className="text-[10px] font-medium uppercase tracking-tight">Nova Atividade</span>
+                <span className="text-[10px] font-medium uppercase tracking-tight text-white/50">Nova Atividade</span>
               )}
             </div>
           </div>
@@ -377,78 +387,77 @@ const TaskDetail: React.FC = () => {
         <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {/* Card 1: Identificação */}
-            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-[280px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Identificação</h4>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-purple-500/10"><Briefcase size={14} className="text-purple-500" /></div>
+            <div className="p-4 rounded-[22px] border shadow-sm flex flex-col h-[285px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Identificação</h4>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-purple-500/10"><Briefcase size={12} className="text-purple-500" /></div>
               </div>
-              <div className="space-y-4 flex-1">
-                <div>
-                  <label className={`text-[9px] font-black uppercase mb-2 block opacity-60 ${hasError('title') ? 'text-yellow-500' : ''}`}>Nome da Tarefa *</label>
-                  <input type="text" value={formData.title || ''} onChange={e => { setFormData({ ...formData, title: e.target.value }); markDirty(); }} className={`w-full px-4 py-2.5 text-sm font-bold border rounded-xl outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} />
-                </div>
-                <div>
-                  <label className="text-[9px] font-black uppercase mb-2 block opacity-60">Status</label>
-                  <select
-                    value={formData.status || 'Todo'}
-                    onChange={e => {
-                      const newStatus = e.target.value as any;
-                      let newProgress = formData.progress;
-                      let newActualDelivery = formData.actualDelivery;
+              <div className="flex-1 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div>
+                    <label className={`text-[9px] font-black uppercase mb-1 block opacity-60 ${hasError('title') ? 'text-yellow-500' : ''}`}>Nome da Tarefa *</label>
+                    <input type="text" value={formData.title || ''} onChange={e => { setFormData({ ...formData, title: e.target.value }); markDirty(); }} className={`w-full px-3 py-1.5 text-xs font-bold border rounded-lg outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Status</label>
+                    <select
+                      value={formData.status || 'Todo'}
+                      onChange={e => {
+                        const newStatus = e.target.value as any;
+                        let newProgress = formData.progress;
+                        let newActualDelivery = formData.actualDelivery;
 
-                      if (newStatus === 'Done') {
-                        newProgress = 100;
-                        if (!newActualDelivery) {
-                          newActualDelivery = new Date().toISOString().split('T')[0];
+                        if (newStatus === 'Done') {
+                          newProgress = 100;
+                          if (!newActualDelivery) {
+                            newActualDelivery = new Date().toISOString().split('T')[0];
+                          }
+                        } else if (formData.status === 'Done') {
+                          newActualDelivery = '';
                         }
-                      } else if (formData.status === 'Done') {
-                        // Reverting from Done to something else
-                        newActualDelivery = '';
-                      }
 
-                      setFormData({
-                        ...formData,
-                        status: newStatus,
-                        progress: newProgress,
-                        actualDelivery: newActualDelivery
-                      });
-                      markDirty();
-                    }}
-                    className="w-full px-4 py-2.5 text-sm font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none"
-                    style={{ color: 'var(--text)' }}
-                  >
-                    <option value="Todo">Pré-Projeto</option>
-                    <option value="Review">Análise</option>
-                    <option value="In Progress">Andamento</option>
-                    <option value="Testing">Teste</option>
-                    <option value="Done">Concluído</option>
-                  </select>
+                        setFormData({
+                          ...formData,
+                          status: newStatus,
+                          progress: newProgress,
+                          actualDelivery: newActualDelivery
+                        });
+                        markDirty();
+                      }}
+                      className="w-full px-3 py-1.5 text-xs font-bold border rounded-lg bg-[var(--bg)] border-[var(--border)] outline-none"
+                      style={{ color: 'var(--text)' }}
+                    >
+                      <option value="Todo">Pré-Projeto</option>
+                      <option value="Review">Análise</option>
+                      <option value="In Progress">Andamento</option>
+                      <option value="Testing">Teste</option>
+                      <option value="Done">Concluído</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => { setFormData({ ...formData, is_impediment: !formData.is_impediment }); markDirty(); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all font-bold text-xs ${formData.is_impediment ? 'bg-orange-500/10 border-orange-500 text-orange-500' : 'bg-transparent border-[var(--border)] opacity-60'}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Flag size={14} className={formData.is_impediment ? "fill-orange-500" : ""} />
-                      IMPEDIMENTO
-                    </div>
-                    {formData.is_impediment && <span className="text-[8px] bg-orange-500 text-white px-1.5 py-0.5 rounded">ATIVO</span>}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => { setFormData({ ...formData, is_impediment: !formData.is_impediment }); markDirty(); }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all font-bold text-[9px] ${formData.is_impediment ? 'bg-orange-500/10 border-orange-500 text-orange-500' : 'bg-transparent border-[var(--border)] opacity-60'}`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Flag size={12} className={formData.is_impediment ? "fill-orange-500" : ""} />
+                    IMPEDIMENTO
+                  </div>
+                  {formData.is_impediment && <span className="text-[7px] bg-orange-500 text-white px-1 py-0.5 rounded">ATIVO</span>}
+                </button>
               </div>
             </div>
 
             {/* Card 2: Gestão */}
-            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-[280px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Gestão</h4>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-emerald-500/10"><Shield size={14} className="text-emerald-500" /></div>
+            <div className="p-4 rounded-[22px] border shadow-sm flex flex-col h-[285px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Gestão</h4>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10"><Shield size={12} className="text-emerald-500" /></div>
               </div>
               <div className="space-y-4 flex-1">
                 <div>
-                  <label className={`text-[9px] font-black uppercase mb-2 flex items-center gap-1.5 opacity-60 ${hasError('developerId') ? 'text-yellow-500' : ''}`}>
+                  <label className={`text-[9px] font-black uppercase mb-1 flex items-center gap-1.5 opacity-60 ${hasError('developerId') ? 'text-yellow-500' : ''}`}>
                     <Crown size={10} className={formData.developerId ? "text-yellow-500" : ""} /> Responsável *
                   </label>
                   <select
@@ -461,7 +470,7 @@ const TaskDetail: React.FC = () => {
                       setFormData({ ...formData, developerId: selectedId, developer: u?.name || '', collaboratorIds: updatedCollabs });
                       markDirty();
                     }}
-                    className={`w-full px-4 py-2.5 text-xs font-bold border rounded-xl outline-none transition-all ${hasError('developerId') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    className={`w-full px-3 py-1.5 text-xs font-bold border rounded-lg outline-none transition-all ${hasError('developerId') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                     style={{ color: 'var(--text)' }}
                     disabled={!formData.projectId}
                   >
@@ -470,8 +479,8 @@ const TaskDetail: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase mb-2 block opacity-60">Prioridade</label>
-                  <select value={formData.priority || 'Medium'} onChange={e => { setFormData({ ...formData, priority: e.target.value as any }); markDirty(); }} className="w-full px-4 py-2.5 text-xs font-bold border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }}>
+                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Prioridade</label>
+                  <select value={formData.priority || 'Medium'} onChange={e => { setFormData({ ...formData, priority: e.target.value as any }); markDirty(); }} className="w-full px-3 py-1.5 text-xs font-bold border rounded-lg bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }}>
                     <option value="Low">Baixa</option>
                     <option value="Medium">Média</option>
                     <option value="High">Alta</option>
@@ -482,36 +491,38 @@ const TaskDetail: React.FC = () => {
             </div>
 
             {/* Card 3: Esforço */}
-            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-[280px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Esforço</h4>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-500/10"><Activity size={14} className="text-amber-500" /></div>
+            <div className="p-4 rounded-[22px] border shadow-sm flex flex-col h-[285px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Esforço</h4>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-500/10"><Activity size={12} className="text-amber-500" /></div>
               </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Horas Apontadas (Total)</label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30 text-emerald-500" />
-                    <div className="w-full pl-9 pr-3 py-3 text-lg font-black border rounded-xl bg-emerald-500/5 border-emerald-500/20 text-emerald-500 flex items-baseline gap-2">
-                      <span>{formatDecimalToTime(actualHoursSpent)}</span>
+              <div className="flex-1 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[9px] font-black uppercase mb-0.5 block opacity-60">Horas Apontadas (Total)</label>
+                    <div className="relative">
+                      <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-30 text-emerald-500" />
+                      <div className="w-full pl-8 pr-2 py-1.5 text-base font-black border rounded-lg bg-emerald-500/5 border-emerald-500/20 text-emerald-500 flex items-baseline gap-1.5">
+                        <span>{formatDecimalToTime(actualHoursSpent)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[8px] font-black uppercase mb-0.5 block opacity-60">Peso Projeto</label>
+                      <div className="px-2 py-1 rounded-lg bg-purple-500/5 border border-purple-500/20 text-purple-600 font-black text-xs">
+                        {taskWeight.weight.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-black uppercase mb-0.5 block opacity-60">Forecast</label>
+                      <div className="px-2 py-1 rounded-lg bg-blue-500/5 border border-blue-500/20 text-blue-600 font-black text-xs">
+                        {formatDecimalToTime(taskWeight.soldHours)}
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="pt-2 grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Peso no Projeto</label>
-                    <div className="px-3 py-2 rounded-xl bg-purple-500/5 border border-purple-500/20 text-purple-600 font-black text-sm">
-                      {taskWeight.weight.toFixed(1)}%
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Forecast (Previsto)</label>
-                    <div className="px-3 py-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-600 font-black text-sm">
-                      {formatDecimalToTime(taskWeight.soldHours)}
-                    </div>
-                  </div>
-                </div>
-                <div>
+                <div className="pb-0.5">
                   <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Progresso ({formData.progress}%)</label>
                   <input
                     type="range"
@@ -536,44 +547,44 @@ const TaskDetail: React.FC = () => {
                       });
                       markDirty();
                     }}
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
                   />
                 </div>
               </div>
             </div>
 
             {/* Card 4: Timeline */}
-            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col h-auto min-h-[280px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50" style={{ color: 'var(--muted)' }}>Timeline</h4>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-500/10"><Calendar size={14} className="text-blue-500" /></div>
+            <div className="p-4 rounded-[22px] border shadow-sm flex flex-col h-[285px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Timeline</h4>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10"><Calendar size={12} className="text-blue-500" /></div>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-3 flex-1 flex flex-col justify-between">
                 {/* Seção Planejado */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-1 rounded-full bg-blue-500"></div>
                     <span className="text-[9px] font-black uppercase tracking-wider opacity-60">Planejado</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="relative group">
-                      <label className="text-[8px] font-bold opacity-40 mb-1 block">Início</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <label className="text-[8px] font-bold opacity-40 mb-0.5 block uppercase">Início</label>
                       <input
                         type="date"
                         value={formData.scheduledStart || ''}
                         onChange={e => { setFormData({ ...formData, scheduledStart: e.target.value }); markDirty(); }}
-                        className="w-full p-2.5 text-[11px] font-bold rounded-xl border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all"
+                        className="w-full p-1.5 text-[10px] font-bold rounded-lg border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all font-mono"
                         style={{ color: 'var(--text)' }}
                       />
                     </div>
-                    <div className="relative group">
-                      <label className="text-[8px] font-bold opacity-40 mb-1 block">Entrega</label>
+                    <div className="relative">
+                      <label className="text-[8px] font-bold opacity-40 mb-0.5 block uppercase">Entrega</label>
                       <input
                         type="date"
                         value={formData.estimatedDelivery || ''}
                         onChange={e => { setFormData({ ...formData, estimatedDelivery: e.target.value }); markDirty(); }}
-                        className="w-full p-2.5 text-[11px] font-bold rounded-xl border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all"
+                        className="w-full p-1.5 text-[10px] font-bold rounded-lg border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all font-mono"
                         style={{ color: 'var(--text)' }}
                       />
                     </div>
@@ -581,27 +592,27 @@ const TaskDetail: React.FC = () => {
                 </div>
 
                 {/* Seção Realizado */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    <span className="text-[9px] font-black uppercase tracking-wider opacity-60">Executado (Real)</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
+                    <span className="text-[9px] font-black uppercase tracking-wider opacity-60">Executado</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[8px] font-bold opacity-40">Início Real</label>
-                      <div className={`flex items-center gap-2 p-2.5 rounded-xl border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[38px] ${actualStartDate ? 'text-emerald-500' : 'text-[var(--muted)]'}`}>
-                        <Zap size={12} className={actualStartDate ? 'animate-pulse' : 'opacity-20'} />
-                        <span className="text-[11px] font-bold">
-                          {actualStartDate ? actualStartDate.toLocaleDateString('pt-BR') : 'Aguardando...'}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-0.5">
+                      <label className="text-[8px] font-bold opacity-40 uppercase">Início Real</label>
+                      <div className={`flex items-center gap-1.5 p-1.5 rounded-lg border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[28px] ${actualStartDate ? 'text-emerald-500' : 'text-[var(--muted)]'}`}>
+                        <Zap size={10} className={actualStartDate ? 'animate-pulse' : 'opacity-20'} />
+                        <span className="text-[10px] font-bold tabular-nums">
+                          {actualStartDate ? actualStartDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}
                         </span>
                       </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[8px] font-bold opacity-40">Entrega Real</label>
-                      <div className={`flex items-center gap-2 p-2.5 rounded-xl border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[38px] ${formData.actualDelivery ? 'text-emerald-600' : 'text-[var(--muted)]'}`}>
-                        <CheckSquare size={12} className={formData.actualDelivery ? '' : 'opacity-20'} />
-                        <span className="text-[11px] font-bold">
-                          {formData.actualDelivery ? new Date(formData.actualDelivery + 'T12:00:00').toLocaleDateString('pt-BR') : 'Pendente'}
+                    <div className="space-y-0.5">
+                      <label className="text-[8px] font-bold opacity-40 uppercase">Entrega Real</label>
+                      <div className={`flex items-center gap-1.5 p-1.5 rounded-lg border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[28px] ${formData.actualDelivery ? 'text-emerald-600' : 'text-[var(--muted)]'}`}>
+                        <CheckSquare size={10} className={formData.actualDelivery ? '' : 'opacity-20'} />
+                        <span className="text-[10px] font-bold tabular-nums">
+                          {formData.actualDelivery ? new Date(formData.actualDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}
                         </span>
                       </div>
                     </div>

@@ -50,15 +50,21 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
 
             setClientId(initialClientId);
             setProjectId(preSelectedProjectId || '');
-            // Force developerId to be the current user
-            setDeveloperId(currentUser?.id || '');
-            setCollaboratorIds([]);
             setTitle('');
             setDescription('');
             setNotes('');
             setLinkEf('');
             setPriority('Medium');
             setStatus('Todo');
+
+            // Auto-allocate if not admin
+            if (!isAdmin && currentUser) {
+                setCollaboratorIds([currentUser.id]);
+                setDeveloperId(currentUser.id);
+            } else {
+                setDeveloperId('');
+                setCollaboratorIds([]);
+            }
 
             // Set default dates: Start today, delivery +7 days
             const today = new Date();
@@ -202,7 +208,24 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
 
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg)]">
-                    <h2 className="text-lg font-bold">Nova Tarefa</h2>
+                    <div className="flex flex-col">
+                        <h2 className="text-lg font-bold leading-tight">Nova Tarefa</h2>
+                        {(clientId || projectId) && (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                {clientId && (
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)] opacity-80">
+                                        {clients.find(c => c.id === clientId)?.name}
+                                    </span>
+                                )}
+                                {clientId && projectId && <span className="text-[10px] opacity-30">•</span>}
+                                {projectId && (
+                                    <span className="text-[10px] font-bold text-[var(--muted)] truncate max-w-[200px]">
+                                        {projects.find(p => p.id === projectId)?.name}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-1 rounded-full hover:bg-[var(--surface-hover)] transition-colors"

@@ -67,6 +67,8 @@ export interface Project {
   horas_vendidas?: number;
   complexidade?: 'Alta' | 'Média' | 'Baixa';
   torre?: string;
+  project_type?: 'planned' | 'continuous';
+  valor_diario?: number;
 }
 
 export interface Task {

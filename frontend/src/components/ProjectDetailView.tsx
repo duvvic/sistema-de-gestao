@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, Edit, CheckSquare, Clock, Filter, ChevronDown, Check,
   Trash2, LayoutGrid, Target, ShieldAlert, Link as LinkIcon, Users,
   Calendar, Info, Zap, RefreshCw, AlertTriangle, StickyNote, DollarSign,
-  TrendingUp, BarChart2, Save, FileText, Settings, Shield, AlertCircle
+  TrendingUp, BarChart2, Save, FileText, Settings, Shield, AlertCircle, Archive
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,6 +41,7 @@ const ProjectDetailView: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project', force?: boolean } | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
+  const [showArchived, setShowArchived] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [loading, setLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -76,7 +77,9 @@ const ProjectDetailView: React.FC = () => {
     valor_total_rs: 0,
     horas_vendidas: 0,
     complexidade: 'Média' as 'Alta' | 'Média' | 'Baixa',
-    torre: ''
+    torre: '',
+    project_type: 'planned' as 'planned' | 'continuous',
+    valor_diario: 0
   });
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [memberAllocations, setMemberAllocations] = useState<Record<string, number>>({});
@@ -105,7 +108,9 @@ const ProjectDetailView: React.FC = () => {
         valor_total_rs: project.valor_total_rs || 0,
         horas_vendidas: project.horas_vendidas || 0,
         complexidade: project.complexidade || 'Média',
-        torre: project.torre || ''
+        torre: project.torre || '',
+        project_type: project.project_type || 'planned',
+        valor_diario: (project as any).valor_diario || 0
       });
       const membersResult = projectMembers.filter(pm => String(pm.id_projeto) === projectId);
       const selectedIds = membersResult.map(m => String(m.id_colaborador));
@@ -138,6 +143,8 @@ const ProjectDetailView: React.FC = () => {
     }
     return pTasks;
   }, [tasks, projectId, currentUser, isAdmin]);
+
+  const isContinuousMode = (isEditing ? formData.project_type : project?.project_type) === 'continuous';
 
   const performance = useMemo(() => {
     if (!project) return null;
@@ -208,8 +215,162 @@ const ProjectDetailView: React.FC = () => {
       ? new Date(Math.max(...memberTimesheets.map(e => new Date(e.date + 'T12:00:00').getTime())))
       : null;
 
-    return { committedCost, consumedHours, weightedProgress, totalEstimated, plannedProgress, projection, realStartDate, realEndDate, projectFactors, totalFactor };
-  }, [project, projectTasks, timesheetEntries, users, projectId, projectMembers]);
+    // --- CÁLCULOS ESPECÍFICOS PARA PROJETOS CONTÍNUOS ---
+    let continuousPlannedValue = 0;
+    if (project.project_type === 'continuous' && project.startDate) {
+      const start = new Date(project.startDate + 'T12:00:00');
+      const today = new Date();
+      today.setHours(12, 0, 0, 0);
+
+      let businessDays = 0;
+      let curr = new Date(start);
+      while (curr <= today) {
+        const day = curr.getDay();
+        if (day !== 0 && day !== 6) {
+          const dateStr = curr.toISOString().split('T')[0];
+          const isHoliday = holidays.some(h => {
+            const hStart = h.date;
+            const hEnd = h.endDate || h.date;
+            return dateStr >= hStart && dateStr <= hEnd;
+          });
+          if (!isHoliday) businessDays++;
+        }
+        curr.setDate(curr.getDate() + 1);
+      }
+      continuousPlannedValue = businessDays * ((project as any).valor_diario || 0);
+    }
+
+    return { committedCost, consumedHours, weightedProgress, totalEstimated, plannedProgress, projection, realStartDate, realEndDate, projectFactors, totalFactor, continuousPlannedValue };
+  }, [project, projectTasks, timesheetEntries, users, projectId, projectMembers, holidays]);
+
+  const teamOperationalBalance = useMemo(() => {
+    if (!isContinuousMode || !project || !project.startDate) return null;
+
+    const startDate = new Date(project.startDate + 'T12:00:00');
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    // 1. Dicionário de dias -> contagem de ativos
+    const dayStats: Record<string, { activeCount: number; members: string[] }> = {};
+    let curr = new Date(startDate);
+
+    // Lista de membros do projeto
+    const activeProjectMembers = projectMembers.filter(pm => String(pm.id_projeto) === projectId);
+
+    while (curr <= today) {
+      const day = curr.getDay();
+      if (day !== 0 && day !== 6) {
+        const dateStr = curr.toISOString().split('T')[0];
+        const isHoliday = holidays.some(h => {
+          const hStart = h.date;
+          const hEnd = h.endDate || h.date;
+          return dateStr >= hStart && dateStr <= hEnd;
+        });
+
+        if (!isHoliday) {
+          const membersAtDay = activeProjectMembers.filter(pm => {
+            const mEntry = pm.start_date ? new Date(pm.start_date + 'T12:00:00') : startDate;
+            const mExit = pm.end_date ? new Date(pm.end_date + 'T12:00:00') : null;
+            return curr >= mEntry && (!mExit || curr <= mExit);
+          });
+
+          dayStats[dateStr] = {
+            activeCount: membersAtDay.length,
+            members: membersAtDay.map(m => String(m.id_colaborador))
+          };
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    // 2. Calcular métricas por integrante
+    const memberMetrics: Record<string, {
+      baseDaily: number;
+      idealAccumulated: number;
+      actualHours: number;
+      deviation: number;
+      deviationPercent: number;
+      status: 'green' | 'yellow' | 'red';
+    }> = {};
+
+    activeProjectMembers.forEach(pm => {
+      const userId = String(pm.id_colaborador);
+      const mEntry = pm.start_date ? new Date(pm.start_date + 'T12:00:00') : startDate;
+
+      let idealAccumulated = 0;
+      Object.entries(dayStats).forEach(([dateStr, stats]) => {
+        const dDate = new Date(dateStr + 'T12:00:00');
+        if (dDate >= mEntry && stats.activeCount > 0 && stats.members.includes(userId)) {
+          idealAccumulated += (8 / stats.activeCount);
+        }
+      });
+
+      const actualHours = timesheetEntries
+        .filter(e => e.projectId === projectId && e.userId === userId)
+        .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+
+      const deviation = actualHours - idealAccumulated;
+      const deviationPercent = idealAccumulated > 0 ? (deviation / idealAccumulated) : 0;
+
+      let status: 'green' | 'yellow' | 'red' = 'green';
+      const absPercent = Math.abs(deviationPercent);
+      if (absPercent > 0.15) status = 'red';
+      else if (absPercent > 0.10) status = 'yellow';
+      else if (absPercent <= 0.05) status = 'green';
+      else status = 'yellow';
+
+      memberMetrics[userId] = {
+        baseDaily: dayStats[today.toISOString().split('T')[0]]?.activeCount > 0 ? (8 / dayStats[today.toISOString().split('T')[0]].activeCount) : (8 / Math.max(1, activeProjectMembers.length)),
+        idealAccumulated,
+        actualHours,
+        deviation,
+        deviationPercent: deviationPercent * 100,
+        status
+      };
+    });
+
+    // 3. Lógica de Sugestão
+    const suggestions: Record<string, number> = {};
+    const absoluteDeviationsSum = Object.values(memberMetrics).reduce((sum, m) => sum + Math.abs(m.deviation), 0);
+    const hasSignificantDeviation = Object.values(memberMetrics).some(m => Math.abs(m.deviationPercent) > 10);
+
+    if (hasSignificantDeviation && absoluteDeviationsSum > 0) {
+      let rawWeights: Record<string, number> = {};
+      let totalWeight = 0;
+
+      activeProjectMembers.forEach(pm => {
+        const userId = String(pm.id_colaborador);
+        const weight = Math.max(0.1, 1 - (memberMetrics[userId].deviation / absoluteDeviationsSum));
+        rawWeights[userId] = weight;
+        totalWeight += weight;
+      });
+
+      let totalSuggested = 0;
+      activeProjectMembers.forEach(pm => {
+        const userId = String(pm.id_colaborador);
+        let suggested = 8 * (rawWeights[userId] / totalWeight);
+        suggested = Math.max(1, Math.min(8, suggested));
+        suggestions[userId] = suggested;
+        totalSuggested += suggested;
+      });
+
+      // Arredondamento
+      let roundedTotal = 0;
+      const userIds = Object.keys(suggestions);
+      userIds.forEach(uid => {
+        suggestions[uid] = Math.round(suggestions[uid] * 10) / 10;
+        roundedTotal += suggestions[uid];
+      });
+
+      const diff = 8 - roundedTotal;
+      if (diff !== 0 && userIds.length > 0) {
+        suggestions[userIds[userIds.length - 1]] = Math.round((suggestions[userIds[userIds.length - 1]] + diff) * 10) / 10;
+      }
+    }
+
+    return { memberMetrics, suggestions, hasSignificantDeviation, todayActiveCount: activeProjectMembers.length };
+  }, [isContinuousMode, project, projectMembers, timesheetEntries, holidays, projectId]);
+
 
   const projectHolidays = useMemo(() => {
     if (!project || !project.startDate || !project.estimatedDelivery) return [];
@@ -237,31 +398,37 @@ const ProjectDetailView: React.FC = () => {
 
   const isProjectIncomplete = useMemo(() => {
     if (!project) return true;
+    const isContinuous = (isEditing ? formData.project_type : project.project_type) === 'continuous';
     const data = isEditing ? formData : {
       name: project.name,
-      clientId: project.clientId,
-      partnerId: project.partnerId,
       valor_total_rs: project.valor_total_rs,
       horas_vendidas: project.horas_vendidas,
       startDate: project.startDate,
       estimatedDelivery: project.estimatedDelivery,
-      responsibleNicLabsId: project.responsibleNicLabsId,
-      managerClient: project.managerClient
+      project_type: project.project_type,
+      valor_diario: (project as any).valor_diario,
+      partnerId: project.partnerId,
+      responsibleNicLabsId: project.responsibleNicLabsId
     };
 
     return (
       !data.name?.trim() ||
-      !data.clientId ||
-      !data.partnerId ||
-      !data.valor_total_rs ||
-      !data.horas_vendidas ||
+      (!isContinuous && (!data.valor_total_rs || data.valor_total_rs === 0)) ||
+      (!isContinuous && (!data.horas_vendidas || data.horas_vendidas === 0)) ||
+      (isContinuous && (!data.valor_diario || data.valor_diario === 0)) ||
       !data.startDate ||
-      !data.estimatedDelivery ||
-      !data.responsibleNicLabsId ||
-      !data.managerClient ||
+      (!isContinuous && !data.estimatedDelivery) ||
       selectedUsers.length === 0
     );
   }, [project, formData, isEditing, selectedUsers]);
+
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveProject();
+    }
+  };
 
   const hasTimeline = !!(project.startDate && project.estimatedDelivery);
   const hasBudget = (project.valor_total_rs || 0) > 0;
@@ -288,11 +455,12 @@ const ProjectDetailView: React.FC = () => {
   const handleSaveProject = async () => {
     if (!project || !projectId) return;
 
-    // Validação de campos obrigatórios apenas para admins
-    if (isAdmin && isProjectIncomplete) {
-      alert('Por favor, preencha todos os campos obrigatórios (Finanças, Timeline, Responsáveis e Equipe) antes de salvar.');
-      return;
-    }
+    // Bloqueio removido conforme solicitação: permitir salvar mesmo incompleto.
+    // if (isAdmin && isProjectIncomplete) {
+    //   alert('Por favor, preencha todos os campos obrigatórios (Finanças, Timeline, Responsáveis e Equipe) antes de salvar.');
+    //   return;
+    // }
+
 
     setLoading(true);
     try {
@@ -347,9 +515,13 @@ const ProjectDetailView: React.FC = () => {
       await updateProject(projectId, cleanData as any);
       const initialMembers = getProjectMembers(projectId);
 
-      // Para cada usuário selecionado, adicionamos sempre como 100% (flag)
+      // Para cada usuário selecionado, calculamos a alocação proporcional para projetos contínuos (8h / N)
+      const isContinuous = formData.project_type === 'continuous';
+      const numMembers = selectedUsers.length;
+      const allocationPercentage = isContinuous ? (numMembers > 0 ? 100 / numMembers : 100) : 100;
+
       for (const userId of selectedUsers) {
-        await addProjectMember(projectId, userId, 100);
+        await addProjectMember(projectId, userId, allocationPercentage);
       }
 
       // Remover membros que não estão mais na lista
@@ -367,9 +539,13 @@ const ProjectDetailView: React.FC = () => {
 
   const filteredTasks = useMemo(() => {
     let t = projectTasks;
+    // Archive logic: Hide Done tasks by default unless explicitly filtered for 'Done' or showArchived is true
+    if (!showArchived && selectedStatus !== 'Done') {
+      t = t.filter(task => task.status !== 'Done');
+    }
     if (selectedStatus !== 'Todos') t = t.filter(task => task.status === selectedStatus);
     return t.sort((a, b) => (new Date(a.estimatedDelivery || '2099-12-31').getTime() - new Date(b.estimatedDelivery || '2099-12-31').getTime()));
-  }, [projectTasks, selectedStatus]);
+  }, [projectTasks, selectedStatus, showArchived]);
 
   const canCreateTask = !isProjectIncomplete;
 
@@ -405,45 +581,60 @@ const ProjectDetailView: React.FC = () => {
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft /></button>
           <div className="flex items-center gap-4">
             {client?.logoUrl && <div className="w-12 h-12 bg-white rounded-xl p-1.5 shadow-xl"><img src={client.logoUrl} className="w-full h-full object-contain" /></div>}
-            <div>
-              {isEditing ? (
-                <input
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className={`bg-white/10 border-b outline-none px-2 py-1 text-xl font-bold rounded transition-colors ${!formData.name?.trim() ? 'border-yellow-400 bg-yellow-400/20' : 'border-white'}`}
-                />
-              ) : (
-                <h1 className="text-xl font-bold">{project.name}</h1>
-              )}
-              <div className="flex items-center gap-2 mt-1">
-                {isAdmin && isProjectIncomplete && (
-                  <span
-                    className="text-[10px] font-black uppercase bg-yellow-400 text-black px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-yellow-500/20 cursor-help"
-                    title="Cadastro incompleto. Preencha todos os campos obrigatórios."
-                  >
-                    <AlertTriangle size={12} /> INC
-                  </span>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-3 flex-wrap">
+                {isEditing ? (
+                  <input
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    onKeyDown={handleKeyDown}
+                    className={`bg-white/10 border-b outline-none px-2 py-1 text-xl font-bold rounded transition-colors min-w-[300px] ${!formData.name?.trim() ? 'border-yellow-400 bg-yellow-400/20' : 'border-white'}`}
+                  />
+                ) : (
+                  <h1 className="text-xl font-bold">{project.name}</h1>
                 )}
-                {isAdmin && performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5) && (
-                  <span
-                    className="text-[10px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-red-500/20 animate-pulse"
-                    title="Projeto com progresso abaixo do planejado."
-                  >
-                    <Clock size={12} /> ATR
+
+                <div className="flex items-center gap-2">
+                  {isAdmin && performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5) && (
+                    <span
+                      className="text-[10px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-red-500/20 animate-pulse"
+                      title="Projeto com progresso abaixo do planejado."
+                    >
+                      <Clock size={12} /> ATR
+                    </span>
+                  )}
+                  <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-lg tracking-widest border border-white/10">
+                    {getProjectStatusByTimeline(project)}
                   </span>
-                )}
-                <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-lg tracking-widest border border-white/10">
-                  {getProjectStatusByTimeline(project)}
-                </span>
-                <span className="text-xs text-white/60">{client?.name}</span>
+                  {isContinuousMode && (
+                    <span className="text-[9px] font-black uppercase bg-amber-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-amber-500/20">
+                      <RefreshCw size={12} /> CONTÍNUO
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-white/60 font-medium">{client?.name}</span>
                 {isAdmin && (
-                  <button
-                    onClick={() => setIsEditing(!isEditing)}
-                    className={`ml-2 p-1 hover:bg-white/20 rounded transition-colors ${isProjectIncomplete && !isEditing ? 'ring-2 ring-yellow-400 animate-pulse bg-yellow-400/20' : ''}`}
-                    title={isProjectIncomplete && !isEditing ? "Clique aqui para completar o cadastro (Campos Obrigatórios)" : "Editar Projeto"}
-                  >
-                    <Edit size={14} />
-                  </button>
+                  <div className="flex items-center gap-2 border-l border-white/10 pl-4 ml-2">
+                    <button
+                      onClick={() => setIsEditing(!isEditing)}
+                      className={`p-1.5 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${isEditing ? 'bg-white/20 border border-white/30' : ''}`}
+                      title="Editar Projeto"
+                    >
+                      <Edit size={14} /> {isEditing ? 'Editando' : 'Editar'}
+                    </button>
+                    {isEditing && (
+                      <button
+                        onClick={handleSaveProject}
+                        disabled={loading}
+                        className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+                      >
+                        {loading ? '...' : <><Save size={12} /> Salvar</>}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -486,36 +677,26 @@ const ProjectDetailView: React.FC = () => {
         <div className="max-w-7xl mx-auto space-y-5">
 
           {/* CRITICAL STATUS BANNER */}
-          {isAdmin && (isProjectIncomplete || (performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5)) || (performance && performance.consumedHours > (project.horas_vendidas || 0) && (project.horas_vendidas || 0) > 0)) && (
+          {isAdmin && ((performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5)) || (performance && performance.consumedHours > (project.horas_vendidas || 0) && (project.horas_vendidas || 0) > 0)) && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`p-4 rounded-[2rem] border flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl ${isProjectIncomplete ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-red-500/10 border-red-500/50'}`}
+              className={`p-4 rounded-[2rem] border flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl bg-red-500/10 border-red-500/50`}
             >
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-2xl ${isProjectIncomplete ? 'bg-yellow-500 text-black' : 'bg-red-500 text-white shadow-lg shadow-red-500/20'}`}>
+                <div className={`p-3 rounded-2xl bg-red-500 text-white shadow-lg shadow-red-500/20`}>
                   <AlertTriangle size={24} />
                 </div>
                 <div>
-                  <h3 className={`text-sm font-black uppercase tracking-tight ${isProjectIncomplete ? 'text-yellow-700' : 'text-red-700'}`}>
-                    {isProjectIncomplete ? 'Cadastro de Projeto Incompleto' : 'Atenção: Indicadores Críticos'}
+                  <h3 className={`text-sm font-black uppercase tracking-tight text-red-700`}>
+                    Atenção: Indicadores Críticos
                   </h3>
-                  <p className="text-[10px] font-bold opacity-70" style={{ color: isProjectIncomplete ? 'var(--yellow-700)' : 'var(--red-700)' }}>
-                    {isProjectIncomplete
-                      ? 'Este projeto possui campos obrigatórios ausentes. Complete as informações para garantir a precisão dos cálculos e relatórios.'
-                      : `Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (performance && performance.consumedHours > (project.horas_vendidas || 0)) ? ' e ' : ''}${(performance && performance.consumedHours > (project.horas_vendidas || 0)) ? 'estouro de orçamento de horas' : ''}.`}
+                  <p className="text-[10px] font-bold opacity-70 text-red-700">
+                    {`Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (performance && performance.consumedHours > (project.horas_vendidas || 0)) ? ' e ' : ''}${(performance && performance.consumedHours > (project.horas_vendidas || 0)) ? 'estouro de orçamento de horas' : ''}.`}
                   </p>
                 </div>
               </div>
               <div className="flex gap-2">
-                {isProjectIncomplete && !isEditing && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="px-6 py-2 bg-yellow-500 text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-600 transition-all shadow-lg"
-                  >
-                    Completar Agora
-                  </button>
-                )}
                 {(!isProjectIncomplete || isEditing) && (
                   <button
                     onClick={() => setActiveTab('tasks')}
@@ -658,10 +839,13 @@ const ProjectDetailView: React.FC = () => {
                     <div className="mb-6 pb-6 border-b border-dashed shrink-0" style={{ borderColor: 'var(--border)' }}>
                       <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>Status de Entrega</h4>
                       {(() => {
-                        const delta = (performance?.weightedProgress || 0) - (performance?.plannedProgress || 0);
-                        const hourOverrun = hasHours && (performance?.consumedHours || 0) > project.horas_vendidas;
+                        const delta = isContinuousMode
+                          ? ((performance?.committedCost || 0) / (performance?.continuousPlannedValue || 1) - 1) * 100
+                          : (performance?.weightedProgress || 0) - (performance?.plannedProgress || 0);
 
-                        if (!hasTimeline) {
+                        const hourOverrun = !isContinuousMode && hasHours && (performance?.consumedHours || 0) > project.horas_vendidas;
+
+                        if (!hasTimeline && !isContinuousMode) {
                           return (
                             <div className="flex flex-col items-center justify-center py-4 opacity-30">
                               <Calendar size={20} className="mb-2" />
@@ -670,18 +854,28 @@ const ProjectDetailView: React.FC = () => {
                           );
                         }
 
-                        // Tolerance of 1% for "On Track"
-                        const health = hourOverrun ? { label: 'Custo Excedido', color: 'text-red-500', bg: 'bg-red-500' } :
-                          delta >= -1 ? { label: 'No Prazo', color: 'text-emerald-500', bg: 'bg-emerald-500' } :
-                            delta >= -10 ? { label: 'Atraso Leve', color: 'text-amber-500', bg: 'bg-amber-500' } :
-                              { label: 'Em Atraso', color: 'text-red-500', bg: 'bg-red-500' };
+                        // Tolerance logic for status
+                        let health;
+                        if (isContinuousMode) {
+                          // For continuous: Committed Cost vs Planned Value
+                          health = delta <= 5 ? { label: 'No Prazo', color: 'text-emerald-500', bg: 'bg-emerald-500' } :
+                            delta <= 15 ? { label: 'Alerta', color: 'text-amber-500', bg: 'bg-amber-500' } :
+                              { label: 'Crítico', color: 'text-red-500', bg: 'bg-red-500' };
+                        } else {
+                          health = hourOverrun ? { label: 'Custo Excedido', color: 'text-red-500', bg: 'bg-red-500' } :
+                            delta >= -1 ? { label: 'No Prazo', color: 'text-emerald-500', bg: 'bg-emerald-500' } :
+                              delta >= -10 ? { label: 'Atraso Leve', color: 'text-amber-500', bg: 'bg-amber-500' } :
+                                { label: 'Em Atraso', color: 'text-red-500', bg: 'bg-red-500' };
+                        }
 
                         return (
                           <div className="flex flex-col items-center justify-center py-1">
                             <div className={`w-3 h-3 rounded-full ${health.bg} animate-pulse shadow-[0_0_12px_rgba(0,0,0,0.1)] mb-2`} />
                             <span className={`text-xl font-black uppercase tracking-tighter ${health.color}`}>{health.label}</span>
                             <div className="flex flex-col items-center gap-0.5">
-                              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Desvio: {delta > 0 ? '+' : ''}{Math.round(delta)}%</span>
+                              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
+                                Desvio: {delta > 0 ? '+' : ''}{Math.round(delta)}%
+                              </span>
                               {hourOverrun && <span className="text-[7px] font-black text-red-500 uppercase">Eficiência Negativa</span>}
                             </div>
                           </div>
@@ -689,26 +883,53 @@ const ProjectDetailView: React.FC = () => {
                       })()}
                     </div>
 
-                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>Progresso vs Plano</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>{isContinuousMode ? 'Rendimento Contínuo' : 'Progresso vs Plano'}</h4>
                     <div className="space-y-4">
                       <div>
                         <div className="flex justify-between text-[10px] font-black uppercase mb-1">
-                          <span style={{ color: 'var(--text)' }}>Plano</span>
-                          <span style={{ color: 'var(--info)' }}>{hasTimeline ? Math.round(performance?.plannedProgress || 0) : '--'}%</span>
+                          <span style={{ color: 'var(--text)' }}>PLANO — VALOR RENDIDO ESTIMADO</span>
+                          <span style={{ color: isContinuousMode ? 'var(--warning)' : 'var(--info)' }}>
+                            {isContinuousMode
+                              ? (performance?.continuousPlannedValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                              : `${hasTimeline ? Math.round(performance?.plannedProgress || 0) : '--'}%`}
+                          </span>
                         </div>
                         <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
-                          <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${hasTimeline ? (performance?.plannedProgress || 0) : 0}%` }} />
+                          <div
+                            className={`h-full transition-all duration-1000 ${isContinuousMode ? 'bg-amber-500' : 'bg-blue-500'}`}
+                            style={{
+                              width: isContinuousMode
+                                ? `${Math.min(100, ((performance?.continuousPlannedValue || 0) / (Math.max(performance?.continuousPlannedValue || 0, performance?.committedCost || 0) || 1)) * 100)}%`
+                                : `${hasTimeline ? (performance?.plannedProgress || 0) : 0}%`
+                            }}
+                          />
                         </div>
                       </div>
                       <div>
                         <div className="flex justify-between text-[10px] font-black uppercase mb-1">
-                          <span style={{ color: 'var(--text)' }}>Real</span>
-                          <span style={{ color: 'var(--success)' }}>{hasTimeline ? Math.round(performance?.weightedProgress || 0) : '--'}%</span>
+                          <span style={{ color: 'var(--text)' }}>CUSTO REAL APURADO</span>
+                          <span style={{ color: 'var(--success)' }}>
+                            {isContinuousMode
+                              ? (performance?.committedCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                              : `${hasTimeline ? Math.round(performance?.weightedProgress || 0) : '--'}%`}
+                          </span>
                         </div>
                         <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
-                          <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${Math.min(100, (hasTimeline ? performance?.weightedProgress : 0) || 0)}%` }} />
+                          <div
+                            className="h-full bg-emerald-500 transition-all duration-1000"
+                            style={{
+                              width: isContinuousMode
+                                ? `${Math.min(100, ((performance?.committedCost || 0) / (Math.max(performance?.continuousPlannedValue || 0, performance?.committedCost || 0) || 1)) * 100)}%`
+                                : `${Math.min(100, (hasTimeline ? performance?.weightedProgress : 0) || 0)}%`
+                            }}
+                          />
                         </div>
                       </div>
+                      {isContinuousMode && (
+                        <p className="text-[7px] font-bold opacity-30 uppercase mt-2">
+                          * Barras de progresso proporcionais entre Plano e Real.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -716,8 +937,71 @@ const ProjectDetailView: React.FC = () => {
                   {isAdmin && (
                     <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[350px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
 
-                      <h4 className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>Finanças</h4>
-                      {isEditing ? (
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Finanças {isContinuousMode ? '(Contínuo)' : ''}</h4>
+                        {isEditing && (
+                          <div className="flex bg-[var(--bg)] p-1 rounded-lg border border-[var(--border)] gap-1 scale-90 origin-right">
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, project_type: 'planned' })}
+                              className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${formData.project_type === 'planned' ? 'bg-purple-600 text-white shadow-sm' : 'opacity-40 hover:opacity-100'}`}
+                            >
+                              Planejado
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const start = formData.startDate ? new Date(formData.startDate + 'T12:00:00') : new Date();
+                                const oneYearLater = new Date(start);
+                                oneYearLater.setFullYear(start.getFullYear() + 1);
+                                setFormData({
+                                  ...formData,
+                                  project_type: 'continuous',
+                                  estimatedDelivery: oneYearLater.toISOString().split('T')[0]
+                                });
+                              }}
+                              className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${formData.project_type === 'continuous' ? 'bg-amber-500 text-white shadow-sm' : 'opacity-40 hover:opacity-100'}`}
+                            >
+                              Contínuo
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {isContinuousMode ? (
+                        <div className="space-y-4">
+                          <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 mb-4">
+                            <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-2">
+                              <Info size={12} /> Projeto Contínuo
+                            </p>
+                            <p className="text-[9px] font-bold opacity-60 mt-1 uppercase leading-tight">
+                              Escopo mensal baseado em valor diário. A alocação do time é calculada automaticamente (8h/N).
+                            </p>
+                          </div>
+
+                          {isEditing ? (
+                            <div>
+                              <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Valor Diário (8h) (R$)</label>
+                              <input
+                                type="number"
+                                value={formData.valor_diario || ''}
+                                onChange={e => setFormData({ ...formData, valor_diario: e.target.value === '' ? 0 : Number(e.target.value) })}
+                                onKeyDown={handleKeyDown}
+                                className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.valor_diario ? 'bg-amber-500/10 border-amber-500/50' : ''}`}
+                                style={{ backgroundColor: formData.valor_diario ? 'var(--bg)' : undefined, borderColor: formData.valor_diario ? 'var(--border)' : undefined, color: 'var(--text)' }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
+                              <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 mb-1">Valor Diário Acordado</p>
+                              <p className="text-xl font-black text-amber-500">
+                                {(project.valor_diario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                              </p>
+                              <p className="text-[8px] font-bold opacity-40 mt-1 uppercase">Equivalente a 8h de operação.</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : isEditing ? (
                         <div className="space-y-4">
                           <div>
                             <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Valor Total Venda (R$)</label>
@@ -725,6 +1009,7 @@ const ProjectDetailView: React.FC = () => {
                               type="number"
                               value={formData.valor_total_rs || ''}
                               onChange={e => setFormData({ ...formData, valor_total_rs: e.target.value === '' ? 0 : Number(e.target.value) })}
+                              onKeyDown={handleKeyDown}
                               className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.valor_total_rs ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
                               style={{ backgroundColor: formData.valor_total_rs ? 'var(--bg)' : undefined, borderColor: formData.valor_total_rs ? 'var(--border)' : undefined, color: 'var(--text)' }}
                             />
@@ -735,6 +1020,7 @@ const ProjectDetailView: React.FC = () => {
                               type="number"
                               value={formData.horas_vendidas || ''}
                               onChange={e => setFormData({ ...formData, horas_vendidas: e.target.value === '' ? 0 : Number(e.target.value) })}
+                              onKeyDown={handleKeyDown}
                               className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.horas_vendidas ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
                               style={{ backgroundColor: formData.horas_vendidas ? 'var(--bg)' : undefined, borderColor: formData.horas_vendidas ? 'var(--border)' : undefined, color: 'var(--text)' }}
                             />
@@ -831,9 +1117,9 @@ const ProjectDetailView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Timeline */}
+                  {/* Timeline / Datas Planejadas */}
                   <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[350px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Timeline</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Timeline / Datas Planejadas</h4>
                     {isEditing ? (
                       <div className="space-y-4">
                         <div>
@@ -842,19 +1128,23 @@ const ProjectDetailView: React.FC = () => {
                             type="date"
                             value={formData.startDate}
                             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                            onKeyDown={handleKeyDown}
                             className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.startDate ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
                             style={{ backgroundColor: formData.startDate ? 'var(--bg)' : undefined, borderColor: formData.startDate ? 'var(--border)' : undefined, color: 'var(--text)' }}
                           />
                         </div>
-                        <div>
-                          <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Entrega Planejada</label>
-                          <input
-                            type="date"
-                            value={formData.estimatedDelivery}
-                            onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })}
-                            className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.estimatedDelivery ? 'bg-yellow-500/10 border-yellow-500/50 text-[var(--text)]' : 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]'}`}
-                          />
-                        </div>
+                        {!isContinuousMode && (
+                          <div>
+                            <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Entrega Planejada</label>
+                            <input
+                              type="date"
+                              value={formData.estimatedDelivery}
+                              onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })}
+                              onKeyDown={handleKeyDown}
+                              className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.estimatedDelivery ? 'bg-yellow-500/10 border-yellow-500/50 text-[var(--text)]' : 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]'}`}
+                            />
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col justify-between space-y-8 py-2">
@@ -874,23 +1164,33 @@ const ProjectDetailView: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-8">
-                            <div>
-                              <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Entrega Planejada</p>
-                              <p className={`text-sm font-black tabular-nums ${performance?.projection && performance.projection.getTime() < new Date(project.estimatedDelivery).getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
-                                {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
+                          {isContinuousMode ? (
+                            <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-center">
+                              <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Fim Planejado (automático)</p>
+                              <p className="text-sm font-black mt-1" style={{ color: 'var(--text)' }}>
+                                {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
                               </p>
+                              <p className="text-[8px] font-bold opacity-30 mt-1 uppercase">Regra: Início + 1 ano</p>
                             </div>
-                            <div>
-                              <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Fim Real</p>
-                              <p className={`text-sm font-black ${performance?.realEndDate ? 'text-purple-500' : 'opacity-30'}`}>
-                                {performance?.realEndDate ? performance.realEndDate.toLocaleDateString('pt-BR') : '--'}
-                              </p>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-8">
+                              <div>
+                                <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Entrega Planejada</p>
+                                <p className={`text-sm font-black tabular-nums ${performance?.projection && performance.projection.getTime() < new Date(project.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
+                                  {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Fim Real</p>
+                                <p className={`text-sm font-black ${performance?.realEndDate ? 'text-purple-500' : 'opacity-30'}`}>
+                                  {performance?.realEndDate ? performance.realEndDate.toLocaleDateString('pt-BR') : '--'}
+                                </p>
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
 
-                        {performance?.projection && performance.weightedProgress > 0 && performance.weightedProgress < 100 && (
+                        {!isContinuousMode && performance?.projection && performance.weightedProgress > 0 && performance.weightedProgress < 100 && (
                           <div className={`p-5 rounded-[24px] bg-[var(--bg)] border border-dashed transition-all w-full mt-auto ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'border-red-500/30' : 'border-emerald-500/30'}`}>
                             <p className={`text-[9px] font-black uppercase mb-2 ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'text-red-500' : 'text-emerald-500'}`}>Previsão p/ Velocidade</p>
                             <p className={`text-xl font-black ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'text-red-500' : 'text-emerald-500'}`}>
@@ -923,7 +1223,8 @@ const ProjectDetailView: React.FC = () => {
                                     <select
                                       value={formData.clientId}
                                       onChange={e => setFormData({ ...formData, clientId: e.target.value })}
-                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors ${!formData.clientId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
+                                      onKeyDown={handleKeyDown}
+                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors bg-[var(--bg)] border-[var(--border)]`}
                                       style={{ color: 'var(--text)' }}
                                     >
                                       <option value="">Selecione...</option>
@@ -938,7 +1239,8 @@ const ProjectDetailView: React.FC = () => {
                                     <select
                                       value={formData.partnerId}
                                       onChange={e => setFormData({ ...formData, partnerId: e.target.value })}
-                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors ${!formData.partnerId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
+                                      onKeyDown={handleKeyDown}
+                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors bg-[var(--bg)] border-[var(--border)]`}
                                       style={{ color: 'var(--text)' }}
                                     >
                                       <option value="">Selecione...</option>
@@ -958,7 +1260,8 @@ const ProjectDetailView: React.FC = () => {
                                 <select
                                   value={formData.responsibleNicLabsId}
                                   onChange={e => setFormData({ ...formData, responsibleNicLabsId: e.target.value })}
-                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors ${!formData.responsibleNicLabsId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
+                                  onKeyDown={handleKeyDown}
+                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors bg-[var(--bg)] border-[var(--border)]`}
                                   style={{ color: 'var(--text)' }}
                                 >
                                   <option value="">Selecione...</option>
@@ -975,7 +1278,8 @@ const ProjectDetailView: React.FC = () => {
                                 <input
                                   value={formData.managerClient}
                                   onChange={e => setFormData({ ...formData, managerClient: e.target.value })}
-                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors ${!formData.managerClient?.trim() ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
+                                  onKeyDown={handleKeyDown}
+                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors bg-[var(--bg)] border-[var(--border)]`}
                                   style={{ color: 'var(--text)' }}
                                 />
                               ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{project.managerClient || '--'}</p>}
@@ -1077,10 +1381,30 @@ const ProjectDetailView: React.FC = () => {
                     )}
 
                     <div className="p-6 rounded-[32px] border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}>
-                          <Users size={16} className="text-purple-500" /> Equipe Alocada
-                        </h3>
+                      <div className="flex flex-col gap-1 mb-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                            <Users size={16} className="text-purple-500" /> Equipe Alocada {isContinuousMode ? '(Alocação Diária automática)' : ''}
+                          </h3>
+                        </div>
+                        {isContinuousMode && (
+                          <div className="space-y-2 mt-2">
+                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                              <div className="flex items-center gap-2">
+                                <Zap size={12} className="text-purple-500" />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-purple-500">Modo: Equalização Assistida</span>
+                              </div>
+                              <span className="text-[9px] font-bold opacity-40 uppercase">Base: 8h / {teamOperationalBalance?.todayActiveCount || 0} colab. = {(8 / (teamOperationalBalance?.todayActiveCount || 1)).toFixed(1)}h/dia</span>
+                            </div>
+
+                            {teamOperationalBalance?.hasSignificantDeviation && (
+                              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-pulse">
+                                <AlertTriangle size={12} className="text-amber-500" />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Desequilíbrio detectado — sugestão de redistribuição disponível</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-3">
                         {isEditing ? (
@@ -1130,54 +1454,69 @@ const ProjectDetailView: React.FC = () => {
                             {projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
                               const u = users.find(user => user.id === String(pm.id_colaborador));
                               return u ? (
-                                <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--bg)' }}>
-                                  <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
-                                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
-                                    </div>
-
-                                    <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
-                                      <div>
-                                        {(() => {
-                                          const reported = timesheetEntries
-                                            .filter(e => e.projectId === projectId && e.userId === u.id)
-                                            .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
-
-                                          // Involvement calc: total days in tasks / total project duration
-                                          const memberTasks = projectTasks.filter(t => t.developerId === u.id || (t.collaboratorIds && t.collaboratorIds.includes(u.id)));
-                                          const pStart = project.startDate ? new Date(project.startDate + 'T12:00:00') : new Date();
-                                          const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery + 'T12:00:00') : pStart;
-                                          const projectDuration = Math.max(1, (pEnd.getTime() - pStart.getTime()) / (1000 * 60 * 60 * 24));
-
-                                          const involvementDays = memberTasks.reduce((acc, t) => {
-                                            if (!t.scheduledStart || !t.estimatedDelivery) return acc + 1;
-                                            const tStart = new Date(t.scheduledStart + 'T12:00:00');
-                                            const tEnd = new Date(t.estimatedDelivery + 'T12:00:00');
-                                            return acc + Math.max(1, (tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24));
-                                          }, 0);
-
-                                          const involvementPercent = Math.min(100, (involvementDays / projectDuration) * 100);
-
-                                          return (
-                                            <div className="flex items-center justify-start gap-6">
-                                              <div className="flex items-center gap-3">
-                                                <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
-                                                <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
-                                              </div>
-                                              <div className="flex items-center gap-3">
-                                                <p className="text-[7px] font-black uppercase opacity-40">ENV.</p>
-                                                <p className="text-[12px] font-black text-purple-500">{involvementPercent.toFixed(0)}%</p>
-                                              </div>
-                                            </div>
-                                          );
-                                        })()}
+                                <div key={u.id} className="p-3 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+                                  <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                      <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 border border-[var(--border)] shadow-sm" style={{ backgroundColor: 'var(--surface)' }}>
+                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[9px] font-black uppercase" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-black tracking-tight truncate mb-0.5" style={{ color: 'var(--text)' }}>{u.name}</p>
+                                        <p className="text-[6px] font-black uppercase opacity-30 tracking-widest truncate" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
                                       </div>
                                     </div>
+                                    <div className="flex items-center gap-x-3 sm:gap-x-6 shrink-0 ml-1">
+                                      {(() => {
+                                        const metrics = teamOperationalBalance?.memberMetrics[u.id];
+                                        if (isContinuousMode && metrics) {
+                                          const statusColor = metrics.status === 'green' ? 'text-emerald-500' : metrics.status === 'yellow' ? 'text-amber-500' : 'text-red-500';
+                                          return (
+                                            <>
+                                              <div className="hidden xs:block text-right w-[32px] sm:w-[45px]">
+                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Base</p>
+                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{metrics.baseDaily.toFixed(1)}h</p>
+                                              </div>
+                                              <div className="text-right w-[32px] sm:w-[45px]">
+                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Ideal</p>
+                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.idealAccumulated)}</p>
+                                              </div>
+                                              <div className="text-right w-[35px] sm:w-[50px]">
+                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Real</p>
+                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.actualHours)}</p>
+                                              </div>
+                                              <div className="text-right w-[40px] sm:w-[55px]">
+                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Desvio</p>
+                                                <p className={`text-[9px] font-black tabular-nums ${statusColor}`}>
+                                                  {metrics.deviation > 0 ? '+' : ''}{formatDecimalToTime(metrics.deviation)}
+                                                </p>
+                                              </div>
+                                            </>
+                                          );
+                                        }
+                                        const reported = timesheetEntries.filter(e => e.projectId === projectId && e.userId === u.id).reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+                                        return (
+                                          <div className="text-right w-[50px]">
+                                            <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Real</p>
+                                            <p className="text-[10px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
                                   </div>
+                                  {isContinuousMode && teamOperationalBalance?.memberMetrics[u.id] && (
+                                    <div className="mt-2.5 pt-2 border-t border-dashed flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+                                      {teamOperationalBalance.suggestions[u.id] ? (
+                                        <div className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg bg-${teamOperationalBalance.memberMetrics[u.id].status}-500/[0.03]`}>
+                                          <span className={`text-[7px] font-black uppercase tracking-widest text-${teamOperationalBalance.memberMetrics[u.id].status}-500`}>Sugerido p/ equilíbrio operacional:</span>
+                                          <span className={`text-[9px] font-black text-${teamOperationalBalance.memberMetrics[u.id].status}-500`}>{teamOperationalBalance.suggestions[u.id].toFixed(1)}h / dia</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex-1 flex items-center justify-center py-1 bg-emerald-500/[0.01] rounded-lg">
+                                          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-emerald-500/20">Equilíbrio Adequado</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ) : null;
                             })}
@@ -1280,6 +1619,18 @@ const ProjectDetailView: React.FC = () => {
                     <div className="px-3 py-1 rounded-full text-[10px] font-black" style={{ backgroundColor: 'var(--primary-soft)', color: 'var(--primary)' }}>
                       {filteredTasks.length} TAREFAS
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowArchived(!showArchived)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black transition-all border uppercase tracking-wider ${showArchived ? 'bg-amber-500/10 border-amber-500/50 text-amber-600' : 'bg-[var(--bg)] border-[var(--border)] text-[var(--muted)] opacity-60 hover:opacity-100'}`}
+                    >
+                      <Archive size={12} className={showArchived ? "fill-amber-500/20" : ""} />
+                      {(() => {
+                        const doneCount = projectTasks.filter(t => t.status === 'Done').length;
+                        return showArchived ? `Ocultar ${doneCount} Concluídas` : `Ver ${doneCount} Concluídas`;
+                      })()}
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -1316,6 +1667,7 @@ const ProjectDetailView: React.FC = () => {
                         users={users}
                         timesheetEntries={timesheetEntries}
                         isAdmin={isAdmin}
+                        currentUserId={currentUser?.id}
                         onClick={() => navigate(`/tasks/${task.id}`)}
                       />
                     ))
@@ -1417,7 +1769,16 @@ const ProjectDetailView: React.FC = () => {
 };
 
 // SUBCOMPONENT
-const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timesheetEntries: any[], isAdmin: boolean, onClick: () => void }> = ({ project, task, users, timesheetEntries, isAdmin, onClick }) => {
+const ProjectTaskCard: React.FC<{
+  project: any,
+  task: any,
+  users: any[],
+  timesheetEntries: any[],
+  isAdmin: boolean,
+  currentUserId?: string,
+  onClick: () => void
+}> = ({ project, task, users, timesheetEntries, isAdmin, currentUserId, onClick }) => {
+  const navigate = useNavigate();
   const dev = users.find(u => u.id === task.developerId);
   const actualHours = timesheetEntries.filter(e => e.taskId === task.id).reduce((sum, e) => sum + e.totalHours, 0);
 
@@ -1493,6 +1854,37 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
             />
           </div>
         </div>
+
+        {task.status !== 'Done' && !isAdmin && (
+          // Mostrar botão de apontar APENAS para colaboradores (dev ou co-dev), impedindo para admins
+          task.developerId === currentUserId ||
+          (task.collaboratorIds || []).includes(currentUserId || '')
+        ) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = `/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`;
+                navigate(url);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl transition-all text-[10px] font-black border uppercase tracking-widest"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--primary)',
+                color: 'var(--primary)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--primary)';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--surface)';
+                e.currentTarget.style.color = 'var(--primary)';
+              }}
+            >
+              <Clock size={12} />
+              Apontar Tarefa
+            </button>
+          )}
 
         <div className="flex items-center justify-between pt-6 border-t" style={{ borderColor: 'var(--bg)' }}>
           <div className="flex items-center gap-3">

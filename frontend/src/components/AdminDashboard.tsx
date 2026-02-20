@@ -112,11 +112,7 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className="font-black text-xs">{p.name}</span>
-            {isIncomplete && (
-              <span className="flex-shrink-0 bg-yellow-400 text-black text-[7px] font-black px-1 rounded flex items-center gap-0.5">
-                <AlertTriangle size={8} /> INC
-              </span>
-            )}
+
             {isDelayed && (
               <span className="flex-shrink-0 bg-red-500 text-white text-[7px] font-black px-1 rounded flex items-center gap-0.5 animate-pulse">
                 <Clock size={8} /> ATRASO
@@ -287,17 +283,44 @@ const AdminDashboard: React.FC = () => {
   const filteredSortedClients = useMemo(() => {
     let result = [...activeClients];
 
-    // Aplicar Filtro de Busca - Refinado para match de início de palavra
+    // Aplicar Filtro de Busca Global - Refinado para match de início de palavra e ignorando acentos
     if (searchTerm && searchTerm.trim()) {
-      const term = searchTerm.trim().toLowerCase();
+      const term = searchTerm.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+
       result = result.filter(c => {
-        const clientName = (c.name || '').toLowerCase();
-
-        // Verifica se o termo coincide com o início de alguma palavra no nome do cliente
+        // 1. Match Nome do Cliente
+        const clientName = (c.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
         const clientWords = clientName.split(/[\s-]+/);
-        const matchesClientName = clientWords.some(word => word.startsWith(term)) || clientName.startsWith(term);
+        if (clientWords.some(word => word.startsWith(term)) || clientName.includes(term)) return true;
 
-        return matchesClientName;
+        // 2. Match Nome de Projetos do Cliente
+        const clientProjects = safeProjects.filter(p => String(p.clientId) === String(c.id));
+        const matchesProject = clientProjects.some(p => {
+          const name = p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+          return name.includes(term);
+        });
+        if (matchesProject) return true;
+
+        // 3. Match Nome de Tarefas ou Colaboradores
+        const clientTasks = safeTasks.filter(t => String(t.clientId) === String(c.id));
+        const matchesTaskOrCollab = clientTasks.some(t => {
+          // Título da tarefa
+          const title = (t.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+          if (title.includes(term)) return true;
+
+          // Colaborador (Responsável)
+          const dev = users.find(u => u.id === t.developerId);
+          const devName = (dev?.name || t.developer || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+          if (devName.includes(term)) return true;
+
+          // Outros Colaboradores
+          const otherColabs = (t.collaboratorIds || []).map(id => users.find(u => u.id === id)).filter(Boolean);
+          if (otherColabs.some(u => (u?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(term))) return true;
+
+          return false;
+        });
+
+        return matchesTaskOrCollab;
       });
     }
 
@@ -340,7 +363,7 @@ const AdminDashboard: React.FC = () => {
           return dateB.getTime() - dateA.getTime();
       }
     });
-  }, [activeClients, sortBy, taskStatusFilter, safeTasks, searchTerm, projects, safeProjects]);
+  }, [activeClients, sortBy, taskStatusFilter, safeTasks, searchTerm, projects, safeProjects, users]);
 
   // Filtros Executivos (Excel-like)
   const [executiveFilters, setExecutiveFilters] = useState<{
@@ -981,12 +1004,12 @@ const AdminDashboard: React.FC = () => {
                       <table className="w-full border-collapse border border-[var(--border)]">
                         <thead>
                           <tr className="bg-[var(--surface-2)]">
-                            <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-left border-b border-r border-[var(--border)]">Colaborador</th>
-                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">Ocup (%)</th>
-                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">Alocado</th>
-                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">Realiz</th>
-                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">Disponível em</th>
-                            <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-right border-b border-[var(--border)]">Saldo</th>
+                            <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-left border-b border-r border-[var(--border)]">COLABORADOR</th>
+                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">OCUP (%)</th>
+                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">ALOCADO</th>
+                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">REALIZ</th>
+                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">DISPONÍVEL EM</th>
+                            <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-right border-b border-[var(--border)]">SALDO</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1421,8 +1444,8 @@ const AdminDashboard: React.FC = () => {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar..."
-                    className="pl-9 pr-3 py-1.5 w-32 lg:w-48 border rounded-xl text-xs transition-all focus:ring-2 focus:ring-purple-500/20 outline-none"
+                    placeholder="Buscar cliente, projeto, tarefa ou dev..."
+                    className="pl-9 pr-3 py-1.5 w-48 lg:w-72 border rounded-xl text-xs transition-all focus:ring-2 focus:ring-purple-500/20 outline-none"
                     style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
                   />
                 </div>
@@ -1563,7 +1586,6 @@ const AdminDashboard: React.FC = () => {
               >
                 {filteredSortedClients.map((client) => {
                   const clientProjects = safeProjects.filter((p) => String(p.clientId) === String(client.id));
-                  const hasIncomplete = clientProjects.some(p => isProjectIncomplete(p));
 
                   return (
                     <div
@@ -1577,11 +1599,7 @@ const AdminDashboard: React.FC = () => {
                         navigate(`/admin/clients/${client.id}`);
                       }}
                     >
-                      {hasIncomplete && (
-                        <div className="absolute top-2 right-2 z-10 bg-yellow-400 text-black px-1.5 py-0.5 rounded-full text-[7px] font-black flex items-center gap-1 shadow-lg shadow-yellow-500/20">
-                          <AlertTriangle size={8} /> INCOMPLETO
-                        </div>
-                      )}
+
                       <div className="w-full flex-1 bg-white dark:bg-white/95 p-3 flex items-center justify-center transition-all overflow-hidden border-b border-[var(--border)]">
                         <img
                           src={client.logoUrl}
@@ -1613,7 +1631,6 @@ const AdminDashboard: React.FC = () => {
                 {filteredSortedClients.map((client) => {
                   const clientProjects = safeProjects.filter(p => String(p.clientId) === String(client.id));
                   const clientTasks = safeTasks.filter(t => String(t.clientId) === String(client.id));
-                  const hasIncomplete = clientProjects.some(p => isProjectIncomplete(p));
 
                   return (
                     <div key={client.id} className="space-y-4">
@@ -1691,7 +1708,6 @@ const AdminDashboard: React.FC = () => {
                                 }
                               }
 
-                              const isIncomplete = isProjectIncomplete(project);
                               const isDelayed = progress < (plannedProgress - 5);
 
                               return (
@@ -1706,7 +1722,7 @@ const AdminDashboard: React.FC = () => {
                                   }}
                                 >
                                   {/* Accent line at the top to keep the premium purple identity */}
-                                  <div className={`absolute top-0 left-0 right-0 h-1 ${isIncomplete ? 'bg-yellow-400' : isDelayed ? 'bg-red-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'} opacity-80`} />
+                                  <div className={`absolute top-0 left-0 right-0 h-1 ${isDelayed ? 'bg-red-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'} opacity-80`} />
                                   {isAdmin && (
                                     <button
                                       onClick={(e) => {
@@ -1724,11 +1740,7 @@ const AdminDashboard: React.FC = () => {
                                       {project.name}
                                     </h4>
                                     <div className="flex gap-1 shrink-0">
-                                      {isIncomplete && (
-                                        <span className="bg-yellow-400 text-black text-[7px] font-black px-1 rounded flex items-center gap-0.5">
-                                          <AlertTriangle size={8} /> INC
-                                        </span>
-                                      )}
+
                                       {isDelayed && (
                                         <span className="bg-red-500 text-white text-[7px] font-black px-1 rounded flex items-center gap-0.5">
                                           <Clock size={8} /> ATR

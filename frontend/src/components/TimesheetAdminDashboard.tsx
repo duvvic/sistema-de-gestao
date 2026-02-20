@@ -17,21 +17,6 @@ const TimesheetAdminDashboard: React.FC = () => {
 
    const { projectMembers } = useDataController();
 
-   const isProjectIncomplete = (p: Project) => {
-      const pMembers = projectMembers.filter(pm => String(pm.id_projeto) === p.id);
-      return (
-         !p.name?.trim() ||
-         !p.clientId ||
-         !p.partnerId ||
-         !p.valor_total_rs ||
-         !p.horas_vendidas ||
-         !p.startDate ||
-         !p.estimatedDelivery ||
-         !p.responsibleNicLabsId ||
-         !p.managerClient ||
-         pMembers.length === 0
-      );
-   };
 
    const [activeTab, setActiveTab] = useState<'projects' | 'collaborators' | 'status'>(initialTab);
    const [expandedCollaborators, setExpandedCollaborators] = useState<Set<string>>(new Set());
@@ -283,11 +268,7 @@ const TimesheetAdminDashboard: React.FC = () => {
                                     style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--primary)' }}>
                                     <ArrowRight className="w-4 h-4" />
                                  </div>
-                                 {clientProjects.some(p => isProjectIncomplete(p)) && (
-                                    <span title="Este cliente possui projetos com cadastro incompleto" className="text-yellow-500 animate-pulse">
-                                       <AlertTriangle size={16} />
-                                    </span>
-                                 )}
+
                               </div>
                               <style>{`.group:hover .rounded-full { background-color: var(--primary) !important; color: white !important; }`}</style>
                            </div>
@@ -518,18 +499,14 @@ const TimesheetAdminDashboard: React.FC = () => {
                         ) : (
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {projectsWithHours.map(proj => (
-                                 <div key={proj.id} className={`rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group transform hover:scale-[1.01] ${proj.entryCount > 0 ? '' : 'border-dashed opacity-75'} ${isProjectIncomplete(proj) ? 'ring-1 ring-yellow-500/30' : ''}`}
-                                    style={{ backgroundColor: 'var(--surface)', borderColor: isProjectIncomplete(proj) ? '#eab308' : 'var(--border)' }}
+                                 <div key={proj.id} className={`rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group transform hover:scale-[1.01] ${proj.entryCount > 0 ? '' : 'border-dashed opacity-75'}`}
+                                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                                     onClick={() => navigate(`/admin/projects/${proj.id}`)}
                                  >
                                     <div className="flex justify-between items-start mb-2">
                                        <div className="flex items-center gap-2">
                                           <h3 className="font-bold transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--text)' }}>{proj.name}</h3>
-                                          {isProjectIncomplete(proj) && (
-                                             <span title="Cadastro Incompleto" className="text-yellow-500 animate-pulse">
-                                                <AlertTriangle size={14} />
-                                             </span>
-                                          )}
+
                                        </div>
                                        <span className={`text-lg font-black transition-colors ${proj.totalHours > 0 ? 'text-[var(--primary)]' : 'opacity-30'}`}>
                                           {formatDecimalToTime(proj.totalHours)}

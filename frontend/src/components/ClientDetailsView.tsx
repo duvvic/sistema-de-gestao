@@ -22,7 +22,7 @@ const ClientDetailsView: React.FC = () => {
   } = useDataController();
   const { isAdmin } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<ViewTab>('details');
+  const [activeTab, setActiveTab] = useState<ViewTab>('projects');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project' | 'task' | 'client' } | null>(null);
@@ -171,13 +171,6 @@ const ClientDetailsView: React.FC = () => {
         {/* COMPACT TABS INTEGRATED IN HEADER (FUNCTIONAL VERSION) */}
         <div className="flex items-center gap-2">
           <div
-            onClick={() => setActiveTab('details')}
-            className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-3 ${activeTab === 'details' ? 'border-white bg-white/20 shadow-sm' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
-          >
-            <span className="text-[10px] font-black uppercase tracking-widest text-white">Informações</span>
-          </div>
-
-          <div
             onClick={() => setActiveTab('projects')}
             className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-3 ${activeTab === 'projects' ? 'border-white bg-white/20 shadow-sm' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
           >
@@ -191,6 +184,13 @@ const ClientDetailsView: React.FC = () => {
           >
             <span className="text-[10px] font-black uppercase tracking-widest text-white">Tarefas</span>
             <span className="text-sm font-black text-white">{clientTasks.length}</span>
+          </div>
+
+          <div
+            onClick={() => setActiveTab('details')}
+            className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-3 ${activeTab === 'details' ? 'border-white bg-white/20 shadow-sm' : 'border-white/10 bg-black/10 hover:bg-white/5'}`}
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest text-white">Informações</span>
           </div>
 
           {isAdmin && activeTab === 'details' && (
@@ -456,8 +456,8 @@ const ClientDetailsView: React.FC = () => {
                         whileHover={{ y: -5 }}
                         key={project.id}
                         onClick={() => navigate(`/admin/projects/${project.id}`)}
-                        className={`p-7 rounded-[32px] border shadow-sm hover:shadow-xl transition-all cursor-pointer group relative ${isIncomplete ? 'ring-2 ring-yellow-500/20' : ''}`}
-                        style={{ backgroundColor: 'var(--surface)', borderColor: isIncomplete ? '#eab308' : 'var(--border)' }}
+                        className={`p-7 rounded-[32px] border shadow-sm hover:shadow-xl transition-all cursor-pointer group relative`}
+                        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                       >
                         <button
                           onClick={(e) => { e.stopPropagation(); setItemToDelete({ id: project.id, type: 'project' }); }}
@@ -467,11 +467,6 @@ const ClientDetailsView: React.FC = () => {
                         </button>
                         <h4 className="font-black text-lg mb-6 pr-8 group-hover:text-purple-600 transition-colors uppercase tracking-tight line-clamp-1" style={{ color: 'var(--text)' }}>
                           {project.name}
-                          {isIncomplete && (
-                            <span className="ml-2 bg-yellow-500 text-black px-2 py-0.5 rounded-lg text-[9px] font-black inline-flex items-center gap-1 animate-pulse align-middle">
-                              <AlertTriangle size={8} /> INCOMPLETO
-                            </span>
-                          )}
                         </h4>
 
                         <div className="space-y-6">
@@ -628,10 +623,10 @@ const ClientDetailsView: React.FC = () => {
                                     </h5>
                                     <div className="mt-1 flex items-center gap-2">
                                       <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md border ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                          task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                            task.status === 'Testing' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                                              task.status === 'Review' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                                                'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                        task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                          task.status === 'Testing' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                            task.status === 'Review' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                                              'bg-slate-500/10 text-slate-400 border-slate-500/20'
                                         }`}>
                                         {task.status === 'Todo' ? 'Pré-Projeto' :
                                           task.status === 'Review' ? 'Análise' :

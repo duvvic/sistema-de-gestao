@@ -40,7 +40,8 @@ import {
   Plus,
   Briefcase,
   Flag,
-  Archive
+  Archive,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmationModal from './ConfirmationModal';
@@ -393,9 +394,8 @@ const KanbanCard = ({
           </div>
         </div>
 
-        {task.status !== 'Done' && (
-          // Mostrar botão de apontar para qualquer um que pertença à tarefa (dev ou colaborador), incluindo admins
-          isAdmin ||
+        {task.status !== 'Done' && !isAdmin && (
+          // Mostrar botão de apontar APENAS para colaboradores (dev ou co-dev), impedindo para admins
           task.developerId === currentUserId ||
           (task.collaboratorIds || []).includes(currentUserId || '')
         ) && (
@@ -559,6 +559,7 @@ export const KanbanBoard = () => {
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const [showDevMenu, setShowDevMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [devSearchTerm, setDevSearchTerm] = useState('');
   const [showTaskCreationModal, setShowTaskCreationModal] = useState(false);
   const [showOnlyDelayed, setShowOnlyDelayed] = useState(false);
   const [showOnlyImpediments, setShowOnlyImpediments] = useState(false);
@@ -613,15 +614,21 @@ export const KanbanBoard = () => {
   // Filters from Query Params
   const filteredClientId = searchParams.get('clientId') || searchParams.get('client');
   const filteredProjectId = searchParams.get('projectId') || searchParams.get('project');
-  const filteredDeveloperId = searchParams.get('developerId') || searchParams.get('developer');
 
-  // New local state for additional filtering
-  const [selectedDeveloperId, setSelectedDeveloperId] = useState<string>(filteredDeveloperId || '');
+  const filteredDeveloperIds = useMemo(() => {
+    const ids = searchParams.get('developerIds') || searchParams.get('developerId');
+    return ids ? ids.split(',').filter(Boolean) : [];
+  }, [searchParams]);
 
-  // Reset local developer filter if query param clears
+  // New local state for additional filtering - MULTI SELECT
+  const [selectedDeveloperIds, setSelectedDeveloperIds] = useState<string[]>(filteredDeveloperIds);
+  const [tempSelectedIds, setTempSelectedIds] = useState<string[]>(filteredDeveloperIds);
+
+  // Sync with URL
   useEffect(() => {
-    setSelectedDeveloperId(filteredDeveloperId || '');
-  }, [filteredDeveloperId]);
+    setSelectedDeveloperIds(filteredDeveloperIds);
+    setTempSelectedIds(filteredDeveloperIds);
+  }, [filteredDeveloperIds]);
 
   const filteredTasks = useMemo(() => {
     let result = tasks.filter((t) => {
@@ -639,10 +646,10 @@ export const KanbanBoard = () => {
       if (filteredClientId && t.clientId !== filteredClientId) return false;
       if (filteredProjectId && t.projectId !== filteredProjectId) return false;
 
-      // 3. User Filter (from Select) - Only applies to Admin view or if Dev explicitly filters (though we hide UI)
-      if (selectedDeveloperId) {
-        const isSelectedOwner = t.developerId === selectedDeveloperId;
-        const isSelectedCollaborator = t.collaboratorIds?.includes(selectedDeveloperId);
+      // 3. User Filter (from Select) - Multiple Selection Support
+      if (selectedDeveloperIds.length > 0) {
+        const isSelectedOwner = selectedDeveloperIds.includes(t.developerId || '');
+        const isSelectedCollaborator = (t.collaboratorIds || []).some(id => selectedDeveloperIds.includes(id));
         if (!isSelectedOwner && !isSelectedCollaborator) return false;
       }
 
@@ -652,19 +659,38 @@ export const KanbanBoard = () => {
       // 5. Impediments Filter
       if (showOnlyImpediments && !t.is_impediment) return false;
 
-      // 6. Global Search
+      // 6. Global Search - Refinado para Clientes e Projetos ignorando acentos
       if (searchTerm) {
-        const lowerSearch = searchTerm.toLowerCase();
-        return t.title.toLowerCase().includes(lowerSearch) ||
-          t.description?.toLowerCase().includes(lowerSearch) ||
-          t.developer?.toLowerCase().includes(lowerSearch);
+        const term = searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+
+        // Match no título ou descrição
+        const titleMatch = (t.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(term);
+        const descMatch = (t.description || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(term);
+        if (titleMatch || descMatch) return true;
+
+        // Match no desenvolvedor
+        const developer = users.find(u => u.id === t.developerId);
+        const devName = (developer?.name || t.developer || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+        if (devName.includes(term)) return true;
+
+        // Match no cliente
+        const client = clients.find(c => c.id === t.clientId);
+        const clientMatch = (client?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(term);
+        if (clientMatch) return true;
+
+        // Match no projeto
+        const project = projects.find(p => p.id === t.projectId);
+        const projectMatch = (project?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(term);
+        if (projectMatch) return true;
+
+        return false;
       }
 
       return true;
     });
 
     return result;
-  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperId, showOnlyDelayed, showOnlyImpediments, searchTerm]);
+  }, [tasks, currentUser, isAdmin, filteredClientId, filteredProjectId, selectedDeveloperIds, showOnlyDelayed, showOnlyImpediments, searchTerm, users, clients, projects]);
 
   // Calcular empresas disponíveis para filtro (apenas empresas onde o usuário concluiu tarefas)
   const availableClientsForDoneFilter = useMemo(() => {
@@ -859,12 +885,28 @@ export const KanbanBoard = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Busca Global */}
+          <div className="relative group min-w-[200px] lg:min-w-[300px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-purple-500 transition-colors" />
+            <input
+              type="text"
+              placeholder="Buscar tarefa, cliente, projeto ou dev..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 outline-none text-sm shadow-lg transition-all"
+              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            />
+          </div>
+
           {/* Custom PREMIUM Developer Filter - APENAS PARA ADMINS */}
           {isAdmin && (
             <div className="relative min-w-[240px]">
               <button
                 type="button"
-                onClick={() => setShowDevMenu(!showDevMenu)}
+                onClick={() => {
+                  if (!showDevMenu) setTempSelectedIds(selectedDeveloperIds);
+                  setShowDevMenu(!showDevMenu);
+                }}
                 className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border transition-all shadow-lg group"
                 style={{
                   backgroundColor: 'var(--surface)',
@@ -874,30 +916,38 @@ export const KanbanBoard = () => {
               >
                 <div className="flex items-center gap-2 truncate">
                   <div className="w-6 h-6 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {selectedDeveloperId ? (
-                      users.find(u => u.id === selectedDeveloperId)?.avatarUrl ? (
-                        <img
-                          src={users.find(u => u.id === selectedDeveloperId)?.avatarUrl}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.onerror = null;
-                            const name = users.find(u => u.id === selectedDeveloperId)?.name || 'Dev';
-                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=f8fafc&color=475569`;
-                          }}
-                        />
-                      ) : (
-                        <span className="text-[10px] font-black text-purple-400">
-                          {users.find(u => u.id === selectedDeveloperId)?.name.charAt(0).toUpperCase()}
-                        </span>
-                      )
+                    {selectedDeveloperIds.length === 1 ? (
+                      (() => {
+                        const dev = users.find(u => u.id === selectedDeveloperIds[0]);
+                        return dev?.avatarUrl ? (
+                          <img
+                            src={dev.avatarUrl}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.onerror = null;
+                              target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(dev.name)}&background=f8fafc&color=475569`;
+                            }}
+                          />
+                        ) : (
+                          <span className="text-[10px] font-black text-purple-400">
+                            {dev?.name.charAt(0).toUpperCase()}
+                          </span>
+                        );
+                      })()
+                    ) : selectedDeveloperIds.length > 1 ? (
+                      <Users size={12} className="text-purple-400" />
                     ) : (
                       <UserIcon size={12} className="text-slate-400" />
                     )}
                   </div>
                   <span className="text-sm font-bold truncate tracking-tight">
-                    {selectedDeveloperId ? users.find(u => u.id === selectedDeveloperId)?.name : 'Todos os Colaboradores'}
+                    {selectedDeveloperIds.length === 0
+                      ? 'Todos os Colaboradores'
+                      : selectedDeveloperIds.length === 1
+                        ? users.find(u => u.id === selectedDeveloperIds[0])?.name
+                        : `${selectedDeveloperIds.length} Colaboradores`}
                   </span>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showDevMenu ? 'rotate-180' : ''}`} />
@@ -922,19 +972,19 @@ export const KanbanBoard = () => {
                           placeholder="Pesquisar nome..."
                           className="w-full border rounded-lg pl-10 pr-4 py-2 text-xs outline-none focus:border-purple-500 transition-all font-bold"
                           style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
+                          value={devSearchTerm}
+                          onChange={(e) => setDevSearchTerm(e.target.value)}
                         />
                       </div>
 
                       <div className="overflow-y-auto flex-1 custom-scrollbar pr-1">
                         <button
                           type="button"
-                          onClick={() => { setSelectedDeveloperId(''); setShowDevMenu(false); setSearchTerm(''); }}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${!selectedDeveloperId ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                          onClick={() => { setTempSelectedIds([]); }}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${tempSelectedIds.length === 0 ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                         >
                           <span>Todos os Colaboradores</span>
-                          {!selectedDeveloperId && <Check size={14} />}
+                          {tempSelectedIds.length === 0 && <Check size={14} />}
                         </button>
 
                         <div className="h-px bg-white/5 my-1 mx-2" />
@@ -944,51 +994,80 @@ export const KanbanBoard = () => {
                           return users
                             .filter(u => u.active !== false &&
                               (u.torre !== 'N/A' || activeRoles.includes(u.role?.toLowerCase() || '')) &&
-                              (searchTerm === '' || u.name.toLowerCase().includes(searchTerm.toLowerCase())))
+                              (devSearchTerm === '' || u.name.toLowerCase().includes(devSearchTerm.toLowerCase())))
                             .filter(u => !showOnlyDelayed || lateDevelopers.some(ld => ld.user.id === u.id))
                             .sort((a, b) => a.name.localeCompare(b.name))
-                            .map(user => (
-                              <button
-                                key={user.id}
-                                onClick={() => {
-                                  // Update URL with selected developer
-                                  const newParams = new URLSearchParams(searchParams);
-                                  if (selectedDeveloperId === user.id) {
-                                    setSelectedDeveloperId('');
-                                    newParams.delete('developerId');
-                                  } else {
-                                    setSelectedDeveloperId(user.id);
-                                    newParams.set('developerId', user.id);
-                                  }
-                                  setSearchParams(newParams);
-                                  setShowDevMenu(false);
-                                  setSearchTerm('');
-                                }}
-                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedDeveloperId === user.id ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
-                              >
-                                <div className="flex items-center gap-3 truncate">
-                                  <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                    {user.avatarUrl ? (
-                                      <img
-                                        src={user.avatarUrl}
-                                        alt=""
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                          const target = e.target as HTMLImageElement;
-                                          target.onerror = null;
-                                          target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=f8fafc&color=475569`;
-                                        }}
-                                      />
-                                    ) : (
-                                      <span className="text-[10px] uppercase font-black">{user.name.charAt(0)}</span>
-                                    )}
+                            .map(user => {
+                              const isSelected = tempSelectedIds.includes(user.id);
+                              return (
+                                <button
+                                  key={user.id}
+                                  onClick={() => {
+                                    setTempSelectedIds(prev =>
+                                      prev.includes(user.id)
+                                        ? prev.filter(id => id !== user.id)
+                                        : [...prev, user.id]
+                                    );
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${isSelected ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                                >
+                                  <div className="flex items-center gap-3 truncate">
+                                    <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                      {user.avatarUrl ? (
+                                        <img
+                                          src={user.avatarUrl}
+                                          alt=""
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.onerror = null;
+                                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=f8fafc&color=475569`;
+                                          }}
+                                        />
+                                      ) : (
+                                        <span className="text-[10px] uppercase font-black">{user.name.charAt(0)}</span>
+                                      )}
+                                    </div>
+                                    <span className="truncate">{user.name}</span>
                                   </div>
-                                  <span className="truncate">{user.name}</span>
-                                </div>
-                                {selectedDeveloperId === user.id && <Check size={14} />}
-                              </button>
-                            ));
+                                  {isSelected && <Check size={14} />}
+                                </button>
+                              );
+                            });
                         })()}
+                      </div>
+
+                      <div className="p-2 border-t mt-1 flex gap-2" style={{ borderColor: 'var(--border)' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDeveloperIds(tempSelectedIds);
+                            const newParams = new URLSearchParams(searchParams);
+                            if (tempSelectedIds.length > 0) {
+                              newParams.set('developerIds', tempSelectedIds.join(','));
+                              newParams.delete('developerId'); // Clean up old param
+                            } else {
+                              newParams.delete('developerIds');
+                              newParams.delete('developerId');
+                            }
+                            setSearchParams(newParams);
+                            setShowDevMenu(false);
+                            setDevSearchTerm('');
+                          }}
+                          className="flex-1 py-2 rounded-xl bg-purple-600 text-white text-xs font-black uppercase tracking-widest hover:bg-purple-700 transition-all shadow-lg"
+                        >
+                          Aplicar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempSelectedIds([]);
+                          }}
+                          className="px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest hover:bg-white/5 transition-all"
+                          style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                        >
+                          Limpar
+                        </button>
                       </div>
                     </motion.div>
                   </>
@@ -1089,18 +1168,23 @@ export const KanbanBoard = () => {
                 <button
                   key={user.id}
                   onClick={() => {
-                    if (selectedDeveloperId === user.id) {
-                      // Deselect if clicking on already selected user
-                      setSelectedDeveloperId('');
+                    const newIds = selectedDeveloperIds.includes(user.id)
+                      ? selectedDeveloperIds.filter(id => id !== user.id)
+                      : [...selectedDeveloperIds, user.id];
+                    setSelectedDeveloperIds(newIds);
+                    const newParams = new URLSearchParams(searchParams);
+                    if (newIds.length > 0) {
+                      newParams.set('developerIds', newIds.join(','));
                     } else {
-                      // Select the user
-                      setSelectedDeveloperId(user.id);
+                      newParams.delete('developerIds');
                     }
+                    newParams.delete('developerId');
+                    setSearchParams(newParams);
                   }}
                   className="flex-shrink-0 relative group"
                   title={`Filtrar tarefas de ${user.name}`}
                 >
-                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all duration-300 shadow-lg ${selectedDeveloperId === user.id
+                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all duration-300 shadow-lg ${selectedDeveloperIds.includes(user.id)
                     ? 'border-red-500 ring-2 ring-red-500/50 scale-110'
                     : 'border-red-500/50 group-hover:border-red-500'
                     }`}>

@@ -362,17 +362,13 @@ const AdminDashboardBento: React.FC = () => {
               <div
                 key={project.id}
                 onClick={() => navigate(`/admin/projects/${project.id}`)}
-                className={`p-5 rounded-xl border cursor-pointer transition-all hover:shadow-lg relative overflow-hidden ${isIncomplete ? 'ring-2 ring-yellow-500/50' : ''}`}
+                className={`p-5 rounded-xl border cursor-pointer transition-all hover:shadow-lg relative overflow-hidden`}
                 style={{
                   backgroundColor: 'var(--surface)',
-                  borderColor: isIncomplete ? '#eab308' : 'var(--border)'
+                  borderColor: 'var(--border)'
                 }}
               >
-                {isIncomplete && (
-                  <div className="absolute top-0 right-0 p-1 px-2 bg-yellow-500 text-black text-[8px] font-black uppercase rounded-bl-lg animate-pulse z-10">
-                    Incompleto
-                  </div>
-                )}
+
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold truncate mb-1" style={{ color: 'var(--text)' }}>

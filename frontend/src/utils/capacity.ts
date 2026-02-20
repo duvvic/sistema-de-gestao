@@ -110,6 +110,7 @@ const isIntersectingMonth = (start: Date, end: Date | null, monthStart: Date, mo
 /**
  * Calcula a capacidade mensal e disponibilidade baseada nas regras de negócio (Nov 2024).
  * 
+ *
  * Regra 1: Projeto Ativo no Mês (Data Inicio <= Ultimo Dia Mês AND Data Fim >= Primeiro Dia Mês)
  * Regra 2: Alocação Válida (Data Inicio <= Ultimo Dia Mês AND Data Fim >= Primeiro Dia Mês)
  * Regra 3: Horas Alocadas = Soma das horas mensais dos projetos (Horas Vendidas / Duração * % Alocação)
@@ -133,10 +134,38 @@ export const getUserMonthlyAvailability = (
     const dailyGoal = user.dailyAvailableHours || 8;
     const capacity = dailyGoal * workingDays;
 
-    // 2. Horas Alocadas (Nova Lógica: Baseada em TAREFAS)
-    // Usamos a função auxiliar que já calcula horas de tarefas para o mês especificado
-    const allocated = getMonthlyAllocatedHours(user.id, monthStr, tasks);
+    // 2. Horas Alocadas (Combinando Tarefas e Projetos Contínuos)
+    let allocated = getMonthlyAllocatedHours(user.id, monthStr, tasks);
 
+    // Soma alocação de Projetos Contínuos
+    const userProjectMemberships = projectMembers.filter(pm => String(pm.id_colaborador) === String(user.id));
+
+    userProjectMemberships.forEach(pm => {
+        const project = projects.find(p => String(p.id) === String(pm.id_projeto));
+        if (project && project.project_type === 'continuous' && project.active !== false) {
+            const pStart = project.startDate ? new Date(project.startDate + 'T00:00:00') : null;
+            const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery + 'T23:59:59') : null;
+
+            // Se o projeto está ativo neste mês
+            if (pStart && pStart <= monthEnd && (!pEnd || pEnd >= monthStart)) {
+                // Calcula dias úteis de interseção
+                let current = new Date(Math.max(monthStart.getTime(), pStart.getTime()));
+                const end = new Date(Math.min(monthEnd.getTime(), pEnd ? pEnd.getTime() : monthEnd.getTime()));
+
+                let continuousWorkingDays = 0;
+                while (current <= end) {
+                    const dayOfWeek = current.getDay();
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                        continuousWorkingDays++;
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+
+                const dailyAllocation = (Number(pm.allocation_percentage || 100) / 100) * 8;
+                allocated += (continuousWorkingDays * dailyAllocation);
+            }
+        }
+    });
 
     // 3. Cálculo de Disponibilidade Real (Folga)
     let currentAvailability = 0;
@@ -215,13 +244,23 @@ export const calculateIndividualReleaseDate = (
         t.estimatedDelivery
     );
 
-    if (activeTasks.length === 0) return 'Livre';
+    // 2. Considerar Projetos Contínuos
+    const continuousProjects = projectMembers
+        .filter(pm => String(pm.id_colaborador) === String(user.id))
+        .map(pm => projects.find(p => String(p.id) === String(pm.id_projeto)))
+        .filter(p => p && p.project_type === 'continuous' && p.active !== false && p.estimatedDelivery);
 
-    // 2. Encontrar a data de entrega mais tardia
-    const deliveryDates = activeTasks.map(t => new Date(t.estimatedDelivery + 'T12:00:00').getTime());
-    const latestTimestamp = Math.max(...deliveryDates);
+    if (activeTasks.length === 0 && continuousProjects.length === 0) return 'Livre';
+
+    // 3. Encontrar a data mais tardia
+    const taskDates = activeTasks.map(t => new Date(t.estimatedDelivery + 'T12:00:00').getTime());
+    const projectDates = continuousProjects.map(p => new Date(p!.estimatedDelivery! + 'T12:00:00').getTime());
+
+    const allDates = [...taskDates, ...projectDates];
+    const latestTimestamp = Math.max(...allDates);
     const latestDate = new Date(latestTimestamp);
 
     return latestDate.toLocaleDateString('pt-BR');
 };
+
 

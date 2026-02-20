@@ -31,21 +31,7 @@ const ProjectColumn: React.FC<{
   isAdmin: boolean;
 }> = ({ title, status, projects, clients, users, projectMembers, onProjectClick, onDeleteClick, isAdmin }) => {
 
-  const isProjectIncomplete = (p: Project) => {
-    const pMembers = projectMembers.filter(pm => String(pm.id_projeto) === p.id);
-    return (
-      !p.name?.trim() ||
-      !p.clientId ||
-      !p.partnerId ||
-      !p.valor_total_rs ||
-      !p.horas_vendidas ||
-      !p.startDate ||
-      !p.estimatedDelivery ||
-      !p.responsibleNicLabsId ||
-      !p.managerClient ||
-      pMembers.length === 0
-    );
-  };
+
 
   const safeProjects = projects || [];
   const safeClients = clients || [];
@@ -87,7 +73,7 @@ const ProjectColumn: React.FC<{
             <div
               key={project.id}
               onClick={() => onProjectClick(project.id)}
-              className={`p-4 rounded-xl shadow-sm border cursor-pointer hover:shadow-md transition-all group relative overflow-hidden bg-white border-slate-100 hover:border-purple-200 ${isProjectIncomplete(project) ? 'ring-1 ring-yellow-500/50 border-yellow-200' : ''}`}
+              className={`p-4 rounded-xl shadow-sm border cursor-pointer hover:shadow-md transition-all group relative overflow-hidden bg-white border-slate-100 hover:border-purple-200`}
             >
               {/* DELETE → Apenas Admin */}
               {isAdmin && onDeleteClick && (
@@ -117,11 +103,7 @@ const ProjectColumn: React.FC<{
               {/* Nome do Projeto */}
               <h4 className="font-bold text-slate-800 mb-2 text-base leading-snug pr-4">
                 {project.name}
-                {isProjectIncomplete(project) && (
-                  <span className="ml-2 inline-flex items-center gap-1 bg-yellow-500 text-black px-1.5 py-0.5 rounded text-[8px] font-black uppercase animate-pulse">
-                    <AlertTriangle size={8} /> Incompleto
-                  </span>
-                )}
+
               </h4>
 
               {/* Descrição */}

@@ -32,21 +32,7 @@ const ExecutiveDashboard: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'critical'>('all');
   const { projectMembers } = useDataController();
 
-  const isProjectIncomplete = (p: Project) => {
-    const pMembers = projectMembers.filter(pm => String(pm.id_projeto) === p.id);
-    return (
-      !p.name?.trim() ||
-      !p.clientId ||
-      !p.partnerId ||
-      !p.valor_total_rs ||
-      !p.horas_vendidas ||
-      !p.startDate ||
-      !p.estimatedDelivery ||
-      !p.responsibleNicLabsId ||
-      !p.managerClient ||
-      pMembers.length === 0
-    );
-  };
+
 
   // Calculate project metrics
   const projectMetrics = useMemo(() => {
@@ -115,7 +101,7 @@ const ExecutiveDashboard: React.FC = () => {
           overdueTasks,
           isCritical,
           isProjectDelayed,
-          isIncomplete: isProjectIncomplete(p)
+
         };
       });
   }, [projects, clients, tasks, timesheetEntries, users]);
@@ -325,11 +311,7 @@ const ExecutiveDashboard: React.FC = () => {
                 <td className="px-4 py-3 font-bold" style={{ color: 'var(--text)' }}>
                   <div className="flex items-center gap-2">
                     {project.isCritical && <AlertCircle className="w-4 h-4" style={{ color: 'var(--danger)' }} />}
-                    {project.isIncomplete && (
-                      <span title="Cadastro Incompleto">
-                        <AlertTriangle className="w-4 h-4 text-yellow-500 animate-pulse" />
-                      </span>
-                    )}
+
                     {project.isProjectDelayed && (
                       <span title="Projeto com Atraso de Cronograma">
                         <Clock className="w-4 h-4 text-red-500 animate-pulse" />
