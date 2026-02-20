@@ -393,28 +393,33 @@ const KanbanCard = ({
           </div>
         </div>
 
-        {task.status !== 'Done' && !isAdmin && (
-          <button
-            onClick={handleCreateTimesheet}
-            className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg transition-all text-[11px] font-bold border shadow-sm"
-            style={{
-              backgroundColor: 'var(--surface)',
-              borderColor: 'var(--primary)',
-              color: 'var(--primary)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--primary)';
-              e.currentTarget.style.color = 'white';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--surface)';
-              e.currentTarget.style.color = 'var(--primary)';
-            }}
-          >
-            <Clock size={12} />
-            Apontar Tarefa
-          </button>
-        )}
+        {task.status !== 'Done' && (
+          // Mostrar botão de apontar para qualquer um que pertença à tarefa (dev ou colaborador), incluindo admins
+          isAdmin ||
+          task.developerId === currentUserId ||
+          (task.collaboratorIds || []).includes(currentUserId || '')
+        ) && (
+            <button
+              onClick={handleCreateTimesheet}
+              className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg transition-all text-[11px] font-bold border shadow-sm"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--primary)',
+                color: 'var(--primary)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--primary)';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--surface)';
+                e.currentTarget.style.color = 'var(--primary)';
+              }}
+            >
+              <Clock size={12} />
+              Apontar Tarefa
+            </button>
+          )}
       </div>
     </div>
   );
