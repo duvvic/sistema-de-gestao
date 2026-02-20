@@ -9,7 +9,6 @@ import {
 import { useUnsavedChangesPrompt } from '@/hooks/useUnsavedChangesPrompt';
 import ConfirmationModal from './ConfirmationModal';
 import TransferResponsibilityModal from './TransferResponsibilityModal';
-import BackButton from './shared/BackButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDecimalToTime } from '@/utils/normalizers';
 
@@ -145,7 +144,8 @@ const TaskDetail: React.FC = () => {
     if (isNew || !taskId) return null;
     const taskHours = timesheetEntries.filter(e => e.taskId === taskId);
     if (taskHours.length === 0) return null;
-    return new Date(Math.min(...taskHours.map(e => new Date(e.date).getTime())));
+    // Usa T12:00:00 para evitar off-by-one de fuso horário
+    return new Date(Math.min(...taskHours.map(e => new Date(e.date + 'T12:00:00').getTime())));
   }, [timesheetEntries, taskId, isNew]);
 
 
@@ -312,22 +312,44 @@ const TaskDetail: React.FC = () => {
 
   if (!isNew && !task) return <div className="p-8 text-center" style={{ color: 'var(--text-muted)' }}>Tarefa não encontrada.</div>;
 
+  const taskProject = projects.find(p => p.id === (task?.projectId || formData.projectId));
+  const taskClient = clients.find(c => c.id === (task?.clientId || formData.clientId || taskProject?.clientId));
+
   return (
     <div className="h-full flex flex-col bg-[var(--bg)] overflow-hidden">
-      <div className="px-8 py-6 shadow-lg flex items-center justify-between text-white z-20" style={{ background: 'linear-gradient(to right, #1e1b4b, #4c1d95)' }}>
+      <div className="px-8 py-5 shadow-lg flex items-center justify-between text-white z-20" style={{ background: 'linear-gradient(to right, #1e1b4b, #4c1d95)' }}>
         <div className="flex items-center gap-4">
-          <BackButton />
-          <div>
-            <h1 className="text-xl font-bold flex items-center gap-3">
-              {isNew ? 'Nova Tarefa' : 'Detalhes da Tarefa'}
+          {/* Botão Voltar com estilo explícito para garantir visibilidade */}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all border border-white/20 text-white flex items-center justify-center shrink-0"
+            title="Voltar"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold flex items-center gap-3 leading-tight">
+              {isNew ? 'Nova Tarefa' : (formData.title || 'Detalhes da Tarefa')}
               {daysDelayed > 0 && (
-                <span className="flex items-center gap-1 text-[8px] px-2 py-0.5 rounded-full bg-red-500 text-white uppercase font-black animate-pulse align-middle">
-                  <AlertTriangle size={10} /> {daysDelayed} dias de atraso
+                <span className="flex items-center gap-1 text-[8px] px-2 py-0.5 rounded-full bg-red-500 text-white uppercase font-black animate-pulse align-middle shrink-0">
+                  <AlertTriangle size={10} /> {daysDelayed}d atraso
                 </span>
               )}
             </h1>
-            <div className="flex items-center gap-2 mt-1 opacity-60">
-              <span className="text-xs font-medium uppercase tracking-tighter">Gerenciamento de Atividades</span>
+            <div className="flex items-center gap-1.5 mt-1 opacity-60">
+              {taskProject && (
+                <>
+                  <span className="text-[10px] font-bold uppercase tracking-tight truncate max-w-[180px]">{taskProject.name}</span>
+                  {taskClient && <span className="text-white/40">·</span>}
+                </>
+              )}
+              {taskClient && (
+                <span className="text-[10px] font-medium uppercase tracking-tight truncate max-w-[140px]">{taskClient.name}</span>
+              )}
+              {!taskProject && !taskClient && (
+                <span className="text-[10px] font-medium uppercase tracking-tight">Nova Atividade</span>
+              )}
             </div>
           </div>
         </div>
@@ -337,7 +359,7 @@ const TaskDetail: React.FC = () => {
               onClick={() => {
                 const hasHours = taskHours.length > 0;
                 setDeleteConfirmation({ force: hasHours });
-                setShouldDeleteHours(hasHours); // Default to true if has hours? Actually let user decide.
+                setShouldDeleteHours(hasHours);
               }}
               className="px-4 py-2.5 rounded-xl font-bold text-xs text-red-100 hover:bg-white/10 transition-all flex items-center gap-2"
             >
