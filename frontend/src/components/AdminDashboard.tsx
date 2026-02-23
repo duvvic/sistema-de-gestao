@@ -1417,7 +1417,7 @@ const AdminDashboard: React.FC = () => {
                     {viewMode === 'grid' ? 'Clientes' : viewMode === 'list' ? 'Clientes -> Projetos' : 'Projetos -> Tarefas'}
                     <InfoTooltip title="Visão de Gestão" content="Espaço dedicado ao acompanhamento operacional. Alterne entre as visualizações de Clientes, Projetos ou Tarefas nos ícones à direita." />
                   </h1>
-                  <p className="text-[8px] font-black uppercase tracking-widest leading-none flex items-center gap-3" style={{ color: 'var(--muted)' }}>
+                  <div className="text-[8px] font-black uppercase tracking-widest leading-none flex items-center gap-3" style={{ color: 'var(--muted)' }}>
                     {searchTerm ? (
                       <span className="text-purple-500">{filteredSortedClients.length} Encontrados</span>
                     ) : (
@@ -1432,7 +1432,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
                       </>
                     )}
-                  </p>
+                  </div>
                 </div>
               </div>
 

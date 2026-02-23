@@ -1,6 +1,6 @@
 // ProjectDetailView.tsx - Dashboard Unificado do Projeto
 import React, { useMemo, useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
 import {
   ArrowLeft, Plus, Edit, CheckSquare, Clock, Filter, ChevronDown, Check,
@@ -26,19 +26,22 @@ const parseSafeDate = (d: string | null | undefined) => {
 const ONE_DAY = 86400000;
 
 const ProjectDetailView: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId, clientId: paramClientId } = useParams<{ projectId: string; clientId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isNew = projectId === 'new' || location.pathname.endsWith('/new');
+  const isEditingRoute = location.pathname.endsWith('/edit');
   const {
     tasks, clients, projects, users, projectMembers, timesheetEntries,
     absences, holidays,
-    deleteProject, deleteTask, updateProject, getProjectMembers,
+    deleteProject, deleteTask, updateProject, createProject, getProjectMembers,
     addProjectMember, removeProjectMember
   } = useDataController();
 
   const { currentUser, isAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'technical'>('technical');
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(isNew || isEditingRoute);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project', force?: boolean } | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
   const [showArchived, setShowArchived] = useState(false);
@@ -54,7 +57,7 @@ const ProjectDetailView: React.FC = () => {
   }, [isAdmin]);
 
   const project = projects.find(p => p.id === projectId);
-  const client = project ? clients.find(c => c.id === project.clientId) : null;
+  const client = project ? clients.find(c => c.id === project.clientId) : (paramClientId ? clients.find(c => c.id === paramClientId) : null);
 
   // --- FORM STATE ---
   const [formData, setFormData] = useState({
@@ -81,6 +84,12 @@ const ProjectDetailView: React.FC = () => {
     project_type: 'planned' as 'planned' | 'continuous',
     valor_diario: 0
   });
+
+  useEffect(() => {
+    if (isNew && paramClientId) {
+      setFormData(prev => ({ ...prev, clientId: paramClientId }));
+    }
+  }, [isNew, paramClientId]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [memberAllocations, setMemberAllocations] = useState<Record<string, number>>({});
 
@@ -133,8 +142,36 @@ const ProjectDetailView: React.FC = () => {
       } else {
         setMemberAllocations(initialAllocations);
       }
+    } else if (isNew) {
+      // Reset form for new project
+      setFormData({
+        name: '',
+        clientId: paramClientId || '',
+        partnerId: '',
+        status: 'Não Iniciado',
+        description: '',
+        managerClient: '',
+        responsibleNicLabsId: '',
+        startDate: '',
+        estimatedDelivery: '',
+        startDateReal: '',
+        endDateReal: '',
+        criticalDate: '',
+        docLink: '',
+        gapsIssues: '',
+        importantConsiderations: '',
+        weeklyStatusReport: '',
+        valor_total_rs: 0,
+        horas_vendidas: 0,
+        complexidade: 'Média',
+        torre: '',
+        project_type: 'planned',
+        valor_diario: 0
+      });
+      setSelectedUsers([]);
+      setMemberAllocations({});
     }
-  }, [project, projectId, projectMembers]);
+  }, [project, projectId, projectMembers, isNew, paramClientId]);
 
   const projectTasks = useMemo(() => {
     const pTasks = tasks.filter(t => t.projectId === projectId);
@@ -144,7 +181,7 @@ const ProjectDetailView: React.FC = () => {
     return pTasks;
   }, [tasks, projectId, currentUser, isAdmin]);
 
-  const isContinuousMode = (isEditing ? formData.project_type : project?.project_type) === 'continuous';
+  const isContinuousMode = (isEditing || isNew ? formData.project_type : project?.project_type) === 'continuous';
 
   const performance = useMemo(() => {
     if (!project) return null;
@@ -397,18 +434,17 @@ const ProjectDetailView: React.FC = () => {
   }, [absences, project, projectMembers, projectId]);
 
   const isProjectIncomplete = useMemo(() => {
-    if (!project) return true;
-    const isContinuous = (isEditing ? formData.project_type : project.project_type) === 'continuous';
-    const data = isEditing ? formData : {
-      name: project.name,
-      valor_total_rs: project.valor_total_rs,
-      horas_vendidas: project.horas_vendidas,
-      startDate: project.startDate,
-      estimatedDelivery: project.estimatedDelivery,
-      project_type: project.project_type,
-      valor_diario: (project as any).valor_diario,
-      partnerId: project.partnerId,
-      responsibleNicLabsId: project.responsibleNicLabsId
+    const isContinuous = (isEditing || isNew ? formData.project_type : project?.project_type) === 'continuous';
+    const data = (isEditing || isNew) ? formData : {
+      name: project?.name,
+      valor_total_rs: project?.valor_total_rs,
+      horas_vendidas: project?.horas_vendidas,
+      startDate: project?.startDate,
+      estimatedDelivery: project?.estimatedDelivery,
+      project_type: project?.project_type,
+      valor_diario: (project as any)?.valor_diario,
+      partnerId: project?.partnerId,
+      responsibleNicLabsId: project?.responsibleNicLabsId
     };
 
     return (
@@ -420,7 +456,7 @@ const ProjectDetailView: React.FC = () => {
       (!isContinuous && !data.estimatedDelivery) ||
       selectedUsers.length === 0
     );
-  }, [project, formData, isEditing, selectedUsers]);
+  }, [project, formData, isEditing, isNew, selectedUsers]);
 
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -430,16 +466,18 @@ const ProjectDetailView: React.FC = () => {
     }
   };
 
-  const hasTimeline = !!(project.startDate && project.estimatedDelivery);
-  const hasBudget = (project.valor_total_rs || 0) > 0;
-  const hasHours = (project.horas_vendidas || 0) > 0;
+  const hasTimeline = !!(project?.startDate && project?.estimatedDelivery);
+  const hasBudget = (project?.valor_total_rs || 0) > 0;
+  const hasHours = (project?.horas_vendidas || 0) > 0;
 
   // --- AUTOMATION: Auto-start project if there is activity ---
   useEffect(() => {
-    if (!project || !projectId || !isAdmin) return;
+    if (!projectId || !isAdmin || isNew) return;
+    const projectToCheck = projects.find(p => p.id === projectId);
+    if (!projectToCheck) return;
 
     // Only check if currently "Not Started"
-    if (project.status === 'Não Iniciado') {
+    if (projectToCheck.status === 'Não Iniciado') {
       const hasProgress = (performance?.weightedProgress || 0) > 0;
       const hasActiveTasks = projectTasks.some(t => t.status === 'In Progress' || t.status === 'Review' || t.status === 'Done');
       const hasHours = timesheetEntries.some(e => e.projectId === projectId);
@@ -453,7 +491,7 @@ const ProjectDetailView: React.FC = () => {
   }, [project, projectId, performance, projectTasks, timesheetEntries, updateProject, isAdmin]);
 
   const handleSaveProject = async () => {
-    if (!project || !projectId) return;
+    if (!isNew && (!project || !projectId)) return;
 
     // Bloqueio removido conforme solicitação: permitir salvar mesmo incompleto.
     // if (isAdmin && isProjectIncomplete) {
@@ -478,42 +516,24 @@ const ProjectDetailView: React.FC = () => {
         return;
       }
 
-      // Fluxo completo para admins
       const { ...cleanData } = formData;
       console.log("Saving project payload:", cleanData);
 
-      const pStart = parseSafeDate(cleanData.startDate);
-      const pEnd = parseSafeDate(cleanData.estimatedDelivery);
+      let targetProjectId = projectId;
 
-      const outTasks = projectTasks.filter(t => {
-        const taskEntries = timesheetEntries.filter(entry => entry.taskId === t.id && entry.date);
-        const firstEntryTs = taskEntries.length > 0 ? Math.min(...taskEntries.map(e => new Date(e.date + 'T12:00:00').getTime())) : null;
-        const ts = parseSafeDate(t.scheduledStart || t.actualStart) || firstEntryTs;
-        const te = parseSafeDate(t.estimatedDelivery) || ts;
-        return ts && te && (ts < pStart! || te > pEnd!);
-      });
-      if (outTasks.length > 0) {
-        const taskDetails = outTasks.map(t => {
-          const taskEntries = timesheetEntries.filter(entry => entry.taskId === t.id && entry.date);
-          const firstEntryTs = taskEntries.length > 0 ? Math.min(...taskEntries.map(e => new Date(e.date + 'T12:00:00').getTime())) : null;
-          const ts = parseSafeDate(t.scheduledStart || t.actualStart) || firstEntryTs;
-          const te = parseSafeDate(t.estimatedDelivery) || ts;
-          const ds = ts ? new Date(ts).toLocaleDateString('pt-BR') : 'N/A';
-          const de = te ? new Date(te).toLocaleDateString('pt-BR') : 'N/A';
-          return `${t.title} (${ds} - ${de})`;
-        }).slice(0, 5).join('\n - ');
-
-        const proceed = window.confirm(
-          `⚠️ Atenção: ${outTasks.length} tarefa(s) têm datas fora do intervalo do projeto (${cleanData.startDate} a ${cleanData.estimatedDelivery}).\n\nTarefas:\n - ${taskDetails}${outTasks.length > 5 ? '\n ... e outras.' : ''}\n\nAs horas já apontadas continuarão distribuídas. Deseja salvar mesmo assim?`
-        );
-        if (!proceed) {
-          setLoading(false);
-          return;
-        }
+      if (isNew) {
+        targetProjectId = await createProject({
+          ...cleanData,
+          status: 'Não Iniciado',
+          active: true
+        } as any);
+      } else if (projectId) {
+        await updateProject(projectId, cleanData as any);
+      } else {
+        throw new Error("ID do projeto não encontrado.");
       }
 
-      await updateProject(projectId, cleanData as any);
-      const initialMembers = getProjectMembers(projectId);
+      const initialMembers = isNew ? [] : getProjectMembers(targetProjectId);
 
       // Para cada usuário selecionado, calculamos a alocação proporcional para projetos contínuos (8h / N)
       const isContinuous = formData.project_type === 'continuous';
@@ -521,14 +541,21 @@ const ProjectDetailView: React.FC = () => {
       const allocationPercentage = isContinuous ? (numMembers > 0 ? 100 / numMembers : 100) : 100;
 
       for (const userId of selectedUsers) {
-        await addProjectMember(projectId, userId, allocationPercentage);
+        await addProjectMember(targetProjectId, userId, allocationPercentage);
       }
 
       // Remover membros que não estão mais na lista
-      const toRemove = initialMembers.filter(uid => !selectedUsers.includes(uid));
-      for (const userId of toRemove) await removeProjectMember(projectId, userId);
+      if (!isNew) {
+        const toRemove = initialMembers.filter(uid => !selectedUsers.includes(uid));
+        for (const userId of toRemove) await removeProjectMember(targetProjectId, userId);
+      }
+
       setIsEditing(false);
-      alert('Projeto atualizado!');
+      alert(isNew ? 'Projeto criado com sucesso!' : 'Projeto atualizado!');
+
+      if (isNew && targetProjectId) {
+        navigate(`/admin/projects/${targetProjectId}`, { replace: true });
+      }
     } catch (error: any) {
       console.error(error);
       alert('Erro ao salvar.');
@@ -571,7 +598,7 @@ const ProjectDetailView: React.FC = () => {
     return metrics;
   }, [projectId, projectMembers, timesheetEntries, tasks, project]);
 
-  if (!project) return <div className="p-20 text-center font-bold" style={{ color: 'var(--muted)' }}>Projeto não encontrado</div>;
+  if (!project && !isNew) return <div className="p-20 text-center font-bold" style={{ color: 'var(--muted)' }}>Projeto não encontrado</div>;
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
@@ -591,11 +618,11 @@ const ProjectDetailView: React.FC = () => {
                     className={`bg-white/10 border-b outline-none px-2 py-1 text-xl font-bold rounded transition-colors min-w-[300px] ${!formData.name?.trim() ? 'border-yellow-400 bg-yellow-400/20' : 'border-white'}`}
                   />
                 ) : (
-                  <h1 className="text-xl font-bold">{project.name}</h1>
+                  <h1 className="text-xl font-bold">{project?.name || 'Novo Projeto'}</h1>
                 )}
 
                 <div className="flex items-center gap-2">
-                  {isAdmin && performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5) && (
+                  {isAdmin && performance && ((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (
                     <span
                       className="text-[10px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-red-500/20 animate-pulse"
                       title="Projeto com progresso abaixo do planejado."
@@ -604,7 +631,7 @@ const ProjectDetailView: React.FC = () => {
                     </span>
                   )}
                   <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-lg tracking-widest border border-white/10">
-                    {getProjectStatusByTimeline(project)}
+                    {project ? getProjectStatusByTimeline(project) : 'Draft'}
                   </span>
                   {isContinuousMode && (
                     <span className="text-[9px] font-black uppercase bg-amber-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-amber-500/20">
@@ -663,12 +690,14 @@ const ProjectDetailView: React.FC = () => {
             <p className="text-[10px] font-black uppercase text-white/40">Progresso Real</p>
             <p className="text-2xl font-black">{hasTimeline ? Math.round(performance?.weightedProgress || 0) : '--'}%</p>
           </div>
-          <button
-            onClick={() => navigate(`/tasks/new?project=${projectId}&client=${project.clientId}`)}
-            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-bold flex items-center gap-2 transition-all backdrop-blur-md"
-          >
-            <Plus size={18} /> Nova Tarefa
-          </button>
+          {!isNew && project && (
+            <button
+              onClick={() => navigate(`/tasks/new?project=${projectId}&client=${project?.clientId}`)}
+              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-bold flex items-center gap-2 transition-all backdrop-blur-md"
+            >
+              <Plus size={18} /> Nova Tarefa
+            </button>
+          )}
         </div>
       </div>
 
@@ -677,7 +706,7 @@ const ProjectDetailView: React.FC = () => {
         <div className="max-w-7xl mx-auto space-y-5">
 
           {/* CRITICAL STATUS BANNER */}
-          {isAdmin && ((performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5)) || (performance && performance.consumedHours > (project.horas_vendidas || 0) && (project.horas_vendidas || 0) > 0)) && (
+          {isAdmin && (((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) || ((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0)) && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -692,7 +721,7 @@ const ProjectDetailView: React.FC = () => {
                     Atenção: Indicadores Críticos
                   </h3>
                   <p className="text-[10px] font-bold opacity-70 text-red-700">
-                    {`Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (performance && performance.consumedHours > (project.horas_vendidas || 0)) ? ' e ' : ''}${(performance && performance.consumedHours > (project.horas_vendidas || 0)) ? 'estouro de orçamento de horas' : ''}.`}
+                    {`Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && ((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? ' e ' : ''}${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? 'estouro de orçamento de horas' : ''}.`}
                   </p>
                 </div>
               </div>
@@ -742,8 +771,8 @@ const ProjectDetailView: React.FC = () => {
                             .filter(e => e.taskId === task.id)
                             .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
 
-                          const pStartTs = parseSafeDate(project.startDate) || Date.now();
-                          const pEndTs = parseSafeDate(project.estimatedDelivery) || pStartTs;
+                          const pStartTs = parseSafeDate(project?.startDate) || Date.now();
+                          const pEndTs = parseSafeDate(project?.estimatedDelivery) || pStartTs;
                           const tStartTs = parseSafeDate(task.scheduledStart || task.actualStart) || pStartTs;
                           const tEndTs = parseSafeDate(task.estimatedDelivery) || tStartTs;
 
@@ -756,7 +785,7 @@ const ProjectDetailView: React.FC = () => {
                           const taskFactor = performance?.projectFactors?.find(f => f.id === task.id)?.factor || 0;
                           const weight = (performance?.totalFactor || 0) > 0 ? (taskFactor / performance!.totalFactor) * 100 : 0;
 
-                          const taskSoldHours = project.horas_vendidas > 0 ? (weight / 100) * project.horas_vendidas : 0;
+                          const taskSoldHours = (project?.horas_vendidas || 0) > 0 ? (weight / 100) * project!.horas_vendidas : 0;
                           const collaboratorCount = (task.collaboratorIds?.length || 0);
                           const isHourOverrun = taskSoldHours > 0 && taskReported > taskSoldHours;
                           const isDelayed = task.status !== 'Done' && (
@@ -839,11 +868,24 @@ const ProjectDetailView: React.FC = () => {
                     <div className="mb-6 pb-6 border-b border-dashed shrink-0" style={{ borderColor: 'var(--border)' }}>
                       <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>Status de Entrega</h4>
                       {(() => {
+                        // Check if continuous mode has no planned value configured
+                        if (isContinuousMode && (!performance?.continuousPlannedValue || performance.continuousPlannedValue < 0.01)) {
+                          return (
+                            <div className="flex flex-col items-center justify-center py-4 opacity-30">
+                              <DollarSign size={20} className="mb-2" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-center">Valor Diário Não Configurado</span>
+                              <span className="text-[7px] font-medium uppercase tracking-wider text-center mt-1" style={{ color: 'var(--muted)' }}>
+                                Configure o "Valor Diário (8h)" para calcular o desvio
+                              </span>
+                            </div>
+                          );
+                        }
+
                         const delta = isContinuousMode
                           ? ((performance?.committedCost || 0) / (performance?.continuousPlannedValue || 1) - 1) * 100
                           : (performance?.weightedProgress || 0) - (performance?.plannedProgress || 0);
 
-                        const hourOverrun = !isContinuousMode && hasHours && (performance?.consumedHours || 0) > project.horas_vendidas;
+                        const hourOverrun = !isContinuousMode && hasHours && (performance?.consumedHours || 0) > (project?.horas_vendidas || 0);
 
                         if (!hasTimeline && !isContinuousMode) {
                           return (
@@ -995,7 +1037,7 @@ const ProjectDetailView: React.FC = () => {
                             <div className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
                               <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 mb-1">Valor Diário Acordado</p>
                               <p className="text-xl font-black text-amber-500">
-                                {(project.valor_diario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                {(project?.valor_diario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                               </p>
                               <p className="text-[8px] font-bold opacity-40 mt-1 uppercase">Equivalente a 8h de operação.</p>
                             </div>
@@ -1035,18 +1077,18 @@ const ProjectDetailView: React.FC = () => {
                                 <div className="flex flex-col">
                                   <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Custo Projetado</span>
                                   <div className="flex items-baseline gap-2 mt-0.5">
-                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.committedCost || 0) > (project.valor_total_rs || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
+                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.committedCost || 0) > (project?.valor_total_rs || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
                                       {performance?.committedCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                     </span>
                                     <span className="text-[10px] font-bold opacity-20 tracking-tight">
-                                      de {Number(project.valor_total_rs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                      de {Number(project?.valor_total_rs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="text-right">
                                   {hasBudget && (
-                                    <span className={`text-sm font-black tabular-nums ${((performance?.committedCost || 0) > (project.valor_total_rs || 0)) ? 'text-red-500' : 'text-emerald-500'}`}>
-                                      {Math.round(((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%
+                                    <span className={`text-sm font-black tabular-nums ${((performance?.committedCost || 0) > (project?.valor_total_rs || 0)) ? 'text-red-500' : 'text-emerald-500'}`}>
+                                      {Math.round(((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) * 100)}%
                                     </span>
                                   )}
                                 </div>
@@ -1054,16 +1096,16 @@ const ProjectDetailView: React.FC = () => {
 
                               <div className="h-1.5 w-full rounded-full overflow-hidden bg-[var(--bg)] shadow-inner border border-[var(--border)] relative">
                                 <div
-                                  className={`h-full transition-all duration-1000 ${((performance?.committedCost || 0) / (project.valor_total_rs || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'}`}
-                                  style={{ width: `${Math.min(100, ((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%` }}
+                                  className={`h-full transition-all duration-1000 ${((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'}`}
+                                  style={{ width: `${Math.min(100, ((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) * 100)}%` }}
                                 />
                               </div>
 
                               <div className="flex justify-between items-center mt-2">
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${((project.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0 ? 'text-emerald-500/50' : 'text-red-500/50'}`}>
-                                  {((project.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0
-                                    ? `Saldo: ${((project.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                                    : `Déficit: ${Math.abs((project.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${((project?.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0 ? 'text-emerald-500/50' : 'text-red-500/50'}`}>
+                                  {((project?.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0
+                                    ? `Saldo: ${((project?.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                                    : `Déficit: ${Math.abs((project?.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
                                 </span>
                               </div>
                             </div>
@@ -1074,18 +1116,18 @@ const ProjectDetailView: React.FC = () => {
                                 <div className="flex flex-col">
                                   <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Horas Apontadas</span>
                                   <div className="flex items-baseline gap-2 mt-0.5">
-                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
+                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
                                       {formatDecimalToTime(performance?.consumedHours || 0)}
                                     </span>
                                     <span className="text-[10px] font-bold opacity-20 tracking-tight">
-                                      de {project.horas_vendidas || 0}h
+                                      de {project?.horas_vendidas || 0}h
                                     </span>
                                   </div>
                                 </div>
                                 <div className="text-right">
                                   {hasHours && (
-                                    <span className={`text-sm font-black tabular-nums ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0)) ? 'text-red-500' : 'text-purple-500'}`}>
-                                      {Math.round(((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) * 100)}%
+                                    <span className={`text-sm font-black tabular-nums ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? 'text-red-500' : 'text-purple-500'}`}>
+                                      {Math.round(((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) * 100)}%
                                     </span>
                                   )}
                                 </div>
@@ -1093,15 +1135,15 @@ const ProjectDetailView: React.FC = () => {
 
                               <div className="h-1.5 w-full rounded-full overflow-hidden bg-[var(--bg)] shadow-inner border border-[var(--border)] relative">
                                 <div
-                                  className={`h-full transition-all duration-1000 ${((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.3)]'}`}
-                                  style={{ width: `${Math.min(100, ((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) * 100)}%` }}
+                                  className={`h-full transition-all duration-1000 ${((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.3)]'}`}
+                                  style={{ width: `${Math.min(100, ((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) * 100)}%` }}
                                 />
                               </div>
 
                               <div className="flex justify-between items-center mt-2">
-                                {((project.horas_vendidas || 0) - (performance?.consumedHours || 0)) > 0 ? (
+                                {((project?.horas_vendidas || 0) - (performance?.consumedHours || 0)) > 0 ? (
                                   <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500/50">
-                                    Disponíveis: {formatDecimalToTime((project.horas_vendidas || 0) - (performance?.consumedHours || 0))}
+                                    Disponíveis: {formatDecimalToTime((project?.horas_vendidas || 0) - (performance?.consumedHours || 0))}
                                   </span>
                                 ) : (
                                   <span className="text-[8px] font-black uppercase tracking-widest text-red-500/50">
@@ -1153,13 +1195,13 @@ const ProjectDetailView: React.FC = () => {
                             <div>
                               <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Início Planejado</p>
                               <p className="text-sm font-black" style={{ color: 'var(--text)' }}>
-                                {project.startDate ? project.startDate.split('T')[0].split('-').reverse().join('/') : '--'}
+                                {project?.startDate ? project?.startDate.split('T')[0].split('-').reverse().join('/') : '--'}
                               </p>
                             </div>
                             <div>
                               <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Início Real</p>
                               <p className={`text-sm font-black ${performance?.realStartDate ? 'text-emerald-500' : 'opacity-30'}`}>
-                                {performance?.realStartDate ? performance.realStartDate.toLocaleDateString('pt-BR') : '--'}
+                                {performance?.realStartDate ? performance?.realStartDate.toLocaleDateString('pt-BR') : '--'}
                               </p>
                             </div>
                           </div>
@@ -1168,7 +1210,7 @@ const ProjectDetailView: React.FC = () => {
                             <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-center">
                               <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Fim Planejado (automático)</p>
                               <p className="text-sm font-black mt-1" style={{ color: 'var(--text)' }}>
-                                {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
+                                {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
                               </p>
                               <p className="text-[8px] font-bold opacity-30 mt-1 uppercase">Regra: Início + 1 ano</p>
                             </div>
@@ -1176,25 +1218,25 @@ const ProjectDetailView: React.FC = () => {
                             <div className="grid grid-cols-2 gap-8">
                               <div>
                                 <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Entrega Planejada</p>
-                                <p className={`text-sm font-black tabular-nums ${performance?.projection && performance.projection.getTime() < new Date(project.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
-                                  {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
+                                <p className={`text-sm font-black tabular-nums ${performance?.projection && performance?.projection.getTime() < new Date(project?.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
+                                  {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
                                 </p>
                               </div>
                               <div>
                                 <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Fim Real</p>
                                 <p className={`text-sm font-black ${performance?.realEndDate ? 'text-purple-500' : 'opacity-30'}`}>
-                                  {performance?.realEndDate ? performance.realEndDate.toLocaleDateString('pt-BR') : '--'}
+                                  {performance?.realEndDate ? performance?.realEndDate.toLocaleDateString('pt-BR') : '--'}
                                 </p>
                               </div>
                             </div>
                           )}
                         </div>
 
-                        {!isContinuousMode && performance?.projection && performance.weightedProgress > 0 && performance.weightedProgress < 100 && (
-                          <div className={`p-5 rounded-[24px] bg-[var(--bg)] border border-dashed transition-all w-full mt-auto ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'border-red-500/30' : 'border-emerald-500/30'}`}>
-                            <p className={`text-[9px] font-black uppercase mb-2 ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'text-red-500' : 'text-emerald-500'}`}>Previsão p/ Velocidade</p>
-                            <p className={`text-xl font-black ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'text-red-500' : 'text-emerald-500'}`}>
-                              {performance.projection.toLocaleDateString('pt-BR')}
+                        {!isContinuousMode && performance?.projection && (performance?.weightedProgress || 0) > 0 && (performance?.weightedProgress || 0) < 100 && (
+                          <div className={`p-5 rounded-[24px] bg-[var(--bg)] border border-dashed transition-all w-full mt-auto ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'border-red-500/30' : 'border-emerald-500/30'}`}>
+                            <p className={`text-[9px] font-black uppercase mb-2 ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'text-red-500' : 'text-emerald-500'}`}>Previsão p/ Velocidade</p>
+                            <p className={`text-xl font-black ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'text-red-500' : 'text-emerald-500'}`}>
+                              {performance?.projection.toLocaleDateString('pt-BR')}
                             </p>
                           </div>
                         )}
@@ -1230,7 +1272,7 @@ const ProjectDetailView: React.FC = () => {
                                       <option value="">Selecione...</option>
                                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
-                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project.clientId)?.name || '--'}</p>}
+                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project?.clientId)?.name || '--'}</p>}
                                 </div>
                                 <div className="w-px h-5 bg-[var(--border)] opacity-20" />
                                 <div className="flex-1 min-w-0">
@@ -1247,7 +1289,7 @@ const ProjectDetailView: React.FC = () => {
                                       <option value="direto">Direto (Sem Parceiro)</option>
                                       {clients.filter(c => c.tipo_cliente === 'parceiro').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
-                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project.partnerId)?.name || 'Nic-Labs'}</p>}
+                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project?.partnerId)?.name || 'Nic-Labs'}</p>}
                                 </div>
                               </div>
                             </div>
@@ -1267,7 +1309,7 @@ const ProjectDetailView: React.FC = () => {
                                   <option value="">Selecione...</option>
                                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                 </select>
-                              ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{users.find(u => u.id === project.responsibleNicLabsId)?.name || '--'}</p>}
+                              ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{users.find(u => u.id === project?.responsibleNicLabsId)?.name || '--'}</p>}
                             </div>
 
                             <div>
@@ -1282,7 +1324,7 @@ const ProjectDetailView: React.FC = () => {
                                   className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors bg-[var(--bg)] border-[var(--border)]`}
                                   style={{ color: 'var(--text)' }}
                                 />
-                              ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{project.managerClient || '--'}</p>}
+                              ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{project?.managerClient || '--'}</p>}
                             </div>
                           </div>
                         </div>
@@ -1339,10 +1381,10 @@ const ProjectDetailView: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      {(isEditing || project.description) && (
+                      {(isEditing || project?.description) && (
                         <div>
                           <p className="text-[10px] font-black uppercase mb-3" style={{ color: 'var(--muted)' }}>Visão de Escopo</p>
-                          {isEditing ? <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full h-32 p-4 rounded-2xl border outline-none text-sm" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} /> : <p className="text-sm leading-relaxed italic p-5 rounded-2xl border" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text-2)' }}>{project.description}</p>}
+                          {isEditing ? <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full h-32 p-4 rounded-2xl border outline-none text-sm" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} /> : <p className="text-sm leading-relaxed italic p-5 rounded-2xl border" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text-2)' }}>{project?.description}</p>}
                         </div>
                       )}
                       {isEditing && (
@@ -1356,24 +1398,24 @@ const ProjectDetailView: React.FC = () => {
 
                   <div className="space-y-6">
                     {/* SAÚDE QUALITATIVA */}
-                    {(isEditing || project.weeklyStatusReport || project.gapsIssues) && (
+                    {(isEditing || project?.weeklyStatusReport || project?.gapsIssues) && (
                       <div className="p-6 rounded-[32px] border shadow-sm space-y-4" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                         <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}><StickyNote size={16} className="text-amber-500" /> Status e Andamento</h3>
                         <div className="space-y-4">
-                          {(isEditing || project.weeklyStatusReport) && (
+                          {(isEditing || project?.weeklyStatusReport) && (
                             <div>
                               <p className="text-[9px] font-black uppercase mb-1" style={{ color: 'var(--muted)' }}>Resumo da Semana</p>
                               {isEditing ? (
                                 <textarea value={formData.weeklyStatusReport} onChange={e => setFormData({ ...formData, weeklyStatusReport: e.target.value })} className="w-full h-20 p-2 rounded text-xs border" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} placeholder="O que aconteceu esta semana?" />
-                              ) : <p className="text-xs border-l-2 pl-3 py-1 rounded-r-lg" style={{ borderColor: 'var(--warning)', backgroundColor: 'var(--bg)', color: 'var(--text-2)' }}>{project.weeklyStatusReport}</p>}
+                              ) : <p className="text-xs border-l-2 pl-3 py-1 rounded-r-lg" style={{ borderColor: 'var(--warning)', backgroundColor: 'var(--bg)', color: 'var(--text-2)' }}>{project?.weeklyStatusReport}</p>}
                             </div>
                           )}
-                          {(isEditing || project.gapsIssues) && (
+                          {(isEditing || project?.gapsIssues) && (
                             <div>
                               <p className="text-[9px] font-black uppercase mb-1" style={{ color: 'var(--muted)' }}>Problemas e Bloqueios</p>
                               {isEditing ? (
                                 <textarea value={formData.gapsIssues} onChange={e => setFormData({ ...formData, gapsIssues: e.target.value })} className="w-full h-20 p-2 rounded text-xs border" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} placeholder="Ex: Acesso bloqueado, falta de doc..." />
-                              ) : <p className="text-xs font-medium" style={{ color: 'var(--danger)' }}>{project.gapsIssues}</p>}
+                              ) : <p className="text-xs font-medium" style={{ color: 'var(--danger)' }}>{project?.gapsIssues}</p>}
                             </div>
                           )}
                         </div>
@@ -1384,29 +1426,29 @@ const ProjectDetailView: React.FC = () => {
                       <div className="flex flex-col gap-1 mb-4">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}>
-                            <Users size={16} className="text-purple-500" /> Equipe Alocada {isContinuousMode ? '(Alocação Diária automática)' : ''}
+                            <Users size={16} className="text-purple-500" /> Equipe Alocada {isContinuousMode ? '(Alocação Diária Automática)' : ''}
                           </h3>
                         </div>
                         {isContinuousMode && (
-                          <div className="space-y-2 mt-2">
-                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-500/5 border border-purple-500/10">
-                              <div className="flex items-center gap-2">
+                          <div className="space-y-1.5 mt-2">
+                            <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                              <div className="flex items-center gap-1.5">
                                 <Zap size={12} className="text-purple-500" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-purple-500">Modo: Equalização Assistida</span>
+                                <span className="text-[8px] font-black uppercase tracking-wider text-purple-500">Modo: Equalização Assistida</span>
                               </div>
-                              <span className="text-[9px] font-bold opacity-40 uppercase">Base: 8h / {teamOperationalBalance?.todayActiveCount || 0} colab. = {(8 / (teamOperationalBalance?.todayActiveCount || 1)).toFixed(1)}h/dia</span>
+                              <span className="text-[8px] font-bold opacity-50 uppercase">Base: 8h / {teamOperationalBalance?.todayActiveCount || 0} colab. = {(8 / (teamOperationalBalance?.todayActiveCount || 1)).toFixed(1)}h/dia</span>
                             </div>
 
                             {teamOperationalBalance?.hasSignificantDeviation && (
-                              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-pulse">
+                              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
                                 <AlertTriangle size={12} className="text-amber-500" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Desequilíbrio detectado — sugestão de redistribuição disponível</span>
+                                <span className="text-[8px] font-black uppercase tracking-wider text-amber-500">Desequilíbrio Detectado — Redistribuição Sugerida</span>
                               </div>
                             )}
                           </div>
                         )}
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {isEditing ? (
                           <div className={`border rounded-2xl p-4 max-h-[400px] overflow-y-auto space-y-2 custom-scrollbar shadow-inner transition-colors ${selectedUsers.length === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}>
                             {users.filter(u => u.active !== false && u.torre !== 'N/A').sort((a, b) => a.name.localeCompare(b.name)).map(user => (
@@ -1454,65 +1496,101 @@ const ProjectDetailView: React.FC = () => {
                             {projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
                               const u = users.find(user => user.id === String(pm.id_colaborador));
                               return u ? (
-                                <div key={u.id} className="p-3 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
-                                  <div className="flex items-center justify-between gap-2 sm:gap-4">
-                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                      <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 border border-[var(--border)] shadow-sm" style={{ backgroundColor: 'var(--surface)' }}>
-                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[9px] font-black uppercase" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
-                                      </div>
-                                      <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-black tracking-tight truncate mb-0.5" style={{ color: 'var(--text)' }}>{u.name}</p>
-                                        <p className="text-[6px] font-black uppercase opacity-30 tracking-widest truncate" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
-                                      </div>
+                                <div key={u.id} className="p-3 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+                                  {/* Header with User Info */}
+                                  <div className="flex items-center gap-2.5 mb-2">
+                                    <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-[var(--border)] shadow-sm" style={{ backgroundColor: 'var(--surface)' }}>
+                                      {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[9px] font-black uppercase" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
                                     </div>
-                                    <div className="flex items-center gap-x-3 sm:gap-x-6 shrink-0 ml-1">
-                                      {(() => {
-                                        const metrics = teamOperationalBalance?.memberMetrics[u.id];
-                                        if (isContinuousMode && metrics) {
-                                          const statusColor = metrics.status === 'green' ? 'text-emerald-500' : metrics.status === 'yellow' ? 'text-amber-500' : 'text-red-500';
-                                          return (
-                                            <>
-                                              <div className="hidden xs:block text-right w-[32px] sm:w-[45px]">
-                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Base</p>
-                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{metrics.baseDaily.toFixed(1)}h</p>
-                                              </div>
-                                              <div className="text-right w-[32px] sm:w-[45px]">
-                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Ideal</p>
-                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.idealAccumulated)}</p>
-                                              </div>
-                                              <div className="text-right w-[35px] sm:w-[50px]">
-                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Real</p>
-                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.actualHours)}</p>
-                                              </div>
-                                              <div className="text-right w-[40px] sm:w-[55px]">
-                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Desvio</p>
-                                                <p className={`text-[9px] font-black tabular-nums ${statusColor}`}>
-                                                  {metrics.deviation > 0 ? '+' : ''}{formatDecimalToTime(metrics.deviation)}
-                                                </p>
-                                              </div>
-                                            </>
-                                          );
-                                        }
-                                        const reported = timesheetEntries.filter(e => e.projectId === projectId && e.userId === u.id).reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
-                                        return (
-                                          <div className="text-right w-[50px]">
-                                            <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Real</p>
-                                            <p className="text-[10px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
-                                          </div>
-                                        );
-                                      })()}
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-[10px] font-black tracking-tight truncate mb-0.5" style={{ color: 'var(--text)' }}>{u.name}</p>
+                                      <p className="text-[7px] font-black uppercase opacity-40 tracking-wider truncate" style={{ color: 'var(--text)' }}>{u.cargo || 'Consultor'}</p>
                                     </div>
                                   </div>
-                                  {isContinuousMode && teamOperationalBalance?.memberMetrics[u.id] && (
-                                    <div className="mt-2.5 pt-2 border-t border-dashed flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-                                      {teamOperationalBalance.suggestions[u.id] ? (
-                                        <div className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg bg-${teamOperationalBalance.memberMetrics[u.id].status}-500/[0.03]`}>
-                                          <span className={`text-[7px] font-black uppercase tracking-widest text-${teamOperationalBalance.memberMetrics[u.id].status}-500`}>Sugerido p/ equilíbrio operacional:</span>
-                                          <span className={`text-[9px] font-black text-${teamOperationalBalance.memberMetrics[u.id].status}-500`}>{teamOperationalBalance.suggestions[u.id].toFixed(1)}h / dia</span>
+
+                                  {/* Metrics Section */}
+                                  {(() => {
+                                    const metrics = teamOperationalBalance?.memberMetrics[u.id];
+                                    if (isContinuousMode && metrics) {
+                                      const statusColor = metrics.status === 'green' ? 'text-emerald-500' : metrics.status === 'yellow' ? 'text-amber-500' : 'text-red-500';
+                                      const statusBg = metrics.status === 'green' ? 'bg-emerald-500/5' : metrics.status === 'yellow' ? 'bg-amber-500/5' : 'bg-red-500/5';
+                                      const statusBorder = metrics.status === 'green' ? 'border-emerald-500/20' : metrics.status === 'yellow' ? 'border-amber-500/20' : 'border-red-500/20';
+
+                                      return (
+                                        <div className="space-y-1.5">
+                                          {/* Base Daily Allocation - Prominent */}
+                                          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border bg-purple-500/5 border-purple-500/20">
+                                            <span className="text-[7px] font-black uppercase tracking-wider text-purple-500/60">Alocação Base (8h ÷ {teamOperationalBalance?.todayActiveCount || 1})</span>
+                                            <span className="text-[11px] font-black text-purple-500">{metrics.baseDaily.toFixed(1)}h/dia</span>
+                                          </div>
+
+                                          {/* Metrics Grid */}
+                                          <div className="grid grid-cols-3 gap-1.5">
+                                            {/* Expected */}
+                                            <div className="flex flex-col items-center px-2 py-1.5 rounded-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                                              <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Esperado</p>
+                                              <p className="text-[10px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.idealAccumulated)}</p>
+                                            </div>
+
+                                            {/* Actual */}
+                                            <div className="flex flex-col items-center px-2 py-1.5 rounded-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                                              <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Apontado</p>
+                                              <p className="text-[10px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.actualHours)}</p>
+                                            </div>
+
+                                            {/* Difference */}
+                                            <div className={`flex flex-col items-center px-2 py-1.5 rounded-lg border ${statusBg} ${statusBorder}`}>
+                                              <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Diferença</p>
+                                              <p className={`text-[10px] font-black tabular-nums ${statusColor}`}>
+                                                {metrics.deviation > 0 ? '+' : ''}{formatDecimalToTime(metrics.deviation)}
+                                              </p>
+                                            </div>
+                                          </div>
                                         </div>
+                                      );
+                                    }
+
+                                    // Non-continuous mode - simple display
+                                    const reported = timesheetEntries.filter(e => e.projectId === projectId && e.userId === u.id).reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+                                    return (
+                                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                                        <p className="text-[7px] font-black uppercase opacity-40 tracking-wider">Total Apontado</p>
+                                        <p className="text-[11px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
+                                      </div>
+                                    );
+                                  })()}
+
+                                  {/* Suggestion Section */}
+                                  {isContinuousMode && teamOperationalBalance?.memberMetrics[u.id] && (
+                                    <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: 'var(--border)' }}>
+                                      {teamOperationalBalance.suggestions[u.id] ? (
+                                        (() => {
+                                          const metrics = teamOperationalBalance.memberMetrics[u.id];
+                                          const status = metrics.status;
+                                          const bgClass = status === 'green' ? 'bg-emerald-500/5' : status === 'yellow' ? 'bg-amber-500/5' : 'bg-red-500/5';
+                                          const borderClass = status === 'green' ? 'border-emerald-500/20' : status === 'yellow' ? 'border-amber-500/20' : 'border-red-500/20';
+                                          const textClass = status === 'green' ? 'text-emerald-500' : status === 'yellow' ? 'text-amber-500' : 'text-red-500';
+                                          const suggestion = teamOperationalBalance.suggestions[u.id];
+                                          const adjustmentText = suggestion > metrics.baseDaily ? 'Aumentar para' : suggestion < metrics.baseDaily ? 'Reduzir para' : 'Manter em';
+
+                                          return (
+                                            <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border ${bgClass} ${borderClass}`}>
+                                              <div className="flex items-center gap-1.5">
+                                                <div className={`w-1 h-1 rounded-full ${textClass.replace('text-', 'bg-')}`}></div>
+                                                <span className={`text-[7px] font-black uppercase tracking-wider ${textClass}`}>
+                                                  {adjustmentText}
+                                                </span>
+                                              </div>
+                                              <span className={`text-[10px] font-black ${textClass}`}>
+                                                {suggestion.toFixed(1)}h/dia
+                                              </span>
+                                            </div>
+                                          );
+                                        })()
                                       ) : (
-                                        <div className="flex-1 flex items-center justify-center py-1 bg-emerald-500/[0.01] rounded-lg">
-                                          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-emerald-500/20">Equilíbrio Adequado</span>
+                                        <div className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
+                                          <Check size={10} className="text-emerald-500" />
+                                          <span className="text-[7px] font-black uppercase tracking-wider text-emerald-500">Alocação Equilibrada</span>
                                         </div>
                                       )}
                                     </div>
@@ -1533,20 +1611,24 @@ const ProjectDetailView: React.FC = () => {
                               if (formerMembersWithHours.length === 0) return null;
 
                               return (
-                                <div className="mt-6 space-y-3">
-                                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40 px-2">Histórico de Contribuição</p>
+                                <div className="mt-8 space-y-3">
+                                  <div className="flex items-center gap-2 px-2">
+                                    <Archive size={12} className="opacity-30" style={{ color: 'var(--text)' }} />
+                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Histórico de Contribuição</p>
+                                  </div>
                                   {formerMembersWithHours.map(u => u && (
-                                    <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border border-dashed transition-all opacity-60 grayscale-[0.5]" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
-                                      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
-                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--muted)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                    <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl border border-dashed transition-all opacity-70" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+                                      <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[9px] font-black opacity-40" style={{ color: 'var(--muted)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
                                       </div>
                                       <div className="min-w-0 flex-1">
                                         <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{u.cargo || 'Consultor (Antigo)'}</p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                          <p className="text-[8px] font-black uppercase tracking-wider opacity-40" style={{ color: 'var(--text)' }}>{u.cargo || 'Consultor'}</p>
+                                          <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-500">Ex-membro</span>
                                         </div>
 
-                                        <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
+                                        <div className="mt-2.5 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
                                           <div>
                                             {(() => {
                                               const reported = timesheetEntries
@@ -1572,7 +1654,7 @@ const ProjectDetailView: React.FC = () => {
                       </div>
                     </div>
 
-                    {(isEditing || project.docLink) && (
+                    {(isEditing || project?.docLink) && (
                       <div className="p-6 rounded-[32px] border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                         <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: 'var(--text)' }}><FileText size={16} /> Documentação</h3>
                         {isEditing ? (
@@ -1580,7 +1662,7 @@ const ProjectDetailView: React.FC = () => {
                             <input value={formData.docLink} onChange={e => setFormData({ ...formData, docLink: e.target.value })} className="w-full text-[11px] p-2 rounded border outline-none" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} placeholder="Link do Sharepoint/OneDrive" />
                           </div>
                         ) : (
-                          <a href={project.docLink} target="_blank" className="flex items-center justify-between p-3 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info-text)', borderColor: 'var(--info)' }}>
+                          <a href={project?.docLink || '#'} target="_blank" className="flex items-center justify-between p-3 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info-text)', borderColor: 'var(--info)' }}>
                             <span className="text-[10px] font-black uppercase">Doc. Principal</span>
                             <LinkIcon size={14} />
                           </a>
@@ -1681,7 +1763,7 @@ const ProjectDetailView: React.FC = () => {
                             alert('Complete as informações obrigatórias do projeto (Finanças, Timeline, Responsáveis e Equipe) antes de criar tarefas.');
                             return;
                           }
-                          navigate(`/tasks/new?project=${projectId}&client=${project.clientId}`);
+                          navigate(`/tasks/new?project=${projectId}&client=${project?.clientId}`);
                         }}
                         className={`mt-6 px-6 py-2 rounded-xl font-bold text-sm transition-all ${canCreateTask ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-50'}`}
                       >
@@ -1780,11 +1862,11 @@ const ProjectTaskCard: React.FC<{
 }> = ({ project, task, users, timesheetEntries, isAdmin, currentUserId, onClick }) => {
   const navigate = useNavigate();
   const dev = users.find(u => u.id === task.developerId);
-  const actualHours = timesheetEntries.filter(e => e.taskId === task.id).reduce((sum, e) => sum + e.totalHours, 0);
+  const actualHours = timesheetEntries.filter(e => e.taskId === task.id).reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
 
   const distributedHours = useMemo(() => {
-    const pStartTs = parseSafeDate(project.startDate);
-    const pEndTs = parseSafeDate(project.estimatedDelivery);
+    const pStartTs = parseSafeDate(project?.startDate);
+    const pEndTs = parseSafeDate(project?.estimatedDelivery);
     const tStartTs = parseSafeDate(task.scheduledStart || task.actualStart);
     const tEndTs = parseSafeDate(task.estimatedDelivery);
 
@@ -1795,7 +1877,7 @@ const ProjectTaskCard: React.FC<{
 
     if (projectDurationTs <= 0 || taskDurationTs <= 0) return 0;
     const weight = (taskDurationTs / projectDurationTs);
-    return weight * (project.horas_vendidas || 0);
+    return weight * (project?.horas_vendidas || 0);
   }, [project, task]);
 
   const statusMap: Record<string, { label: string, color: string, bg: string }> = {

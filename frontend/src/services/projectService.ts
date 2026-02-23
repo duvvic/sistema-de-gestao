@@ -13,7 +13,7 @@ export async function createProject(data: Partial<Project>): Promise<number> {
 
   const payload = {
     NomeProjeto: data.name || "(Sem nome)",
-    ID_Cliente: Number(data.clientId),
+    ID_Cliente: data.clientId ? Number(data.clientId) : null,
     StatusProjeto: data.status || "Em andamento",
     ativo: true,
     budget: clean(data.budget),
@@ -36,6 +36,8 @@ export async function createProject(data: Partial<Project>): Promise<number> {
     complexidade: data.complexidade || 'Média',
     horas_vendidas: clean(data.horas_vendidas),
     torre: clean(data.torre),
+    project_type: data.project_type || 'planned',
+    valor_diario: clean(data.valor_diario),
   };
 
   const { data: inserted, error } = await supabase
@@ -60,7 +62,7 @@ export async function updateProject(projectId: string, data: Partial<Project>): 
   const payload: Record<string, any> = {};
 
   if (data.name !== undefined) payload.NomeProjeto = data.name;
-  if (data.clientId !== undefined) payload.ID_Cliente = Number(data.clientId);
+  if (data.clientId !== undefined) payload.ID_Cliente = data.clientId ? Number(data.clientId) : null;
   if (data.status !== undefined) payload.StatusProjeto = data.status;
   if (data.budget !== undefined) payload.budget = clean(data.budget);
   if (data.description !== undefined) payload.description = clean(data.description);
@@ -90,6 +92,8 @@ export async function updateProject(projectId: string, data: Partial<Project>): 
   if (data.complexidade !== undefined) payload.complexidade = data.complexidade;
   if (data.horas_vendidas !== undefined) payload.horas_vendidas = clean(data.horas_vendidas);
   if (data.torre !== undefined) payload.torre = clean(data.torre);
+  if (data.project_type !== undefined) payload.project_type = data.project_type;
+  if ((data as any).valor_diario !== undefined) payload.valor_diario = clean((data as any).valor_diario);
 
   const { error } = await supabase
     .from("dim_projetos")

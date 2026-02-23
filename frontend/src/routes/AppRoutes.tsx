@@ -13,7 +13,6 @@ import ClientDetailsView from '@/components/ClientDetailsView';
 import ClientForm from '@/components/ClientForm';
 import AllProjectsView from '@/components/AllProjectsView';
 import ProjectDetailView from '@/components/ProjectDetailView';
-import ProjectForm from '@/components/ProjectForm';
 import DeveloperProjects from '@/components/DeveloperProjects';
 import KanbanBoard from '@/components/KanbanBoard';
 import TaskDetail from '@/components/TaskDetail';
@@ -192,7 +191,7 @@ const AppRoutes: React.FC = () => {
                     path="admin/clients/:clientId/projects/new"
                     element={
                         <ProtectedWrapper allowedRoles={ADMIN_ROLES}>
-                            <ProjectForm />
+                            <ProjectDetailView />
                         </ProtectedWrapper>
                     }
                 />
@@ -224,7 +223,7 @@ const AppRoutes: React.FC = () => {
                     path="admin/projects/new"
                     element={
                         <ProtectedWrapper allowedRoles={ADMIN_ROLES}>
-                            <ProjectForm />
+                            <ProjectDetailView />
                         </ProtectedWrapper>
                     }
                 />
@@ -234,7 +233,7 @@ const AppRoutes: React.FC = () => {
                     path="admin/projects/:projectId/edit"
                     element={
                         <ProtectedWrapper allowedRoles={ADMIN_ROLES}>
-                            <ProjectForm />
+                            <ProjectDetailView />
                         </ProtectedWrapper>
                     }
                 />
