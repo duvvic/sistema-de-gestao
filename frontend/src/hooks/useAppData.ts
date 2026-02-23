@@ -81,7 +81,7 @@ export function useAppData(): AppData {
 
   // Helper de Cache
   const CACHE_KEY = 'nic_labs_app_data';
-  const CACHE_VERSION = '1.3'; // Incrementado para incluir holidays
+  const CACHE_VERSION = '1.4'; // Incrementado para atualizar projects (project_type e valor_diario)
 
   // Carregamento inicial do cache
   useEffect(() => {

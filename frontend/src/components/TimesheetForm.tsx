@@ -198,7 +198,12 @@ const TimesheetForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.clientId || !formData.projectId || !formData.taskId || !formData.date || !formData.startTime || !formData.endTime) {
-      alert("Por favor, preencha todos os campos obrigatórios.");
+      alert("Por favor, preencha todos os campos obrigatórios (Cliente, Projeto, Tarefa, Data e Horários).");
+      return;
+    }
+
+    if (!formData.description || formData.description.trim().length < 10) {
+      alert("O status é obrigatório e deve ter no mínimo 10 caracteres.");
       return;
     }
 
@@ -545,14 +550,14 @@ const TimesheetForm: React.FC = () => {
                   {/* Notes in Standard Mode */}
                   <div className="flex-1 flex flex-col min-h-0">
                     <label className="block text-[10px] font-bold mb-1 flex items-center gap-2 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>
-                      <AlertCircle className="w-3 h-3" /> Notas
+                      <AlertCircle className="w-3 h-3" /> Status *
                     </label>
                     <textarea
                       value={formData.description || ''}
                       onChange={(e) => { markDirty(); setFormData({ ...formData, description: e.target.value }); }}
                       className="w-full p-3 border rounded-lg outline-none resize-none font-medium text-sm transition-all focus:ring-1 focus:ring-amber-500 flex-1"
                       style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                      placeholder="Descrição da atividade..."
+                      placeholder="Status da atividade..."
                     />
                   </div>
 
@@ -743,14 +748,14 @@ const TimesheetForm: React.FC = () => {
                 {isTaskLogMode && (
                   <div className="mt-4">
                     <label className="block text-[10px] font-bold mb-1 flex items-center gap-2 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>
-                      <AlertCircle className="w-3 h-3" /> Notas
+                      <AlertCircle className="w-3 h-3" /> Status *
                     </label>
                     <textarea
                       value={formData.description || ''}
                       onChange={(e) => { markDirty(); setFormData({ ...formData, description: e.target.value }); }}
                       className="w-full p-3 border rounded-lg outline-none resize-none font-medium text-sm transition-all focus:ring-1 focus:ring-amber-500 h-24"
                       style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                      placeholder="Descrição da atividade..."
+                      placeholder="Status da atividade..."
                     />
                   </div>
                 )}

@@ -181,6 +181,8 @@ export function mapDbProjectToProject(row: any): Project {
         weeklyStatusReport: row.weekly_status_report || undefined,
         complexidade: row.complexidade || undefined,
         horas_vendidas: row.horas_vendidas ? Number(row.horas_vendidas) : undefined,
+        project_type: row.project_type || 'planned',
+        valor_diario: row.valor_diario ? Number(row.valor_diario) : undefined,
     };
 }
 

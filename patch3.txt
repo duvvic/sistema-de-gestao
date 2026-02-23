@@ -1,0 +1,2500 @@
+﻿commit 25d68e6e5aa74e0d9d54479edecfe2d877c2396e
+Author: duvvic <victor2002almeida@gmail.com>
+Date:   Mon Feb 23 11:44:03 2026 -0300
+
+    Migrando projeto para nicrepository
+
+diff --git a/frontend/src/components/ProjectDetailView.tsx b/frontend/src/components/ProjectDetailView.tsx
+index 420cadd..baabdd2 100644
+--- a/frontend/src/components/ProjectDetailView.tsx
++++ b/frontend/src/components/ProjectDetailView.tsx
+@@ -1,6 +1,6 @@
+ // ProjectDetailView.tsx - Dashboard Unificado do Projeto
+ import React, { useMemo, useState, useEffect } from 'react';
+-import { useParams, useNavigate } from 'react-router-dom';
++import { useParams, useNavigate, useLocation } from 'react-router-dom';
+ import { useDataController } from '@/controllers/useDataController';
+ import {
+   ArrowLeft, Plus, Edit, CheckSquare, Clock, Filter, ChevronDown, Check,
+@@ -26,19 +26,22 @@ const parseSafeDate = (d: string | null | undefined) => {
+ const ONE_DAY = 86400000;
+ 
+ const ProjectDetailView: React.FC = () => {
+-  const { projectId } = useParams<{ projectId: string }>();
++  const { projectId, clientId: paramClientId } = useParams<{ projectId: string; clientId?: string }>();
+   const navigate = useNavigate();
++  const location = useLocation();
++  const isNew = projectId === 'new' || location.pathname.endsWith('/new');
++  const isEditingRoute = location.pathname.endsWith('/edit');
+   const {
+     tasks, clients, projects, users, projectMembers, timesheetEntries,
+     absences, holidays,
+-    deleteProject, deleteTask, updateProject, getProjectMembers,
++    deleteProject, deleteTask, updateProject, createProject, getProjectMembers,
+     addProjectMember, removeProjectMember
+   } = useDataController();
+ 
+   const { currentUser, isAdmin } = useAuth();
+ 
+   const [activeTab, setActiveTab] = useState<'tasks' | 'technical'>('technical');
+-  const [isEditing, setIsEditing] = useState(false);
++  const [isEditing, setIsEditing] = useState(isNew || isEditingRoute);
+   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project', force?: boolean } | null>(null);
+   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
+   const [showArchived, setShowArchived] = useState(false);
+@@ -54,7 +57,7 @@ const ProjectDetailView: React.FC = () => {
+   }, [isAdmin]);
+ 
+   const project = projects.find(p => p.id === projectId);
+-  const client = project ? clients.find(c => c.id === project.clientId) : null;
++  const client = project ? clients.find(c => c.id === project.clientId) : (paramClientId ? clients.find(c => c.id === paramClientId) : null);
+ 
+   // --- FORM STATE ---
+   const [formData, setFormData] = useState({
+@@ -81,6 +84,12 @@ const ProjectDetailView: React.FC = () => {
+     project_type: 'planned' as 'planned' | 'continuous',
+     valor_diario: 0
+   });
++
++  useEffect(() => {
++    if (isNew && paramClientId) {
++      setFormData(prev => ({ ...prev, clientId: paramClientId }));
++    }
++  }, [isNew, paramClientId]);
+   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+   const [memberAllocations, setMemberAllocations] = useState<Record<string, number>>({});
+ 
+@@ -133,8 +142,36 @@ const ProjectDetailView: React.FC = () => {
+       } else {
+         setMemberAllocations(initialAllocations);
+       }
++    } else if (isNew) {
++      // Reset form for new project
++      setFormData({
++        name: '',
++        clientId: paramClientId || '',
++        partnerId: '',
++        status: 'N├úo Iniciado',
++        description: '',
++        managerClient: '',
++        responsibleNicLabsId: '',
++        startDate: '',
++        estimatedDelivery: '',
++        startDateReal: '',
++        endDateReal: '',
++        criticalDate: '',
++        docLink: '',
++        gapsIssues: '',
++        importantConsiderations: '',
++        weeklyStatusReport: '',
++        valor_total_rs: 0,
++        horas_vendidas: 0,
++        complexidade: 'M├®dia',
++        torre: '',
++        project_type: 'planned',
++        valor_diario: 0
++      });
++      setSelectedUsers([]);
++      setMemberAllocations({});
+     }
+-  }, [project, projectId, projectMembers]);
++  }, [project, projectId, projectMembers, isNew, paramClientId]);
+ 
+   const projectTasks = useMemo(() => {
+     const pTasks = tasks.filter(t => t.projectId === projectId);
+@@ -144,7 +181,7 @@ const ProjectDetailView: React.FC = () => {
+     return pTasks;
+   }, [tasks, projectId, currentUser, isAdmin]);
+ 
+-  const isContinuousMode = (isEditing ? formData.project_type : project?.project_type) === 'continuous';
++  const isContinuousMode = (isEditing || isNew ? formData.project_type : project?.project_type) === 'continuous';
+ 
+   const performance = useMemo(() => {
+     if (!project) return null;
+@@ -397,18 +434,17 @@ const ProjectDetailView: React.FC = () => {
+   }, [absences, project, projectMembers, projectId]);
+ 
+   const isProjectIncomplete = useMemo(() => {
+-    if (!project) return true;
+-    const isContinuous = (isEditing ? formData.project_type : project.project_type) === 'continuous';
+-    const data = isEditing ? formData : {
+-      name: project.name,
+-      valor_total_rs: project.valor_total_rs,
+-      horas_vendidas: project.horas_vendidas,
+-      startDate: project.startDate,
+-      estimatedDelivery: project.estimatedDelivery,
+-      project_type: project.project_type,
+-      valor_diario: (project as any).valor_diario,
+-      partnerId: project.partnerId,
+-      responsibleNicLabsId: project.responsibleNicLabsId
++    const isContinuous = (isEditing || isNew ? formData.project_type : project?.project_type) === 'continuous';
++    const data = (isEditing || isNew) ? formData : {
++      name: project?.name,
++      valor_total_rs: project?.valor_total_rs,
++      horas_vendidas: project?.horas_vendidas,
++      startDate: project?.startDate,
++      estimatedDelivery: project?.estimatedDelivery,
++      project_type: project?.project_type,
++      valor_diario: (project as any)?.valor_diario,
++      partnerId: project?.partnerId,
++      responsibleNicLabsId: project?.responsibleNicLabsId
+     };
+ 
+     return (
+@@ -420,7 +456,7 @@ const ProjectDetailView: React.FC = () => {
+       (!isContinuous && !data.estimatedDelivery) ||
+       selectedUsers.length === 0
+     );
+-  }, [project, formData, isEditing, selectedUsers]);
++  }, [project, formData, isEditing, isNew, selectedUsers]);
+ 
+ 
+   const handleKeyDown = (e: React.KeyboardEvent) => {
+@@ -430,16 +466,18 @@ const ProjectDetailView: React.FC = () => {
+     }
+   };
+ 
+-  const hasTimeline = !!(project.startDate && project.estimatedDelivery);
+-  const hasBudget = (project.valor_total_rs || 0) > 0;
+-  const hasHours = (project.horas_vendidas || 0) > 0;
++  const hasTimeline = !!(project?.startDate && project?.estimatedDelivery);
++  const hasBudget = (project?.valor_total_rs || 0) > 0;
++  const hasHours = (project?.horas_vendidas || 0) > 0;
+ 
+   // --- AUTOMATION: Auto-start project if there is activity ---
+   useEffect(() => {
+-    if (!project || !projectId || !isAdmin) return;
++    if (!projectId || !isAdmin || isNew) return;
++    const projectToCheck = projects.find(p => p.id === projectId);
++    if (!projectToCheck) return;
+ 
+     // Only check if currently "Not Started"
+-    if (project.status === 'N├úo Iniciado') {
++    if (projectToCheck.status === 'N├úo Iniciado') {
+       const hasProgress = (performance?.weightedProgress || 0) > 0;
+       const hasActiveTasks = projectTasks.some(t => t.status === 'In Progress' || t.status === 'Review' || t.status === 'Done');
+       const hasHours = timesheetEntries.some(e => e.projectId === projectId);
+@@ -453,7 +491,7 @@ const ProjectDetailView: React.FC = () => {
+   }, [project, projectId, performance, projectTasks, timesheetEntries, updateProject, isAdmin]);
+ 
+   const handleSaveProject = async () => {
+-    if (!project || !projectId) return;
++    if (!isNew && (!project || !projectId)) return;
+ 
+     // Bloqueio removido conforme solicita├º├úo: permitir salvar mesmo incompleto.
+     // if (isAdmin && isProjectIncomplete) {
+@@ -478,42 +516,24 @@ const ProjectDetailView: React.FC = () => {
+         return;
+       }
+ 
+-      // Fluxo completo para admins
+       const { ...cleanData } = formData;
+       console.log("Saving project payload:", cleanData);
+ 
+-      const pStart = parseSafeDate(cleanData.startDate);
+-      const pEnd = parseSafeDate(cleanData.estimatedDelivery);
++      let targetProjectId = projectId;
+ 
+-      const outTasks = projectTasks.filter(t => {
+-        const taskEntries = timesheetEntries.filter(entry => entry.taskId === t.id && entry.date);
+-        const firstEntryTs = taskEntries.length > 0 ? Math.min(...taskEntries.map(e => new Date(e.date + 'T12:00:00').getTime())) : null;
+-        const ts = parseSafeDate(t.scheduledStart || t.actualStart) || firstEntryTs;
+-        const te = parseSafeDate(t.estimatedDelivery) || ts;
+-        return ts && te && (ts < pStart! || te > pEnd!);
+-      });
+-      if (outTasks.length > 0) {
+-        const taskDetails = outTasks.map(t => {
+-          const taskEntries = timesheetEntries.filter(entry => entry.taskId === t.id && entry.date);
+-          const firstEntryTs = taskEntries.length > 0 ? Math.min(...taskEntries.map(e => new Date(e.date + 'T12:00:00').getTime())) : null;
+-          const ts = parseSafeDate(t.scheduledStart || t.actualStart) || firstEntryTs;
+-          const te = parseSafeDate(t.estimatedDelivery) || ts;
+-          const ds = ts ? new Date(ts).toLocaleDateString('pt-BR') : 'N/A';
+-          const de = te ? new Date(te).toLocaleDateString('pt-BR') : 'N/A';
+-          return `${t.title} (${ds} - ${de})`;
+-        }).slice(0, 5).join('\n - ');
+-
+-        const proceed = window.confirm(
+-          `ÔÜá´©Å Aten├º├úo: ${outTasks.length} tarefa(s) t├¬m datas fora do intervalo do projeto (${cleanData.startDate} a ${cleanData.estimatedDelivery}).\n\nTarefas:\n - ${taskDetails}${outTasks.length > 5 ? '\n ... e outras.' : ''}\n\nAs horas j├í apontadas continuar├úo distribu├¡das. Deseja salvar mesmo assim?`
+-        );
+-        if (!proceed) {
+-          setLoading(false);
+-          return;
+-        }
++      if (isNew) {
++        targetProjectId = await createProject({
++          ...cleanData,
++          status: 'N├úo Iniciado',
++          active: true
++        } as any);
++      } else if (projectId) {
++        await updateProject(projectId, cleanData as any);
++      } else {
++        throw new Error("ID do projeto n├úo encontrado.");
+       }
+ 
+-      await updateProject(projectId, cleanData as any);
+-      const initialMembers = getProjectMembers(projectId);
++      const initialMembers = isNew ? [] : getProjectMembers(targetProjectId);
+ 
+       // Para cada usu├írio selecionado, calculamos a aloca├º├úo proporcional para projetos cont├¡nuos (8h / N)
+       const isContinuous = formData.project_type === 'continuous';
+@@ -521,14 +541,21 @@ const ProjectDetailView: React.FC = () => {
+       const allocationPercentage = isContinuous ? (numMembers > 0 ? 100 / numMembers : 100) : 100;
+ 
+       for (const userId of selectedUsers) {
+-        await addProjectMember(projectId, userId, allocationPercentage);
++        await addProjectMember(targetProjectId, userId, allocationPercentage);
+       }
+ 
+       // Remover membros que n├úo est├úo mais na lista
+-      const toRemove = initialMembers.filter(uid => !selectedUsers.includes(uid));
+-      for (const userId of toRemove) await removeProjectMember(projectId, userId);
++      if (!isNew) {
++        const toRemove = initialMembers.filter(uid => !selectedUsers.includes(uid));
++        for (const userId of toRemove) await removeProjectMember(targetProjectId, userId);
++      }
++
+       setIsEditing(false);
+-      alert('Projeto atualizado!');
++      alert(isNew ? 'Projeto criado com sucesso!' : 'Projeto atualizado!');
++
++      if (isNew && targetProjectId) {
++        navigate(`/admin/projects/${targetProjectId}`, { replace: true });
++      }
+     } catch (error: any) {
+       console.error(error);
+       alert('Erro ao salvar.');
+@@ -571,7 +598,7 @@ const ProjectDetailView: React.FC = () => {
+     return metrics;
+   }, [projectId, projectMembers, timesheetEntries, tasks, project]);
+ 
+-  if (!project) return <div className="p-20 text-center font-bold" style={{ color: 'var(--muted)' }}>Projeto n├úo encontrado</div>;
++  if (!project && !isNew) return <div className="p-20 text-center font-bold" style={{ color: 'var(--muted)' }}>Projeto n├úo encontrado</div>;
+ 
+   return (
+     <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+@@ -591,11 +618,11 @@ const ProjectDetailView: React.FC = () => {
+                     className={`bg-white/10 border-b outline-none px-2 py-1 text-xl font-bold rounded transition-colors min-w-[300px] ${!formData.name?.trim() ? 'border-yellow-400 bg-yellow-400/20' : 'border-white'}`}
+                   />
+                 ) : (
+-                  <h1 className="text-xl font-bold">{project.name}</h1>
++                  <h1 className="text-xl font-bold">{project?.name || 'Novo Projeto'}</h1>
+                 )}
+ 
+                 <div className="flex items-center gap-2">
+-                  {isAdmin && performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5) && (
++                  {isAdmin && performance && ((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (
+                     <span
+                       className="text-[10px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-red-500/20 animate-pulse"
+                       title="Projeto com progresso abaixo do planejado."
+@@ -604,7 +631,7 @@ const ProjectDetailView: React.FC = () => {
+                     </span>
+                   )}
+                   <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-lg tracking-widest border border-white/10">
+-                    {getProjectStatusByTimeline(project)}
++                    {project ? getProjectStatusByTimeline(project) : 'Draft'}
+                   </span>
+                   {isContinuousMode && (
+                     <span className="text-[9px] font-black uppercase bg-amber-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-amber-500/20">
+@@ -663,12 +690,14 @@ const ProjectDetailView: React.FC = () => {
+             <p className="text-[10px] font-black uppercase text-white/40">Progresso Real</p>
+             <p className="text-2xl font-black">{hasTimeline ? Math.round(performance?.weightedProgress || 0) : '--'}%</p>
+           </div>
+-          <button
+-            onClick={() => navigate(`/tasks/new?project=${projectId}&client=${project.clientId}`)}
+-            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-bold flex items-center gap-2 transition-all backdrop-blur-md"
+-          >
+-            <Plus size={18} /> Nova Tarefa
+-          </button>
++          {!isNew && project && (
++            <button
++              onClick={() => navigate(`/tasks/new?project=${projectId}&client=${project?.clientId}`)}
++              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-bold flex items-center gap-2 transition-all backdrop-blur-md"
++            >
++              <Plus size={18} /> Nova Tarefa
++            </button>
++          )}
+         </div>
+       </div>
+ 
+@@ -677,7 +706,7 @@ const ProjectDetailView: React.FC = () => {
+         <div className="max-w-7xl mx-auto space-y-5">
+ 
+           {/* CRITICAL STATUS BANNER */}
+-          {isAdmin && ((performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5)) || (performance && performance.consumedHours > (project.horas_vendidas || 0) && (project.horas_vendidas || 0) > 0)) && (
++          {isAdmin && (((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) || ((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0)) && (
+             <motion.div
+               initial={{ opacity: 0, y: -20 }}
+               animate={{ opacity: 1, y: 0 }}
+@@ -692,7 +721,7 @@ const ProjectDetailView: React.FC = () => {
+                     Aten├º├úo: Indicadores Cr├¡ticos
+                   </h3>
+                   <p className="text-[10px] font-bold opacity-70 text-red-700">
+-                    {`Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (performance && performance.consumedHours > (project.horas_vendidas || 0)) ? ' e ' : ''}${(performance && performance.consumedHours > (project.horas_vendidas || 0)) ? 'estouro de or├ºamento de horas' : ''}.`}
++                    {`Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && ((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? ' e ' : ''}${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? 'estouro de or├ºamento de horas' : ''}.`}
+                   </p>
+                 </div>
+               </div>
+@@ -742,8 +771,8 @@ const ProjectDetailView: React.FC = () => {
+                             .filter(e => e.taskId === task.id)
+                             .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+ 
+-                          const pStartTs = parseSafeDate(project.startDate) || Date.now();
+-                          const pEndTs = parseSafeDate(project.estimatedDelivery) || pStartTs;
++                          const pStartTs = parseSafeDate(project?.startDate) || Date.now();
++                          const pEndTs = parseSafeDate(project?.estimatedDelivery) || pStartTs;
+                           const tStartTs = parseSafeDate(task.scheduledStart || task.actualStart) || pStartTs;
+                           const tEndTs = parseSafeDate(task.estimatedDelivery) || tStartTs;
+ 
+@@ -756,7 +785,7 @@ const ProjectDetailView: React.FC = () => {
+                           const taskFactor = performance?.projectFactors?.find(f => f.id === task.id)?.factor || 0;
+                           const weight = (performance?.totalFactor || 0) > 0 ? (taskFactor / performance!.totalFactor) * 100 : 0;
+ 
+-                          const taskSoldHours = project.horas_vendidas > 0 ? (weight / 100) * project.horas_vendidas : 0;
++                          const taskSoldHours = (project?.horas_vendidas || 0) > 0 ? (weight / 100) * project!.horas_vendidas : 0;
+                           const collaboratorCount = (task.collaboratorIds?.length || 0);
+                           const isHourOverrun = taskSoldHours > 0 && taskReported > taskSoldHours;
+                           const isDelayed = task.status !== 'Done' && (
+@@ -839,11 +868,24 @@ const ProjectDetailView: React.FC = () => {
+                     <div className="mb-6 pb-6 border-b border-dashed shrink-0" style={{ borderColor: 'var(--border)' }}>
+                       <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>Status de Entrega</h4>
+                       {(() => {
++                        // Check if continuous mode has no planned value configured
++                        if (isContinuousMode && (!performance?.continuousPlannedValue || performance.continuousPlannedValue < 0.01)) {
++                          return (
++                            <div className="flex flex-col items-center justify-center py-4 opacity-30">
++                              <DollarSign size={20} className="mb-2" />
++                              <span className="text-[10px] font-black uppercase tracking-widest text-center">Valor Di├írio N├úo Configurado</span>
++                              <span className="text-[7px] font-medium uppercase tracking-wider text-center mt-1" style={{ color: 'var(--muted)' }}>
++                                Configure o "Valor Di├írio (8h)" para calcular o desvio
++                              </span>
++                            </div>
++                          );
++                        }
++
+                         const delta = isContinuousMode
+                           ? ((performance?.committedCost || 0) / (performance?.continuousPlannedValue || 1) - 1) * 100
+                           : (performance?.weightedProgress || 0) - (performance?.plannedProgress || 0);
+ 
+-                        const hourOverrun = !isContinuousMode && hasHours && (performance?.consumedHours || 0) > project.horas_vendidas;
++                        const hourOverrun = !isContinuousMode && hasHours && (performance?.consumedHours || 0) > (project?.horas_vendidas || 0);
+ 
+                         if (!hasTimeline && !isContinuousMode) {
+                           return (
+@@ -995,7 +1037,7 @@ const ProjectDetailView: React.FC = () => {
+                             <div className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
+                               <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 mb-1">Valor Di├írio Acordado</p>
+                               <p className="text-xl font-black text-amber-500">
+-                                {(project.valor_diario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
++                                {(project?.valor_diario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                               </p>
+                               <p className="text-[8px] font-bold opacity-40 mt-1 uppercase">Equivalente a 8h de opera├º├úo.</p>
+                             </div>
+@@ -1035,18 +1077,18 @@ const ProjectDetailView: React.FC = () => {
+                                 <div className="flex flex-col">
+                                   <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Custo Projetado</span>
+                                   <div className="flex items-baseline gap-2 mt-0.5">
+-                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.committedCost || 0) > (project.valor_total_rs || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
++                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.committedCost || 0) > (project?.valor_total_rs || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
+                                       {performance?.committedCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                     </span>
+                                     <span className="text-[10px] font-bold opacity-20 tracking-tight">
+-                                      de {Number(project.valor_total_rs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
++                                      de {Number(project?.valor_total_rs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                     </span>
+                                   </div>
+                                 </div>
+                                 <div className="text-right">
+                                   {hasBudget && (
+-                                    <span className={`text-sm font-black tabular-nums ${((performance?.committedCost || 0) > (project.valor_total_rs || 0)) ? 'text-red-500' : 'text-emerald-500'}`}>
+-                                      {Math.round(((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%
++                                    <span className={`text-sm font-black tabular-nums ${((performance?.committedCost || 0) > (project?.valor_total_rs || 0)) ? 'text-red-500' : 'text-emerald-500'}`}>
++                                      {Math.round(((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) * 100)}%
+                                     </span>
+                                   )}
+                                 </div>
+@@ -1054,16 +1096,16 @@ const ProjectDetailView: React.FC = () => {
+ 
+                               <div className="h-1.5 w-full rounded-full overflow-hidden bg-[var(--bg)] shadow-inner border border-[var(--border)] relative">
+                                 <div
+-                                  className={`h-full transition-all duration-1000 ${((performance?.committedCost || 0) / (project.valor_total_rs || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'}`}
+-                                  style={{ width: `${Math.min(100, ((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%` }}
++                                  className={`h-full transition-all duration-1000 ${((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'}`}
++                                  style={{ width: `${Math.min(100, ((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) * 100)}%` }}
+                                 />
+                               </div>
+ 
+                               <div className="flex justify-between items-center mt-2">
+-                                <span className={`text-[8px] font-black uppercase tracking-widest ${((project.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0 ? 'text-emerald-500/50' : 'text-red-500/50'}`}>
+-                                  {((project.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0
+-                                    ? `Saldo: ${((project.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+-                                    : `D├®ficit: ${Math.abs((project.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
++                                <span className={`text-[8px] font-black uppercase tracking-widest ${((project?.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0 ? 'text-emerald-500/50' : 'text-red-500/50'}`}>
++                                  {((project?.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0
++                                    ? `Saldo: ${((project?.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
++                                    : `D├®ficit: ${Math.abs((project?.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
+                                 </span>
+                               </div>
+                             </div>
+@@ -1074,18 +1116,18 @@ const ProjectDetailView: React.FC = () => {
+                                 <div className="flex flex-col">
+                                   <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Horas Apontadas</span>
+                                   <div className="flex items-baseline gap-2 mt-0.5">
+-                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
++                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
+                                       {formatDecimalToTime(performance?.consumedHours || 0)}
+                                     </span>
+                                     <span className="text-[10px] font-bold opacity-20 tracking-tight">
+-                                      de {project.horas_vendidas || 0}h
++                                      de {project?.horas_vendidas || 0}h
+                                     </span>
+                                   </div>
+                                 </div>
+                                 <div className="text-right">
+                                   {hasHours && (
+-                                    <span className={`text-sm font-black tabular-nums ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0)) ? 'text-red-500' : 'text-purple-500'}`}>
+-                                      {Math.round(((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) * 100)}%
++                                    <span className={`text-sm font-black tabular-nums ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? 'text-red-500' : 'text-purple-500'}`}>
++                                      {Math.round(((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) * 100)}%
+                                     </span>
+                                   )}
+                                 </div>
+@@ -1093,15 +1135,15 @@ const ProjectDetailView: React.FC = () => {
+ 
+                               <div className="h-1.5 w-full rounded-full overflow-hidden bg-[var(--bg)] shadow-inner border border-[var(--border)] relative">
+                                 <div
+-                                  className={`h-full transition-all duration-1000 ${((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.3)]'}`}
+-                                  style={{ width: `${Math.min(100, ((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) * 100)}%` }}
++                                  className={`h-full transition-all duration-1000 ${((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.3)]'}`}
++                                  style={{ width: `${Math.min(100, ((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) * 100)}%` }}
+                                 />
+                               </div>
+ 
+                               <div className="flex justify-between items-center mt-2">
+-                                {((project.horas_vendidas || 0) - (performance?.consumedHours || 0)) > 0 ? (
++                                {((project?.horas_vendidas || 0) - (performance?.consumedHours || 0)) > 0 ? (
+                                   <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500/50">
+-                                    Dispon├¡veis: {formatDecimalToTime((project.horas_vendidas || 0) - (performance?.consumedHours || 0))}
++                                    Dispon├¡veis: {formatDecimalToTime((project?.horas_vendidas || 0) - (performance?.consumedHours || 0))}
+                                   </span>
+                                 ) : (
+                                   <span className="text-[8px] font-black uppercase tracking-widest text-red-500/50">
+@@ -1153,13 +1195,13 @@ const ProjectDetailView: React.FC = () => {
+                             <div>
+                               <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>In├¡cio Planejado</p>
+                               <p className="text-sm font-black" style={{ color: 'var(--text)' }}>
+-                                {project.startDate ? project.startDate.split('T')[0].split('-').reverse().join('/') : '--'}
++                                {project?.startDate ? project?.startDate.split('T')[0].split('-').reverse().join('/') : '--'}
+                               </p>
+                             </div>
+                             <div>
+                               <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>In├¡cio Real</p>
+                               <p className={`text-sm font-black ${performance?.realStartDate ? 'text-emerald-500' : 'opacity-30'}`}>
+-                                {performance?.realStartDate ? performance.realStartDate.toLocaleDateString('pt-BR') : '--'}
++                                {performance?.realStartDate ? performance?.realStartDate.toLocaleDateString('pt-BR') : '--'}
+                               </p>
+                             </div>
+                           </div>
+@@ -1168,7 +1210,7 @@ const ProjectDetailView: React.FC = () => {
+                             <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-center">
+                               <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Fim Planejado (autom├ítico)</p>
+                               <p className="text-sm font-black mt-1" style={{ color: 'var(--text)' }}>
+-                                {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
++                                {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
+                               </p>
+                               <p className="text-[8px] font-bold opacity-30 mt-1 uppercase">Regra: In├¡cio + 1 ano</p>
+                             </div>
+@@ -1176,25 +1218,25 @@ const ProjectDetailView: React.FC = () => {
+                             <div className="grid grid-cols-2 gap-8">
+                               <div>
+                                 <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Entrega Planejada</p>
+-                                <p className={`text-sm font-black tabular-nums ${performance?.projection && performance.projection.getTime() < new Date(project.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
+-                                  {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
++                                <p className={`text-sm font-black tabular-nums ${performance?.projection && performance?.projection.getTime() < new Date(project?.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
++                                  {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
+                                 </p>
+                               </div>
+                               <div>
+                                 <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Fim Real</p>
+                                 <p className={`text-sm font-black ${performance?.realEndDate ? 'text-purple-500' : 'opacity-30'}`}>
+-                                  {performance?.realEndDate ? performance.realEndDate.toLocaleDateString('pt-BR') : '--'}
++                                  {performance?.realEndDate ? performance?.realEndDate.toLocaleDateString('pt-BR') : '--'}
+                                 </p>
+                               </div>
+                             </div>
+                           )}
+                         </div>
+ 
+-                        {!isContinuousMode && performance?.projection && performance.weightedProgress > 0 && performance.weightedProgress < 100 && (
+-                          <div className={`p-5 rounded-[24px] bg-[var(--bg)] border border-dashed transition-all w-full mt-auto ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'border-red-500/30' : 'border-emerald-500/30'}`}>
+-                            <p className={`text-[9px] font-black uppercase mb-2 ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'text-red-500' : 'text-emerald-500'}`}>Previs├úo p/ Velocidade</p>
+-                            <p className={`text-xl font-black ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'text-red-500' : 'text-emerald-500'}`}>
+-                              {performance.projection.toLocaleDateString('pt-BR')}
++                        {!isContinuousMode && performance?.projection && (performance?.weightedProgress || 0) > 0 && (performance?.weightedProgress || 0) < 100 && (
++                          <div className={`p-5 rounded-[24px] bg-[var(--bg)] border border-dashed transition-all w-full mt-auto ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'border-red-500/30' : 'border-emerald-500/30'}`}>
++                            <p className={`text-[9px] font-black uppercase mb-2 ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'text-red-500' : 'text-emerald-500'}`}>Previs├úo p/ Velocidade</p>
++                            <p className={`text-xl font-black ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'text-red-500' : 'text-emerald-500'}`}>
++                              {performance?.projection.toLocaleDateString('pt-BR')}
+                             </p>
+                           </div>
+                         )}
+@@ -1230,7 +1272,7 @@ const ProjectDetailView: React.FC = () => {
+                                       <option value="">Selecione...</option>
+                                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                     </select>
+-                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project.clientId)?.name || '--'}</p>}
++                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project?.clientId)?.name || '--'}</p>}
+                                 </div>
+                                 <div className="w-px h-5 bg-[var(--border)] opacity-20" />
+                                 <div className="flex-1 min-w-0">
+@@ -1247,7 +1289,7 @@ const ProjectDetailView: React.FC = () => {
+                                       <option value="direto">Direto (Sem Parceiro)</option>
+                                       {clients.filter(c => c.tipo_cliente === 'parceiro').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                     </select>
+-                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project.partnerId)?.name || 'Nic-Labs'}</p>}
++                                  ) : <p className="text-xs font-black truncate" style={{ color: 'var(--text)' }}>{clients.find(c => c.id === project?.partnerId)?.name || 'Nic-Labs'}</p>}
+                                 </div>
+                               </div>
+                             </div>
+@@ -1267,7 +1309,7 @@ const ProjectDetailView: React.FC = () => {
+                                   <option value="">Selecione...</option>
+                                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                 </select>
+-                              ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{users.find(u => u.id === project.responsibleNicLabsId)?.name || '--'}</p>}
++                              ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{users.find(u => u.id === project?.responsibleNicLabsId)?.name || '--'}</p>}
+                             </div>
+ 
+                             <div>
+@@ -1282,7 +1324,7 @@ const ProjectDetailView: React.FC = () => {
+                                   className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors bg-[var(--bg)] border-[var(--border)]`}
+                                   style={{ color: 'var(--text)' }}
+                                 />
+-                              ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{project.managerClient || '--'}</p>}
++                              ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{project?.managerClient || '--'}</p>}
+                             </div>
+                           </div>
+                         </div>
+@@ -1339,10 +1381,10 @@ const ProjectDetailView: React.FC = () => {
+                           </div>
+                         </div>
+                       </div>
+-                      {(isEditing || project.description) && (
++                      {(isEditing || project?.description) && (
+                         <div>
+                           <p className="text-[10px] font-black uppercase mb-3" style={{ color: 'var(--muted)' }}>Vis├úo de Escopo</p>
+-                          {isEditing ? <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full h-32 p-4 rounded-2xl border outline-none text-sm" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} /> : <p className="text-sm leading-relaxed italic p-5 rounded-2xl border" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text-2)' }}>{project.description}</p>}
++                          {isEditing ? <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full h-32 p-4 rounded-2xl border outline-none text-sm" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} /> : <p className="text-sm leading-relaxed italic p-5 rounded-2xl border" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text-2)' }}>{project?.description}</p>}
+                         </div>
+                       )}
+                       {isEditing && (
+@@ -1356,24 +1398,24 @@ const ProjectDetailView: React.FC = () => {
+ 
+                   <div className="space-y-6">
+                     {/* SA├ÜDE QUALITATIVA */}
+-                    {(isEditing || project.weeklyStatusReport || project.gapsIssues) && (
++                    {(isEditing || project?.weeklyStatusReport || project?.gapsIssues) && (
+                       <div className="p-6 rounded-[32px] border shadow-sm space-y-4" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                         <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}><StickyNote size={16} className="text-amber-500" /> Status e Andamento</h3>
+                         <div className="space-y-4">
+-                          {(isEditing || project.weeklyStatusReport) && (
++                          {(isEditing || project?.weeklyStatusReport) && (
+                             <div>
+                               <p className="text-[9px] font-black uppercase mb-1" style={{ color: 'var(--muted)' }}>Resumo da Semana</p>
+                               {isEditing ? (
+                                 <textarea value={formData.weeklyStatusReport} onChange={e => setFormData({ ...formData, weeklyStatusReport: e.target.value })} className="w-full h-20 p-2 rounded text-xs border" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} placeholder="O que aconteceu esta semana?" />
+-                              ) : <p className="text-xs border-l-2 pl-3 py-1 rounded-r-lg" style={{ borderColor: 'var(--warning)', backgroundColor: 'var(--bg)', color: 'var(--text-2)' }}>{project.weeklyStatusReport}</p>}
++                              ) : <p className="text-xs border-l-2 pl-3 py-1 rounded-r-lg" style={{ borderColor: 'var(--warning)', backgroundColor: 'var(--bg)', color: 'var(--text-2)' }}>{project?.weeklyStatusReport}</p>}
+                             </div>
+                           )}
+-                          {(isEditing || project.gapsIssues) && (
++                          {(isEditing || project?.gapsIssues) && (
+                             <div>
+                               <p className="text-[9px] font-black uppercase mb-1" style={{ color: 'var(--muted)' }}>Problemas e Bloqueios</p>
+                               {isEditing ? (
+                                 <textarea value={formData.gapsIssues} onChange={e => setFormData({ ...formData, gapsIssues: e.target.value })} className="w-full h-20 p-2 rounded text-xs border" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} placeholder="Ex: Acesso bloqueado, falta de doc..." />
+-                              ) : <p className="text-xs font-medium" style={{ color: 'var(--danger)' }}>{project.gapsIssues}</p>}
++                              ) : <p className="text-xs font-medium" style={{ color: 'var(--danger)' }}>{project?.gapsIssues}</p>}
+                             </div>
+                           )}
+                         </div>
+@@ -1384,29 +1426,29 @@ const ProjectDetailView: React.FC = () => {
+                       <div className="flex flex-col gap-1 mb-4">
+                         <div className="flex items-center justify-between">
+                           <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}>
+-                            <Users size={16} className="text-purple-500" /> Equipe Alocada {isContinuousMode ? '(Aloca├º├úo Di├íria autom├ítica)' : ''}
++                            <Users size={16} className="text-purple-500" /> Equipe Alocada {isContinuousMode ? '(Aloca├º├úo Di├íria Autom├ítica)' : ''}
+                           </h3>
+                         </div>
+                         {isContinuousMode && (
+-                          <div className="space-y-2 mt-2">
+-                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-500/5 border border-purple-500/10">
+-                              <div className="flex items-center gap-2">
++                          <div className="space-y-1.5 mt-2">
++                            <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
++                              <div className="flex items-center gap-1.5">
+                                 <Zap size={12} className="text-purple-500" />
+-                                <span className="text-[9px] font-black uppercase tracking-widest text-purple-500">Modo: Equaliza├º├úo Assistida</span>
++                                <span className="text-[8px] font-black uppercase tracking-wider text-purple-500">Modo: Equaliza├º├úo Assistida</span>
+                               </div>
+-                              <span className="text-[9px] font-bold opacity-40 uppercase">Base: 8h / {teamOperationalBalance?.todayActiveCount || 0} colab. = {(8 / (teamOperationalBalance?.todayActiveCount || 1)).toFixed(1)}h/dia</span>
++                              <span className="text-[8px] font-bold opacity-50 uppercase">Base: 8h / {teamOperationalBalance?.todayActiveCount || 0} colab. = {(8 / (teamOperationalBalance?.todayActiveCount || 1)).toFixed(1)}h/dia</span>
+                             </div>
+ 
+                             {teamOperationalBalance?.hasSignificantDeviation && (
+-                              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-pulse">
++                              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                                 <AlertTriangle size={12} className="text-amber-500" />
+-                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Desequil├¡brio detectado ÔÇö sugest├úo de redistribui├º├úo dispon├¡vel</span>
++                                <span className="text-[8px] font-black uppercase tracking-wider text-amber-500">Desequil├¡brio Detectado ÔÇö Redistribui├º├úo Sugerida</span>
+                               </div>
+                             )}
+                           </div>
+                         )}
+                       </div>
+-                      <div className="space-y-3">
++                      <div className="space-y-2">
+                         {isEditing ? (
+                           <div className={`border rounded-2xl p-4 max-h-[400px] overflow-y-auto space-y-2 custom-scrollbar shadow-inner transition-colors ${selectedUsers.length === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}>
+                             {users.filter(u => u.active !== false && u.torre !== 'N/A').sort((a, b) => a.name.localeCompare(b.name)).map(user => (
+@@ -1454,65 +1496,101 @@ const ProjectDetailView: React.FC = () => {
+                             {projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
+                               const u = users.find(user => user.id === String(pm.id_colaborador));
+                               return u ? (
+-                                <div key={u.id} className="p-3 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+-                                  <div className="flex items-center justify-between gap-2 sm:gap-4">
+-                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+-                                      <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 border border-[var(--border)] shadow-sm" style={{ backgroundColor: 'var(--surface)' }}>
+-                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[9px] font-black uppercase" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+-                                      </div>
+-                                      <div className="min-w-0 flex-1">
+-                                        <p className="text-[10px] font-black tracking-tight truncate mb-0.5" style={{ color: 'var(--text)' }}>{u.name}</p>
+-                                        <p className="text-[6px] font-black uppercase opacity-30 tracking-widest truncate" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
+-                                      </div>
++                                <div key={u.id} className="p-3 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
++                                  {/* Header with User Info */}
++                                  <div className="flex items-center gap-2.5 mb-2">
++                                    <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-[var(--border)] shadow-sm" style={{ backgroundColor: 'var(--surface)' }}>
++                                      {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[9px] font-black uppercase" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                     </div>
+-                                    <div className="flex items-center gap-x-3 sm:gap-x-6 shrink-0 ml-1">
+-                                      {(() => {
+-                                        const metrics = teamOperationalBalance?.memberMetrics[u.id];
+-                                        if (isContinuousMode && metrics) {
+-                                          const statusColor = metrics.status === 'green' ? 'text-emerald-500' : metrics.status === 'yellow' ? 'text-amber-500' : 'text-red-500';
+-                                          return (
+-                                            <>
+-                                              <div className="hidden xs:block text-right w-[32px] sm:w-[45px]">
+-                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Base</p>
+-                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{metrics.baseDaily.toFixed(1)}h</p>
+-                                              </div>
+-                                              <div className="text-right w-[32px] sm:w-[45px]">
+-                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Ideal</p>
+-                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.idealAccumulated)}</p>
+-                                              </div>
+-                                              <div className="text-right w-[35px] sm:w-[50px]">
+-                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Real</p>
+-                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.actualHours)}</p>
+-                                              </div>
+-                                              <div className="text-right w-[40px] sm:w-[55px]">
+-                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Desvio</p>
+-                                                <p className={`text-[9px] font-black tabular-nums ${statusColor}`}>
+-                                                  {metrics.deviation > 0 ? '+' : ''}{formatDecimalToTime(metrics.deviation)}
+-                                                </p>
+-                                              </div>
+-                                            </>
+-                                          );
+-                                        }
+-                                        const reported = timesheetEntries.filter(e => e.projectId === projectId && e.userId === u.id).reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+-                                        return (
+-                                          <div className="text-right w-[50px]">
+-                                            <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Real</p>
+-                                            <p className="text-[10px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
+-                                          </div>
+-                                        );
+-                                      })()}
++                                    <div className="min-w-0 flex-1">
++                                      <p className="text-[10px] font-black tracking-tight truncate mb-0.5" style={{ color: 'var(--text)' }}>{u.name}</p>
++                                      <p className="text-[7px] font-black uppercase opacity-40 tracking-wider truncate" style={{ color: 'var(--text)' }}>{u.cargo || 'Consultor'}</p>
+                                     </div>
+                                   </div>
++
++                                  {/* Metrics Section */}
++                                  {(() => {
++                                    const metrics = teamOperationalBalance?.memberMetrics[u.id];
++                                    if (isContinuousMode && metrics) {
++                                      const statusColor = metrics.status === 'green' ? 'text-emerald-500' : metrics.status === 'yellow' ? 'text-amber-500' : 'text-red-500';
++                                      const statusBg = metrics.status === 'green' ? 'bg-emerald-500/5' : metrics.status === 'yellow' ? 'bg-amber-500/5' : 'bg-red-500/5';
++                                      const statusBorder = metrics.status === 'green' ? 'border-emerald-500/20' : metrics.status === 'yellow' ? 'border-amber-500/20' : 'border-red-500/20';
++
++                                      return (
++                                        <div className="space-y-1.5">
++                                          {/* Base Daily Allocation - Prominent */}
++                                          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border bg-purple-500/5 border-purple-500/20">
++                                            <span className="text-[7px] font-black uppercase tracking-wider text-purple-500/60">Aloca├º├úo Base (8h ├À {teamOperationalBalance?.todayActiveCount || 1})</span>
++                                            <span className="text-[11px] font-black text-purple-500">{metrics.baseDaily.toFixed(1)}h/dia</span>
++                                          </div>
++
++                                          {/* Metrics Grid */}
++                                          <div className="grid grid-cols-3 gap-1.5">
++                                            {/* Expected */}
++                                            <div className="flex flex-col items-center px-2 py-1.5 rounded-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
++                                              <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Esperado</p>
++                                              <p className="text-[10px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.idealAccumulated)}</p>
++                                            </div>
++
++                                            {/* Actual */}
++                                            <div className="flex flex-col items-center px-2 py-1.5 rounded-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
++                                              <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Apontado</p>
++                                              <p className="text-[10px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.actualHours)}</p>
++                                            </div>
++
++                                            {/* Difference */}
++                                            <div className={`flex flex-col items-center px-2 py-1.5 rounded-lg border ${statusBg} ${statusBorder}`}>
++                                              <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Diferen├ºa</p>
++                                              <p className={`text-[10px] font-black tabular-nums ${statusColor}`}>
++                                                {metrics.deviation > 0 ? '+' : ''}{formatDecimalToTime(metrics.deviation)}
++                                              </p>
++                                            </div>
++                                          </div>
++                                        </div>
++                                      );
++                                    }
++
++                                    // Non-continuous mode - simple display
++                                    const reported = timesheetEntries.filter(e => e.projectId === projectId && e.userId === u.id).reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
++                                    return (
++                                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
++                                        <p className="text-[7px] font-black uppercase opacity-40 tracking-wider">Total Apontado</p>
++                                        <p className="text-[11px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
++                                      </div>
++                                    );
++                                  })()}
++
++                                  {/* Suggestion Section */}
+                                   {isContinuousMode && teamOperationalBalance?.memberMetrics[u.id] && (
+-                                    <div className="mt-2.5 pt-2 border-t border-dashed flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
++                                    <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: 'var(--border)' }}>
+                                       {teamOperationalBalance.suggestions[u.id] ? (
+-                                        <div className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg bg-${teamOperationalBalance.memberMetrics[u.id].status}-500/[0.03]`}>
+-                                          <span className={`text-[7px] font-black uppercase tracking-widest text-${teamOperationalBalance.memberMetrics[u.id].status}-500`}>Sugerido p/ equil├¡brio operacional:</span>
+-                                          <span className={`text-[9px] font-black text-${teamOperationalBalance.memberMetrics[u.id].status}-500`}>{teamOperationalBalance.suggestions[u.id].toFixed(1)}h / dia</span>
+-                                        </div>
++                                        (() => {
++                                          const metrics = teamOperationalBalance.memberMetrics[u.id];
++                                          const status = metrics.status;
++                                          const bgClass = status === 'green' ? 'bg-emerald-500/5' : status === 'yellow' ? 'bg-amber-500/5' : 'bg-red-500/5';
++                                          const borderClass = status === 'green' ? 'border-emerald-500/20' : status === 'yellow' ? 'border-amber-500/20' : 'border-red-500/20';
++                                          const textClass = status === 'green' ? 'text-emerald-500' : status === 'yellow' ? 'text-amber-500' : 'text-red-500';
++                                          const suggestion = teamOperationalBalance.suggestions[u.id];
++                                          const adjustmentText = suggestion > metrics.baseDaily ? 'Aumentar para' : suggestion < metrics.baseDaily ? 'Reduzir para' : 'Manter em';
++
++                                          return (
++                                            <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border ${bgClass} ${borderClass}`}>
++                                              <div className="flex items-center gap-1.5">
++                                                <div className={`w-1 h-1 rounded-full ${textClass.replace('text-', 'bg-')}`}></div>
++                                                <span className={`text-[7px] font-black uppercase tracking-wider ${textClass}`}>
++                                                  {adjustmentText}
++                                                </span>
++                                              </div>
++                                              <span className={`text-[10px] font-black ${textClass}`}>
++                                                {suggestion.toFixed(1)}h/dia
++                                              </span>
++                                            </div>
++                                          );
++                                        })()
+                                       ) : (
+-                                        <div className="flex-1 flex items-center justify-center py-1 bg-emerald-500/[0.01] rounded-lg">
+-                                          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-emerald-500/20">Equil├¡brio Adequado</span>
++                                        <div className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
++                                          <Check size={10} className="text-emerald-500" />
++                                          <span className="text-[7px] font-black uppercase tracking-wider text-emerald-500">Aloca├º├úo Equilibrada</span>
+                                         </div>
+                                       )}
+                                     </div>
+@@ -1533,20 +1611,24 @@ const ProjectDetailView: React.FC = () => {
+                               if (formerMembersWithHours.length === 0) return null;
+ 
+                               return (
+-                                <div className="mt-6 space-y-3">
+-                                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40 px-2">Hist├│rico de Contribui├º├úo</p>
++                                <div className="mt-8 space-y-3">
++                                  <div className="flex items-center gap-2 px-2">
++                                    <Archive size={12} className="opacity-30" style={{ color: 'var(--text)' }} />
++                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Hist├│rico de Contribui├º├úo</p>
++                                  </div>
+                                   {formerMembersWithHours.map(u => u && (
+-                                    <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border border-dashed transition-all opacity-60 grayscale-[0.5]" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+-                                      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
+-                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--muted)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
++                                    <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl border border-dashed transition-all opacity-70" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
++                                      <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
++                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[9px] font-black opacity-40" style={{ color: 'var(--muted)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                       </div>
+                                       <div className="min-w-0 flex-1">
+                                         <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
+-                                        <div className="flex items-center gap-2">
+-                                          <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{u.cargo || 'Consultor (Antigo)'}</p>
++                                        <div className="flex items-center gap-2 mt-0.5">
++                                          <p className="text-[8px] font-black uppercase tracking-wider opacity-40" style={{ color: 'var(--text)' }}>{u.cargo || 'Consultor'}</p>
++                                          <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-500">Ex-membro</span>
+                                         </div>
+ 
+-                                        <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
++                                        <div className="mt-2.5 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
+                                           <div>
+                                             {(() => {
+                                               const reported = timesheetEntries
+@@ -1572,7 +1654,7 @@ const ProjectDetailView: React.FC = () => {
+                       </div>
+                     </div>
+ 
+-                    {(isEditing || project.docLink) && (
++                    {(isEditing || project?.docLink) && (
+                       <div className="p-6 rounded-[32px] border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                         <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: 'var(--text)' }}><FileText size={16} /> Documenta├º├úo</h3>
+                         {isEditing ? (
+@@ -1580,7 +1662,7 @@ const ProjectDetailView: React.FC = () => {
+                             <input value={formData.docLink} onChange={e => setFormData({ ...formData, docLink: e.target.value })} className="w-full text-[11px] p-2 rounded border outline-none" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }} placeholder="Link do Sharepoint/OneDrive" />
+                           </div>
+                         ) : (
+-                          <a href={project.docLink} target="_blank" className="flex items-center justify-between p-3 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info-text)', borderColor: 'var(--info)' }}>
++                          <a href={project?.docLink || '#'} target="_blank" className="flex items-center justify-between p-3 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info-text)', borderColor: 'var(--info)' }}>
+                             <span className="text-[10px] font-black uppercase">Doc. Principal</span>
+                             <LinkIcon size={14} />
+                           </a>
+@@ -1681,7 +1763,7 @@ const ProjectDetailView: React.FC = () => {
+                             alert('Complete as informa├º├Áes obrigat├│rias do projeto (Finan├ºas, Timeline, Respons├íveis e Equipe) antes de criar tarefas.');
+                             return;
+                           }
+-                          navigate(`/tasks/new?project=${projectId}&client=${project.clientId}`);
++                          navigate(`/tasks/new?project=${projectId}&client=${project?.clientId}`);
+                         }}
+                         className={`mt-6 px-6 py-2 rounded-xl font-bold text-sm transition-all ${canCreateTask ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-50'}`}
+                       >
+@@ -1780,11 +1862,11 @@ const ProjectTaskCard: React.FC<{
+ }> = ({ project, task, users, timesheetEntries, isAdmin, currentUserId, onClick }) => {
+   const navigate = useNavigate();
+   const dev = users.find(u => u.id === task.developerId);
+-  const actualHours = timesheetEntries.filter(e => e.taskId === task.id).reduce((sum, e) => sum + e.totalHours, 0);
++  const actualHours = timesheetEntries.filter(e => e.taskId === task.id).reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+ 
+   const distributedHours = useMemo(() => {
+-    const pStartTs = parseSafeDate(project.startDate);
+-    const pEndTs = parseSafeDate(project.estimatedDelivery);
++    const pStartTs = parseSafeDate(project?.startDate);
++    const pEndTs = parseSafeDate(project?.estimatedDelivery);
+     const tStartTs = parseSafeDate(task.scheduledStart || task.actualStart);
+     const tEndTs = parseSafeDate(task.estimatedDelivery);
+ 
+@@ -1795,7 +1877,7 @@ const ProjectTaskCard: React.FC<{
+ 
+     if (projectDurationTs <= 0 || taskDurationTs <= 0) return 0;
+     const weight = (taskDurationTs / projectDurationTs);
+-    return weight * (project.horas_vendidas || 0);
++    return weight * (project?.horas_vendidas || 0);
+   }, [project, task]);
+ 
+   const statusMap: Record<string, { label: string, color: string, bg: string }> = {
+
+commit 5750d589ecbdafa1a75fb3540389991c1cc4c6c9
+Author: duvvic <victor2002almeida@gmail.com>
+Date:   Fri Feb 20 17:16:30 2026 -0300
+
+    feat: advanced operational balance panel for continuous projects and UI refinements in team section
+
+diff --git a/frontend/src/components/ProjectDetailView.tsx b/frontend/src/components/ProjectDetailView.tsx
+index 5088e14..420cadd 100644
+--- a/frontend/src/components/ProjectDetailView.tsx
++++ b/frontend/src/components/ProjectDetailView.tsx
+@@ -6,7 +6,7 @@ import {
+   ArrowLeft, Plus, Edit, CheckSquare, Clock, Filter, ChevronDown, Check,
+   Trash2, LayoutGrid, Target, ShieldAlert, Link as LinkIcon, Users,
+   Calendar, Info, Zap, RefreshCw, AlertTriangle, StickyNote, DollarSign,
+-  TrendingUp, BarChart2, Save, FileText, Settings, Shield, AlertCircle
++  TrendingUp, BarChart2, Save, FileText, Settings, Shield, AlertCircle, Archive
+ } from 'lucide-react';
+ import ConfirmationModal from './ConfirmationModal';
+ import { useAuth } from '@/contexts/AuthContext';
+@@ -41,6 +41,7 @@ const ProjectDetailView: React.FC = () => {
+   const [isEditing, setIsEditing] = useState(false);
+   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project', force?: boolean } | null>(null);
+   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
++  const [showArchived, setShowArchived] = useState(false);
+   const [showStatusMenu, setShowStatusMenu] = useState(false);
+   const [loading, setLoading] = useState(false);
+   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+@@ -76,7 +77,9 @@ const ProjectDetailView: React.FC = () => {
+     valor_total_rs: 0,
+     horas_vendidas: 0,
+     complexidade: 'M├®dia' as 'Alta' | 'M├®dia' | 'Baixa',
+-    torre: ''
++    torre: '',
++    project_type: 'planned' as 'planned' | 'continuous',
++    valor_diario: 0
+   });
+   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+   const [memberAllocations, setMemberAllocations] = useState<Record<string, number>>({});
+@@ -105,7 +108,9 @@ const ProjectDetailView: React.FC = () => {
+         valor_total_rs: project.valor_total_rs || 0,
+         horas_vendidas: project.horas_vendidas || 0,
+         complexidade: project.complexidade || 'M├®dia',
+-        torre: project.torre || ''
++        torre: project.torre || '',
++        project_type: project.project_type || 'planned',
++        valor_diario: (project as any).valor_diario || 0
+       });
+       const membersResult = projectMembers.filter(pm => String(pm.id_projeto) === projectId);
+       const selectedIds = membersResult.map(m => String(m.id_colaborador));
+@@ -139,6 +144,8 @@ const ProjectDetailView: React.FC = () => {
+     return pTasks;
+   }, [tasks, projectId, currentUser, isAdmin]);
+ 
++  const isContinuousMode = (isEditing ? formData.project_type : project?.project_type) === 'continuous';
++
+   const performance = useMemo(() => {
+     if (!project) return null;
+     const pTimesheets = timesheetEntries.filter(e => e.projectId === projectId);
+@@ -208,8 +215,162 @@ const ProjectDetailView: React.FC = () => {
+       ? new Date(Math.max(...memberTimesheets.map(e => new Date(e.date + 'T12:00:00').getTime())))
+       : null;
+ 
+-    return { committedCost, consumedHours, weightedProgress, totalEstimated, plannedProgress, projection, realStartDate, realEndDate, projectFactors, totalFactor };
+-  }, [project, projectTasks, timesheetEntries, users, projectId, projectMembers]);
++    // --- C├üLCULOS ESPEC├ìFICOS PARA PROJETOS CONT├ìNUOS ---
++    let continuousPlannedValue = 0;
++    if (project.project_type === 'continuous' && project.startDate) {
++      const start = new Date(project.startDate + 'T12:00:00');
++      const today = new Date();
++      today.setHours(12, 0, 0, 0);
++
++      let businessDays = 0;
++      let curr = new Date(start);
++      while (curr <= today) {
++        const day = curr.getDay();
++        if (day !== 0 && day !== 6) {
++          const dateStr = curr.toISOString().split('T')[0];
++          const isHoliday = holidays.some(h => {
++            const hStart = h.date;
++            const hEnd = h.endDate || h.date;
++            return dateStr >= hStart && dateStr <= hEnd;
++          });
++          if (!isHoliday) businessDays++;
++        }
++        curr.setDate(curr.getDate() + 1);
++      }
++      continuousPlannedValue = businessDays * ((project as any).valor_diario || 0);
++    }
++
++    return { committedCost, consumedHours, weightedProgress, totalEstimated, plannedProgress, projection, realStartDate, realEndDate, projectFactors, totalFactor, continuousPlannedValue };
++  }, [project, projectTasks, timesheetEntries, users, projectId, projectMembers, holidays]);
++
++  const teamOperationalBalance = useMemo(() => {
++    if (!isContinuousMode || !project || !project.startDate) return null;
++
++    const startDate = new Date(project.startDate + 'T12:00:00');
++    const today = new Date();
++    today.setHours(12, 0, 0, 0);
++
++    // 1. Dicion├írio de dias -> contagem de ativos
++    const dayStats: Record<string, { activeCount: number; members: string[] }> = {};
++    let curr = new Date(startDate);
++
++    // Lista de membros do projeto
++    const activeProjectMembers = projectMembers.filter(pm => String(pm.id_projeto) === projectId);
++
++    while (curr <= today) {
++      const day = curr.getDay();
++      if (day !== 0 && day !== 6) {
++        const dateStr = curr.toISOString().split('T')[0];
++        const isHoliday = holidays.some(h => {
++          const hStart = h.date;
++          const hEnd = h.endDate || h.date;
++          return dateStr >= hStart && dateStr <= hEnd;
++        });
++
++        if (!isHoliday) {
++          const membersAtDay = activeProjectMembers.filter(pm => {
++            const mEntry = pm.start_date ? new Date(pm.start_date + 'T12:00:00') : startDate;
++            const mExit = pm.end_date ? new Date(pm.end_date + 'T12:00:00') : null;
++            return curr >= mEntry && (!mExit || curr <= mExit);
++          });
++
++          dayStats[dateStr] = {
++            activeCount: membersAtDay.length,
++            members: membersAtDay.map(m => String(m.id_colaborador))
++          };
++        }
++      }
++      curr.setDate(curr.getDate() + 1);
++    }
++
++    // 2. Calcular m├®tricas por integrante
++    const memberMetrics: Record<string, {
++      baseDaily: number;
++      idealAccumulated: number;
++      actualHours: number;
++      deviation: number;
++      deviationPercent: number;
++      status: 'green' | 'yellow' | 'red';
++    }> = {};
++
++    activeProjectMembers.forEach(pm => {
++      const userId = String(pm.id_colaborador);
++      const mEntry = pm.start_date ? new Date(pm.start_date + 'T12:00:00') : startDate;
++
++      let idealAccumulated = 0;
++      Object.entries(dayStats).forEach(([dateStr, stats]) => {
++        const dDate = new Date(dateStr + 'T12:00:00');
++        if (dDate >= mEntry && stats.activeCount > 0 && stats.members.includes(userId)) {
++          idealAccumulated += (8 / stats.activeCount);
++        }
++      });
++
++      const actualHours = timesheetEntries
++        .filter(e => e.projectId === projectId && e.userId === userId)
++        .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
++
++      const deviation = actualHours - idealAccumulated;
++      const deviationPercent = idealAccumulated > 0 ? (deviation / idealAccumulated) : 0;
++
++      let status: 'green' | 'yellow' | 'red' = 'green';
++      const absPercent = Math.abs(deviationPercent);
++      if (absPercent > 0.15) status = 'red';
++      else if (absPercent > 0.10) status = 'yellow';
++      else if (absPercent <= 0.05) status = 'green';
++      else status = 'yellow';
++
++      memberMetrics[userId] = {
++        baseDaily: dayStats[today.toISOString().split('T')[0]]?.activeCount > 0 ? (8 / dayStats[today.toISOString().split('T')[0]].activeCount) : (8 / Math.max(1, activeProjectMembers.length)),
++        idealAccumulated,
++        actualHours,
++        deviation,
++        deviationPercent: deviationPercent * 100,
++        status
++      };
++    });
++
++    // 3. L├│gica de Sugest├úo
++    const suggestions: Record<string, number> = {};
++    const absoluteDeviationsSum = Object.values(memberMetrics).reduce((sum, m) => sum + Math.abs(m.deviation), 0);
++    const hasSignificantDeviation = Object.values(memberMetrics).some(m => Math.abs(m.deviationPercent) > 10);
++
++    if (hasSignificantDeviation && absoluteDeviationsSum > 0) {
++      let rawWeights: Record<string, number> = {};
++      let totalWeight = 0;
++
++      activeProjectMembers.forEach(pm => {
++        const userId = String(pm.id_colaborador);
++        const weight = Math.max(0.1, 1 - (memberMetrics[userId].deviation / absoluteDeviationsSum));
++        rawWeights[userId] = weight;
++        totalWeight += weight;
++      });
++
++      let totalSuggested = 0;
++      activeProjectMembers.forEach(pm => {
++        const userId = String(pm.id_colaborador);
++        let suggested = 8 * (rawWeights[userId] / totalWeight);
++        suggested = Math.max(1, Math.min(8, suggested));
++        suggestions[userId] = suggested;
++        totalSuggested += suggested;
++      });
++
++      // Arredondamento
++      let roundedTotal = 0;
++      const userIds = Object.keys(suggestions);
++      userIds.forEach(uid => {
++        suggestions[uid] = Math.round(suggestions[uid] * 10) / 10;
++        roundedTotal += suggestions[uid];
++      });
++
++      const diff = 8 - roundedTotal;
++      if (diff !== 0 && userIds.length > 0) {
++        suggestions[userIds[userIds.length - 1]] = Math.round((suggestions[userIds[userIds.length - 1]] + diff) * 10) / 10;
++      }
++    }
++
++    return { memberMetrics, suggestions, hasSignificantDeviation, todayActiveCount: activeProjectMembers.length };
++  }, [isContinuousMode, project, projectMembers, timesheetEntries, holidays, projectId]);
++
+ 
+   const projectHolidays = useMemo(() => {
+     if (!project || !project.startDate || !project.estimatedDelivery) return [];
+@@ -237,32 +398,38 @@ const ProjectDetailView: React.FC = () => {
+ 
+   const isProjectIncomplete = useMemo(() => {
+     if (!project) return true;
++    const isContinuous = (isEditing ? formData.project_type : project.project_type) === 'continuous';
+     const data = isEditing ? formData : {
+       name: project.name,
+-      clientId: project.clientId,
+-      partnerId: project.partnerId,
+       valor_total_rs: project.valor_total_rs,
+       horas_vendidas: project.horas_vendidas,
+       startDate: project.startDate,
+       estimatedDelivery: project.estimatedDelivery,
+-      responsibleNicLabsId: project.responsibleNicLabsId,
+-      managerClient: project.managerClient
++      project_type: project.project_type,
++      valor_diario: (project as any).valor_diario,
++      partnerId: project.partnerId,
++      responsibleNicLabsId: project.responsibleNicLabsId
+     };
+ 
+     return (
+       !data.name?.trim() ||
+-      !data.clientId ||
+-      !data.partnerId ||
+-      !data.valor_total_rs ||
+-      !data.horas_vendidas ||
++      (!isContinuous && (!data.valor_total_rs || data.valor_total_rs === 0)) ||
++      (!isContinuous && (!data.horas_vendidas || data.horas_vendidas === 0)) ||
++      (isContinuous && (!data.valor_diario || data.valor_diario === 0)) ||
+       !data.startDate ||
+-      !data.estimatedDelivery ||
+-      !data.responsibleNicLabsId ||
+-      !data.managerClient ||
++      (!isContinuous && !data.estimatedDelivery) ||
+       selectedUsers.length === 0
+     );
+   }, [project, formData, isEditing, selectedUsers]);
+ 
++
++  const handleKeyDown = (e: React.KeyboardEvent) => {
++    if (e.key === 'Enter') {
++      e.preventDefault();
++      handleSaveProject();
++    }
++  };
++
+   const hasTimeline = !!(project.startDate && project.estimatedDelivery);
+   const hasBudget = (project.valor_total_rs || 0) > 0;
+   const hasHours = (project.horas_vendidas || 0) > 0;
+@@ -288,11 +455,12 @@ const ProjectDetailView: React.FC = () => {
+   const handleSaveProject = async () => {
+     if (!project || !projectId) return;
+ 
+-    // Valida├º├úo de campos obrigat├│rios apenas para admins
+-    if (isAdmin && isProjectIncomplete) {
+-      alert('Por favor, preencha todos os campos obrigat├│rios (Finan├ºas, Timeline, Respons├íveis e Equipe) antes de salvar.');
+-      return;
+-    }
++    // Bloqueio removido conforme solicita├º├úo: permitir salvar mesmo incompleto.
++    // if (isAdmin && isProjectIncomplete) {
++    //   alert('Por favor, preencha todos os campos obrigat├│rios (Finan├ºas, Timeline, Respons├íveis e Equipe) antes de salvar.');
++    //   return;
++    // }
++
+ 
+     setLoading(true);
+     try {
+@@ -347,9 +515,13 @@ const ProjectDetailView: React.FC = () => {
+       await updateProject(projectId, cleanData as any);
+       const initialMembers = getProjectMembers(projectId);
+ 
+-      // Para cada usu├írio selecionado, adicionamos sempre como 100% (flag)
++      // Para cada usu├írio selecionado, calculamos a aloca├º├úo proporcional para projetos cont├¡nuos (8h / N)
++      const isContinuous = formData.project_type === 'continuous';
++      const numMembers = selectedUsers.length;
++      const allocationPercentage = isContinuous ? (numMembers > 0 ? 100 / numMembers : 100) : 100;
++
+       for (const userId of selectedUsers) {
+-        await addProjectMember(projectId, userId, 100);
++        await addProjectMember(projectId, userId, allocationPercentage);
+       }
+ 
+       // Remover membros que n├úo est├úo mais na lista
+@@ -367,9 +539,13 @@ const ProjectDetailView: React.FC = () => {
+ 
+   const filteredTasks = useMemo(() => {
+     let t = projectTasks;
++    // Archive logic: Hide Done tasks by default unless explicitly filtered for 'Done' or showArchived is true
++    if (!showArchived && selectedStatus !== 'Done') {
++      t = t.filter(task => task.status !== 'Done');
++    }
+     if (selectedStatus !== 'Todos') t = t.filter(task => task.status === selectedStatus);
+     return t.sort((a, b) => (new Date(a.estimatedDelivery || '2099-12-31').getTime() - new Date(b.estimatedDelivery || '2099-12-31').getTime()));
+-  }, [projectTasks, selectedStatus]);
++  }, [projectTasks, selectedStatus, showArchived]);
+ 
+   const canCreateTask = !isProjectIncomplete;
+ 
+@@ -405,45 +581,60 @@ const ProjectDetailView: React.FC = () => {
+           <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft /></button>
+           <div className="flex items-center gap-4">
+             {client?.logoUrl && <div className="w-12 h-12 bg-white rounded-xl p-1.5 shadow-xl"><img src={client.logoUrl} className="w-full h-full object-contain" /></div>}
+-            <div>
+-              {isEditing ? (
+-                <input
+-                  value={formData.name}
+-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+-                  className={`bg-white/10 border-b outline-none px-2 py-1 text-xl font-bold rounded transition-colors ${!formData.name?.trim() ? 'border-yellow-400 bg-yellow-400/20' : 'border-white'}`}
+-                />
+-              ) : (
+-                <h1 className="text-xl font-bold">{project.name}</h1>
+-              )}
+-              <div className="flex items-center gap-2 mt-1">
+-                {isAdmin && isProjectIncomplete && (
+-                  <span
+-                    className="text-[10px] font-black uppercase bg-yellow-400 text-black px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-yellow-500/20 cursor-help"
+-                    title="Cadastro incompleto. Preencha todos os campos obrigat├│rios."
+-                  >
+-                    <AlertTriangle size={12} /> INC
+-                  </span>
++            <div className="flex flex-col gap-1.5">
++              <div className="flex items-center gap-3 flex-wrap">
++                {isEditing ? (
++                  <input
++                    value={formData.name}
++                    onChange={e => setFormData({ ...formData, name: e.target.value })}
++                    onKeyDown={handleKeyDown}
++                    className={`bg-white/10 border-b outline-none px-2 py-1 text-xl font-bold rounded transition-colors min-w-[300px] ${!formData.name?.trim() ? 'border-yellow-400 bg-yellow-400/20' : 'border-white'}`}
++                  />
++                ) : (
++                  <h1 className="text-xl font-bold">{project.name}</h1>
+                 )}
+-                {isAdmin && performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5) && (
+-                  <span
+-                    className="text-[10px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-red-500/20 animate-pulse"
+-                    title="Projeto com progresso abaixo do planejado."
+-                  >
+-                    <Clock size={12} /> ATR
++
++                <div className="flex items-center gap-2">
++                  {isAdmin && performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5) && (
++                    <span
++                      className="text-[10px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-red-500/20 animate-pulse"
++                      title="Projeto com progresso abaixo do planejado."
++                    >
++                      <Clock size={12} /> ATR
++                    </span>
++                  )}
++                  <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-lg tracking-widest border border-white/10">
++                    {getProjectStatusByTimeline(project)}
+                   </span>
+-                )}
+-                <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-lg tracking-widest border border-white/10">
+-                  {getProjectStatusByTimeline(project)}
+-                </span>
+-                <span className="text-xs text-white/60">{client?.name}</span>
++                  {isContinuousMode && (
++                    <span className="text-[9px] font-black uppercase bg-amber-500 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-lg shadow-amber-500/20">
++                      <RefreshCw size={12} /> CONT├ìNUO
++                    </span>
++                  )}
++                </div>
++              </div>
++
++              <div className="flex items-center gap-4">
++                <span className="text-xs text-white/60 font-medium">{client?.name}</span>
+                 {isAdmin && (
+-                  <button
+-                    onClick={() => setIsEditing(!isEditing)}
+-                    className={`ml-2 p-1 hover:bg-white/20 rounded transition-colors ${isProjectIncomplete && !isEditing ? 'ring-2 ring-yellow-400 animate-pulse bg-yellow-400/20' : ''}`}
+-                    title={isProjectIncomplete && !isEditing ? "Clique aqui para completar o cadastro (Campos Obrigat├│rios)" : "Editar Projeto"}
+-                  >
+-                    <Edit size={14} />
+-                  </button>
++                  <div className="flex items-center gap-2 border-l border-white/10 pl-4 ml-2">
++                    <button
++                      onClick={() => setIsEditing(!isEditing)}
++                      className={`p-1.5 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${isEditing ? 'bg-white/20 border border-white/30' : ''}`}
++                      title="Editar Projeto"
++                    >
++                      <Edit size={14} /> {isEditing ? 'Editando' : 'Editar'}
++                    </button>
++                    {isEditing && (
++                      <button
++                        onClick={handleSaveProject}
++                        disabled={loading}
++                        className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
++                      >
++                        {loading ? '...' : <><Save size={12} /> Salvar</>}
++                      </button>
++                    )}
++                  </div>
+                 )}
+               </div>
+             </div>
+@@ -486,36 +677,26 @@ const ProjectDetailView: React.FC = () => {
+         <div className="max-w-7xl mx-auto space-y-5">
+ 
+           {/* CRITICAL STATUS BANNER */}
+-          {isAdmin && (isProjectIncomplete || (performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5)) || (performance && performance.consumedHours > (project.horas_vendidas || 0) && (project.horas_vendidas || 0) > 0)) && (
++          {isAdmin && ((performance && ((performance.weightedProgress || 0) < (performance.plannedProgress || 0) - 5)) || (performance && performance.consumedHours > (project.horas_vendidas || 0) && (project.horas_vendidas || 0) > 0)) && (
+             <motion.div
+               initial={{ opacity: 0, y: -20 }}
+               animate={{ opacity: 1, y: 0 }}
+-              className={`p-4 rounded-[2rem] border flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl ${isProjectIncomplete ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-red-500/10 border-red-500/50'}`}
++              className={`p-4 rounded-[2rem] border flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl bg-red-500/10 border-red-500/50`}
+             >
+               <div className="flex items-center gap-4">
+-                <div className={`p-3 rounded-2xl ${isProjectIncomplete ? 'bg-yellow-500 text-black' : 'bg-red-500 text-white shadow-lg shadow-red-500/20'}`}>
++                <div className={`p-3 rounded-2xl bg-red-500 text-white shadow-lg shadow-red-500/20`}>
+                   <AlertTriangle size={24} />
+                 </div>
+                 <div>
+-                  <h3 className={`text-sm font-black uppercase tracking-tight ${isProjectIncomplete ? 'text-yellow-700' : 'text-red-700'}`}>
+-                    {isProjectIncomplete ? 'Cadastro de Projeto Incompleto' : 'Aten├º├úo: Indicadores Cr├¡ticos'}
++                  <h3 className={`text-sm font-black uppercase tracking-tight text-red-700`}>
++                    Aten├º├úo: Indicadores Cr├¡ticos
+                   </h3>
+-                  <p className="text-[10px] font-bold opacity-70" style={{ color: isProjectIncomplete ? 'var(--yellow-700)' : 'var(--red-700)' }}>
+-                    {isProjectIncomplete
+-                      ? 'Este projeto possui campos obrigat├│rios ausentes. Complete as informa├º├Áes para garantir a precis├úo dos c├ílculos e relat├│rios.'
+-                      : `Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (performance && performance.consumedHours > (project.horas_vendidas || 0)) ? ' e ' : ''}${(performance && performance.consumedHours > (project.horas_vendidas || 0)) ? 'estouro de or├ºamento de horas' : ''}.`}
++                  <p className="text-[10px] font-bold opacity-70 text-red-700">
++                    {`Este projeto apresenta ${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) ? 'atraso no cronograma' : ''}${((performance?.weightedProgress || 0) < (performance?.plannedProgress || 0) - 5) && (performance && performance.consumedHours > (project.horas_vendidas || 0)) ? ' e ' : ''}${(performance && performance.consumedHours > (project.horas_vendidas || 0)) ? 'estouro de or├ºamento de horas' : ''}.`}
+                   </p>
+                 </div>
+               </div>
+               <div className="flex gap-2">
+-                {isProjectIncomplete && !isEditing && (
+-                  <button
+-                    onClick={() => setIsEditing(true)}
+-                    className="px-6 py-2 bg-yellow-500 text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-600 transition-all shadow-lg"
+-                  >
+-                    Completar Agora
+-                  </button>
+-                )}
+                 {(!isProjectIncomplete || isEditing) && (
+                   <button
+                     onClick={() => setActiveTab('tasks')}
+@@ -658,10 +839,13 @@ const ProjectDetailView: React.FC = () => {
+                     <div className="mb-6 pb-6 border-b border-dashed shrink-0" style={{ borderColor: 'var(--border)' }}>
+                       <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>Status de Entrega</h4>
+                       {(() => {
+-                        const delta = (performance?.weightedProgress || 0) - (performance?.plannedProgress || 0);
+-                        const hourOverrun = hasHours && (performance?.consumedHours || 0) > project.horas_vendidas;
++                        const delta = isContinuousMode
++                          ? ((performance?.committedCost || 0) / (performance?.continuousPlannedValue || 1) - 1) * 100
++                          : (performance?.weightedProgress || 0) - (performance?.plannedProgress || 0);
++
++                        const hourOverrun = !isContinuousMode && hasHours && (performance?.consumedHours || 0) > project.horas_vendidas;
+ 
+-                        if (!hasTimeline) {
++                        if (!hasTimeline && !isContinuousMode) {
+                           return (
+                             <div className="flex flex-col items-center justify-center py-4 opacity-30">
+                               <Calendar size={20} className="mb-2" />
+@@ -670,18 +854,28 @@ const ProjectDetailView: React.FC = () => {
+                           );
+                         }
+ 
+-                        // Tolerance of 1% for "On Track"
+-                        const health = hourOverrun ? { label: 'Custo Excedido', color: 'text-red-500', bg: 'bg-red-500' } :
+-                          delta >= -1 ? { label: 'No Prazo', color: 'text-emerald-500', bg: 'bg-emerald-500' } :
+-                            delta >= -10 ? { label: 'Atraso Leve', color: 'text-amber-500', bg: 'bg-amber-500' } :
+-                              { label: 'Em Atraso', color: 'text-red-500', bg: 'bg-red-500' };
++                        // Tolerance logic for status
++                        let health;
++                        if (isContinuousMode) {
++                          // For continuous: Committed Cost vs Planned Value
++                          health = delta <= 5 ? { label: 'No Prazo', color: 'text-emerald-500', bg: 'bg-emerald-500' } :
++                            delta <= 15 ? { label: 'Alerta', color: 'text-amber-500', bg: 'bg-amber-500' } :
++                              { label: 'Cr├¡tico', color: 'text-red-500', bg: 'bg-red-500' };
++                        } else {
++                          health = hourOverrun ? { label: 'Custo Excedido', color: 'text-red-500', bg: 'bg-red-500' } :
++                            delta >= -1 ? { label: 'No Prazo', color: 'text-emerald-500', bg: 'bg-emerald-500' } :
++                              delta >= -10 ? { label: 'Atraso Leve', color: 'text-amber-500', bg: 'bg-amber-500' } :
++                                { label: 'Em Atraso', color: 'text-red-500', bg: 'bg-red-500' };
++                        }
+ 
+                         return (
+                           <div className="flex flex-col items-center justify-center py-1">
+                             <div className={`w-3 h-3 rounded-full ${health.bg} animate-pulse shadow-[0_0_12px_rgba(0,0,0,0.1)] mb-2`} />
+                             <span className={`text-xl font-black uppercase tracking-tighter ${health.color}`}>{health.label}</span>
+                             <div className="flex flex-col items-center gap-0.5">
+-                              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Desvio: {delta > 0 ? '+' : ''}{Math.round(delta)}%</span>
++                              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
++                                Desvio: {delta > 0 ? '+' : ''}{Math.round(delta)}%
++                              </span>
+                               {hourOverrun && <span className="text-[7px] font-black text-red-500 uppercase">Efici├¬ncia Negativa</span>}
+                             </div>
+                           </div>
+@@ -689,26 +883,53 @@ const ProjectDetailView: React.FC = () => {
+                       })()}
+                     </div>
+ 
+-                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>Progresso vs Plano</h4>
++                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>{isContinuousMode ? 'Rendimento Cont├¡nuo' : 'Progresso vs Plano'}</h4>
+                     <div className="space-y-4">
+                       <div>
+                         <div className="flex justify-between text-[10px] font-black uppercase mb-1">
+-                          <span style={{ color: 'var(--text)' }}>Plano</span>
+-                          <span style={{ color: 'var(--info)' }}>{hasTimeline ? Math.round(performance?.plannedProgress || 0) : '--'}%</span>
++                          <span style={{ color: 'var(--text)' }}>PLANO ÔÇö VALOR RENDIDO ESTIMADO</span>
++                          <span style={{ color: isContinuousMode ? 'var(--warning)' : 'var(--info)' }}>
++                            {isContinuousMode
++                              ? (performance?.continuousPlannedValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
++                              : `${hasTimeline ? Math.round(performance?.plannedProgress || 0) : '--'}%`}
++                          </span>
+                         </div>
+                         <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+-                          <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${hasTimeline ? (performance?.plannedProgress || 0) : 0}%` }} />
++                          <div
++                            className={`h-full transition-all duration-1000 ${isContinuousMode ? 'bg-amber-500' : 'bg-blue-500'}`}
++                            style={{
++                              width: isContinuousMode
++                                ? `${Math.min(100, ((performance?.continuousPlannedValue || 0) / (Math.max(performance?.continuousPlannedValue || 0, performance?.committedCost || 0) || 1)) * 100)}%`
++                                : `${hasTimeline ? (performance?.plannedProgress || 0) : 0}%`
++                            }}
++                          />
+                         </div>
+                       </div>
+                       <div>
+                         <div className="flex justify-between text-[10px] font-black uppercase mb-1">
+-                          <span style={{ color: 'var(--text)' }}>Real</span>
+-                          <span style={{ color: 'var(--success)' }}>{hasTimeline ? Math.round(performance?.weightedProgress || 0) : '--'}%</span>
++                          <span style={{ color: 'var(--text)' }}>CUSTO REAL APURADO</span>
++                          <span style={{ color: 'var(--success)' }}>
++                            {isContinuousMode
++                              ? (performance?.committedCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
++                              : `${hasTimeline ? Math.round(performance?.weightedProgress || 0) : '--'}%`}
++                          </span>
+                         </div>
+                         <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+-                          <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${Math.min(100, (hasTimeline ? performance?.weightedProgress : 0) || 0)}%` }} />
++                          <div
++                            className="h-full bg-emerald-500 transition-all duration-1000"
++                            style={{
++                              width: isContinuousMode
++                                ? `${Math.min(100, ((performance?.committedCost || 0) / (Math.max(performance?.continuousPlannedValue || 0, performance?.committedCost || 0) || 1)) * 100)}%`
++                                : `${Math.min(100, (hasTimeline ? performance?.weightedProgress : 0) || 0)}%`
++                            }}
++                          />
+                         </div>
+                       </div>
++                      {isContinuousMode && (
++                        <p className="text-[7px] font-bold opacity-30 uppercase mt-2">
++                          * Barras de progresso proporcionais entre Plano e Real.
++                        </p>
++                      )}
+                     </div>
+                   </div>
+ 
+@@ -716,8 +937,71 @@ const ProjectDetailView: React.FC = () => {
+                   {isAdmin && (
+                     <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[350px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+ 
+-                      <h4 className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>Finan├ºas</h4>
+-                      {isEditing ? (
++                      <div className="flex items-center justify-between mb-3">
++                        <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Finan├ºas {isContinuousMode ? '(Cont├¡nuo)' : ''}</h4>
++                        {isEditing && (
++                          <div className="flex bg-[var(--bg)] p-1 rounded-lg border border-[var(--border)] gap-1 scale-90 origin-right">
++                            <button
++                              type="button"
++                              onClick={() => setFormData({ ...formData, project_type: 'planned' })}
++                              className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${formData.project_type === 'planned' ? 'bg-purple-600 text-white shadow-sm' : 'opacity-40 hover:opacity-100'}`}
++                            >
++                              Planejado
++                            </button>
++                            <button
++                              type="button"
++                              onClick={() => {
++                                const start = formData.startDate ? new Date(formData.startDate + 'T12:00:00') : new Date();
++                                const oneYearLater = new Date(start);
++                                oneYearLater.setFullYear(start.getFullYear() + 1);
++                                setFormData({
++                                  ...formData,
++                                  project_type: 'continuous',
++                                  estimatedDelivery: oneYearLater.toISOString().split('T')[0]
++                                });
++                              }}
++                              className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${formData.project_type === 'continuous' ? 'bg-amber-500 text-white shadow-sm' : 'opacity-40 hover:opacity-100'}`}
++                            >
++                              Cont├¡nuo
++                            </button>
++                          </div>
++                        )}
++                      </div>
++
++                      {isContinuousMode ? (
++                        <div className="space-y-4">
++                          <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 mb-4">
++                            <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-2">
++                              <Info size={12} /> Projeto Cont├¡nuo
++                            </p>
++                            <p className="text-[9px] font-bold opacity-60 mt-1 uppercase leading-tight">
++                              Escopo mensal baseado em valor di├írio. A aloca├º├úo do time ├® calculada automaticamente (8h/N).
++                            </p>
++                          </div>
++
++                          {isEditing ? (
++                            <div>
++                              <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Valor Di├írio (8h) (R$)</label>
++                              <input
++                                type="number"
++                                value={formData.valor_diario || ''}
++                                onChange={e => setFormData({ ...formData, valor_diario: e.target.value === '' ? 0 : Number(e.target.value) })}
++                                onKeyDown={handleKeyDown}
++                                className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.valor_diario ? 'bg-amber-500/10 border-amber-500/50' : ''}`}
++                                style={{ backgroundColor: formData.valor_diario ? 'var(--bg)' : undefined, borderColor: formData.valor_diario ? 'var(--border)' : undefined, color: 'var(--text)' }}
++                              />
++                            </div>
++                          ) : (
++                            <div className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
++                              <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 mb-1">Valor Di├írio Acordado</p>
++                              <p className="text-xl font-black text-amber-500">
++                                {(project.valor_diario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
++                              </p>
++                              <p className="text-[8px] font-bold opacity-40 mt-1 uppercase">Equivalente a 8h de opera├º├úo.</p>
++                            </div>
++                          )}
++                        </div>
++                      ) : isEditing ? (
+                         <div className="space-y-4">
+                           <div>
+                             <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Valor Total Venda (R$)</label>
+@@ -725,6 +1009,7 @@ const ProjectDetailView: React.FC = () => {
+                               type="number"
+                               value={formData.valor_total_rs || ''}
+                               onChange={e => setFormData({ ...formData, valor_total_rs: e.target.value === '' ? 0 : Number(e.target.value) })}
++                              onKeyDown={handleKeyDown}
+                               className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.valor_total_rs ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
+                               style={{ backgroundColor: formData.valor_total_rs ? 'var(--bg)' : undefined, borderColor: formData.valor_total_rs ? 'var(--border)' : undefined, color: 'var(--text)' }}
+                             />
+@@ -735,6 +1020,7 @@ const ProjectDetailView: React.FC = () => {
+                               type="number"
+                               value={formData.horas_vendidas || ''}
+                               onChange={e => setFormData({ ...formData, horas_vendidas: e.target.value === '' ? 0 : Number(e.target.value) })}
++                              onKeyDown={handleKeyDown}
+                               className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.horas_vendidas ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
+                               style={{ backgroundColor: formData.horas_vendidas ? 'var(--bg)' : undefined, borderColor: formData.horas_vendidas ? 'var(--border)' : undefined, color: 'var(--text)' }}
+                             />
+@@ -831,9 +1117,9 @@ const ProjectDetailView: React.FC = () => {
+                     </div>
+                   )}
+ 
+-                  {/* Timeline */}
++                  {/* Timeline / Datas Planejadas */}
+                   <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[350px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+-                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Timeline</h4>
++                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Timeline / Datas Planejadas</h4>
+                     {isEditing ? (
+                       <div className="space-y-4">
+                         <div>
+@@ -842,19 +1128,23 @@ const ProjectDetailView: React.FC = () => {
+                             type="date"
+                             value={formData.startDate}
+                             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
++                            onKeyDown={handleKeyDown}
+                             className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.startDate ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
+                             style={{ backgroundColor: formData.startDate ? 'var(--bg)' : undefined, borderColor: formData.startDate ? 'var(--border)' : undefined, color: 'var(--text)' }}
+                           />
+                         </div>
+-                        <div>
+-                          <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Entrega Planejada</label>
+-                          <input
+-                            type="date"
+-                            value={formData.estimatedDelivery}
+-                            onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })}
+-                            className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.estimatedDelivery ? 'bg-yellow-500/10 border-yellow-500/50 text-[var(--text)]' : 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]'}`}
+-                          />
+-                        </div>
++                        {!isContinuousMode && (
++                          <div>
++                            <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Entrega Planejada</label>
++                            <input
++                              type="date"
++                              value={formData.estimatedDelivery}
++                              onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })}
++                              onKeyDown={handleKeyDown}
++                              className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.estimatedDelivery ? 'bg-yellow-500/10 border-yellow-500/50 text-[var(--text)]' : 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]'}`}
++                            />
++                          </div>
++                        )}
+                       </div>
+                     ) : (
+                       <div className="flex-1 flex flex-col justify-between space-y-8 py-2">
+@@ -874,23 +1164,33 @@ const ProjectDetailView: React.FC = () => {
+                             </div>
+                           </div>
+ 
+-                          <div className="grid grid-cols-2 gap-8">
+-                            <div>
+-                              <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Entrega Planejada</p>
+-                              <p className={`text-sm font-black tabular-nums ${performance?.projection && performance.projection.getTime() < new Date(project.estimatedDelivery).getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
+-                                {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
++                          {isContinuousMode ? (
++                            <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-center">
++                              <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Fim Planejado (autom├ítico)</p>
++                              <p className="text-sm font-black mt-1" style={{ color: 'var(--text)' }}>
++                                {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
+                               </p>
++                              <p className="text-[8px] font-bold opacity-30 mt-1 uppercase">Regra: In├¡cio + 1 ano</p>
+                             </div>
+-                            <div>
+-                              <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Fim Real</p>
+-                              <p className={`text-sm font-black ${performance?.realEndDate ? 'text-purple-500' : 'opacity-30'}`}>
+-                                {performance?.realEndDate ? performance.realEndDate.toLocaleDateString('pt-BR') : '--'}
+-                              </p>
++                          ) : (
++                            <div className="grid grid-cols-2 gap-8">
++                              <div>
++                                <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Entrega Planejada</p>
++                                <p className={`text-sm font-black tabular-nums ${performance?.projection && performance.projection.getTime() < new Date(project.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
++                                  {project.estimatedDelivery ? project.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
++                                </p>
++                              </div>
++                              <div>
++                                <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Fim Real</p>
++                                <p className={`text-sm font-black ${performance?.realEndDate ? 'text-purple-500' : 'opacity-30'}`}>
++                                  {performance?.realEndDate ? performance.realEndDate.toLocaleDateString('pt-BR') : '--'}
++                                </p>
++                              </div>
+                             </div>
+-                          </div>
++                          )}
+                         </div>
+ 
+-                        {performance?.projection && performance.weightedProgress > 0 && performance.weightedProgress < 100 && (
++                        {!isContinuousMode && performance?.projection && performance.weightedProgress > 0 && performance.weightedProgress < 100 && (
+                           <div className={`p-5 rounded-[24px] bg-[var(--bg)] border border-dashed transition-all w-full mt-auto ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'border-red-500/30' : 'border-emerald-500/30'}`}>
+                             <p className={`text-[9px] font-black uppercase mb-2 ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'text-red-500' : 'text-emerald-500'}`}>Previs├úo p/ Velocidade</p>
+                             <p className={`text-xl font-black ${((performance?.consumedHours || 0) > (project.horas_vendidas || 0) && project.horas_vendidas > 0) ? 'text-red-500' : 'text-emerald-500'}`}>
+@@ -923,7 +1223,8 @@ const ProjectDetailView: React.FC = () => {
+                                     <select
+                                       value={formData.clientId}
+                                       onChange={e => setFormData({ ...formData, clientId: e.target.value })}
+-                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors ${!formData.clientId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
++                                      onKeyDown={handleKeyDown}
++                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors bg-[var(--bg)] border-[var(--border)]`}
+                                       style={{ color: 'var(--text)' }}
+                                     >
+                                       <option value="">Selecione...</option>
+@@ -938,7 +1239,8 @@ const ProjectDetailView: React.FC = () => {
+                                     <select
+                                       value={formData.partnerId}
+                                       onChange={e => setFormData({ ...formData, partnerId: e.target.value })}
+-                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors ${!formData.partnerId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
++                                      onKeyDown={handleKeyDown}
++                                      className={`w-full p-1 rounded vertical-select text-[10px] font-bold outline-none mt-1 border transition-colors bg-[var(--bg)] border-[var(--border)]`}
+                                       style={{ color: 'var(--text)' }}
+                                     >
+                                       <option value="">Selecione...</option>
+@@ -958,7 +1260,8 @@ const ProjectDetailView: React.FC = () => {
+                                 <select
+                                   value={formData.responsibleNicLabsId}
+                                   onChange={e => setFormData({ ...formData, responsibleNicLabsId: e.target.value })}
+-                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors ${!formData.responsibleNicLabsId ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
++                                  onKeyDown={handleKeyDown}
++                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors bg-[var(--bg)] border-[var(--border)]`}
+                                   style={{ color: 'var(--text)' }}
+                                 >
+                                   <option value="">Selecione...</option>
+@@ -975,7 +1278,8 @@ const ProjectDetailView: React.FC = () => {
+                                 <input
+                                   value={formData.managerClient}
+                                   onChange={e => setFormData({ ...formData, managerClient: e.target.value })}
+-                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors ${!formData.managerClient?.trim() ? 'bg-yellow-500/10 border-yellow-500/50' : 'border-transparent'}`}
++                                  onKeyDown={handleKeyDown}
++                                  className={`w-full p-1.5 rounded-lg text-xs font-bold border transition-colors bg-[var(--bg)] border-[var(--border)]`}
+                                   style={{ color: 'var(--text)' }}
+                                 />
+                               ) : <p className="text-xs font-black" style={{ color: 'var(--text)' }}>{project.managerClient || '--'}</p>}
+@@ -1077,10 +1381,30 @@ const ProjectDetailView: React.FC = () => {
+                     )}
+ 
+                     <div className="p-6 rounded-[32px] border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+-                      <div className="flex items-center justify-between mb-4">
+-                        <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}>
+-                          <Users size={16} className="text-purple-500" /> Equipe Alocada
+-                        </h3>
++                      <div className="flex flex-col gap-1 mb-4">
++                        <div className="flex items-center justify-between">
++                          <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}>
++                            <Users size={16} className="text-purple-500" /> Equipe Alocada {isContinuousMode ? '(Aloca├º├úo Di├íria autom├ítica)' : ''}
++                          </h3>
++                        </div>
++                        {isContinuousMode && (
++                          <div className="space-y-2 mt-2">
++                            <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-500/5 border border-purple-500/10">
++                              <div className="flex items-center gap-2">
++                                <Zap size={12} className="text-purple-500" />
++                                <span className="text-[9px] font-black uppercase tracking-widest text-purple-500">Modo: Equaliza├º├úo Assistida</span>
++                              </div>
++                              <span className="text-[9px] font-bold opacity-40 uppercase">Base: 8h / {teamOperationalBalance?.todayActiveCount || 0} colab. = {(8 / (teamOperationalBalance?.todayActiveCount || 1)).toFixed(1)}h/dia</span>
++                            </div>
++
++                            {teamOperationalBalance?.hasSignificantDeviation && (
++                              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-pulse">
++                                <AlertTriangle size={12} className="text-amber-500" />
++                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Desequil├¡brio detectado ÔÇö sugest├úo de redistribui├º├úo dispon├¡vel</span>
++                              </div>
++                            )}
++                          </div>
++                        )}
+                       </div>
+                       <div className="space-y-3">
+                         {isEditing ? (
+@@ -1130,54 +1454,69 @@ const ProjectDetailView: React.FC = () => {
+                             {projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
+                               const u = users.find(user => user.id === String(pm.id_colaborador));
+                               return u ? (
+-                                <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--bg)' }}>
+-                                  <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
+-                                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+-                                  </div>
+-                                  <div className="min-w-0 flex-1">
+-                                    <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
+-                                    <div className="flex items-center gap-2">
+-                                      <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
++                                <div key={u.id} className="p-3 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
++                                  <div className="flex items-center justify-between gap-2 sm:gap-4">
++                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
++                                      <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 border border-[var(--border)] shadow-sm" style={{ backgroundColor: 'var(--surface)' }}>
++                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[9px] font-black uppercase" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
++                                      </div>
++                                      <div className="min-w-0 flex-1">
++                                        <p className="text-[10px] font-black tracking-tight truncate mb-0.5" style={{ color: 'var(--text)' }}>{u.name}</p>
++                                        <p className="text-[6px] font-black uppercase opacity-30 tracking-widest truncate" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
++                                      </div>
+                                     </div>
+-
+-                                    <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
+-                                      <div>
+-                                        {(() => {
+-                                          const reported = timesheetEntries
+-                                            .filter(e => e.projectId === projectId && e.userId === u.id)
+-                                            .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+-
+-                                          // Involvement calc: total days in tasks / total project duration
+-                                          const memberTasks = projectTasks.filter(t => t.developerId === u.id || (t.collaboratorIds && t.collaboratorIds.includes(u.id)));
+-                                          const pStart = project.startDate ? new Date(project.startDate + 'T12:00:00') : new Date();
+-                                          const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery + 'T12:00:00') : pStart;
+-                                          const projectDuration = Math.max(1, (pEnd.getTime() - pStart.getTime()) / (1000 * 60 * 60 * 24));
+-
+-                                          const involvementDays = memberTasks.reduce((acc, t) => {
+-                                            if (!t.scheduledStart || !t.estimatedDelivery) return acc + 1;
+-                                            const tStart = new Date(t.scheduledStart + 'T12:00:00');
+-                                            const tEnd = new Date(t.estimatedDelivery + 'T12:00:00');
+-                                            return acc + Math.max(1, (tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24));
+-                                          }, 0);
+-
+-                                          const involvementPercent = Math.min(100, (involvementDays / projectDuration) * 100);
+-
++                                    <div className="flex items-center gap-x-3 sm:gap-x-6 shrink-0 ml-1">
++                                      {(() => {
++                                        const metrics = teamOperationalBalance?.memberMetrics[u.id];
++                                        if (isContinuousMode && metrics) {
++                                          const statusColor = metrics.status === 'green' ? 'text-emerald-500' : metrics.status === 'yellow' ? 'text-amber-500' : 'text-red-500';
+                                           return (
+-                                            <div className="flex items-center justify-start gap-6">
+-                                              <div className="flex items-center gap-3">
+-                                                <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
+-                                                <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
++                                            <>
++                                              <div className="hidden xs:block text-right w-[32px] sm:w-[45px]">
++                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Base</p>
++                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{metrics.baseDaily.toFixed(1)}h</p>
+                                               </div>
+-                                              <div className="flex items-center gap-3">
+-                                                <p className="text-[7px] font-black uppercase opacity-40">ENV.</p>
+-                                                <p className="text-[12px] font-black text-purple-500">{involvementPercent.toFixed(0)}%</p>
++                                              <div className="text-right w-[32px] sm:w-[45px]">
++                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Ideal</p>
++                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.idealAccumulated)}</p>
+                                               </div>
+-                                            </div>
++                                              <div className="text-right w-[35px] sm:w-[50px]">
++                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Real</p>
++                                                <p className="text-[9px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.actualHours)}</p>
++                                              </div>
++                                              <div className="text-right w-[40px] sm:w-[55px]">
++                                                <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Desvio</p>
++                                                <p className={`text-[9px] font-black tabular-nums ${statusColor}`}>
++                                                  {metrics.deviation > 0 ? '+' : ''}{formatDecimalToTime(metrics.deviation)}
++                                                </p>
++                                              </div>
++                                            </>
+                                           );
+-                                        })()}
+-                                      </div>
++                                        }
++                                        const reported = timesheetEntries.filter(e => e.projectId === projectId && e.userId === u.id).reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
++                                        return (
++                                          <div className="text-right w-[50px]">
++                                            <p className="text-[5px] font-black uppercase opacity-20 tracking-wider mb-0.5">Real</p>
++                                            <p className="text-[10px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
++                                          </div>
++                                        );
++                                      })()}
+                                     </div>
+                                   </div>
++                                  {isContinuousMode && teamOperationalBalance?.memberMetrics[u.id] && (
++                                    <div className="mt-2.5 pt-2 border-t border-dashed flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
++                                      {teamOperationalBalance.suggestions[u.id] ? (
++                                        <div className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg bg-${teamOperationalBalance.memberMetrics[u.id].status}-500/[0.03]`}>
++                                          <span className={`text-[7px] font-black uppercase tracking-widest text-${teamOperationalBalance.memberMetrics[u.id].status}-500`}>Sugerido p/ equil├¡brio operacional:</span>
++                                          <span className={`text-[9px] font-black text-${teamOperationalBalance.memberMetrics[u.id].status}-500`}>{teamOperationalBalance.suggestions[u.id].toFixed(1)}h / dia</span>
++                                        </div>
++                                      ) : (
++                                        <div className="flex-1 flex items-center justify-center py-1 bg-emerald-500/[0.01] rounded-lg">
++                                          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-emerald-500/20">Equil├¡brio Adequado</span>
++                                        </div>
++                                      )}
++                                    </div>
++                                  )}
+                                 </div>
+                               ) : null;
+                             })}
+@@ -1280,6 +1619,18 @@ const ProjectDetailView: React.FC = () => {
+                     <div className="px-3 py-1 rounded-full text-[10px] font-black" style={{ backgroundColor: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                       {filteredTasks.length} TAREFAS
+                     </div>
++
++                    <button
++                      type="button"
++                      onClick={() => setShowArchived(!showArchived)}
++                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black transition-all border uppercase tracking-wider ${showArchived ? 'bg-amber-500/10 border-amber-500/50 text-amber-600' : 'bg-[var(--bg)] border-[var(--border)] text-[var(--muted)] opacity-60 hover:opacity-100'}`}
++                    >
++                      <Archive size={12} className={showArchived ? "fill-amber-500/20" : ""} />
++                      {(() => {
++                        const doneCount = projectTasks.filter(t => t.status === 'Done').length;
++                        return showArchived ? `Ocultar ${doneCount} Conclu├¡das` : `Ver ${doneCount} Conclu├¡das`;
++                      })()}
++                    </button>
+                   </div>
+ 
+                   <div className="flex items-center gap-3">
+@@ -1316,6 +1667,7 @@ const ProjectDetailView: React.FC = () => {
+                         users={users}
+                         timesheetEntries={timesheetEntries}
+                         isAdmin={isAdmin}
++                        currentUserId={currentUser?.id}
+                         onClick={() => navigate(`/tasks/${task.id}`)}
+                       />
+                     ))
+@@ -1417,7 +1769,16 @@ const ProjectDetailView: React.FC = () => {
+ };
+ 
+ // SUBCOMPONENT
+-const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timesheetEntries: any[], isAdmin: boolean, onClick: () => void }> = ({ project, task, users, timesheetEntries, isAdmin, onClick }) => {
++const ProjectTaskCard: React.FC<{
++  project: any,
++  task: any,
++  users: any[],
++  timesheetEntries: any[],
++  isAdmin: boolean,
++  currentUserId?: string,
++  onClick: () => void
++}> = ({ project, task, users, timesheetEntries, isAdmin, currentUserId, onClick }) => {
++  const navigate = useNavigate();
+   const dev = users.find(u => u.id === task.developerId);
+   const actualHours = timesheetEntries.filter(e => e.taskId === task.id).reduce((sum, e) => sum + e.totalHours, 0);
+ 
+@@ -1494,6 +1855,37 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
+           </div>
+         </div>
+ 
++        {task.status !== 'Done' && !isAdmin && (
++          // Mostrar bot├úo de apontar APENAS para colaboradores (dev ou co-dev), impedindo para admins
++          task.developerId === currentUserId ||
++          (task.collaboratorIds || []).includes(currentUserId || '')
++        ) && (
++            <button
++              onClick={(e) => {
++                e.stopPropagation();
++                const url = `/timesheet/new?taskId=${task.id}&projectId=${task.projectId}&clientId=${task.clientId}&date=${new Date().toISOString().split('T')[0]}`;
++                navigate(url);
++              }}
++              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl transition-all text-[10px] font-black border uppercase tracking-widest"
++              style={{
++                backgroundColor: 'var(--surface)',
++                borderColor: 'var(--primary)',
++                color: 'var(--primary)'
++              }}
++              onMouseEnter={(e) => {
++                e.currentTarget.style.backgroundColor = 'var(--primary)';
++                e.currentTarget.style.color = 'white';
++              }}
++              onMouseLeave={(e) => {
++                e.currentTarget.style.backgroundColor = 'var(--surface)';
++                e.currentTarget.style.color = 'var(--primary)';
++              }}
++            >
++              <Clock size={12} />
++              Apontar Tarefa
++            </button>
++          )}
++
+         <div className="flex items-center justify-between pt-6 border-t" style={{ borderColor: 'var(--bg)' }}>
+           <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-2xl overflow-hidden border-2 shadow-sm" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--surface)' }}>
+
+commit eb408a960ecc90ab39bb5bba0fc3fdef8a8cecec
+Author: duvvic <victor2002almeida@gmail.com>
+Date:   Thu Feb 19 11:49:14 2026 -0300
+
+    feat: Implementa├º├úo de Soft Delete e Redesign Visual do Kanban
+    
+    - Implementado Soft Delete para projetos, tarefas e horas no backend e frontend.
+    - Adicionado modal detalhado de confirma├º├úo de exclus├úo com listagem de horas apontadas.
+    - Adicionada op├º├úo para excluir ou manter horas ao deletar uma tarefa.
+    - Redesign dos cards do Kanban: agora s├úo neutros por padr├úo.
+    - Destaque visual (pulse) apenas para tarefas atrasadas (vermelho) e impedidas (laranja).
+    - Destaque azul para tarefas de projetos de 'Treinamento e Capacita├º├úo'.
+    - Filtro global de itens exclu├¡dos via DataContext.
+
+diff --git a/frontend/src/components/ProjectDetailView.tsx b/frontend/src/components/ProjectDetailView.tsx
+index a78f0d3..edd0304 100644
+--- a/frontend/src/components/ProjectDetailView.tsx
++++ b/frontend/src/components/ProjectDetailView.tsx
+@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
+ import { getUserStatus } from '@/utils/userStatus';
+ import * as CapacityUtils from '@/utils/capacity';
+ import { formatDecimalToTime } from '@/utils/normalizers';
++import { getProjectStatusByTimeline } from '@/utils/projectStatus';
+ 
+ const ProjectDetailView: React.FC = () => {
+   const { projectId } = useParams<{ projectId: string }>();
+@@ -29,10 +30,11 @@ const ProjectDetailView: React.FC = () => {
+ 
+   const [activeTab, setActiveTab] = useState<'tasks' | 'technical'>('technical');
+   const [isEditing, setIsEditing] = useState(false);
+-  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project' | 'task' } | null>(null);
++  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'project', force?: boolean } | null>(null);
+   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
+   const [showStatusMenu, setShowStatusMenu] = useState(false);
+   const [loading, setLoading] = useState(false);
++  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+ 
+   // Redirecionar colaboradores para aba de tarefas
+   useEffect(() => {
+@@ -354,7 +356,9 @@ const ProjectDetailView: React.FC = () => {
+                     <AlertTriangle size={10} /> INCOMPLETO
+                   </span>
+                 )}
+-                <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-0.5 rounded-full tracking-tighter">{project.status}</span>
++                <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-0.5 rounded-full tracking-tighter">
++                  {getProjectStatusByTimeline(project)}
++                </span>
+                 <span className="text-xs text-white/60">{client?.name}</span>
+                 {isAdmin && (
+                   <button
+@@ -431,10 +435,11 @@ const ProjectDetailView: React.FC = () => {
+                           const getStatusPriority = (status?: string) => {
+                             switch (status) {
+                               case 'In Progress': return 1;
+-                              case 'Todo': return 2;
+-                              case 'Review': return 3;
+-                              case 'Done': return 4;
+-                              default: return 5;
++                              case 'Testing': return 2;
++                              case 'Todo': return 3;
++                              case 'Review': return 4;
++                              case 'Done': return 5;
++                              default: return 6;
+                             }
+                           };
+ 
+@@ -510,8 +515,14 @@ const ProjectDetailView: React.FC = () => {
+ 
+                               <div className="flex items-center justify-between text-[8px] font-bold">
+                                 <div className="flex items-center gap-1.5 min-w-0">
+-                                  <span className={`px-1 py-px rounded uppercase tracking-wider shrink-0 ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500' : isDelayed ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
+-                                    {task.status === 'Todo' ? 'Fila' : task.status === 'In Progress' ? 'Andamento' : task.status === 'Review' ? 'Review' : 'Feito'}
++                                  <span className={`px-1 py-px rounded uppercase tracking-wider shrink-0 ${task.status === 'Done' ? 'bg-emerald-500/10 text-emerald-500' :
++                                    task.status === 'Testing' ? 'bg-purple-500/10 text-purple-500' :
++                                      isDelayed ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
++                                    }`}>
++                                    {task.status === 'Todo' ? 'Pr├®-Projeto' :
++                                      task.status === 'Review' ? 'An├ílise' :
++                                        task.status === 'In Progress' ? 'Andamento' :
++                                          task.status === 'Testing' ? 'Teste' : 'Conclu├¡do'}
+                                   </span>
+                                   <span className={`px-1 py-px rounded shrink-0 ${task.progress === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                     {task.progress}%
+@@ -1020,38 +1031,87 @@ const ProjectDetailView: React.FC = () => {
+                             ))}
+                           </div>
+                         ) : (
+-                          projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
+-                            const u = users.find(user => user.id === String(pm.id_colaborador));
+-                            return u ? (
+-                              <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--bg)' }}>
+-                                <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
+-                                  {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+-                                </div>
+-                                <div className="min-w-0 flex-1">
+-                                  <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
+-                                  <div className="flex items-center gap-2">
+-                                    <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
++                          <>
++                            {projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => {
++                              const u = users.find(user => user.id === String(pm.id_colaborador));
++                              return u ? (
++                                <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border transition-all" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--bg)' }}>
++                                  <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
++                                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                   </div>
++                                  <div className="min-w-0 flex-1">
++                                    <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
++                                    <div className="flex items-center gap-2">
++                                      <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
++                                    </div>
+ 
+-                                  <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
+-                                    <div>
+-                                      {(() => {
+-                                        const reported = timesheetEntries
+-                                          .filter(e => e.projectId === projectId && e.userId === u.id)
+-                                          .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+-                                        return (
+-                                          <div className="flex items-center gap-3">
+-                                            <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
+-                                            <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
+-                                          </div>
+-                                        );
+-                                      })()}
++                                    <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
++                                      <div>
++                                        {(() => {
++                                          const reported = timesheetEntries
++                                            .filter(e => e.projectId === projectId && e.userId === u.id)
++                                            .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
++                                          return (
++                                            <div className="flex items-center gap-3">
++                                              <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
++                                              <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
++                                            </div>
++                                          );
++                                        })()}
++                                      </div>
+                                     </div>
+                                   </div>
+                                 </div>
+-                              </div>
+-                            ) : null;
+-                          })
++                              ) : null;
++                            })}
++
++                            {/* EX-COLABORADORES (Com horas mas sem v├¡nculo atual) */}
++                            {(() => {
++                              const currentMemberIds = new Set(projectMembers.filter(pm => String(pm.id_projeto) === projectId).map(pm => String(pm.id_colaborador)));
++                              const formerMembersWithHours = Array.from(new Set(
++                                timesheetEntries
++                                  .filter(e => e.projectId === projectId && !currentMemberIds.has(String(e.userId)))
++                                  .map(e => String(e.userId))
++                              )).map(userId => users.find(u => String(u.id) === userId)).filter(Boolean);
++
++                              if (formerMembersWithHours.length === 0) return null;
++
++                              return (
++                                <div className="mt-6 space-y-3">
++                                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40 px-2">Hist├│rico de Contribui├º├úo</p>
++                                  {formerMembersWithHours.map(u => u && (
++                                    <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl border border-dashed transition-all opacity-60 grayscale-[0.5]" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
++                                      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
++                                        {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--muted)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
++                                      </div>
++                                      <div className="min-w-0 flex-1">
++                                        <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
++                                        <div className="flex items-center gap-2">
++                                          <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{u.cargo || 'Consultor (Antigo)'}</p>
++                                        </div>
++
++                                        <div className="mt-2 pt-2 border-t border-dashed flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
++                                          <div>
++                                            {(() => {
++                                              const reported = timesheetEntries
++                                                .filter(e => e.projectId === projectId && e.userId === u.id)
++                                                .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
++                                              return (
++                                                <div className="flex items-center gap-3">
++                                                  <p className="text-[7px] font-black uppercase opacity-40">Total Apontado</p>
++                                                  <p className="text-[12px] font-black" style={{ color: 'var(--text)' }}>{formatDecimalToTime(reported)}</p>
++                                                </div>
++                                              );
++                                            })()}
++                                          </div>
++                                        </div>
++                                      </div>
++                                    </div>
++                                  ))}
++                                </div>
++                              );
++                            })()}
++                          </>
+                         )}
+                       </div>
+                     </div>
+@@ -1073,7 +1133,17 @@ const ProjectDetailView: React.FC = () => {
+                     )}
+ 
+                     {isEditing && (
+-                      <button onClick={() => setItemToDelete({ id: projectId, type: 'project' })} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border transition-all" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', borderColor: 'var(--danger)' }}><Trash2 size={14} className="inline mr-2" /> Deletar Projeto</button>
++                      <button
++                        onClick={() => {
++                          const projectTasks = tasks.filter(t => t.projectId === projectId);
++                          const hasTasks = projectTasks.length > 0;
++                          setItemToDelete({ id: projectId!, type: 'project', force: hasTasks });
++                        }}
++                        className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border transition-all"
++                        style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', borderColor: 'var(--danger)' }}
++                      >
++                        <Trash2 size={14} className="inline mr-2" /> Deletar Projeto
++                      </button>
+                     )}
+                   </div>
+                 </div>
+@@ -1100,8 +1170,10 @@ const ProjectDetailView: React.FC = () => {
+                     <div className="flex bg-white/5 p-1 rounded-xl gap-1">
+                       {[
+                         { label: 'Todos', value: 'Todos' },
+-                        { label: 'A Fazer', value: 'Todo' },
+-                        { label: 'Em Progresso', value: 'In Progress' },
++                        { label: 'Pr├®-Projeto', value: 'Todo' },
++                        { label: 'An├ílise', value: 'Review' },
++                        { label: 'Andamento', value: 'In Progress' },
++                        { label: 'Teste', value: 'Testing' },
+                         { label: 'Conclu├¡do', value: 'Done' }
+                       ].map(item => (
+                         <button
+@@ -1158,33 +1230,70 @@ const ProjectDetailView: React.FC = () => {
+ 
+       <ConfirmationModal
+         isOpen={!!itemToDelete}
+-        title="Confirmar Exclus├úo"
+-        message="Esta a├º├úo ├® definitiva. Deseja continuar?"
++        title={itemToDelete?.force ? "ÔÜá´©Å EXCLUS├âO CR├ìTICA (PROJETO COM DADOS)" : "Confirmar Exclus├úo"}
++        message={
++          itemToDelete?.force ? (
++            <div className="space-y-4">
++              <p className="text-red-500 font-black">
++                Este projeto possui tarefas e possivelmente horas apontadas. A exclus├úo for├ºada remover├í permanentemente TODO o hist├│rico do projeto!
++              </p>
++              {currentUser?.role !== 'system_admin' ? (
++                <p className="text-xs p-3 bg-red-500/10 rounded-lg text-red-600 font-bold border border-red-500/20">
++                  Bloqueado: Apenas o Administrador do Sistema pode realizar a exclus├úo for├ºada de projetos com dados.
++                </p>
++              ) : (
++                <div className="space-y-2">
++                  <p className="text-[10px] uppercase font-bold opacity-50">Para habilitar, digite o nome do projeto abaixo:</p>
++                  <input
++                    type="text"
++                    value={deleteConfirmText}
++                    onChange={e => setDeleteConfirmText(e.target.value)}
++                    placeholder={project?.name}
++                    className="w-full p-3 rounded-xl border-2 border-red-500/30 outline-none focus:border-red-500 text-xs font-black bg-red-500/5 text-red-600"
++                  />
++                </div>
++              )
++              }
++            </div>
++          ) : "Esta a├º├úo ├® definitiva. Deseja continuar?"
++        }
++        confirmText={itemToDelete?.force ? "EXCLUIR TUDO" : "Confirmar"}
+         onConfirm={async () => {
+           if (itemToDelete?.type === 'project') {
++            // Valida├º├Áes de seguran├ºa para delete for├ºado
++            if (itemToDelete.force) {
++              if (currentUser?.role !== 'system_admin') {
++                alert('Apenas Administradores do Sistema podem excluir projetos com dados ativos.');
++                return;
++              }
++              if (deleteConfirmText !== project?.name) {
++                alert('O nome do projeto digitado est├í incorreto.');
++                return;
++              }
++            }
++
+             try {
+-              await deleteProject(itemToDelete.id);
++              setLoading(true);
++              await deleteProject(itemToDelete.id, itemToDelete.force);
+               navigate(isAdmin ? '/admin/projects' : '/developer/projects');
+             } catch (error: any) {
+               const msg = error.message || "";
+-              if (msg.includes("tarefas criadas") || msg.includes("hasTasks")) {
+-                if (window.confirm("Este projeto possui tarefas e possivelmente horas apontadas. Deseja realizar a EXCLUS├âO FOR├çADA de todos os dados vinculados? Esta a├º├úo ├® irrevers├¡vel.")) {
+-                  try {
+-                    await deleteProject(itemToDelete.id, true);
+-                    alert('Projeto e dados vinculados exclu├¡dos com sucesso!');
+-                    navigate(isAdmin ? '/admin/projects' : '/developer/projects');
+-                  } catch (forceErr: any) {
+-                    alert('Erro na exclus├úo for├ºada: ' + (forceErr.message || 'Erro desconhecido'));
+-                  }
+-                }
++              if (msg.includes("tarefas criadas") || msg.includes("hasTasks") || msg.includes("400")) {
++                setItemToDelete({ id: itemToDelete.id, type: 'project', force: true });
++                setDeleteConfirmText('');
++              } else if (error.message?.includes("403")) {
++                alert("Acesso Negado: Apenas Administradores do Sistema podem excluir projetos com tarefas.");
++                setItemToDelete(null);
+               } else {
+                 alert(msg || 'Erro ao excluir projeto.');
+               }
++            } finally {
++              setLoading(false);
+             }
+           }
+-          setItemToDelete(null);
+         }}
+-        onCancel={() => setItemToDelete(null)}
++        onCancel={() => { setItemToDelete(null); setDeleteConfirmText(''); }}
++        disabled={!!(itemToDelete?.force && (currentUser?.role !== 'system_admin' || deleteConfirmText !== project?.name))}
+       />
+     </div >
+   );
+@@ -1214,9 +1323,10 @@ const ProjectTaskCard: React.FC<{ project: any, task: any, users: any[], timeshe
+   }, [project, task]);
+ 
+   const statusMap: Record<string, { label: string, color: string, bg: string }> = {
+-    'Todo': { label: 'A Fazer', color: 'text-slate-500', bg: 'bg-slate-500/10' },
+-    'In Progress': { label: 'Em Progresso', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+-    'Review': { label: 'Pendente', color: 'text-amber-500', bg: 'bg-amber-500/10' },
++    'Todo': { label: 'Pr├®-Projeto', color: 'text-slate-500', bg: 'bg-slate-500/10' },
++    'In Progress': { label: 'Andamento', color: 'text-blue-500', bg: 'bg-blue-500/10' },
++    'Review': { label: 'An├ílise', color: 'text-yellow-600', bg: 'bg-yellow-500/10' },
++    'Testing': { label: 'Teste', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+     'Done': { label: 'Conclu├¡do', color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+   };
+ 
+
+commit 83d674c695d376bfec579a4aa88a3dc276753d4f
+Author: duvvic <victor2002almeida@gmail.com>
+Date:   Wed Feb 4 15:08:26 2026 -0300
+
+    refactor: implement dynamic monthly capacity and occupation map logic
+
+diff --git a/frontend/src/components/ProjectDetailView.tsx b/frontend/src/components/ProjectDetailView.tsx
+index 532a4df..a78e234 100644
+--- a/frontend/src/components/ProjectDetailView.tsx
++++ b/frontend/src/components/ProjectDetailView.tsx
+@@ -128,6 +128,7 @@ const ProjectDetailView: React.FC = () => {
+   const performance = useMemo(() => {
+     if (!project) return null;
+     const pTimesheets = timesheetEntries.filter(e => e.projectId === projectId);
++    const consumedHours = pTimesheets.reduce((acc, entry) => acc + (Number(entry.totalHours) || 0), 0);
+     const committedCost = pTimesheets.reduce((acc, entry) => {
+       const u = users.find(u => u.id === entry.userId);
+       return acc + (entry.totalHours * (u?.hourlyCost || 0));
+@@ -158,9 +159,31 @@ const ProjectDetailView: React.FC = () => {
+       }
+     }
+ 
+-    return { committedCost, weightedProgress, totalEstimated, plannedProgress, projection };
++    return { committedCost, consumedHours, weightedProgress, totalEstimated, plannedProgress, projection };
+   }, [project, projectTasks, timesheetEntries, users, projectId]);
+ 
++  const teamMetrics = useMemo(() => {
++    if (!project || !projectId) return {};
++    const metrics: Record<string, { reported: number; remaining: number }> = {};
++
++    const projectMems = projectMembers.filter(pm => pm.projectId === projectId);
++
++    projectMems.forEach(pm => {
++      const userId = pm.userId;
++      const reported = timesheetEntries
++        .filter(e => e.projectId === projectId && e.userId === userId)
++        .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
++
++      const userTasks = tasks.filter(t => t.projectId === projectId && (t.developerId === userId || t.collaboratorIds?.includes(userId)));
++      const estimated = userTasks.reduce((sum, t) => sum + (Number(t.estimatedHours) || 0), 0);
++      const remaining = Math.max(0, estimated - reported);
++
++      metrics[userId] = { reported, remaining };
++    });
++
++    return metrics;
++  }, [projectId, projectMembers, timesheetEntries, tasks, project]);
++
+   if (!project) return <div className="p-20 text-center font-bold" style={{ color: 'var(--muted)' }}>Projeto n├úo encontrado</div>;
+ 
+   return (
+@@ -326,17 +349,45 @@ const ProjectDetailView: React.FC = () => {
+                             <p className="text-2xl font-black" style={{ color: 'var(--success)' }}>{(project.valor_total_rs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                           </div>
+ 
+-                          <div className="flex flex-col gap-2">
+-                            <div className="flex justify-between items-end">
+-                              <p className="text-[9px] font-bold uppercase" style={{ color: 'var(--muted)' }}>Consumido (Custo)</p>
+-                              <p className="text-[10px] font-bold" style={{ color: 'var(--text)' }}>{performance?.committedCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+-                            </div>
+-                            <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+-                              <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, ((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%` }} />
++                          <div className="flex flex-col gap-4">
++                            {/* CUSTO CONSUMIDO VS OR├çAMENTO (MONET├üRIO) */}
++                            <div className="space-y-2">
++                              <div className="flex justify-between items-end">
++                                <p className="text-[9px] font-bold uppercase" style={{ color: 'var(--muted)' }}>Consumido (Custo)</p>
++                                <p className="text-[10px] font-black" style={{ color: 'var(--text)' }}>
++                                  {performance?.committedCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
++                                </p>
++                              </div>
++                              <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
++                                <div
++                                  className={`h-full transition-all duration-1000 ${((performance?.committedCost || 0) / (project.valor_total_rs || 1)) > 1 ? 'bg-red-500' : 'bg-emerald-500'}`}
++                                  style={{ width: `${Math.min(100, ((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%` }}
++                                />
++                              </div>
++                              <div className="flex justify-between text-[8px] font-bold" style={{ color: 'var(--muted)' }}>
++                                <span>{Math.round(((performance?.committedCost || 0) / (project.valor_total_rs || 1)) * 100)}%</span>
++                                <span className="text-emerald-500">
++                                  Restam {((project.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
++                                </span>
++                              </div>
+                             </div>
+-                            <div className="flex justify-between text-[8px]" style={{ color: 'var(--muted)' }}>
+-                              <span>0%</span>
+-                              <span>{project.horas_vendidas || 0}h Vendidas</span>
++
++                            {/* HORAS CONSUMIDAS VS OR├çAMENTO (HORAS) */}
++                            <div className="space-y-2 pt-4 border-t border-dashed" style={{ borderColor: 'var(--border)' }}>
++                              <div className="flex justify-between items-end">
++                                <p className="text-[9px] font-bold uppercase" style={{ color: 'var(--muted)' }}>Consumido (Horas)</p>
++                                <p className="text-[10px] font-black" style={{ color: 'var(--text)' }}>{performance?.consumedHours.toFixed(1)}h</p>
++                              </div>
++                              <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
++                                <div
++                                  className={`h-full transition-all duration-1000 ${((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) > 1 ? 'bg-red-500' : 'bg-emerald-500'}`}
++                                  style={{ width: `${Math.min(100, ((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) * 100)}%` }}
++                                />
++                              </div>
++                              <div className="flex justify-between text-[8px] font-bold" style={{ color: 'var(--muted)' }}>
++                                <span>{Math.round(((performance?.consumedHours || 0) / (project.horas_vendidas || 1)) * 100)}%</span>
++                                <span>{project.horas_vendidas || 0}h Vendidas</span>
++                              </div>
+                             </div>
+                           </div>
+                         </>
+@@ -373,17 +424,20 @@ const ProjectDetailView: React.FC = () => {
+                           </p>
+                         </div>
+ 
+-                        {performance?.projection && (
+-                          <div className="pt-3 mt-3 border-t border-dashed" style={{ borderColor: 'var(--border)' }}>
+-                            <p className="text-[9px] font-bold uppercase mb-1" style={{ color: 'var(--muted)' }}>Proje├º├úo Real (Ritmo Atual)</p>
+-                            <div className="flex items-end gap-2">
+-                              <p className={`text-sm font-black ${performance.projection.getTime() > new Date(project.estimatedDelivery || '2100-01-01').getTime() ? 'text-red-500' : 'text-emerald-500'}`}>
+-                                {performance.projection.toLocaleDateString()}
+-                              </p>
+-                              <p className="text-[8px] mb-0.5 opacity-60">*Autom├ítico</p>
+-                            </div>
++                        <div className="pt-3 mt-3 border-t border-dashed" style={{ borderColor: 'var(--border)' }}>
++                          <p className="text-[9px] font-bold uppercase mb-1" style={{ color: 'var(--muted)' }}>Estimativa Autom├ítica</p>
++                          <div className="flex items-end gap-2">
++                            <p className="text-xl font-black text-purple-500">
++                              {(() => {
++                                const team = users.filter(u => projectMembers.some(pm => pm.projectId === project.id && pm.userId === u.id));
++                                const remainingHours = Math.max(0, (project.horas_vendidas || 0) - (performance?.consumedHours || 0));
++                                const deadline = CapacityUtils.calculateProjectDeadline(new Date().toISOString().split('T')[0], remainingHours, team);
++                                return deadline ? deadline.split('-').reverse().join('/') : '--';
++                              })()}
++                            </p>
++                            <p className="text-[8px] mb-1 opacity-60">*Baseada em Capacidade</p>
+                           </div>
+-                        )}
++                        </div>
+                       </div>
+                     )}
+                   </div>
+@@ -478,7 +532,19 @@ const ProjectDetailView: React.FC = () => {
+                     </div>
+ 
+                     <div className="p-6 rounded-[32px] border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+-                      <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: 'var(--text)' }}><Users size={16} className="text-purple-500" /> Equipe Alocada</h3>
++                      <div className="flex items-center justify-between mb-4">
++                        <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text)' }}>
++                          <Users size={16} className="text-purple-500" /> Equipe Alocada
++                        </h3>
++                        {project && performance && (
++                          <div className="text-right">
++                            <p className="text-[8px] font-black uppercase opacity-40">Saldo Projeto</p>
++                            <p className="text-xs font-black" style={{ color: (project.horas_vendidas - performance.consumedHours) < 0 ? 'var(--danger)' : 'var(--success)' }}>
++                              {(project.horas_vendidas - performance.consumedHours).toFixed(1)}h
++                            </p>
++                          </div>
++                        )}
++                      </div>
+                       <div className="space-y-3">
+                         {isEditing ? (
+                           <div className="border rounded-2xl p-4 max-h-[400px] overflow-y-auto space-y-2 custom-scrollbar shadow-inner" style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}>
+@@ -506,7 +572,7 @@ const ProjectDetailView: React.FC = () => {
+                                       <p className="text-[8px] font-bold uppercase opacity-50" style={{ color: 'var(--muted)' }}>{user.cargo || user.role}</p>
+                                       {(() => {
+                                         const status = getUserStatus(user, tasks, projects, clients);
+-                                        const availability = CapacityUtils.getUserMonthlyAvailability(user, new Date().toISOString().slice(0, 7), tasks);
++                                        const availability = CapacityUtils.getUserMonthlyAvailability(user, new Date().toISOString().slice(0, 7), tasks, timesheetEntries);
+                                         return (
+                                           <div className="flex items-center gap-2">
+                                             <div className="flex items-center gap-1">
+@@ -534,13 +600,25 @@ const ProjectDetailView: React.FC = () => {
+                                 <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: 1 }}>
+                                   {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-black" style={{ color: 'var(--primary)' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                 </div>
+-                                <div className="min-w-0">
++                                <div className="min-w-0 flex-1">
+                                   <p className="text-[11px] font-bold truncate" style={{ color: 'var(--text)' }}>{u.name}</p>
+                                   <div className="flex items-center gap-2">
+                                     <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>{u.cargo || 'Consultor'}</p>
+                                     {(() => {
+                                       const status = getUserStatus(u, tasks, projects, clients);
+-                                      const availability = CapacityUtils.getUserMonthlyAvailability(u, new Date().toISOString().slice(0, 7), tasks);
++                                      const availability = CapacityUtils.getUserMonthlyAvailability(u, new Date().toISOString().slice(0, 7), tasks, timesheetEntries);
++
++                                      // Calculate share of remaining work
++                                      const projectRemainingHours = Math.max(0, project.horas_vendidas - (performance?.consumedHours || 0));
++                                      const teamSize = projectMembers.filter(m => m.projectId === projectId).length || 1;
++                                      const shareOfRemaining = projectRemainingHours / teamSize;
++
++                                      // Calculate monthly burden based on deadline
++                                      const now = new Date();
++                                      const deadline = project.estimatedDelivery ? new Date(project.estimatedDelivery) : new Date(now.getFullYear(), now.getMonth() + 1, 1);
++                                      const monthsRemaining = Math.max(1, (deadline.getFullYear() - now.getFullYear()) * 12 + (deadline.getMonth() - now.getMonth()));
++                                      const monthlyBurden = shareOfRemaining / monthsRemaining;
++
+                                       return (
+                                         <div className="flex items-center gap-2">
+                                           <div className="flex items-center gap-1">
+@@ -548,13 +626,46 @@ const ProjectDetailView: React.FC = () => {
+                                             <span className="text-[7px] font-black uppercase tracking-widest" style={{ color: status.color }}>{status.label}</span>
+                                           </div>
+                                           <span className="text-[var(--muted)] opacity-20 text-[7px]">ÔÇó</span>
+-                                          <span className={`text-[8px] font-black tracking-tighter ${availability.available < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
++                                          <span className={`text-[8px] font-black tracking-tighter ${availability.available < monthlyBurden ? 'text-red-500' : 'text-emerald-500'}`}>
+                                             DISP: {availability.available}H
+                                           </span>
+                                         </div>
+                                       );
+                                     })()}
+                                   </div>
++
++                                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-dashed" style={{ borderColor: 'var(--border)' }}>
++                                    <div>
++                                      {(() => {
++                                        const reported = timesheetEntries
++                                          .filter(e => e.projectId === projectId && e.userId === u.id)
++                                          .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
++                                        return (
++                                          <>
++                                            <p className="text-[7px] font-black uppercase opacity-40">Apontado</p>
++                                            <p className="text-[9px] font-black" style={{ color: 'var(--text)' }}>{reported.toFixed(1)}h</p>
++                                          </>
++                                        );
++                                      })()}
++                                    </div>
++                                    <div className="text-right">
++                                      {(() => {
++                                        // Logic requested: Divide missing hours by team size
++                                        const projectRemainingHours = Math.max(0, project.horas_vendidas - (performance?.consumedHours || 0));
++                                        const teamSize = projectMembers.filter(m => m.projectId === projectId).length || 1;
++                                        const shareOfRemaining = projectRemainingHours / teamSize;
++
++                                        return (
++                                          <>
++                                            <p className="text-[7px] font-black uppercase opacity-40">A Realizar (Share)</p>
++                                            <p className="text-[9px] font-black" style={{ color: shareOfRemaining > 0 ? 'var(--info)' : 'var(--success)' }}>
++                                              {shareOfRemaining.toFixed(1)}h
++                                            </p>
++                                          </>
++                                        );
++                                      })()}
++                                    </div>
++                                  </div>
+                                 </div>
+                               </div>
+                             ) : null;

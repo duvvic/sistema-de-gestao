@@ -284,17 +284,17 @@ const ProjectDetailView: React.FC = () => {
     if (!isContinuousMode || !project || !project.startDate) return null;
 
     const startDate = new Date(project.startDate + 'T12:00:00');
+    const endDate = project.estimatedDelivery ? new Date(project.estimatedDelivery + 'T12:00:00') : new Date(startDate);
     const today = new Date();
     today.setHours(12, 0, 0, 0);
 
     // 1. Dicionário de dias -> contagem de ativos
-    const dayStats: Record<string, { activeCount: number; members: string[] }> = {};
-    let curr = new Date(startDate);
-
-    // Lista de membros do projeto
     const activeProjectMembers = projectMembers.filter(pm => String(pm.id_projeto) === projectId);
 
-    while (curr <= today) {
+    // Contabiliza total de dias úteis reais do projeto (descontando fins de semana e feriados)
+    let totalBusinessDays = 0;
+    let curr = new Date(startDate);
+    while (curr <= endDate) {
       const day = curr.getDay();
       if (day !== 0 && day !== 6) {
         const dateStr = curr.toISOString().split('T')[0];
@@ -303,22 +303,14 @@ const ProjectDetailView: React.FC = () => {
           const hEnd = h.endDate || h.date;
           return dateStr >= hStart && dateStr <= hEnd;
         });
-
-        if (!isHoliday) {
-          const membersAtDay = activeProjectMembers.filter(pm => {
-            const mEntry = pm.start_date ? new Date(pm.start_date + 'T12:00:00') : startDate;
-            const mExit = pm.end_date ? new Date(pm.end_date + 'T12:00:00') : null;
-            return curr >= mEntry && (!mExit || curr <= mExit);
-          });
-
-          dayStats[dateStr] = {
-            activeCount: membersAtDay.length,
-            members: membersAtDay.map(m => String(m.id_colaborador))
-          };
-        }
+        if (!isHoliday) totalBusinessDays++;
       }
       curr.setDate(curr.getDate() + 1);
     }
+
+    const totalProjectHours = totalBusinessDays * 8;
+    const dividedIdealAccumulated = activeProjectMembers.length > 0 ? (totalProjectHours / activeProjectMembers.length) : 0;
+    const currentBaseDaily = activeProjectMembers.length > 0 ? (8 / activeProjectMembers.length) : 8;
 
     // 2. Calcular métricas por integrante
     const memberMetrics: Record<string, {
@@ -332,15 +324,7 @@ const ProjectDetailView: React.FC = () => {
 
     activeProjectMembers.forEach(pm => {
       const userId = String(pm.id_colaborador);
-      const mEntry = pm.start_date ? new Date(pm.start_date + 'T12:00:00') : startDate;
-
-      let idealAccumulated = 0;
-      Object.entries(dayStats).forEach(([dateStr, stats]) => {
-        const dDate = new Date(dateStr + 'T12:00:00');
-        if (dDate >= mEntry && stats.activeCount > 0 && stats.members.includes(userId)) {
-          idealAccumulated += (8 / stats.activeCount);
-        }
-      });
+      const idealAccumulated = dividedIdealAccumulated;
 
       const actualHours = timesheetEntries
         .filter(e => e.projectId === projectId && e.userId === userId)
@@ -357,7 +341,7 @@ const ProjectDetailView: React.FC = () => {
       else status = 'yellow';
 
       memberMetrics[userId] = {
-        baseDaily: dayStats[today.toISOString().split('T')[0]]?.activeCount > 0 ? (8 / dayStats[today.toISOString().split('T')[0]].activeCount) : (8 / Math.max(1, activeProjectMembers.length)),
+        baseDaily: currentBaseDaily,
         idealAccumulated,
         actualHours,
         deviation,
@@ -1213,14 +1197,67 @@ const ProjectDetailView: React.FC = () => {
                                 {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
                               </p>
                               <p className="text-[8px] font-bold opacity-30 mt-1 uppercase">Regra: Início + 1 ano</p>
+
+                              {project?.startDate && project?.estimatedDelivery && (
+                                <div className="mt-3 pt-3 border-t border-amber-500/10">
+                                  <p className="text-[12px] font-black text-amber-600">
+                                    {(() => {
+                                      const start = new Date(project.startDate + 'T12:00:00');
+                                      const end = new Date(project.estimatedDelivery + 'T12:00:00');
+                                      let businessDays = 0;
+                                      const current = new Date(start);
+                                      while (current <= end) {
+                                        const day = current.getDay();
+                                        if (day !== 0 && day !== 6) {
+                                          const dateStr = current.toISOString().split('T')[0];
+                                          const isHoliday = holidays.some(h => {
+                                            const hStart = h.date;
+                                            const hEnd = h.endDate || h.date;
+                                            return dateStr >= hStart && dateStr <= hEnd;
+                                          });
+                                          if (!isHoliday) businessDays++;
+                                        }
+                                        current.setDate(current.getDate() + 1);
+                                      }
+                                      return `${businessDays} dias úteis (${businessDays * 8}h totais)`;
+                                    })()}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="grid grid-cols-2 gap-8">
                               <div>
                                 <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Entrega Planejada</p>
-                                <p className={`text-sm font-black tabular-nums ${performance?.projection && performance?.projection.getTime() < new Date(project?.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
-                                  {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <p className={`text-sm font-black tabular-nums ${performance?.projection && performance?.projection.getTime() < new Date(project?.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
+                                    {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
+                                  </p>
+                                  {project?.startDate && project?.estimatedDelivery && (
+                                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">
+                                      {(() => {
+                                        const start = new Date(project.startDate + 'T12:00:00');
+                                        const end = new Date(project.estimatedDelivery + 'T12:00:00');
+                                        let businessDays = 0;
+                                        const current = new Date(start);
+                                        while (current <= end) {
+                                          const day = current.getDay();
+                                          if (day !== 0 && day !== 6) {
+                                            const dateStr = current.toISOString().split('T')[0];
+                                            const isHoliday = holidays.some(h => {
+                                              const hStart = h.date;
+                                              const hEnd = h.endDate || h.date;
+                                              return dateStr >= hStart && dateStr <= hEnd;
+                                            });
+                                            if (!isHoliday) businessDays++;
+                                          }
+                                          current.setDate(current.getDate() + 1);
+                                        }
+                                        return `${businessDays * 8}h`;
+                                      })()}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div>
                                 <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Fim Real</p>
@@ -1520,12 +1557,12 @@ const ProjectDetailView: React.FC = () => {
                                         <div className="space-y-1.5">
                                           {/* Base Daily Allocation - Prominent */}
                                           <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border bg-purple-500/5 border-purple-500/20">
-                                            <span className="text-[7px] font-black uppercase tracking-wider text-purple-500/60">Alocação Base (8h ÷ {teamOperationalBalance?.todayActiveCount || 1})</span>
+                                            <span className="text-[7px] font-black uppercase tracking-wider text-purple-500/60">Alocação Base (8h ÷ {projectMembers.filter(pm => String(pm.id_projeto) === projectId).length || 1})</span>
                                             <span className="text-[11px] font-black text-purple-500">{metrics.baseDaily.toFixed(1)}h/dia</span>
                                           </div>
 
                                           {/* Metrics Grid */}
-                                          <div className="grid grid-cols-3 gap-1.5">
+                                          <div className="grid grid-cols-2 gap-1.5">
                                             {/* Expected */}
                                             <div className="flex flex-col items-center px-2 py-1.5 rounded-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                                               <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Esperado</p>
@@ -1536,14 +1573,6 @@ const ProjectDetailView: React.FC = () => {
                                             <div className="flex flex-col items-center px-2 py-1.5 rounded-lg border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                                               <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Apontado</p>
                                               <p className="text-[10px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{formatDecimalToTime(metrics.actualHours)}</p>
-                                            </div>
-
-                                            {/* Difference */}
-                                            <div className={`flex flex-col items-center px-2 py-1.5 rounded-lg border ${statusBg} ${statusBorder}`}>
-                                              <p className="text-[6px] font-black uppercase opacity-40 tracking-wider mb-0.5">Diferença</p>
-                                              <p className={`text-[10px] font-black tabular-nums ${statusColor}`}>
-                                                {metrics.deviation > 0 ? '+' : ''}{formatDecimalToTime(metrics.deviation)}
-                                              </p>
                                             </div>
                                           </div>
                                         </div>
@@ -1560,41 +1589,7 @@ const ProjectDetailView: React.FC = () => {
                                     );
                                   })()}
 
-                                  {/* Suggestion Section */}
-                                  {isContinuousMode && teamOperationalBalance?.memberMetrics[u.id] && (
-                                    <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: 'var(--border)' }}>
-                                      {teamOperationalBalance.suggestions[u.id] ? (
-                                        (() => {
-                                          const metrics = teamOperationalBalance.memberMetrics[u.id];
-                                          const status = metrics.status;
-                                          const bgClass = status === 'green' ? 'bg-emerald-500/5' : status === 'yellow' ? 'bg-amber-500/5' : 'bg-red-500/5';
-                                          const borderClass = status === 'green' ? 'border-emerald-500/20' : status === 'yellow' ? 'border-amber-500/20' : 'border-red-500/20';
-                                          const textClass = status === 'green' ? 'text-emerald-500' : status === 'yellow' ? 'text-amber-500' : 'text-red-500';
-                                          const suggestion = teamOperationalBalance.suggestions[u.id];
-                                          const adjustmentText = suggestion > metrics.baseDaily ? 'Aumentar para' : suggestion < metrics.baseDaily ? 'Reduzir para' : 'Manter em';
 
-                                          return (
-                                            <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border ${bgClass} ${borderClass}`}>
-                                              <div className="flex items-center gap-1.5">
-                                                <div className={`w-1 h-1 rounded-full ${textClass.replace('text-', 'bg-')}`}></div>
-                                                <span className={`text-[7px] font-black uppercase tracking-wider ${textClass}`}>
-                                                  {adjustmentText}
-                                                </span>
-                                              </div>
-                                              <span className={`text-[10px] font-black ${textClass}`}>
-                                                {suggestion.toFixed(1)}h/dia
-                                              </span>
-                                            </div>
-                                          );
-                                        })()
-                                      ) : (
-                                        <div className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
-                                          <Check size={10} className="text-emerald-500" />
-                                          <span className="text-[7px] font-black uppercase tracking-wider text-emerald-500">Alocação Equilibrada</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
                                 </div>
                               ) : null;
                             })}

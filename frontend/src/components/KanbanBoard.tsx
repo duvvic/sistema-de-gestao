@@ -48,11 +48,11 @@ import ConfirmationModal from './ConfirmationModal';
 import { TaskCreationModal } from './TaskCreationModal';
 
 const STATUS_COLUMNS: { id: Status; title: string; color: string; bg: string; badgeColor: string }[] = [
-  { id: 'Todo', title: 'Pré-Projeto', color: '#475569', bg: 'rgba(100, 116, 139, 0.05)', badgeColor: '#64748b' },
-  { id: 'Review', title: 'Análise', color: '#a16207', bg: 'rgba(254, 240, 138, 0.15)', badgeColor: '#ca8a04' },
-  { id: 'In Progress', title: 'Andamento', color: '#0369a1', bg: 'rgba(14, 165, 233, 0.08)', badgeColor: '#0ea5e9' },
-  { id: 'Testing', title: 'Teste', color: '#6d28d9', bg: 'rgba(139, 92, 246, 0.08)', badgeColor: '#8b5cf6' },
-  { id: 'Done', title: 'Concluído', color: '#047857', bg: 'rgba(16, 185, 129, 0.08)', badgeColor: '#10b981' },
+  { id: 'Todo', title: 'Pré-Projeto', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
+  { id: 'Review', title: 'Análise', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
+  { id: 'In Progress', title: 'Andamento', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
+  { id: 'Testing', title: 'Teste', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
+  { id: 'Done', title: 'Concluído', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
 ];
 
 const STATUS_ORDER: Status[] = ['Todo', 'Review', 'In Progress', 'Testing', 'Done'];
