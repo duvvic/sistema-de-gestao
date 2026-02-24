@@ -5,6 +5,8 @@ import { Task, Project, Client, User, TimesheetEntry, Absence, ProjectMember, Ho
 import { supabase } from '@/services/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { mapDbTaskToTask, mapDbTimesheetToEntry, mapDbProjectToProject, mapDbUserToUser, mapDbAbsenceToAbsence } from '@/utils/normalizers';
+import { enrichProjectsWithTaskDates } from '@/utils/projectUtils';
+
 
 interface DataContextType {
     clients: Client[];
@@ -32,6 +34,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+
     const { currentUser, isLoading: authLoading } = useAuth();
 
     // Hook que faz o fetch centralizado
@@ -59,19 +62,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Ref para evitar ciclos de re-subscrição e garantir acesso a dados frescos nos callbacks
     const usersRef = React.useRef<User[]>([]);
+    const tasksRef = React.useRef<Task[]>([]);
     useEffect(() => { usersRef.current = users; }, [users]);
+    useEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
     // Sincronizar dados globais quando o carregamento termina
     useEffect(() => {
         if (dataLoading) return;
 
         setClients(loadedClients);
-        setProjects(loadedProjects);
+        setUsers(loadedUsers);
         setTasks(loadedTasks);
+        setProjects(enrichProjectsWithTaskDates(loadedProjects, loadedTasks));
         setTimesheetEntries(loadedTimesheets);
         setProjectMembers(loadedProjectMembers || []);
-        setUsers(loadedUsers);
         setAbsences(loadedAbsences || []);
+
         setHolidays(loadedHolidays || []);
     }, [dataLoading, loadedClients, loadedProjects, loadedTasks, loadedUsers, loadedTimesheets, loadedProjectMembers, loadedAbsences, loadedHolidays]);
 
@@ -97,9 +103,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const project = mapDbProjectToProject(payload.new);
                     setProjects(prev => {
                         const exists = prev.find(p => p.id === project.id);
-                        if (exists) return prev.map(p => p.id === project.id ? project : p);
-                        return [...prev, project];
+                        const updatedProjects = exists
+                            ? prev.map(p => p.id === project.id ? project : p)
+                            : [...prev, project];
+                        return enrichProjectsWithTaskDates(updatedProjects, tasksRef.current);
                     });
+
                 } else if (payload.eventType === 'DELETE') {
                     setProjects(prev => prev.filter(p => p.id !== String(payload.old.ID_Projeto)));
                 }
@@ -111,9 +120,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const task = mapDbTaskToTask(payload.new, userMap);
                     setTasks(prev => {
                         const exists = prev.find(t => t.id === task.id);
-                        if (exists) return prev.map(t => t.id === task.id ? { ...t, ...task, collaboratorIds: t.collaboratorIds } : t);
-                        return [task, ...prev];
+                        const updatedTasks = exists
+                            ? prev.map(t => t.id === task.id ? { ...t, ...task, collaboratorIds: t.collaboratorIds } : t)
+                            : [task, ...prev];
+
+                        // Re-process projects when tasks change to update start dates if needed
+                        setProjects(currentProjects => enrichProjectsWithTaskDates(currentProjects, updatedTasks));
+
+                        return updatedTasks;
                     });
+
                 } else if (payload.eventType === 'DELETE') {
                     setTasks(prev => prev.filter(t => t.id !== String(payload.old.id_tarefa_novo)));
                 }

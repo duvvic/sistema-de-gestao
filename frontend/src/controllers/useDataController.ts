@@ -5,6 +5,8 @@ import * as clientService from '@/services/clientService';
 import * as projectService from '@/services/projectService';
 import * as taskService from '@/services/taskService';
 import { useAuth } from '@/contexts/AuthContext';
+import { enrichProjectsWithTaskDates } from '@/utils/projectUtils';
+
 
 
 export const useDataController = () => {
@@ -114,8 +116,13 @@ export const useDataController = () => {
 
     const createProject = async (projectData: Partial<Project>): Promise<string> => {
         const newId = await projectService.createProject(projectData);
-        const newProject = { ...projectData, id: String(newId) } as Project;
-        setProjects(prev => [...prev, newProject]);
+        const newProject = {
+            project_type: 'continuous',
+            ...projectData,
+            id: String(newId)
+        } as Project;
+        setProjects(prev => enrichProjectsWithTaskDates([...prev, newProject], tasks));
+
         return String(newId);
     };
 

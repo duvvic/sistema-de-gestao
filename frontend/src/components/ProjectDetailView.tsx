@@ -81,7 +81,7 @@ const ProjectDetailView: React.FC = () => {
     horas_vendidas: 0,
     complexidade: 'Média' as 'Alta' | 'Média' | 'Baixa',
     torre: '',
-    project_type: 'planned' as 'planned' | 'continuous',
+    project_type: 'continuous' as 'planned' | 'continuous',
     valor_diario: 0
   });
 
@@ -118,7 +118,7 @@ const ProjectDetailView: React.FC = () => {
         horas_vendidas: project.horas_vendidas || 0,
         complexidade: project.complexidade || 'Média',
         torre: project.torre || '',
-        project_type: project.project_type || 'planned',
+        project_type: project.project_type || 'continuous',
         valor_diario: (project as any).valor_diario || 0
       });
       const membersResult = projectMembers.filter(pm => String(pm.id_projeto) === projectId);
@@ -152,8 +152,8 @@ const ProjectDetailView: React.FC = () => {
         description: '',
         managerClient: '',
         responsibleNicLabsId: '',
-        startDate: '',
-        estimatedDelivery: '',
+        startDate: new Date().toISOString().split('T')[0],
+        estimatedDelivery: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
         startDateReal: '',
         endDateReal: '',
         criticalDate: '',
@@ -165,7 +165,7 @@ const ProjectDetailView: React.FC = () => {
         horas_vendidas: 0,
         complexidade: 'Média',
         torre: '',
-        project_type: 'planned',
+        project_type: 'continuous',
         valor_diario: 0
       });
       setSelectedUsers([]);
@@ -181,7 +181,7 @@ const ProjectDetailView: React.FC = () => {
     return pTasks;
   }, [tasks, projectId, currentUser, isAdmin]);
 
-  const isContinuousMode = (isEditing || isNew ? formData.project_type : project?.project_type) === 'continuous';
+  const isContinuousMode = true; // Forçar modo contínuo permanentemente conforme solicitado
 
   const performance = useMemo(() => {
     if (!project) return null;
@@ -207,18 +207,12 @@ const ProjectDetailView: React.FC = () => {
     );
 
     const projectFactors = projectTasks.map(t => {
-      const taskEntries = timesheetEntries.filter(entry => entry.taskId === t.id && entry.date);
-      const firstEntryTs = taskEntries.length > 0 ? Math.min(...taskEntries.map(e => new Date(e.date + 'T12:00:00').getTime())) : null;
-      const tStartTs = parseSafeDate(t.scheduledStart || t.actualStart) || firstEntryTs || Date.now();
-      const tEndTs = parseSafeDate(t.estimatedDelivery) || tStartTs;
-      const duration = Math.max(0, tEndTs - tStartTs) + ONE_DAY;
-      return { id: t.id, factor: duration, progress: t.progress || 0 };
+      const factor = Number(t.estimatedHours) || 0;
+      return { id: t.id, factor, progress: t.progress || 0 };
     });
     const totalFactor = projectFactors.reduce((acc, f) => acc + f.factor, 0);
 
-    const weightedProgress = totalFactor > 0
-      ? projectFactors.reduce((acc, f) => acc + (f.progress * f.factor), 0) / totalFactor
-      : (projectTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / (projectTasks.length || 1));
+    const weightedProgress = CapacityUtils.calculateProjectWeightedProgress(projectId!, projectTasks);
 
     let plannedProgress = 0;
     if (project.startDate && project.estimatedDelivery) {
@@ -254,7 +248,7 @@ const ProjectDetailView: React.FC = () => {
 
     // --- CÁLCULOS ESPECÍFICOS PARA PROJETOS CONTÍNUOS ---
     let continuousPlannedValue = 0;
-    if (project.project_type === 'continuous' && project.startDate) {
+    if ((project.project_type || 'continuous') === 'continuous' && project.startDate) {
       const start = new Date(project.startDate + 'T12:00:00');
       const today = new Date();
       today.setHours(12, 0, 0, 0);
@@ -418,29 +412,10 @@ const ProjectDetailView: React.FC = () => {
   }, [absences, project, projectMembers, projectId]);
 
   const isProjectIncomplete = useMemo(() => {
-    const isContinuous = (isEditing || isNew ? formData.project_type : project?.project_type) === 'continuous';
-    const data = (isEditing || isNew) ? formData : {
-      name: project?.name,
-      valor_total_rs: project?.valor_total_rs,
-      horas_vendidas: project?.horas_vendidas,
-      startDate: project?.startDate,
-      estimatedDelivery: project?.estimatedDelivery,
-      project_type: project?.project_type,
-      valor_diario: (project as any)?.valor_diario,
-      partnerId: project?.partnerId,
-      responsibleNicLabsId: project?.responsibleNicLabsId
-    };
-
-    return (
-      !data.name?.trim() ||
-      (!isContinuous && (!data.valor_total_rs || data.valor_total_rs === 0)) ||
-      (!isContinuous && (!data.horas_vendidas || data.horas_vendidas === 0)) ||
-      (isContinuous && (!data.valor_diario || data.valor_diario === 0)) ||
-      !data.startDate ||
-      (!isContinuous && !data.estimatedDelivery) ||
-      selectedUsers.length === 0
-    );
-  }, [project, formData, isEditing, isNew, selectedUsers]);
+    const data = (isEditing || isNew) ? formData : { name: project?.name };
+    // Apenas o nome é estritamente necessário para não quebrar a UI
+    return !data.name?.trim();
+  }, [project, formData, isEditing, isNew]);
 
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -599,7 +574,7 @@ const ProjectDetailView: React.FC = () => {
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     onKeyDown={handleKeyDown}
-                    className={`bg-white/10 border-b outline-none px-2 py-1 text-xl font-bold rounded transition-colors min-w-[300px] ${!formData.name?.trim() ? 'border-yellow-400 bg-yellow-400/20' : 'border-white'}`}
+                    className="bg-white/10 border-b border-white outline-none px-2 py-1 text-xl font-bold rounded transition-colors min-w-[300px]"
                   />
                 ) : (
                   <h1 className="text-xl font-bold">{project?.name || 'Novo Projeto'}</h1>
@@ -964,37 +939,10 @@ const ProjectDetailView: React.FC = () => {
                     <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[350px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
 
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Finanças {isContinuousMode ? '(Contínuo)' : ''}</h4>
-                        {isEditing && (
-                          <div className="flex bg-[var(--bg)] p-1 rounded-lg border border-[var(--border)] gap-1 scale-90 origin-right">
-                            <button
-                              type="button"
-                              onClick={() => setFormData({ ...formData, project_type: 'planned' })}
-                              className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${formData.project_type === 'planned' ? 'bg-purple-600 text-white shadow-sm' : 'opacity-40 hover:opacity-100'}`}
-                            >
-                              Planejado
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const start = formData.startDate ? new Date(formData.startDate + 'T12:00:00') : new Date();
-                                const oneYearLater = new Date(start);
-                                oneYearLater.setFullYear(start.getFullYear() + 1);
-                                setFormData({
-                                  ...formData,
-                                  project_type: 'continuous',
-                                  estimatedDelivery: oneYearLater.toISOString().split('T')[0]
-                                });
-                              }}
-                              className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${formData.project_type === 'continuous' ? 'bg-amber-500 text-white shadow-sm' : 'opacity-40 hover:opacity-100'}`}
-                            >
-                              Contínuo
-                            </button>
-                          </div>
-                        )}
+                        <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Finanças</h4>
                       </div>
 
-                      {isContinuousMode ? (
+                      {isContinuousMode && (
                         <div className="space-y-4">
                           <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 mb-4">
                             <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-2">
@@ -1013,8 +961,8 @@ const ProjectDetailView: React.FC = () => {
                                 value={formData.valor_diario || ''}
                                 onChange={e => setFormData({ ...formData, valor_diario: e.target.value === '' ? 0 : Number(e.target.value) })}
                                 onKeyDown={handleKeyDown}
-                                className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.valor_diario ? 'bg-amber-500/10 border-amber-500/50' : ''}`}
-                                style={{ backgroundColor: formData.valor_diario ? 'var(--bg)' : undefined, borderColor: formData.valor_diario ? 'var(--border)' : undefined, color: 'var(--text)' }}
+                                className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
+                                style={{ color: 'var(--text)' }}
                               />
                             </div>
                           ) : (
@@ -1027,157 +975,32 @@ const ProjectDetailView: React.FC = () => {
                             </div>
                           )}
                         </div>
-                      ) : isEditing ? (
-                        <div className="space-y-4">
-                          <div>
-                            <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Valor Total Venda (R$)</label>
-                            <input
-                              type="number"
-                              value={formData.valor_total_rs || ''}
-                              onChange={e => setFormData({ ...formData, valor_total_rs: e.target.value === '' ? 0 : Number(e.target.value) })}
-                              onKeyDown={handleKeyDown}
-                              className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.valor_total_rs ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
-                              style={{ backgroundColor: formData.valor_total_rs ? 'var(--bg)' : undefined, borderColor: formData.valor_total_rs ? 'var(--border)' : undefined, color: 'var(--text)' }}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Horas Vendidas</label>
-                            <input
-                              type="number"
-                              value={formData.horas_vendidas || ''}
-                              onChange={e => setFormData({ ...formData, horas_vendidas: e.target.value === '' ? 0 : Number(e.target.value) })}
-                              onKeyDown={handleKeyDown}
-                              className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.horas_vendidas ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
-                              style={{ backgroundColor: formData.horas_vendidas ? 'var(--bg)' : undefined, borderColor: formData.horas_vendidas ? 'var(--border)' : undefined, color: 'var(--text)' }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="space-y-6">
-                            {/* FINANCEIRO: CONSUMO DE BUDGET */}
-                            <div className="group">
-                              <div className="flex justify-between items-baseline mb-2">
-                                <div className="flex flex-col">
-                                  <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Custo Projetado</span>
-                                  <div className="flex items-baseline gap-2 mt-0.5">
-                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.committedCost || 0) > (project?.valor_total_rs || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
-                                      {performance?.committedCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    </span>
-                                    <span className="text-[10px] font-bold opacity-20 tracking-tight">
-                                      de {Number(project?.valor_total_rs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  {hasBudget && (
-                                    <span className={`text-sm font-black tabular-nums ${((performance?.committedCost || 0) > (project?.valor_total_rs || 0)) ? 'text-red-500' : 'text-emerald-500'}`}>
-                                      {Math.round(((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) * 100)}%
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="h-1.5 w-full rounded-full overflow-hidden bg-[var(--bg)] shadow-inner border border-[var(--border)] relative">
-                                <div
-                                  className={`h-full transition-all duration-1000 ${((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'}`}
-                                  style={{ width: `${Math.min(100, ((performance?.committedCost || 0) / (project?.valor_total_rs || 1)) * 100)}%` }}
-                                />
-                              </div>
-
-                              <div className="flex justify-between items-center mt-2">
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${((project?.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0 ? 'text-emerald-500/50' : 'text-red-500/50'}`}>
-                                  {((project?.valor_total_rs || 0) - (performance?.committedCost || 0)) > 0
-                                    ? `Saldo: ${((project?.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                                    : `Déficit: ${Math.abs((project?.valor_total_rs || 0) - (performance?.committedCost || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* OPERACIONAL: CONSUMO DE HORAS */}
-                            <div className="group pt-2">
-                              <div className="flex justify-between items-baseline mb-2">
-                                <div className="flex flex-col">
-                                  <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Horas Apontadas</span>
-                                  <div className="flex items-baseline gap-2 mt-0.5">
-                                    <span className={`text-lg font-black tabular-nums tracking-tighter ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? 'text-red-500' : 'text-[var(--text)]'}`}>
-                                      {formatDecimalToTime(performance?.consumedHours || 0)}
-                                    </span>
-                                    <span className="text-[10px] font-bold opacity-20 tracking-tight">
-                                      de {project?.horas_vendidas || 0}h
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  {hasHours && (
-                                    <span className={`text-sm font-black tabular-nums ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0)) ? 'text-red-500' : 'text-purple-500'}`}>
-                                      {Math.round(((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) * 100)}%
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="h-1.5 w-full rounded-full overflow-hidden bg-[var(--bg)] shadow-inner border border-[var(--border)] relative">
-                                <div
-                                  className={`h-full transition-all duration-1000 ${((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) > 1 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.3)]'}`}
-                                  style={{ width: `${Math.min(100, ((performance?.consumedHours || 0) / (project?.horas_vendidas || 1)) * 100)}%` }}
-                                />
-                              </div>
-
-                              <div className="flex justify-between items-center mt-2">
-                                {((project?.horas_vendidas || 0) - (performance?.consumedHours || 0)) > 0 ? (
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500/50">
-                                    Disponíveis: {formatDecimalToTime((project?.horas_vendidas || 0) - (performance?.consumedHours || 0))}
-                                  </span>
-                                ) : (
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-red-500/50">
-                                    Horas Excedidas
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                        </>
                       )}
                     </div>
                   )}
-
-                  {/* Timeline / Datas Planejadas */}
+                  {/* Timeline do Projeto */}
                   <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[350px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Timeline / Datas Planejadas</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Timeline do Projeto</h4>
                     {isEditing ? (
                       <div className="space-y-4">
                         <div>
-                          <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Início Planejado</label>
+                          <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Data de Início</label>
                           <input
                             type="date"
                             value={formData.startDate}
                             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
                             onKeyDown={handleKeyDown}
-                            className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.startDate ? 'bg-yellow-500/10 border-yellow-500/50' : ''}`}
-                            style={{ backgroundColor: formData.startDate ? 'var(--bg)' : undefined, borderColor: formData.startDate ? 'var(--border)' : undefined, color: 'var(--text)' }}
+                            className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
+                            style={{ color: 'var(--text)' }}
                           />
                         </div>
-                        {!isContinuousMode && (
-                          <div>
-                            <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Entrega Planejada</label>
-                            <input
-                              type="date"
-                              value={formData.estimatedDelivery}
-                              onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })}
-                              onKeyDown={handleKeyDown}
-                              className={`text-xs p-2 rounded w-full border outline-none font-bold transition-colors ${!formData.estimatedDelivery ? 'bg-yellow-500/10 border-yellow-500/50 text-[var(--text)]' : 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]'}`}
-                            />
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col justify-between space-y-8 py-2">
                         <div className="space-y-8">
                           <div className="grid grid-cols-2 gap-8">
                             <div>
-                              <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Início Planejado</p>
+                              <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Data de Início</p>
                               <p className="text-sm font-black" style={{ color: 'var(--text)' }}>
                                 {project?.startDate ? project?.startDate.split('T')[0].split('-').reverse().join('/') : '--'}
                               </p>
@@ -1190,9 +1013,9 @@ const ProjectDetailView: React.FC = () => {
                             </div>
                           </div>
 
-                          {isContinuousMode ? (
+                          {isContinuousMode && (
                             <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-center">
-                              <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Fim Planejado (automático)</p>
+                              <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Previsão Fim de Ciclo</p>
                               <p className="text-sm font-black mt-1" style={{ color: 'var(--text)' }}>
                                 {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
                               </p>
@@ -1225,58 +1048,8 @@ const ProjectDetailView: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                          ) : (
-                            <div className="grid grid-cols-2 gap-8">
-                              <div>
-                                <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Entrega Planejada</p>
-                                <div className="flex items-center gap-2">
-                                  <p className={`text-sm font-black tabular-nums ${performance?.projection && performance?.projection.getTime() < new Date(project?.estimatedDelivery || '').getTime() ? 'text-emerald-500' : 'text-[var(--primary)]'}`}>
-                                    {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '?'}
-                                  </p>
-                                  {project?.startDate && project?.estimatedDelivery && (
-                                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">
-                                      {(() => {
-                                        const start = new Date(project.startDate + 'T12:00:00');
-                                        const end = new Date(project.estimatedDelivery + 'T12:00:00');
-                                        let businessDays = 0;
-                                        const current = new Date(start);
-                                        while (current <= end) {
-                                          const day = current.getDay();
-                                          if (day !== 0 && day !== 6) {
-                                            const dateStr = current.toISOString().split('T')[0];
-                                            const isHoliday = holidays.some(h => {
-                                              const hStart = h.date;
-                                              const hEnd = h.endDate || h.date;
-                                              return dateStr >= hStart && dateStr <= hEnd;
-                                            });
-                                            if (!isHoliday) businessDays++;
-                                          }
-                                          current.setDate(current.getDate() + 1);
-                                        }
-                                        return `${businessDays * 8}h`;
-                                      })()}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>Fim Real</p>
-                                <p className={`text-sm font-black ${performance?.realEndDate ? 'text-purple-500' : 'opacity-30'}`}>
-                                  {performance?.realEndDate ? performance?.realEndDate.toLocaleDateString('pt-BR') : '--'}
-                                </p>
-                              </div>
-                            </div>
                           )}
                         </div>
-
-                        {!isContinuousMode && performance?.projection && (performance?.weightedProgress || 0) > 0 && (performance?.weightedProgress || 0) < 100 && (
-                          <div className={`p-5 rounded-[24px] bg-[var(--bg)] border border-dashed transition-all w-full mt-auto ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'border-red-500/30' : 'border-emerald-500/30'}`}>
-                            <p className={`text-[9px] font-black uppercase mb-2 ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'text-red-500' : 'text-emerald-500'}`}>Previsão p/ Velocidade</p>
-                            <p className={`text-xl font-black ${((performance?.consumedHours || 0) > (project?.horas_vendidas || 0) && (project?.horas_vendidas || 0) > 0) ? 'text-red-500' : 'text-emerald-500'}`}>
-                              {performance?.projection.toLocaleDateString('pt-BR')}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>

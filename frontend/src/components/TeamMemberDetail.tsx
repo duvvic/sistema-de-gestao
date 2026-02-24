@@ -14,18 +14,43 @@ import TimesheetCalendar from './TimesheetCalendar';
 import AbsenceManager from './AbsenceManager';
 import * as CapacityUtils from '@/utils/capacity';
 
+const InfoTooltip: React.FC<{ title: string; content: string }> = ({ title, content }) => (
+   <div className="group relative pr-1">
+      <Info className="w-3.5 h-3.5 text-[var(--muted)] opacity-20 hover:opacity-100 transition-all cursor-help" />
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-900 text-white text-[10px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50 shadow-2xl">
+         <p className="font-black uppercase mb-1 border-b border-white/10 pb-1">{title}</p>
+         <p className="font-medium leading-relaxed text-slate-300">{content}</p>
+         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-900"></div>
+      </div>
+   </div>
+);
+
 type ViewTab = 'details' | 'projects' | 'tasks' | 'delayed' | 'ponto' | 'absences';
 
 const TeamMemberDetail: React.FC = () => {
    const { userId } = useParams<{ userId: string }>();
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
-   const { users, tasks, projects, projectMembers, timesheetEntries, deleteUser, absences } = useDataController();
+   const { users, tasks, projects, projectMembers, timesheetEntries, deleteUser, absences, holidays } = useDataController();
+
+   // --- CAPACITY MONTH CONTROL ---
+   const [capacityMonth, setCapacityMonth] = useState(() => {
+      const now = new Date();
+      return now.toISOString().slice(0, 7); // YYYY-MM
+   });
+
+   const changeMonth = (delta: number) => {
+      const [year, month] = capacityMonth.split('-').map(Number);
+      const newDate = new Date(year, month - 1 + delta, 1);
+      const newMonthStr = newDate.toISOString().slice(0, 7);
+      setCapacityMonth(newMonthStr);
+   };
 
    // Get initial tab from URL query parameter, default to 'details'
    const initialTab = (searchParams.get('tab') as ViewTab) || 'details';
    const [activeTab, setActiveTab] = useState<ViewTab>(initialTab);
    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+   const [showBreakdown, setShowBreakdown] = useState<'planned' | 'continuous' | null>(null);
 
    const user = users.find(u => u.id === userId);
 
@@ -63,6 +88,16 @@ const TeamMemberDetail: React.FC = () => {
          });
       }
    }, [user]);
+
+   const capData = useMemo(() => {
+      if (!user) return null;
+      return CapacityUtils.getUserMonthlyAvailability(user, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays);
+   }, [user, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays]);
+
+   const releaseDate = useMemo(() => {
+      if (!user) return null;
+      return CapacityUtils.calculateIndividualReleaseDate(user, projects, projectMembers, timesheetEntries, tasks, holidays);
+   }, [user, projects, projectMembers, timesheetEntries, tasks, holidays]);
 
    const handleSave = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -199,6 +234,247 @@ const TeamMemberDetail: React.FC = () => {
             <div className="p-6">
                {activeTab === 'details' && (
                   <div className="max-w-4xl mx-auto space-y-6">
+                     {/* RESUMO DE CAPACIDADE */}
+                     {user && (
+                        <div className="ui-card p-8 border border-[var(--border)] relative overflow-hidden bg-gradient-to-br from-[var(--surface)] to-[var(--surface-2)]">
+                           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-[var(--border)] pb-6">
+                              <div>
+                                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 mb-1" style={{ color: 'var(--muted)' }}>
+                                    <Zap className="w-4 h-4 text-[var(--primary)]" /> Ocupação e Fluxo
+                                 </h3>
+                                 <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Métricas de Alocação do Colaborador</p>
+                              </div>
+
+                              {/* Navegação de Mês */}
+                              <div className="flex items-center gap-4 bg-white/40 dark:bg-black/20 p-2 rounded-2xl border border-[var(--border)]">
+                                 <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-all text-[var(--text)]">
+                                    <ChevronRight className="w-5 h-5 rotate-180" />
+                                 </button>
+                                 <span className="text-xs font-black font-mono uppercase min-w-[140px] text-center" style={{ color: 'var(--text)' }}>
+                                    {new Date(capacityMonth + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                                 </span>
+                                 <button onClick={() => changeMonth(1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-all text-[var(--text)]">
+                                    <ChevronRight className="w-5 h-5" />
+                                 </button>
+                              </div>
+                           </div>
+
+                           {capData && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                                 {/* Status Card */}
+                                 <div className="p-5 rounded-3xl bg-white border border-[var(--border)] shadow-sm">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                       <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest opacity-60">Status de Carga</p>
+                                       <InfoTooltip title="Ocupação Total" content="Soma das horas de projetos Planejados + Contínuos em relação à sua meta mensal." />
+                                    </div>
+                                    <div className="flex items-end gap-2">
+                                       <span className={`text-2xl font-black tabular-nums transition-colors ${capData.status === 'Sobrecarregado' ? 'text-red-500' : capData.status === 'Alto' ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                          {Math.round(capData.occupancyRate)}%
+                                       </span>
+                                       <div className={`mb-1.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${capData.status === 'Sobrecarregado' ? 'bg-red-500/10 text-red-500' : capData.status === 'Alto' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                          {capData.status}
+                                       </div>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                                       <div
+                                          className={`h-full transition-all duration-1000 ${capData.status === 'Sobrecarregado' ? 'bg-red-500' : capData.status === 'Alto' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                          style={{ width: `${Math.min(100, capData.occupancyRate)}%` }}
+                                       />
+                                    </div>
+                                 </div>
+
+                                 {/* Planejado Card */}
+                                 <div
+                                    onClick={() => setShowBreakdown('planned')}
+                                    className="p-5 rounded-3xl bg-white border border-[var(--border)] shadow-sm cursor-pointer hover:border-[var(--primary)] hover:scale-[1.02] transition-all group/card"
+                                 >
+                                    <div className="flex items-center justify-between mb-1.5">
+                                       <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest opacity-60">Planejado (Prioritário)</p>
+                                       <div className="flex items-center gap-2">
+                                          <span className="text-[8px] font-bold text-[var(--primary)] bg-[var(--primary-light)] px-1.5 py-0.5 rounded-full opacity-0 group-hover/card:opacity-100 transition-opacity">Ver Detalhes</span>
+                                          <InfoTooltip title="Prioridade 1" content="Total de horas destinadas a tarefas de projetos do tipo Planejado (Forecast restante distribuído pelos dias úteis)." />
+                                       </div>
+                                    </div>
+                                    <p className="text-2xl font-black text-blue-600 font-mono">
+                                       {formatDecimalToTime(capData.plannedHours)}<span className="text-xs ml-0.5 opacity-40">h</span>
+                                    </p>
+                                    <p className="text-[9px] font-bold text-[var(--muted)] uppercase mt-2">
+                                       Soma diária no mês
+                                    </p>
+                                 </div>
+
+                                 {/* Continuo Card */}
+                                 <div
+                                    onClick={() => setShowBreakdown('continuous')}
+                                    className="p-5 rounded-3xl bg-white border border-[var(--border)] shadow-sm cursor-pointer hover:border-amber-400 hover:scale-[1.02] transition-all group/card"
+                                 >
+                                    <div className="flex items-center justify-between mb-1.5">
+                                       <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest opacity-60">Contínuo (Reserva)</p>
+                                       <div className="flex items-center gap-2">
+                                          <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full opacity-0 group-hover/card:opacity-100 transition-opacity">Ver Detalhes</span>
+                                          <InfoTooltip title="Prioridade 2" content="Horas alocadas para projetos Contínuos ou Reserva Estratégica (50% da capacidade se não houver planejado)." />
+                                       </div>
+                                    </div>
+                                    <p className="text-2xl font-black text-amber-500 font-mono">
+                                       {formatDecimalToTime(capData.continuousHours)}<span className="text-xs ml-0.5 opacity-40">h</span>
+                                    </p>
+                                    <p className="text-[9px] font-bold text-[var(--muted)] uppercase mt-2">
+                                       Média disponível p/ ciclo
+                                    </p>
+                                 </div>
+
+                                 {/* Saldo/Buffer Card */}
+                                 <div className="p-5 rounded-3xl bg-white border border-[var(--border)] shadow-sm">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                       <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest opacity-60">Disponível p/ Planejado</p>
+                                       <InfoTooltip title="Buffer" content="Capacidade livre que pode ser utilizada para novas tarefas planejadas sem comprometer a reserva contínua." />
+                                    </div>
+                                    <p className="text-2xl font-black text-emerald-500 font-mono">
+                                       {formatDecimalToTime(capData.balance)}<span className="text-xs ml-0.5 opacity-40">h</span>
+                                    </p>
+                                    <p className="text-[9px] font-bold text-[var(--muted)] uppercase mt-2">
+                                       Capacidade Residual
+                                    </p>
+                                 </div>
+
+                                 {/* Release Date Card */}
+                                 <div
+                                    onClick={() => setActiveTab('tasks')}
+                                    className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl cursor-pointer hover:scale-[1.02] transition-all group relative overflow-hidden"
+                                 >
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-all">
+                                       <Zap className="w-12 h-12 text-purple-500" />
+                                    </div>
+                                    <div className="flex items-center justify-between mb-1.5 relative z-10">
+                                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Disponível Em</p>
+                                       <InfoTooltip
+                                          title="Previsão de Liberação"
+                                          content="Ideal: Foco total (100% cap). Realista: Considera alocação operacional padrão (50% cap)."
+                                       />
+                                    </div>
+
+                                    <div className="relative z-10">
+                                       <div className="flex items-center gap-2">
+                                          <p className={`text-xl font-black font-mono transition-all ${releaseDate?.isSaturated ? 'text-red-500' : releaseDate?.realistic ? 'text-purple-400' : 'text-slate-600'}`}>
+                                             {releaseDate?.realistic || 'N/A'}
+                                          </p>
+                                          {releaseDate?.isSaturated && (
+                                             <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse">SOBRECARGA</span>
+                                          )}
+                                       </div>
+                                       <div className="flex items-center gap-2 mt-1">
+                                          <span className={`text-[8px] font-black px-1 py-0.5 rounded uppercase tracking-tighter ${releaseDate?.isSaturated ? 'bg-red-500/20 text-red-400' : 'bg-purple-500/20 text-purple-400'}`}>Realista</span>
+                                          {releaseDate && releaseDate.ideal !== releaseDate.realistic && (
+                                             <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">
+                                                Ideal: <span className="text-slate-400">{releaseDate.ideal}</span>
+                                             </span>
+                                          )}
+                                       </div>
+                                    </div>
+
+                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-all" />
+                                 </div>
+                              </div>
+                           )}
+
+                           {/* NOVO: MAPA DE OCUPAÇÃO DIÁRIA (HEATMAP STYLE) */}
+                           <div className="mt-10 pt-8 border-t border-[var(--border)]">
+                              <div className="flex items-center justify-between mb-6">
+                                 <div>
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Mapa de Alocação Diária</h4>
+                                    <p className="text-[9px] font-bold text-[var(--muted)] opacity-50 uppercase mt-0.5">Visão granular do fluxo de trabalho</p>
+                                 </div>
+                                 <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1.5">
+                                       <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                       <span className="text-[8px] font-black uppercase text-[var(--muted)]">Planejado</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                       <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                                       <span className="text-[8px] font-black uppercase text-[var(--muted)]">Contínuo</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                       <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                                       <span className="text-[8px] font-black uppercase text-[var(--muted)]">Buffer</span>
+                                    </div>
+                                 </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 pb-2">
+                                 {(() => {
+                                    const startDate = `${capacityMonth}-01`;
+                                    const [year, month] = capacityMonth.split('-').map(Number);
+                                    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+                                    const daily = CapacityUtils.simulateUserDailyAllocation(
+                                       user.id, startDate, endDate, projects, tasks, projectMembers, timesheetEntries, holidays || [], user.dailyAvailableHours || 8
+                                    );
+
+                                    return daily.map(day => {
+                                       const total = day.plannedHours + day.continuousHours;
+                                       const isOverloaded = total > day.capacity;
+
+                                       return (
+                                          <div key={day.date} className="group relative">
+                                             <div
+                                                className={`w-10 h-10 rounded-xl border flex flex-col items-center justify-center transition-all cursor-default overflow-hidden ${isOverloaded ? 'ring-2 ring-red-500/20' : ''
+                                                   }`}
+                                                style={{
+                                                   backgroundColor: 'var(--bg)',
+                                                   borderColor: isOverloaded ? '#ef4444' : 'var(--border)'
+                                                }}
+                                             >
+                                                {/* Heatmap Bars */}
+                                                <div className="w-full h-full flex flex-col">
+                                                   <div className="flex-1 bg-blue-500/80" style={{ height: `${(day.plannedHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
+                                                   <div className="flex-1 bg-amber-400/80" style={{ height: `${(day.continuousHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
+                                                   <div className="flex-1 bg-emerald-400/20" style={{ height: `${(day.bufferHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
+                                                </div>
+
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                   <span className="text-[10px] font-black tabular-nums group-hover:hidden" style={{ color: isOverloaded ? '#ef4444' : 'var(--text)' }}>
+                                                      {day.date.split('-')[2]}
+                                                   </span>
+                                                   <span className="text-[7px] font-black hidden group-hover:block uppercase" style={{ color: isOverloaded ? '#ef4444' : 'var(--text)' }}>
+                                                      {total}h
+                                                   </span>
+                                                </div>
+                                             </div>
+
+                                             {/* Tooltip Detalhado */}
+                                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 p-3 bg-slate-950 text-white rounded-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50 shadow-2xl scale-90 group-hover:scale-100">
+                                                <p className="text-[9px] font-black text-center mb-2 border-b border-white/10 pb-1">
+                                                   {new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}
+                                                </p>
+                                                <div className="space-y-1.5">
+                                                   <div className="flex justify-between items-center text-[8px] font-bold">
+                                                      <span className="text-blue-400">PLANEJADO:</span>
+                                                      <span>{day.plannedHours}h</span>
+                                                   </div>
+                                                   <div className="flex justify-between items-center text-[8px] font-bold">
+                                                      <span className="text-amber-400">CONTÍNUO:</span>
+                                                      <span>{day.continuousHours}h</span>
+                                                   </div>
+                                                   <div className="flex justify-between items-center text-[8px] font-bold border-t border-white/5 pt-1.5 mt-1.5">
+                                                      <span className="text-emerald-400">BUFFER:</span>
+                                                      <span>{day.bufferHours}h</span>
+                                                   </div>
+                                                   <div className={`flex justify-between items-center text-[9px] font-black pt-1 ${isOverloaded ? 'text-red-500' : 'text-white'}`}>
+                                                      <span>TOTAL:</span>
+                                                      <span>{total}h</span>
+                                                   </div>
+                                                </div>
+                                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-950"></div>
+                                             </div>
+                                          </div>
+                                       );
+                                    });
+                                 })()}
+                              </div>
+                           </div>
+                        </div>
+                     )}
+
                      <div className="ui-card p-6">
                         <div className="flex items-center gap-3 mb-8">
                            <div className="w-10 h-10 rounded-xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)]">
@@ -279,15 +555,18 @@ const TeamMemberDetail: React.FC = () => {
                                        <label className="block text-[10px] font-black text-[var(--muted)] uppercase">Hrs Meta Mês</label>
                                        {(() => {
                                           const currentMonth = new Date().toISOString().slice(0, 7);
-                                          const workingDays = CapacityUtils.getWorkingDaysInMonth(currentMonth);
+                                          const workingDays = CapacityUtils.getWorkingDaysInMonth(currentMonth, holidays || []);
                                           const calculatedMonthly = (formData.dailyAvailableHours || 0) * workingDays;
                                           return (
                                              <div className="w-full px-4 py-3 bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-black">
-                                                {calculatedMonthly}
+                                                {formatDecimalToTime(calculatedMonthly)}
                                              </div>
                                           );
                                        })()}
-                                       <p className="text-[8px] font-bold uppercase opacity-40 mt-1">Base: {CapacityUtils.getWorkingDaysInMonth(new Date().toISOString().slice(0, 7))} dias úteis</p>
+                                       <p className="text-[8px] font-bold uppercase opacity-40 mt-1">
+                                          Ref: {new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')} |
+                                          Meta: {formatDecimalToTime(CapacityUtils.getWorkingDaysInMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, holidays || []) * (formData.dailyAvailableHours || 8))} ({CapacityUtils.getWorkingDaysInMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, holidays || [])} dias)
+                                       </p>
                                     </div>
                                  </div>
                               </div>
@@ -430,29 +709,59 @@ const TeamMemberDetail: React.FC = () => {
 
                {activeTab === 'tasks' && (
                   <div className="space-y-4 max-w-4xl mx-auto">
-                     {userTasks.map(t => (
-                        <div onClick={() => navigate(`/tasks/${t.id}`)} key={t.id} className="cursor-pointer ui-card p-5 flex justify-between items-center group">
-                           <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl bg-[var(--surface-2)] flex items-center justify-center text-[var(--muted)] group-hover:text-[var(--primary)] group-hover:bg-[var(--primary-soft)] transition-all">
-                                 <LayoutGrid className="w-5 h-5" />
+                     {userTasks.map(t => {
+                        const predictedEnd = CapacityUtils.calculateTaskPredictedEndDate(
+                           t, projects, tasks, projectMembers, timesheetEntries, holidays || [], user.dailyAvailableHours || 8
+                        );
+                        const isPlanned = projects.find(p => String(p.id) === String(t.projectId))?.project_type === 'planned';
+
+                        return (
+                           <div onClick={() => navigate(`/tasks/${t.id}`)} key={t.id} className="cursor-pointer ui-card p-5 flex justify-between items-center group">
+                              <div className="flex items-center gap-4">
+                                 <div className="w-10 h-10 rounded-xl bg-[var(--surface-2)] flex items-center justify-center text-[var(--muted)] group-hover:text-[var(--primary)] group-hover:bg-[var(--primary-soft)] transition-all">
+                                    <LayoutGrid className="w-5 h-5" />
+                                 </div>
+                                 <div>
+                                    <p className="font-black text-[var(--text)] text-sm group-hover:text-[var(--primary)] transition-all">{t.title}</p>
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                       <span className="text-[9px] text-[var(--primary)] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--primary-soft)]">{t.status}</span>
+                                       <span className="text-[var(--border)] opacity-30">•</span>
+                                       <div className="flex items-center gap-1.5">
+                                          <Calendar className="w-3 h-3 text-[var(--muted)]" />
+                                          <span className="text-[9px] text-[var(--muted)] font-black uppercase tracking-tight">Início: {t.scheduledStart || t.actualStart || 'S/D'}</span>
+                                       </div>
+                                       <span className="text-[var(--border)] opacity-30">•</span>
+                                       <div className="flex items-center gap-1.5">
+                                          <Clock className="w-3 h-3 text-[var(--muted)]" />
+                                          <span className="text-[9px] text-[var(--muted)] font-black uppercase tracking-tight">Acordado: {t.estimatedDelivery || 'S/D'}</span>
+                                       </div>
+                                       {(isPlanned && predictedEnd) && (predictedEnd.ideal !== t.estimatedDelivery || predictedEnd.realistic !== t.estimatedDelivery) && (
+                                          <>
+                                             <span className="text-[var(--border)] opacity-30">•</span>
+                                             <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center gap-1 text-emerald-500">
+                                                   <Zap className="w-2.5 h-2.5" />
+                                                   <span className="text-[8px] font-black uppercase tracking-tight">Prev. Ideal: {predictedEnd.ideal}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 text-amber-500">
+                                                   <Clock className="w-2.5 h-2.5" />
+                                                   <span className="text-[8px] font-black uppercase tracking-tight">Prev. Realista: {predictedEnd.realistic}</span>
+                                                </div>
+                                             </div>
+                                          </>
+                                       )}
+                                    </div>
+                                 </div>
                               </div>
-                              <div>
-                                 <p className="font-black text-[var(--text)] text-sm group-hover:text-[var(--primary)] transition-all">{t.title}</p>
-                                 <div className="flex items-center gap-3 mt-1.5">
-                                    <span className="text-[9px] text-[var(--primary)] font-black uppercase tracking-widest">{t.status}</span>
-                                    <span className="text-[var(--border)]">•</span>
-                                    <span className="text-[9px] text-[var(--muted)] font-bold">{t.estimatedDelivery || 'Sem prazo'}</span>
+                              <div className="text-right">
+                                 <div className="text-xs font-black text-[var(--primary)]">{t.progress}%</div>
+                                 <div className="w-20 h-1.5 bg-[var(--surface-2)] rounded-full mt-1.5 overflow-hidden">
+                                    <div className="h-full bg-[var(--primary)]" style={{ width: `${t.progress}%` }}></div>
                                  </div>
                               </div>
                            </div>
-                           <div className="text-right">
-                              <div className="text-xs font-black text-[var(--primary)]">{t.progress}%</div>
-                              <div className="w-20 h-1.5 bg-[var(--surface-2)] rounded-full mt-1.5 overflow-hidden">
-                                 <div className="h-full bg-[var(--primary)]" style={{ width: `${t.progress}%` }}></div>
-                              </div>
-                           </div>
-                        </div>
-                     ))}
+                        );
+                     })}
                      {userTasks.length === 0 && (
                         <div className="py-20 text-center border-2 border-dashed border-[var(--border)] rounded-2xl">
                            <p className="text-xs font-black text-[var(--muted)] uppercase tracking-widest">Nenhuma tarefa atribuída.</p>
@@ -508,6 +817,75 @@ const TeamMemberDetail: React.FC = () => {
             onConfirm={handleDeleteUser}
             onCancel={() => setDeleteModalOpen(false)}
          />
+         {/* BREAKDOWN MODAL */}
+         {showBreakdown && capData && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+               <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="bg-white rounded-[40px] shadow-2xl w-full max-w-lg overflow-hidden border border-white/20"
+               >
+                  <div className={`p-8 ${showBreakdown === 'planned' ? 'bg-blue-600' : 'bg-amber-500'} text-white`}>
+                     <div className="flex items-center justify-between">
+                        <div>
+                           <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Distribuição de Carga</p>
+                           <h3 className="text-2xl font-black">{showBreakdown === 'planned' ? 'Projetos Planejados' : 'Projetos Contínuos'}</h3>
+                        </div>
+                        <button onClick={() => setShowBreakdown(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                           <LayoutGrid className="w-5 h-5 rotate-45" />
+                        </button>
+                     </div>
+
+                     <div className="mt-6 p-4 bg-white/10 rounded-2xl backdrop-blur-md">
+                        <p className="text-[10px] font-bold opacity-80 uppercase mb-1">Total no Mês</p>
+                        <p className="text-3xl font-black font-mono">
+                           {formatDecimalToTime(showBreakdown === 'planned' ? capData.plannedHours : capData.continuousHours)}h
+                        </p>
+                     </div>
+                  </div>
+
+                  <div className="p-8 max-h-[60vh] overflow-y-auto">
+                     <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-6 opacity-40">Origem das Horas</p>
+
+                     <div className="space-y-4">
+                        {(showBreakdown === 'planned' ? capData.breakdown.planned : capData.breakdown.continuous).map((item, idx) => (
+                           <div key={item.id} className="flex items-center justify-between p-4 rounded-3xl bg-[var(--surface)] border border-[var(--border)] group hover:border-[var(--primary)] transition-all">
+                              <div className="flex items-center gap-4">
+                                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs ${showBreakdown === 'planned' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
+                                    {idx + 1}
+                                 </div>
+                                 <div>
+                                    <p className="font-black text-[var(--text)] text-sm group-hover:text-[var(--primary)] transition-colors">{item.name}</p>
+                                    <p className="text-[10px] font-bold text-[var(--muted)] uppercase">ID: {item.id}</p>
+                                 </div>
+                              </div>
+                              <div className="text-right">
+                                 <p className="font-black text-[var(--text)] font-mono">{formatDecimalToTime(item.hours)}h</p>
+                                 <p className="text-[9px] font-bold text-[var(--muted)]">Calculado</p>
+                              </div>
+                           </div>
+                        ))}
+
+                        {(showBreakdown === 'planned' ? capData.breakdown.planned : capData.breakdown.continuous).length === 0 && (
+                           <div className="text-center py-12 opacity-30">
+                              <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+                              <p className="font-black uppercase text-xs">Nenhum projeto identificado</p>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+
+                  <div className="p-8 bg-slate-50 border-t border-[var(--border)] flex justify-end">
+                     <button
+                        onClick={() => setShowBreakdown(null)}
+                        className="px-8 py-3 bg-white border border-[var(--border)] text-[var(--text)] rounded-2xl font-black text-xs uppercase hover:bg-white hover:border-[var(--primary)] transition-all active:scale-95 shadow-sm"
+                     >
+                        Fechar
+                     </button>
+                  </div>
+               </motion.div>
+            </div>
+         )}
       </div>
    );
 };

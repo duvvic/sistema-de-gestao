@@ -11,13 +11,14 @@ import ConfirmationModal from './ConfirmationModal';
 import TransferResponsibilityModal from './TransferResponsibilityModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDecimalToTime } from '@/utils/normalizers';
+import * as CapacityUtils from '@/utils/capacity';
 
 const TaskDetail: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentUser, isAdmin } = useAuth();
-  const { tasks, clients, projects, users, projectMembers, timesheetEntries, createTask, updateTask, deleteTask } = useDataController();
+  const { tasks, clients, projects, users, projectMembers, timesheetEntries, createTask, updateTask, deleteTask, holidays } = useDataController();
 
   const isNew = !taskId || taskId === 'new';
   const task = !isNew ? tasks.find(t => t.id === taskId) : undefined;
@@ -173,26 +174,15 @@ const TaskDetail: React.FC = () => {
     const pStartTs = parseSafeDate(project.startDate)!;
     const pEndTs = parseSafeDate(project.estimatedDelivery)!;
 
-    // Calcula a duração de TODAS as tarefas do projeto (mesma fórmula do ProjectDetailView)
-    const projectTasks = tasks.filter(t => t.projectId === formData.projectId);
-    const siblingsFactors = projectTasks.map(t => {
-      const tStart = parseSafeDate(t.scheduledStart || t.actualStart) || pStartTs;
-      const tEnd = parseSafeDate(t.estimatedDelivery) || tStart;
-      return Math.max(0, tEnd - tStart) + ONE_DAY;
-    });
-    const totalSiblingDuration = siblingsFactors.reduce((a, b) => a + b, 0);
-    if (totalSiblingDuration <= 0) return { weight: 0, soldHours: 0 };
+    // Regra: peso baseado em forecast_horas (estimatedHours)
+    const otherTasks = tasks.filter(t => t.projectId === formData.projectId && t.id !== taskId);
+    const totalForecast = otherTasks.reduce((acc, t) => acc + (Number(t.estimatedHours) || 0), 0) + (Number(formData.estimatedHours) || 0);
 
-    const firstEntryTs = (timesheetEntries || [])
-      .filter(e => e.taskId === taskId)
-      .map(e => new Date(e.date + 'T12:00:00').getTime());
-    const firstEntryDateTs = firstEntryTs.length > 0 ? Math.min(...firstEntryTs) : null;
+    // Se não houver forecast total, o peso é simplificado (1/N)
+    const weight = totalForecast > 0
+      ? ((Number(formData.estimatedHours) || 0) / totalForecast) * 100
+      : (otherTasks.length + 1 > 0 ? (100 / (otherTasks.length + 1)) : 0);
 
-    const tStartTs = parseSafeDate(formData.scheduledStart || formData.actualStart) || firstEntryDateTs || pStartTs;
-    const tEndTs = parseSafeDate(formData.estimatedDelivery) || tStartTs;
-    const taskDurationTs = Math.max(0, tEndTs - tStartTs) + ONE_DAY;
-
-    const weight = (taskDurationTs / totalSiblingDuration) * 100;
     const soldHours = (project?.horas_vendidas || 0) > 0 ? (weight / 100) * project.horas_vendidas : 0;
     return { weight, soldHours };
   }, [formData.scheduledStart, formData.actualStart, formData.estimatedDelivery, formData.projectId, projects, tasks, timesheetEntries, taskId]);
@@ -589,6 +579,47 @@ const TaskDetail: React.FC = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Previsão Matemática baseada em Capacidade */}
+                  {!isNew && task && (
+                    <div className="mt-2 p-2 rounded-xl bg-slate-500/5 border border-[var(--border)]">
+                      <div className="space-y-2">
+                        {(() => {
+                          const predicted = CapacityUtils.calculateTaskPredictedEndDate(
+                            task, projects, tasks, projectMembers, timesheetEntries, holidays
+                          );
+                          const isIdealLate = formData.estimatedDelivery && predicted.ideal > formData.estimatedDelivery;
+                          const isRealisticLate = formData.estimatedDelivery && predicted.realistic > formData.estimatedDelivery;
+
+                          return (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[8px] font-black uppercase text-emerald-500 tracking-widest flex items-center gap-1">
+                                  <Zap size={8} /> Prev. Ideal (100%)
+                                </span>
+                                <span className={`text-[9px] font-black font-mono ${isIdealLate ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                  {new Date(predicted.ideal + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between border-t border-white/5 pt-1.5">
+                                <span className="text-[8px] font-black uppercase text-amber-500 tracking-widest flex items-center gap-1">
+                                  <Clock size={8} /> Prev. Realista (Dinâmico)
+                                </span>
+                                <div className="flex flex-col items-end">
+                                  <span className={`text-[9px] font-black font-mono ${predicted.isSaturated ? 'text-red-500' : isRealisticLate ? 'text-red-500' : 'text-amber-500'}`}>
+                                    {new Date(predicted.realistic + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                  </span>
+                                  {predicted.isSaturated && (
+                                    <span className="text-[6px] font-black text-red-500 uppercase tracking-tighter animate-pulse">Saturação Estrutural</span>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Seção Realizado */}

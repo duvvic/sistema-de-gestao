@@ -202,8 +202,8 @@ const TimesheetForm: React.FC = () => {
       return;
     }
 
-    if (!formData.description || formData.description.trim().length < 10) {
-      alert("O status é obrigatório e deve ter no mínimo 10 caracteres.");
+    if (!formData.description || formData.description.trim().length < 120) {
+      alert("O status é obrigatório e deve ter no mínimo 120 caracteres para descrever bem a atividade.");
       return;
     }
 
@@ -549,15 +549,20 @@ const TimesheetForm: React.FC = () => {
 
                   {/* Notes in Standard Mode */}
                   <div className="flex-1 flex flex-col min-h-0">
-                    <label className="block text-[10px] font-bold mb-1 flex items-center gap-2 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>
-                      <AlertCircle className="w-3 h-3" /> Status *
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-bold flex items-center gap-2 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>
+                        <AlertCircle className="w-3 h-3" /> Status (Mín. 120 carac.) *
+                      </label>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${(formData.description?.length || 0) < 120 ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                        {formData.description?.length || 0} / 120
+                      </span>
+                    </div>
                     <textarea
                       value={formData.description || ''}
                       onChange={(e) => { markDirty(); setFormData({ ...formData, description: e.target.value }); }}
-                      className="w-full p-3 border rounded-lg outline-none resize-none font-medium text-sm transition-all focus:ring-1 focus:ring-amber-500 flex-1"
-                      style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                      placeholder="Status da atividade..."
+                      className={`w-full p-3 border rounded-xl outline-none resize-none font-medium text-sm transition-all flex-1 focus:ring-1 ${(formData.description?.length || 0) < 120 ? 'focus:ring-red-500 border-red-500/30' : 'focus:ring-emerald-500 border-emerald-500/30'}`}
+                      style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
+                      placeholder="Descreva detalhadamente o que foi feito nesta atividade (mínimo 120 caracteres)..."
                     />
                   </div>
 
@@ -747,15 +752,20 @@ const TimesheetForm: React.FC = () => {
                 {/* Notes in Task Mode (moved from left column) */}
                 {isTaskLogMode && (
                   <div className="mt-4">
-                    <label className="block text-[10px] font-bold mb-1 flex items-center gap-2 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>
-                      <AlertCircle className="w-3 h-3" /> Status *
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-bold flex items-center gap-2 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>
+                        <AlertCircle className="w-3 h-3" /> Status (Mín. 120 carac.) *
+                      </label>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${(formData.description?.length || 0) < 120 ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                        {formData.description?.length || 0} / 120
+                      </span>
+                    </div>
                     <textarea
                       value={formData.description || ''}
                       onChange={(e) => { markDirty(); setFormData({ ...formData, description: e.target.value }); }}
-                      className="w-full p-3 border rounded-lg outline-none resize-none font-medium text-sm transition-all focus:ring-1 focus:ring-amber-500 h-24"
-                      style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
-                      placeholder="Status da atividade..."
+                      className={`w-full p-3 border rounded-xl outline-none resize-none font-medium text-sm transition-all h-32 focus:ring-1 ${(formData.description?.length || 0) < 120 ? 'focus:ring-red-500 border-red-500/30' : 'focus:ring-emerald-500 border-emerald-500/30'}`}
+                      style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
+                      placeholder="Descreva detalhadamente o que foi feito nesta atividade (mínimo 120 caracteres)..."
                     />
                   </div>
                 )}

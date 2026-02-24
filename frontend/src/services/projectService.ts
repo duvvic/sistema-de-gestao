@@ -36,7 +36,7 @@ export async function createProject(data: Partial<Project>): Promise<number> {
     complexidade: data.complexidade || 'Média',
     horas_vendidas: clean(data.horas_vendidas),
     torre: clean(data.torre),
-    project_type: data.project_type || 'planned',
+    project_type: data.project_type || 'continuous',
     valor_diario: clean(data.valor_diario),
   };
 

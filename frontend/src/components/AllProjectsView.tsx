@@ -20,18 +20,7 @@ const AllProjectsView: React.FC = () => {
   };
 
   const isProjectIncomplete = (p: any) => {
-    return (
-      !p.name?.trim() ||
-      !p.clientId ||
-      !p.partnerId ||
-      !p.valor_total_rs ||
-      !p.horas_vendidas ||
-      !p.startDate ||
-      !p.estimatedDelivery ||
-      !p.responsibleNicLabsId ||
-      !p.managerClient ||
-      projectMembers.filter(pm => String(pm.id_projeto) === p.id).length === 0
-    );
+    return !p.name?.trim();
   };
 
   return (
@@ -177,7 +166,7 @@ const AllProjectsView: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)]" style={{ color: 'var(--textTitle)' }}>
+                            <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)] flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
                               {project.name}
                             </h3>
 
@@ -282,7 +271,7 @@ const AllProjectsView: React.FC = () => {
                     </div>
                   )}
 
-                  <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)]" style={{ color: 'var(--textTitle)' }}>
+                  <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--brand)] flex items-center gap-2" style={{ color: 'var(--textTitle)' }}>
                     {project.name}
                   </h3>
 

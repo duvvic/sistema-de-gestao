@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
+import { formatDecimalToTime } from '@/utils/normalizers';
 import { User, Role } from '@/types';
 import { ArrowLeft, Save, User as UserIcon, Mail, Briefcase, Shield, Zap, Info, LayoutGrid } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
@@ -11,7 +12,7 @@ import * as CapacityUtils from '@/utils/capacity';
 const UserForm: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const { users } = useDataController();
+  const { users, holidays } = useDataController();
 
   const isNew = !userId || userId === 'new';
   const initialUser = !isNew ? users.find(u => u.id === userId) : undefined;
@@ -51,14 +52,14 @@ const UserForm: React.FC = () => {
 
   // Sincronizar Horas Mês automaticamente
   useEffect(() => {
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const workingDays = CapacityUtils.getWorkingDaysInMonth(currentMonth);
+    const currentMonthStr = new Date().toISOString().slice(0, 7);
+    const workingDays = CapacityUtils.getWorkingDaysInMonth(currentMonthStr, holidays || []);
     const calculatedMonthly = (formData.dailyAvailableHours || 0) * workingDays;
 
     if (formData.monthlyAvailableHours !== calculatedMonthly) {
       setFormData(prev => ({ ...prev, monthlyAvailableHours: calculatedMonthly }));
     }
-  }, [formData.dailyAvailableHours]);
+  }, [formData.dailyAvailableHours, holidays]);
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -294,9 +295,12 @@ const UserForm: React.FC = () => {
                 <div className="space-y-1.5">
                   <label className="block text-[9px] font-black text-[var(--muted)] uppercase tracking-widest">Carga Máxima (Mês)</label>
                   <div className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm font-black text-[var(--text)] opacity-80 cursor-not-allowed">
-                    {formData.monthlyAvailableHours} <span className="text-[10px] opacity-40 ml-2">PROJETADO</span>
+                    {formatDecimalToTime(formData.monthlyAvailableHours)} <span className="text-[10px] opacity-40 ml-2">DINÂMICO</span>
                   </div>
-                  <p className="text-[7px] font-bold opacity-40 mt-1 uppercase">Automático: {CapacityUtils.getWorkingDaysInMonth(new Date().toISOString().slice(0, 7))} dias úteis</p>
+                  <p className="text-[7px] font-bold opacity-40 mt-1 uppercase">
+                    Ref: {new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')} |
+                    Meta: {formatDecimalToTime(CapacityUtils.getWorkingDaysInMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, holidays || []) * (formData.dailyAvailableHours || 8))} ({CapacityUtils.getWorkingDaysInMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, holidays || [])} dias)
+                  </p>
                 </div>
               </div>
               <div className="flex gap-3 items-start p-4 bg-amber-500/5 rounded-xl border border-amber-500/10">

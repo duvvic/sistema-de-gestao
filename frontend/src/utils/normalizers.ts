@@ -181,7 +181,7 @@ export function mapDbProjectToProject(row: any): Project {
         weeklyStatusReport: row.weekly_status_report || undefined,
         complexidade: row.complexidade || undefined,
         horas_vendidas: row.horas_vendidas ? Number(row.horas_vendidas) : undefined,
-        project_type: row.project_type || 'planned',
+        project_type: row.project_type || 'continuous',
         valor_diario: row.valor_diario ? Number(row.valor_diario) : undefined,
     };
 }
@@ -234,8 +234,8 @@ export function mapDbAbsenceToAbsence(row: any): any {
 /**
  * Converte horas decimais (ex: 5.75) para o formato de tempo (ex: 5h 45m).
  */
-export function formatDecimalToTime(decimalHours: number): string {
-    if (isNaN(decimalHours) || decimalHours === 0) return "0h 00m";
+export function formatDecimalToTime(decimalHours: number | null | undefined): string {
+    if (decimalHours == null || isNaN(decimalHours) || decimalHours === 0) return "0:00h";
 
     const isNegative = decimalHours < 0;
     const absHours = Math.abs(decimalHours);
@@ -248,6 +248,6 @@ export function formatDecimalToTime(decimalHours: number): string {
         minutes = 0;
     }
 
-    const timeStr = `${hours}h ${minutes.toString().padStart(2, '0')}m`;
+    const timeStr = `${hours}:${minutes.toString().padStart(2, '0')}h`;
     return isNegative ? `-${timeStr}` : timeStr;
 }

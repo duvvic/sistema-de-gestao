@@ -216,7 +216,7 @@ export async function fetchTasks(): Promise<DbTaskRow[]> {
   try {
     const { data, error } = await supabase
       .from("fato_tarefas")
-      .select('id_tarefa_novo, ID_Tarefa, ID_Cliente, ID_Projeto, Afazer, ID_Colaborador, StatusTarefa, entrega_estimada, entrega_real, inicio_previsto, inicio_real, Porcentagem, Prioridade, Impacto, Riscos, "Observações", attachment, description, em_testes, link_ef, dias_atraso, is_impediment, deleted_at')
+      .select('id_tarefa_novo, ID_Tarefa, ID_Cliente, ID_Projeto, Afazer, ID_Colaborador, StatusTarefa, entrega_estimada, entrega_real, inicio_previsto, inicio_real, Porcentagem, Prioridade, Impacto, Riscos, "Observações", attachment, description, em_testes, link_ef, dias_atraso, is_impediment, deleted_at, estimated_hours')
       .is('deleted_at', null)
       .order('id_tarefa_novo', { ascending: false })
       .limit(10000);

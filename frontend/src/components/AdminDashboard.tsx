@@ -4,13 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useDataController } from '@/controllers/useDataController';
 import { Client, Project, Task } from "@/types";
-import { Plus, Building2, Search as SearchIcon, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, AlertTriangle, ArrowUp, Trash2, DollarSign, Target, TrendingUp, BarChart, Users, User, Calendar, PieChart, ArrowRight, Layers, FileSpreadsheet, X, HelpCircle, Info, Handshake, ArrowLeft, Mail, Phone, ExternalLink } from "lucide-react";
+import { Plus, Building2, Search as SearchIcon, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, AlertTriangle, ArrowUp, Trash2, DollarSign, Target, TrendingUp, BarChart, Users, User, Calendar, PieChart, ArrowRight, Layers, FileSpreadsheet, X, HelpCircle, Info, Handshake, ArrowLeft, Mail, Phone, ExternalLink, Activity, Zap } from "lucide-react";
 import ConfirmationModal from "./ConfirmationModal";
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
 import * as CapacityUtils from '@/utils/capacity';
 import { formatDecimalToTime } from '@/utils/normalizers';
 import { getProjectStatusByTimeline, getProjectStatusColor } from '@/utils/projectStatus';
+import CapacityDocumentation from "./CapacityDocumentation";
 
 type SortOption = 'recent' | 'alphabetical' | 'creation';
 
@@ -42,14 +43,14 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
   const partner = safeClients.find(c => c.id === p.partnerId);
   const projectTasks = groupedData.tasksByProj[p.id] || [];
   const pTimesheets = groupedData.timesByProj[p.id] || [];
+  const isContinuous = p.project_type === 'continuous';
 
   const costToday = pTimesheets.reduce((acc: number, e: any) => {
     const u = users.find(user => user.id === e.userId);
     return acc + (e.totalHours * (u?.hourlyCost || 0));
   }, 0);
 
-  const sumProgress = projectTasks.reduce((acc: number, t: any) => acc + (t.progress || 0), 0);
-  const progress = projectTasks.length > 0 ? sumProgress / projectTasks.length : 0;
+  const progress = CapacityUtils.calculateProjectWeightedProgress(p.id, projectTasks);
 
   const hoursSold = p.horas_vendidas || 0;
   const hoursReal = pTimesheets.reduce((acc: number, e: any) => acc + (Number(e.totalHours) || 0), 0);
@@ -85,11 +86,16 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
   const statusP = getPlannedStatus(plannedProgress, p.complexidade);
   const formatDate = (dateStr?: string) => {
     if (!dateStr || dateStr === "") return <span className="opacity-10">--/--/--</span>;
+    // Divide a string da data para evitar problemas de fuso horário (YYYY-MM-DD)
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 
-  const isDelayed = progress < (plannedProgress - 5);
-  const isHourOverrun = hoursReal > hoursSold && hoursSold > 0;
+  const isDelayed = !isContinuous && progress < (plannedProgress - 5);
+  const isHourOverrun = !isContinuous && hoursReal > hoursSold && hoursSold > 0;
 
   const isEven = idx % 2 === 0;
   const rowBg = isEven ? 'var(--surface)' : 'var(--surface-2)';
@@ -112,7 +118,11 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className="font-black text-xs">{p.name}</span>
-
+            {isContinuous && (
+              <span className="bg-amber-500 text-black text-[7px] font-black px-1 rounded flex items-center gap-0.5">
+                CONTÍNUO
+              </span>
+            )}
             {isDelayed && (
               <span className="flex-shrink-0 bg-red-500 text-white text-[7px] font-black px-1 rounded flex items-center gap-0.5 animate-pulse">
                 <Clock size={8} /> ATRASO
@@ -122,15 +132,15 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
           {isHourOverrun && <span className="text-[7px] font-black text-red-500 uppercase tracking-tighter">Budget Estourado</span>}
         </div>
       </td>
-      <td className="p-3 border-r border-white/5 bg-blue-500/[0.02]"><span className="text-[10px] text-blue-400 whitespace-nowrap">{statusP}</span></td>
+      <td className="p-3 border-r border-white/5 bg-blue-500/[0.02]"><span className="text-[10px] text-blue-400 whitespace-nowrap">{isContinuous ? 'Mensal' : statusP}</span></td>
       <td className="p-3 text-[10px] font-mono bg-blue-500/[0.02]" style={{ color: 'var(--text-2)' }}>{formatDate(p.startDate)}</td>
-      <td className="p-3 text-[10px] font-mono font-bold bg-blue-500/[0.02]" style={{ color: 'var(--text)' }}>{formatDate(p.estimatedDelivery)}</td>
+      <td className="p-3 text-[10px] font-mono font-bold bg-blue-500/[0.02]" style={{ color: 'var(--text)' }}>{isContinuous ? 'N/A' : formatDate(p.estimatedDelivery)}</td>
       <td className="p-3 border-r border-white/5 bg-blue-500/[0.02]">
         <div className="flex items-center gap-1.5 opacity-60">
           <div className="w-12 h-1 bg-[var(--surface-2)] rounded-full overflow-hidden border border-[var(--border)]">
-            <div className="h-full bg-blue-400" style={{ width: `${plannedProgress}%` }} />
+            <div className="h-full bg-blue-400" style={{ width: `${isContinuous ? 100 : plannedProgress}%` }} />
           </div>
-          <span className="text-[10px] font-bold" style={{ color: 'var(--text-2)' }}>{Math.round(plannedProgress)}%</span>
+          <span className="text-[10px] font-bold" style={{ color: 'var(--text-2)' }}>{isContinuous ? '--' : Math.round(plannedProgress) + '%'}</span>
         </div>
       </td>
       <td className="p-3 bg-emerald-500/[0.02]">
@@ -155,15 +165,15 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
           <span className={`text-[10px] font-black ${isDelayed ? 'text-red-500 font-black' : 'text-[var(--text)]'}`}>{Math.round(progress)}%</span>
         </div>
       </td>
-      <td className="p-3 border-l border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02]" style={{ color: 'var(--text-2)' }}>{Math.round(hoursSold)}h</td>
+      <td className="p-3 border-l border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02]" style={{ color: 'var(--text-2)' }}>{isContinuous ? '--' : Math.round(hoursSold) + 'h'}</td>
       <td className={`p-3 border-r border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02] ${isHourOverrun ? 'text-red-500 font-black' : 'text-emerald-400'}`}>{Math.round(hoursReal)}h</td>
-      <td className="p-3 border-r border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02]" style={{ color: 'var(--text)' }}>{sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+      <td className="p-3 border-r border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02]" style={{ color: 'var(--text)' }}>{isContinuous ? '--' : sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
       <td className="p-3 border-r border-white/5 text-[11px] font-bold font-mono bg-amber-500/[0.02]" style={{ color: 'var(--text-2)' }}>{costToday.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-      <td className={`p-3 text-[11px] font-black font-mono border-l bg-amber-500/5 ${result < 0 ? 'text-red-500' : 'text-emerald-500'}`} style={{ borderColor: 'var(--border)' }}>
-        {result.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+      <td className={`p-3 text-[11px] font-black font-mono border-l bg-amber-500/5 ${result < 0 && !isContinuous ? 'text-red-500' : isContinuous ? 'text-blue-500' : 'text-emerald-500'}`} style={{ borderColor: 'var(--border)' }}>
+        {isContinuous ? '--' : result.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
       </td>
-      <td className={`p-3 text-[11px] font-black font-mono bg-amber-500/5 ${margin < 15 ? 'text-red-500' : margin < 30 ? 'text-amber-500' : 'text-emerald-500'}`}>
-        {Math.round(margin)}%
+      <td className={`p-3 text-[11px] font-black font-mono bg-amber-500/5 ${margin < 15 && !isContinuous ? 'text-red-500' : isContinuous ? 'text-slate-400' : margin < 30 ? 'text-amber-500' : 'text-emerald-500'}`}>
+        {isContinuous ? '--' : Math.round(margin) + '%'}
       </td>
     </tr >
   );
@@ -172,7 +182,7 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { clients, projects, tasks, error, loading, users, deleteProject, projectMembers, timesheetEntries } = useDataController();
+  const { clients, projects, tasks, error, loading, users, deleteProject, projectMembers, timesheetEntries, holidays } = useDataController();
   const { currentUser, isAdmin } = useAuth();
   const [sortBy, setSortBy] = useState<SortOption>(() => (localStorage.getItem('admin_clients_sort_by') as SortOption) || 'alphabetical');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'late' | 'ongoing' | 'done'>('all');
@@ -181,6 +191,7 @@ const AdminDashboard: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCapDoc, setShowCapDoc] = useState(false);
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -227,8 +238,8 @@ const AdminDashboard: React.FC = () => {
 
   // Lógica de projeto incompleto (campos obrigatórios ausentes)
   const isProjectIncomplete = (p: Project) => {
-    return !p.name?.trim() || !p.startDate || !p.estimatedDelivery || !p.horas_vendidas || p.horas_vendidas <= 0 ||
-      !p.clientId || !p.partnerId || !p.responsibleNicLabsId || !p.managerClient || (p.valor_total_rs || 0) <= 0;
+    // Agora apenas o nome é estritamente obrigatório para evitar erros de renderização
+    return !p.name?.trim();
   };
 
   const toggleViewMode = (mode: 'grid' | 'list' | 'tasks') => {
@@ -482,9 +493,7 @@ const AdminDashboard: React.FC = () => {
       totalCommitted += projectCost;
 
       // Progresso Real do Projeto
-      const projectProgress = projectTasks.length > 0
-        ? projectTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / projectTasks.length
-        : 0;
+      const projectProgress = CapacityUtils.calculateProjectWeightedProgress(project.id, projectTasks);
 
       totalPortfolioWeightedProgress += projectProgress;
 
@@ -553,8 +562,7 @@ const AdminDashboard: React.FC = () => {
 
       const totalProgress = partnerProjects.length > 0
         ? partnerProjects.reduce((acc, p) => {
-          const pTasks = safeTasks.filter(t => t.projectId === p.id);
-          const pProg = pTasks.length > 0 ? pTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / pTasks.length : 0;
+          const pProg = CapacityUtils.calculateProjectWeightedProgress(p.id, safeTasks);
           return acc + pProg;
         }, 0) / partnerProjects.length
         : 0;
@@ -581,8 +589,15 @@ const AdminDashboard: React.FC = () => {
   const resourceMetrics = useMemo(() => {
     if (!users || !portfolioTimesheets) return [];
 
-    const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'developer'];
-    return users.filter(u => u.active !== false && (u.torre !== 'N/A' || activeRoles.includes(u.role?.toLowerCase() || ''))).map(u => {
+    // Filtro de "Operacional": Mostra todos, EXCETO quem está explicitamente "Fora do Fluxo" (torre === N/A)
+    return users.filter(u => {
+      // 1. Deve estar ativo
+      if (u.active === false) return false;
+
+      // 2. Remove apenas se estiver explicitamente como 'N/A' (Fora do Fluxo)
+      const torre = (u.torre || '').toUpperCase().trim();
+      return torre !== 'N/A';
+    }).map(u => {
       // 1. Apontado (Realizado - Timesheet)
       const [yearStr, monthStr] = capacityMonth.split('-');
       const year = parseInt(yearStr);
@@ -596,17 +611,17 @@ const AdminDashboard: React.FC = () => {
         return entryDate.getFullYear() === year && (entryDate.getMonth() + 1) === month;
       });
 
-      const performedHours = userMonthEntries.reduce((acc, entry) => {
+      const performedHours = Math.round(userMonthEntries.reduce((acc, entry) => {
         const h = Number(entry.totalHours || (entry as any).hours || 0);
         return acc + (isNaN(h) ? 0 : h);
-      }, 0);
+      }, 0) * 100) / 100;
 
       // 2. Alocado (Previsto - Via Nova Lógica de Projetos e Membros)
-      // Agora espera: user, monthStr, projects, projectMembers, timesheets
-      const capData = CapacityUtils.getUserMonthlyAvailability(u, capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks);
+      // Agora espera: user, monthStr, projects, projectMembers, timesheets, tasks, holidays
+      const capData = CapacityUtils.getUserMonthlyAvailability(u, capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays);
 
       // 3. Data de Disponibilidade (Preditivo - Baseado em Backlog Total)
-      const releaseDate = CapacityUtils.calculateIndividualReleaseDate(u, safeProjects, projectMembers, timesheetEntries, safeTasks) || 'N/A';
+      const releaseDate = CapacityUtils.calculateIndividualReleaseDate(u, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays);
 
       return {
         id: u.id,
@@ -615,12 +630,61 @@ const AdminDashboard: React.FC = () => {
         capacity: capData.capacity,
         assigned: capData.allocated, // Horas planejadas
         performed: performedHours, // Horas já trabalhadas (agora sem round para permitir HH:MM preciso)
-        available: capData.available, // Planejado Disponível
+        available: capData.available, // SALDO = Hrs Meta Mês
         load: capData.capacity > 0 ? (capData.allocated / capData.capacity) * 100 : 0,
         releaseDate
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [users, portfolioTimesheets, capacityMonth, safeTasks, safeProjects, projectMembers, timesheetEntries]);
+  }, [users, portfolioTimesheets, capacityMonth, safeTasks, safeProjects, projectMembers, timesheetEntries, holidays]);
+
+  const systemicMetrics = useMemo(() => {
+    if (!resourceMetrics || resourceMetrics.length === 0) return null;
+
+    const totalResources = resourceMetrics.length;
+    const saturatedResources = resourceMetrics.filter(r => (r.releaseDate as any)?.isSaturated).length;
+    const saturationRate = (saturatedResources / totalResources) * 100;
+
+    const avgLoad = resourceMetrics.reduce((acc, r) => acc + r.load, 0) / totalResources;
+
+    // Projetos bloqueados: Projetos do tipo 'planned' onde TODOS os membros alocados estão saturados
+    const blockedProjects = safeProjects.filter(p => {
+      if (p.project_type !== 'planned' || p.active === false) return false;
+      const members = projectMembers.filter(pm => String(pm.id_projeto) === String(p.id));
+      if (members.length === 0) return false;
+
+      // Verifica se todos os membros deste projeto estão saturados
+      return members.every(pm => {
+        const res = resourceMetrics.find(r => String(r.id) === String(pm.id_colaborador));
+        if (!res) return false; // Se não encontrou o recurso (ex: fora do fluxo), não conta como saturado para bloqueio
+        return (res.releaseDate as any)?.isSaturated;
+      });
+    });
+
+    return {
+      totalResources,
+      saturatedResources,
+      saturationRate,
+      avgLoad,
+      blockedProjectsCount: blockedProjects.length,
+      isRiskHigh: saturationRate > 25 || blockedProjects.length > 0
+    };
+  }, [resourceMetrics, safeProjects, projectMembers]);
+
+  // --- ANÁLISE PROATIVA E TENDÊNCIAS ---
+  const teamElasticity = useMemo(() => {
+    return CapacityUtils.calculateTeamElasticity(users || [], capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays);
+  }, [users, capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays]);
+
+  const saturationTrend = useMemo(() => {
+    return CapacityUtils.calculateTeamSaturationTrend(users || [], safeProjects, projectMembers, safeTasks, timesheetEntries, holidays);
+  }, [users, safeProjects, projectMembers, safeTasks, timesheetEntries, holidays]);
+
+  const [simulationHours, setSimulationHours] = useState<number>(0);
+  const simulationImpact = useMemo(() => {
+    if (simulationHours <= 0) return [];
+    return CapacityUtils.simulateNewProjectImpact(simulationHours, users || [], safeProjects, projectMembers, safeTasks, timesheetEntries, holidays);
+  }, [simulationHours, users, safeProjects, projectMembers, safeTasks, timesheetEntries, holidays]);
+
 
   const changeMonth = (delta: number) => {
     const [year, month] = capacityMonth.split('-').map(Number);
@@ -692,15 +756,28 @@ const AdminDashboard: React.FC = () => {
             Executivo
           </button>
 
-          <button
-            onClick={() => setActiveTab('capacidade')}
-            className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${activeTab === 'capacidade'
-              ? 'bg-[var(--text)] text-[var(--bg)] shadow-sm'
-              : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
-              }`}
-          >
-            Capacidade
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setActiveTab('capacidade')}
+              className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${activeTab === 'capacidade'
+                ? 'bg-[var(--text)] text-[var(--bg)] shadow-sm'
+                : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                }`}
+            >
+              Capacidade
+            </button>
+            {activeTab === 'capacidade' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCapDoc(true);
+                }}
+                className="w-5 h-5 mr-1.5 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 hover:scale-110 transition-all active:scale-95"
+              >
+                <HelpCircle className="w-3 h-3" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -951,121 +1028,134 @@ const AdminDashboard: React.FC = () => {
       )
       }
 
-      {
-        activeTab === 'capacidade' && resourceMetrics && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-            <div className="p-8 rounded-[32px] border shadow-xl transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex flex-col md:flex-row justify-between items-end md:items-center mb-6 gap-4">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--muted)' }}>
-                    <Users className="w-4 h-4 text-[var(--primary)]" /> Mapa de Ocupação
-                  </h3>
+      {activeTab === 'capacidade' && resourceMetrics && (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+          <div className="p-8 rounded-[32px] border shadow-xl transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="flex flex-col md:flex-row justify-between items-end md:items-center mb-6 gap-4">
+              <div className="flex items-center gap-4">
+                <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--muted)' }}>
+                  <Users className="w-4 h-4 text-[var(--primary)]" /> Mapa de Ocupação
+                </h3>
 
-                  <div className="h-4 w-px bg-[var(--border)]" />
+                <button
+                  onClick={() => setShowCapDoc(true)}
+                  className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-all group relative shadow-blue-500/20"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  <span className="absolute left-full ml-3 px-2 py-1 rounded-md bg-slate-900 border border-white/10 text-[8px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-50">
+                    Entenda as Regras
+                  </span>
+                </button>
 
-                  {/* Minimalist Month Navigation */}
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => changeMonth(-1)} className="p-1 hover:text-[var(--primary)] transition-colors">
-                      <ChevronDown className="w-4 h-4 rotate-90" />
-                    </button>
-                    <span className="text-sm font-bold font-mono uppercase" style={{ color: 'var(--text)' }}>
-                      {new Date(capacityMonth + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                    </span>
-                    <button onClick={() => changeMonth(1)} className="p-1 hover:text-[var(--primary)] transition-colors">
-                      <ChevronDown className="w-4 h-4 -rotate-90" />
-                    </button>
-                  </div>
-                </div>
+                <div className="h-4 w-px bg-[var(--border)]" />
 
-                <div className="flex gap-4 opacity-70 scale-90 origin-right">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>&lt;80%</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-amber-500" />
-                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>80-100%</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500" />
-                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>&gt;100%</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => changeMonth(-1)} className="p-1 hover:text-[var(--primary)] transition-colors">
+                    <ChevronDown className="w-4 h-4 rotate-90" />
+                  </button>
+                  <span className="text-sm font-bold font-mono uppercase" style={{ color: 'var(--text)' }}>
+                    {new Date(capacityMonth + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                  </span>
+                  <button onClick={() => changeMonth(1)} className="p-1 hover:text-[var(--primary)] transition-colors">
+                    <ChevronDown className="w-4 h-4 -rotate-90" />
+                  </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12">
-                {[0, 1].map(colIdx => {
-                  const half = Math.ceil(resourceMetrics.length / 2);
-                  const subset = colIdx === 0 ? resourceMetrics.slice(0, half) : resourceMetrics.slice(half);
-                  if (subset.length === 0) return null;
-
-                  return (
-                    <div key={colIdx} className="overflow-hidden mb-6 xl:mb-0">
-                      <table className="w-full border-collapse border border-[var(--border)]">
-                        <thead>
-                          <tr className="bg-[var(--surface-2)]">
-                            <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-left border-b border-r border-[var(--border)]">COLABORADOR</th>
-                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">OCUP (%)</th>
-                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">ALOCADO</th>
-                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">REALIZ</th>
-                            <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">DISPONÍVEL EM</th>
-                            <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-right border-b border-[var(--border)]">SALDO</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {subset.map(res => (
-                            <tr
-                              key={res.id}
-                              onClick={() => {
-                                navigate(`/admin/team/${res.id}?tab=projects`);
-                              }}
-                              className="group cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
-                            >
-                              <td className="py-3 px-3 border-b border-r border-[var(--border)]">
-                                <div className="flex flex-col">
-                                  <span className="text-[11px] font-bold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors line-clamp-1">{res.name}</span>
-                                  <span className="text-[8px] font-black text-[var(--muted)] uppercase tracking-tighter opacity-70 leading-none">{res.torre || 'N/A'}</span>
-                                </div>
-                              </td>
-                              <td className="py-3 px-2 text-center border-b border-r border-[var(--border)]">
-                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${res.load > 100 ? 'bg-red-500/10 text-red-500 border-red-500/20' : res.load > 80 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
-                                  {Math.round(res.load)}%
-                                </span>
-                              </td>
-                              <td className="py-3 px-2 text-center text-[10px] font-bold text-[var(--text)] border-b border-r border-[var(--border)]">
-                                {formatDecimalToTime(res.assigned)}
-                              </td>
-                              <td className="py-3 px-2 text-center text-[10px] font-bold text-blue-500 border-b border-r border-[var(--border)]">
-                                {formatDecimalToTime(res.performed)}
-                              </td>
-                              <td className="py-3 px-2 text-center border-b border-r border-[var(--border)]">
-                                <div className="flex flex-col items-center">
-                                  <span className={`text-[10px] font-black ${res.releaseDate === 'N/A' || res.releaseDate === '' ? 'text-[var(--muted)] opacity-40' : 'text-purple-500'}`}>
-                                    {res.releaseDate || '---'}
-                                  </span>
-                                  {res.releaseDate && res.releaseDate !== 'N/A' && <span className="text-[7px] font-black text-[var(--muted)] uppercase tracking-tighter leading-none">Previsão</span>}
-                                </div>
-                              </td>
-                              <td className="py-3 px-3 text-right font-black border-b border-[var(--border)]">
-                                <span className={`text-[11px] ${res.available < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                  {formatDecimalToTime(res.available)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })}
+              <div className="flex gap-4 opacity-70 scale-90 origin-right">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>&lt;80%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>80-100%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>&gt;100%</span>
+                </div>
               </div>
             </div>
-          </motion.div>
-        )
-      }
 
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12">
+              {[0, 1].map(colIdx => {
+                const half = Math.ceil(resourceMetrics.length / 2);
+                const subset = colIdx === 0 ? resourceMetrics.slice(0, half) : resourceMetrics.slice(half);
+                if (subset.length === 0) return null;
 
-
+                return (
+                  <div key={colIdx} className="overflow-hidden mb-6 xl:mb-0">
+                    <table className="w-full border-collapse border border-[var(--border)]">
+                      <thead>
+                        <tr className="bg-[var(--surface-2)]">
+                          <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-left border-b border-r border-[var(--border)]">COLABORADOR</th>
+                          <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">OCUP (%)</th>
+                          <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">ALOCADO</th>
+                          <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">REALIZ</th>
+                          <th className="py-2.5 px-2 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center border-b border-r border-[var(--border)]">DISPONÍVEL EM</th>
+                          <th className="py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-right border-b border-[var(--border)]">SALDO</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subset.map(res => (
+                          <tr
+                            key={res.id}
+                            onClick={() => {
+                              navigate(`/admin/team/${res.id}?tab=tasks`);
+                            }}
+                            className="group cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
+                          >
+                            <td className="py-3 px-3 border-b border-r border-[var(--border)]">
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-bold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors line-clamp-1">{res.name}</span>
+                                <span className="text-[8px] font-black text-[var(--muted)] uppercase tracking-tighter opacity-70 leading-none">{res.torre || 'N/A'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 text-center border-b border-r border-[var(--border)]">
+                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${res.load > 100 ? 'bg-red-500/10 text-red-500 border-red-500/20' : res.load > 80 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
+                                {Math.round(res.load)}%
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 text-center text-[10px] font-bold text-[var(--text)] border-b border-r border-[var(--border)]">
+                              {formatDecimalToTime(res.assigned)}
+                            </td>
+                            <td className="py-3 px-2 text-center text-[10px] font-bold text-blue-500 border-b border-r border-[var(--border)]">
+                              {formatDecimalToTime(res.performed)}
+                            </td>
+                            <td className="py-3 px-2 text-center border-b border-r border-[var(--border)]">
+                              <div className="flex flex-col items-center">
+                                <span className={`text-[10px] font-black ${!res.releaseDate ? 'text-[var(--muted)] opacity-40' : (res.releaseDate as any).isSaturated ? 'text-red-500' : 'text-purple-500'}`}>
+                                  {(res.releaseDate as any)?.realistic || '---'}
+                                </span>
+                                {res.releaseDate && (
+                                  <div className="flex flex-col gap-0 items-center">
+                                    <span className={`text-[7px] font-black uppercase tracking-tighter leading-none ${(res.releaseDate as any).isSaturated ? 'text-red-500' : 'text-amber-500'}`}>
+                                      {(res.releaseDate as any).isSaturated ? 'SATURADO' : 'Previsão Realista'}
+                                    </span>
+                                    {(res.releaseDate as any).ideal !== (res.releaseDate as any).realistic && (
+                                      <span className="text-[6px] font-bold text-slate-400 uppercase tracking-tighter">Ideal: {(res.releaseDate as any).ideal}</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-right font-black border-b border-[var(--border)]">
+                              <span className={`text-[11px] ${res.available < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                {formatDecimalToTime(res.available)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {
         activeTab === 'parceiros' && (
@@ -1848,9 +1938,7 @@ const AdminDashboard: React.FC = () => {
                             clientProjects.map(project => {
                               const projectTasks = safeTasks.filter(t => t.projectId === project.id);
                               const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
-                              const avgProgress = projectTasks.length > 0
-                                ? Math.round(projectTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / projectTasks.length)
-                                : 0;
+                              const avgProgress = Math.round(CapacityUtils.calculateProjectWeightedProgress(project.id, projectTasks));
 
                               return (
                                 <div key={project.id} className="space-y-3">
@@ -2399,6 +2487,8 @@ const AdminDashboard: React.FC = () => {
         }}
         onCancel={() => setProjectToDelete(null)}
       />
+      {/* Modal de Documentação de Capacidade */}
+      <CapacityDocumentation isOpen={showCapDoc} onClose={() => setShowCapDoc(false)} />
     </div >
   );
 };
