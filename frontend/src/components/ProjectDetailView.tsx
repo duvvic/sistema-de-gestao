@@ -248,7 +248,7 @@ const ProjectDetailView: React.FC = () => {
 
     // --- CÁLCULOS ESPECÍFICOS PARA PROJETOS CONTÍNUOS ---
     let continuousPlannedValue = 0;
-    if ((project.project_type || 'continuous') === 'continuous' && project.startDate) {
+    if (project.startDate) {
       const start = new Date(project.startDate + 'T12:00:00');
       const today = new Date();
       today.setHours(12, 0, 0, 0);
@@ -954,24 +954,66 @@ const ProjectDetailView: React.FC = () => {
                           </div>
 
                           {isEditing ? (
-                            <div>
-                              <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Valor Diário (8h) (R$)</label>
-                              <input
-                                type="number"
-                                value={formData.valor_diario || ''}
-                                onChange={e => setFormData({ ...formData, valor_diario: e.target.value === '' ? 0 : Number(e.target.value) })}
-                                onKeyDown={handleKeyDown}
-                                className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
-                                style={{ color: 'var(--text)' }}
-                              />
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Valor Diário (8h) (R$)</label>
+                                <input
+                                  type="number"
+                                  value={formData.valor_diario || ''}
+                                  onChange={e => setFormData({ ...formData, valor_diario: e.target.value === '' ? 0 : Number(e.target.value) })}
+                                  onKeyDown={handleKeyDown}
+                                  className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
+                                  style={{ color: 'var(--text)' }}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Valor Total (R$)</label>
+                                  <input
+                                    type="number"
+                                    value={formData.valor_total_rs || ''}
+                                    onChange={e => setFormData({ ...formData, valor_total_rs: e.target.value === '' ? 0 : Number(e.target.value) })}
+                                    onKeyDown={handleKeyDown}
+                                    className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
+                                    style={{ color: 'var(--text)' }}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Horas Vendidas</label>
+                                  <input
+                                    type="number"
+                                    value={formData.horas_vendidas || ''}
+                                    onChange={e => setFormData({ ...formData, horas_vendidas: e.target.value === '' ? 0 : Number(e.target.value) })}
+                                    onKeyDown={handleKeyDown}
+                                    className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
+                                    style={{ color: 'var(--text)' }}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           ) : (
-                            <div className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
-                              <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 mb-1">Valor Diário Acordado</p>
-                              <p className="text-xl font-black text-amber-500">
-                                {(project?.valor_diario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                              </p>
-                              <p className="text-[8px] font-bold opacity-40 mt-1 uppercase">Equivalente a 8h de operação.</p>
+                            <div className="space-y-4">
+                              <div className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)] overflow-hidden">
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 mb-1">Valor Diário Acordado</p>
+                                <p className="text-xl font-black text-amber-500 truncate">
+                                  {(project?.valor_diario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </p>
+                                <p className="text-[8px] font-bold opacity-40 mt-1 uppercase leading-none">Equivalente a 8h de operação.</p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
+                                <div>
+                                  <p className="text-[8px] font-black uppercase tracking-wider opacity-40 mb-1">Valor Total</p>
+                                  <p className="text-[11px] font-black truncate" style={{ color: 'var(--text)' }}>
+                                    {(project?.valor_total_rs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                  </p>
+                                </div>
+                                <div className="border-l border-[var(--border)] pl-3">
+                                  <p className="text-[8px] font-black uppercase tracking-wider opacity-40 mb-1">Horas Vendidas</p>
+                                  <p className="text-[11px] font-black" style={{ color: 'var(--text)' }}>
+                                    {project?.horas_vendidas || 0}h
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -983,16 +1025,29 @@ const ProjectDetailView: React.FC = () => {
                     <h4 className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Timeline do Projeto</h4>
                     {isEditing ? (
                       <div className="space-y-4">
-                        <div>
-                          <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Data de Início</label>
-                          <input
-                            type="date"
-                            value={formData.startDate}
-                            onChange={e => setFormData({ ...formData, startDate: e.target.value })}
-                            onKeyDown={handleKeyDown}
-                            className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
-                            style={{ color: 'var(--text)' }}
-                          />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Data de Início</label>
+                            <input
+                              type="date"
+                              value={formData.startDate}
+                              onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                              onKeyDown={handleKeyDown}
+                              className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
+                              style={{ color: 'var(--text)' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-black uppercase mb-1 block" style={{ color: 'var(--muted)' }}>Data de Entrega</label>
+                            <input
+                              type="date"
+                              value={formData.estimatedDelivery}
+                              onChange={e => setFormData({ ...formData, estimatedDelivery: e.target.value })}
+                              onKeyDown={handleKeyDown}
+                              className="text-xs p-2 rounded w-full border outline-none font-bold transition-colors bg-[var(--bg)] border-[var(--border)]"
+                              style={{ color: 'var(--text)' }}
+                            />
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -1013,40 +1068,38 @@ const ProjectDetailView: React.FC = () => {
                             </div>
                           </div>
 
-                          {isContinuousMode && (
+                          {project?.startDate && project?.estimatedDelivery && (
                             <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-center">
-                              <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Previsão Fim de Ciclo</p>
+                              <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Resumo do Período</p>
                               <p className="text-sm font-black mt-1" style={{ color: 'var(--text)' }}>
-                                {project?.estimatedDelivery ? project?.estimatedDelivery.split('T')[0].split('-').reverse().join('/') : '--'}
+                                {project.estimatedDelivery.split('T')[0].split('-').reverse().join('/')}
                               </p>
-                              <p className="text-[8px] font-bold opacity-30 mt-1 uppercase">Regra: Início + 1 ano</p>
+                              <p className="text-[8px] font-bold opacity-30 mt-1 uppercase">Baseado no período planejado</p>
 
-                              {project?.startDate && project?.estimatedDelivery && (
-                                <div className="mt-3 pt-3 border-t border-amber-500/10">
-                                  <p className="text-[12px] font-black text-amber-600">
-                                    {(() => {
-                                      const start = new Date(project.startDate + 'T12:00:00');
-                                      const end = new Date(project.estimatedDelivery + 'T12:00:00');
-                                      let businessDays = 0;
-                                      const current = new Date(start);
-                                      while (current <= end) {
-                                        const day = current.getDay();
-                                        if (day !== 0 && day !== 6) {
-                                          const dateStr = current.toISOString().split('T')[0];
-                                          const isHoliday = holidays.some(h => {
-                                            const hStart = h.date;
-                                            const hEnd = h.endDate || h.date;
-                                            return dateStr >= hStart && dateStr <= hEnd;
-                                          });
-                                          if (!isHoliday) businessDays++;
-                                        }
-                                        current.setDate(current.getDate() + 1);
+                              <div className="mt-3 pt-3 border-t border-amber-500/10">
+                                <p className="text-[12px] font-black text-amber-600">
+                                  {(() => {
+                                    const start = new Date(project.startDate + 'T12:00:00');
+                                    const end = new Date(project.estimatedDelivery + 'T12:00:00');
+                                    let businessDays = 0;
+                                    const current = new Date(start);
+                                    while (current <= end) {
+                                      const day = current.getDay();
+                                      if (day !== 0 && day !== 6) {
+                                        const dateStr = current.toISOString().split('T')[0];
+                                        const isHoliday = holidays.some(h => {
+                                          const hStart = h.date;
+                                          const hEnd = h.endDate || h.date;
+                                          return dateStr >= hStart && dateStr <= hEnd;
+                                        });
+                                        if (!isHoliday) businessDays++;
                                       }
-                                      return `${businessDays} dias úteis (${businessDays * 8}h totais)`;
-                                    })()}
-                                  </p>
-                                </div>
-                              )}
+                                      current.setDate(current.getDate() + 1);
+                                    }
+                                    return `${businessDays} dias úteis (${businessDays * 8}h totais)`;
+                                  })()}
+                                </p>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1328,12 +1381,6 @@ const ProjectDetailView: React.FC = () => {
 
                                       return (
                                         <div className="space-y-1.5">
-                                          {/* Base Daily Allocation - Prominent */}
-                                          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border bg-purple-500/5 border-purple-500/20">
-                                            <span className="text-[7px] font-black uppercase tracking-wider text-purple-500/60">Alocação Base (8h ÷ {projectMembers.filter(pm => String(pm.id_projeto) === projectId).length || 1})</span>
-                                            <span className="text-[11px] font-black text-purple-500">{metrics.baseDaily.toFixed(1)}h/dia</span>
-                                          </div>
-
                                           {/* Metrics Grid */}
                                           <div className="grid grid-cols-2 gap-1.5">
                                             {/* Expected */}

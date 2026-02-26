@@ -13,6 +13,7 @@ import {
   Impact,
   Absence,
   ProjectMember,
+  TaskMemberAllocation,
 } from "@/types";
 
 import {
@@ -37,6 +38,7 @@ interface AppData {
   tasks: Task[];
   timesheetEntries: TimesheetEntry[];
   projectMembers: ProjectMember[];
+  taskMemberAllocations: TaskMemberAllocation[];
   absences: Absence[];
   holidays: Holiday[];
   loading: boolean;
@@ -72,6 +74,7 @@ export function useAppData(): AppData {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>(MOCK_TIMESHEETS);
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+  const [taskMemberAllocations, setTaskMemberAllocations] = useState<TaskMemberAllocation[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
 
@@ -81,7 +84,7 @@ export function useAppData(): AppData {
 
   // Helper de Cache
   const CACHE_KEY = 'nic_labs_app_data';
-  const CACHE_VERSION = '1.4'; // Incrementado para atualizar projects (project_type e valor_diario)
+  const CACHE_VERSION = '1.5'; // Incrementado para incluir taskMemberAllocations
 
   // Carregamento inicial do cache
   useEffect(() => {
@@ -96,6 +99,7 @@ export function useAppData(): AppData {
           setTasks(parsed.tasks || []);
           setTimesheetEntries(parsed.timesheetEntries || []);
           setProjectMembers(parsed.projectMembers || []);
+          setTaskMemberAllocations(parsed.taskMemberAllocations || []);
           setAbsences(parsed.absences || []);
           setHolidays(parsed.holidays || []);
           // Se temos cache, já podemos sinalizar que não estamos mais "travados"
@@ -131,7 +135,7 @@ export function useAppData(): AppData {
 
 
 
-        const [usersData, clientsData, projectsData, tasksData, tasksCollaboratorsData, membersRes, rawTimesheets, absencesRes, holidaysRes] = await Promise.all([
+        const [usersData, clientsData, projectsData, tasksData, tasksCollaboratorsData, membersRes, rawTimesheets, absencesRes, holidaysRes, allocationsRes] = await Promise.all([
           fetchUsers(),
           fetchClients(),
           fetchProjects(),
@@ -140,7 +144,8 @@ export function useAppData(): AppData {
           supabase.from('project_members').select('*'),
           fetchTimesheets(),
           supabase.from('colaborador_ausencias').select('*'),
-          supabase.from('feriados').select('*')
+          supabase.from('feriados').select('*'),
+          supabase.from('task_member_allocations').select('*')
         ]);
 
         if (!isMounted) return;
@@ -226,6 +231,12 @@ export function useAppData(): AppData {
         setTimesheetEntries(deduplicateById(timesheetMapped));
         setAbsences(deduplicateById(absencesMapped));
         setHolidays(deduplicateById(holidaysMapped));
+        setTaskMemberAllocations((allocationsRes.data || []).map((row: any) => ({
+          id: String(row.id),
+          taskId: String(row.task_id),
+          userId: String(row.user_id),
+          reservedHours: Number(row.reserved_hours),
+        })));
 
         if (membersRes.data) {
 
@@ -254,6 +265,7 @@ export function useAppData(): AppData {
             tasks: tasksMapped,
             timesheetEntries: timesheetMapped,
             projectMembers: membersMapped,
+            taskMemberAllocations: allocationsRes.data || [],
             absences: absencesMapped,
             holidays: holidaysMapped
           };
@@ -291,6 +303,7 @@ export function useAppData(): AppData {
     tasks,
     timesheetEntries,
     projectMembers,
+    taskMemberAllocations,
     absences,
     holidays,
     loading,

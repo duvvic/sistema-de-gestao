@@ -12,13 +12,18 @@ import TransferResponsibilityModal from './TransferResponsibilityModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDecimalToTime } from '@/utils/normalizers';
 import * as CapacityUtils from '@/utils/capacity';
+import * as allocationService from '@/services/allocationService';
 
 const TaskDetail: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentUser, isAdmin } = useAuth();
-  const { tasks, clients, projects, users, projectMembers, timesheetEntries, createTask, updateTask, deleteTask, holidays } = useDataController();
+  const {
+    tasks, clients, projects, users, projectMembers, timesheetEntries,
+    createTask, updateTask, deleteTask, holidays,
+    taskMemberAllocations, setTaskMemberAllocations
+  } = useDataController();
 
   const isNew = !taskId || taskId === 'new';
   const task = !isNew ? tasks.find(t => t.id === taskId) : undefined;
@@ -54,12 +59,50 @@ const TaskDetail: React.FC = () => {
     is_impediment: false
   });
 
+  const [editingMainHours, setEditingMainHours] = useState<string | null>(null);
+  const [editingMemberHours, setEditingMemberHours] = useState<Record<string, string>>({});
+
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ force: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [shouldDeleteHours, setShouldDeleteHours] = useState(false);
+  const [localTaskAllocations, setLocalTaskAllocations] = useState<Record<string, number>>({});
+  const [hoursInput, setHoursInput] = useState('');
+
+  const parseTimeToDecimal = (timeStr: string): number => {
+    if (!timeStr) return 0;
+    let val = timeStr.trim().replace(',', '.');
+    val = val.replace('h', '');
+
+    // Caso 1: Tem dois pontos (HH:MM)
+    if (val.includes(':')) {
+      const parts = val.split(':');
+      const h = parseInt(parts[0], 10) || 0;
+      const m = parseInt(parts[1], 10) || 0;
+      return h + (m / 60);
+    }
+
+    // Caso 2: Tem ponto (Decimal 8.5)
+    if (val.includes('.')) {
+      return parseFloat(val) || 0;
+    }
+
+    // Caso 3: Apenas números
+    // Se for um bloco compacto de 4 dígitos (ex: 0830, 2245), tratamos como HH:MM
+    // Se for 3 dígitos mas começar com 0 (ex: 030), tratamos como HH:MM
+    // Senão, tratamos como HORAS INTEIRAS (ex: 100 -> 100.0)
+    if (/^\d{3,4}$/.test(val)) {
+      if (val.length === 4 || (val.length === 3 && val.startsWith('0'))) {
+        const h = parseInt(val.slice(0, val.length - 2), 10) || 0;
+        const m = parseInt(val.slice(val.length - 2), 10) || 0;
+        return h + (m / 60);
+      }
+    }
+
+    return parseFloat(val) || 0;
+  };
 
   // Validação Reativa
   const isFieldMissing = (field: string) => {
@@ -88,7 +131,11 @@ const TaskDetail: React.FC = () => {
 
   const { isDirty, showPrompt, markDirty, requestBack, discardChanges, continueEditing } = useUnsavedChangesPrompt();
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
+    if (isInitialized && isDirty) return; // Não sobrescrever se o usuário já mexeu
+
     if (task) {
       setFormData({
         ...task,
@@ -104,7 +151,8 @@ const TaskDetail: React.FC = () => {
         estimatedHours: task.estimatedHours || 0,
         is_impediment: !!task.is_impediment
       });
-    } else {
+      setIsInitialized(true);
+    } else if (isNew) {
       const qClient = preSelectedClientId as string || '';
       const qProject = preSelectedProjectId as string || '';
       const proj = qProject ? projects.find(p => p.id === qProject) : null;
@@ -118,15 +166,35 @@ const TaskDetail: React.FC = () => {
         };
 
         // Auto-allocate if not admin and new task
-        if (isNew && !isAdmin && currentUser) {
+        if (!isAdmin && currentUser) {
           newData.collaboratorIds = [currentUser.id];
           newData.developerId = currentUser.id;
         }
 
         return newData;
       });
+      setIsInitialized(true);
     }
-  }, [task, preSelectedClientId, preSelectedProjectId, projects, isNew, isAdmin, currentUser]);
+  }, [task, preSelectedClientId, preSelectedProjectId, projects, isNew, isAdmin, currentUser, isInitialized, isDirty]);
+
+  // Sync hoursInput from formData ONLY for display when not editing
+  useEffect(() => {
+    if (formData.estimatedHours !== undefined && editingMainHours === null) {
+      setHoursInput(formatDecimalToTime(Number(formData.estimatedHours)));
+    }
+  }, [formData.estimatedHours, editingMainHours]);
+
+  useEffect(() => {
+    // Só carrega as alocações da tarefa se não houver edição local em andamento (isDirty)
+    if (!isNew && taskId && !isDirty) {
+      const taskAllocations = taskMemberAllocations.filter(a => a.taskId === taskId);
+      const allocationMap: Record<string, number> = {};
+      taskAllocations.forEach(a => {
+        allocationMap[a.userId] = a.reservedHours;
+      });
+      setLocalTaskAllocations(allocationMap);
+    }
+  }, [taskId, isNew, taskMemberAllocations, isDirty]);
 
   useEffect(() => {
     if (formData.status === 'In Progress' || formData.status === 'Review' || formData.status === 'Testing' || formData.status === 'Done') return;
@@ -251,18 +319,49 @@ const TaskDetail: React.FC = () => {
 
     try {
       setLoading(true);
+
+      // --- SINCRONIZAÇÃO DE SEGURANÇA ---
+      // Caso o usuário clique em salvar sem sair do campo de horas, forçamos o parse aqui.
+      let finalEstimatedHours = formData.estimatedHours || 0;
+      if (editingMainHours !== null) {
+        finalEstimatedHours = parseTimeToDecimal(editingMainHours);
+      }
+
+      const finalAllocations = { ...localTaskAllocations };
+      Object.entries(editingMemberHours).forEach(([uid, val]) => {
+        finalAllocations[uid] = parseTimeToDecimal(val);
+      });
+
       const payload: any = {
         ...formData,
+        estimatedHours: finalEstimatedHours,
         progress: Number(formData.progress),
         notes: formData.notes,
         link_ef: formData.link_ef,
         is_impediment: formData.is_impediment
       };
+
       console.log("Saving task payload:", payload);
       if (payload.status === 'Done' && !formData.actualDelivery) payload.actualDelivery = new Date().toISOString().split('T')[0];
-      if (isNew) await createTask(payload);
-      else if (taskId) await updateTask(taskId, payload);
-      discardChanges(); navigate(-1);
+
+      let finalTaskId = taskId;
+      if (isNew) {
+        finalTaskId = String(await createTask(payload));
+      } else if (taskId) {
+        await updateTask(taskId, payload);
+      }
+
+      // Save member allocations
+      if (finalTaskId) {
+        const allocationsToSave = Object.entries(finalAllocations).map(([userId, hours]) => ({
+          userId,
+          reservedHours: hours
+        }));
+        await allocationService.saveTaskAllocations(finalTaskId, allocationsToSave);
+      }
+
+      discardChanges();
+      navigate(-1);
     } catch (error: any) {
       alert("Erro ao salvar: " + (error?.message || "Erro desconhecido"));
     } finally { setLoading(false); }
@@ -377,16 +476,16 @@ const TaskDetail: React.FC = () => {
         <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {/* Card 1: Identificação */}
-            <div className="p-4 rounded-[22px] border shadow-sm flex flex-col h-[285px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="p-4 rounded-[24px] border shadow-sm flex flex-col h-[290px] group hover:shadow-md transition-all duration-300" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Identificação</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Identificação</h4>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-purple-500/10"><Briefcase size={12} className="text-purple-500" /></div>
               </div>
               <div className="flex-1 flex flex-col justify-between">
                 <div className="space-y-3">
                   <div>
                     <label className={`text-[9px] font-black uppercase mb-1 block opacity-60 ${hasError('title') ? 'text-yellow-500' : ''}`}>Nome da Tarefa *</label>
-                    <input type="text" value={formData.title || ''} onChange={e => { setFormData({ ...formData, title: e.target.value }); markDirty(); }} className={`w-full px-3 py-1.5 text-xs font-bold border rounded-lg outline-none transition-all ${hasError('title') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} />
+                    <input type="text" value={formData.title || ''} onChange={e => { setFormData({ ...formData, title: e.target.value }); markDirty(); }} className={`w-full px-3 py-1 text-xs font-bold border rounded-lg outline-none transition-all ${hasError('title') ? 'bg-yellow-400/20 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.1)]' : 'bg-[var(--bg)] border-[var(--border)]'}`} style={{ color: 'var(--text)' }} />
                   </div>
                   <div>
                     <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Status</label>
@@ -426,28 +525,27 @@ const TaskDetail: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  type="button"
                   onClick={() => { setFormData({ ...formData, is_impediment: !formData.is_impediment }); markDirty(); }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all font-bold text-[9px] ${formData.is_impediment ? 'bg-orange-500/10 border-orange-500 text-orange-500' : 'bg-transparent border-[var(--border)] opacity-60'}`}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl border transition-all font-bold text-[9px] ${formData.is_impediment ? 'bg-orange-500/10 border-orange-500 text-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : 'bg-transparent border-[var(--border)] opacity-60'}`}
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <Flag size={12} className={formData.is_impediment ? "fill-orange-500" : ""} />
                     IMPEDIMENTO
                   </div>
-                  {formData.is_impediment && <span className="text-[7px] bg-orange-500 text-white px-1 py-0.5 rounded">ATIVO</span>}
+                  {formData.is_impediment && <span className="text-[7px] bg-orange-500 text-white px-1 py-0.5 rounded font-black">ATIVO</span>}
                 </button>
               </div>
             </div>
 
             {/* Card 2: Gestão */}
-            <div className="p-4 rounded-[22px] border shadow-sm flex flex-col h-[285px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="p-4 rounded-[24px] border shadow-sm flex flex-col h-[290px] group hover:shadow-md transition-all duration-300" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Gestão</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Gestão</h4>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10"><Shield size={12} className="text-emerald-500" /></div>
               </div>
-              <div className="space-y-4 flex-1">
+              <div className="space-y-3 flex-1">
                 <div>
-                  <label className={`text-[9px] font-black uppercase mb-1 flex items-center gap-1.5 opacity-60 ${hasError('developerId') ? 'text-yellow-500' : ''}`}>
+                  <label className={`text-[9px] font-black uppercase mb-1 flex items-center gap-2 opacity-60 ${hasError('developerId') ? 'text-yellow-500' : ''}`}>
                     <Crown size={10} className={formData.developerId ? "text-yellow-500" : ""} /> Responsável *
                   </label>
                   <select
@@ -460,7 +558,7 @@ const TaskDetail: React.FC = () => {
                       setFormData({ ...formData, developerId: selectedId, developer: u?.name || '', collaboratorIds: updatedCollabs });
                       markDirty();
                     }}
-                    className={`w-full px-3 py-1.5 text-xs font-bold border rounded-lg outline-none transition-all ${hasError('developerId') ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                    className={`w-full px-3 py-1 text-xs font-bold border rounded-lg outline-none transition-all ${hasError('developerId') ? 'bg-yellow-400/20 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.1)]' : 'bg-[var(--bg)] border-[var(--border)]'}`}
                     style={{ color: 'var(--text)' }}
                     disabled={!formData.projectId}
                   >
@@ -470,7 +568,7 @@ const TaskDetail: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Prioridade</label>
-                  <select value={formData.priority || 'Medium'} onChange={e => { setFormData({ ...formData, priority: e.target.value as any }); markDirty(); }} className="w-full px-3 py-1.5 text-xs font-bold border rounded-lg bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }}>
+                  <select value={formData.priority || 'Medium'} onChange={e => { setFormData({ ...formData, priority: e.target.value as any }); markDirty(); }} className="w-full px-3 py-1 text-xs font-bold border rounded-lg bg-[var(--bg)] border-[var(--border)] outline-none" style={{ color: 'var(--text)' }}>
                     <option value="Low">Baixa</option>
                     <option value="Medium">Média</option>
                     <option value="High">Alta</option>
@@ -480,40 +578,48 @@ const TaskDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Card 3: Esforço */}
-            <div className="p-4 rounded-[22px] border shadow-sm flex flex-col h-[285px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Esforço</h4>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-500/10"><Activity size={12} className="text-amber-500" /></div>
-              </div>
-              <div className="flex-1 flex flex-col justify-between">
+            {/* CARD 3: ESFORÇO */}
+            <div className="p-4 rounded-[24px] border shadow-sm flex flex-col justify-between h-[290px] group hover:shadow-md transition-all duration-300" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-indigo-500 font-black text-[10px] uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">
+                    <Clock size={12} /> Esforço
+                  </div>
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 group-hover:scale-110 transition-transform"><Activity size={12} /></div>
+                </div>
+
                 <div className="space-y-3">
-                  <div>
-                    <label className="text-[9px] font-black uppercase mb-0.5 block opacity-60">Horas Apontadas (Total)</label>
-                    <div className="relative">
-                      <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-30 text-emerald-500" />
-                      <div className="w-full pl-8 pr-2 py-1.5 text-base font-black border rounded-lg bg-emerald-500/5 border-emerald-500/20 text-emerald-500 flex items-baseline gap-1.5">
-                        <span>{formatDecimalToTime(actualHoursSpent)}</span>
+                  {/* Big Display for Hours Spent */}
+                  <div className="flex items-center justify-between bg-emerald-500/5 dark:bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 shadow-inner group/effort relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full -mr-8 -mt-8 group-hover/effort:scale-125 transition-transform duration-700" />
+                    <div className="flex items-center gap-2.5 relative z-10">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                        <Clock size={18} />
+                      </div>
+                      <div className="flex flex-col">
+                        <p className="text-[8px] font-black uppercase text-emerald-500/60 tracking-[0.2em] mb-0.5">Horas Apontadas (Total)</p>
+                        <p className="text-2xl font-black tabular-nums text-emerald-600 dark:text-emerald-400 leading-none">{formatDecimalToTime(actualHoursSpent)}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[8px] font-black uppercase mb-0.5 block opacity-60">Peso Projeto</label>
-                      <div className="px-2 py-1 rounded-lg bg-purple-500/5 border border-purple-500/20 text-purple-600 font-black text-xs">
-                        {taskWeight.weight.toFixed(1)}%
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[8px] font-black uppercase mb-0.5 block opacity-60">Forecast</label>
-                      <div className="px-2 py-1 rounded-lg bg-blue-500/5 border border-blue-500/20 text-blue-600 font-black text-xs">
-                        {formatDecimalToTime(taskWeight.soldHours)}
-                      </div>
-                    </div>
+
+                  {/* Weight and Forecast Boxes */}
+                  <div className="p-4 rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] shadow-sm">
+                    <p className="text-[8px] font-black uppercase opacity-40 tracking-[0.2em] mb-1.5">Peso Projeto</p>
+                    <p className="text-base font-black text-indigo-500 tabular-nums leading-none">{taskWeight.weight.toFixed(1)}%</p>
                   </div>
                 </div>
-                <div className="pb-0.5">
-                  <label className="text-[9px] font-black uppercase mb-1 block opacity-60">Progresso ({formData.progress}%)</label>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <div className="flex justify-between items-center text-[9px] font-black uppercase opacity-40 tracking-widest px-1">
+                  <span>Progresso ({formData.progress}%)</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" />
+                    {formData.progress === 100 ? 'Concluído' : 'Em Execução'}
+                  </div>
+                </div>
+                <div className="relative pt-0.5">
                   <input
                     type="range"
                     min="0"
@@ -523,130 +629,102 @@ const TaskDetail: React.FC = () => {
                       const newProgress = Number(e.target.value);
                       let newStatus = formData.status;
                       let newActualDelivery = formData.actualDelivery;
-
-                      if (formData.status === 'Done' && newProgress < 100) {
-                        newStatus = 'In Progress';
-                        newActualDelivery = '';
-                      }
-
-                      setFormData({
-                        ...formData,
-                        progress: newProgress,
-                        status: newStatus,
-                        actualDelivery: newActualDelivery
-                      });
+                      if (formData.status === 'Done' && newProgress < 100) { newStatus = 'In Progress'; newActualDelivery = ''; }
+                      setFormData({ ...formData, progress: newProgress, status: newStatus, actualDelivery: newActualDelivery });
                       markDirty();
                     }}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-600 shadow-inner border border-transparent"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Card 4: Timeline */}
-            <div className="p-4 rounded-[22px] border shadow-sm flex flex-col h-[285px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Timeline</h4>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10"><Calendar size={12} className="text-blue-500" /></div>
-              </div>
-
-              <div className="space-y-3 flex-1 flex flex-col justify-between">
-                {/* Seção Planejado */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1 h-1 rounded-full bg-blue-500"></div>
-                    <span className="text-[9px] font-black uppercase tracking-wider opacity-60">Planejado</span>
+            {/* CARD 4: TIMELINE */}
+            <div className="p-4 rounded-[24px] border shadow-sm flex flex-col justify-between h-[290px] group hover:shadow-md transition-all duration-300" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-blue-500 font-black text-[10px] uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">
+                    <Calendar size={12} /> Timeline
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="relative">
-                      <label className="text-[8px] font-bold opacity-40 mb-0.5 block uppercase">Início</label>
-                      <input
-                        type="date"
-                        value={formData.scheduledStart || ''}
-                        onChange={e => { setFormData({ ...formData, scheduledStart: e.target.value }); markDirty(); }}
-                        className="w-full p-1.5 text-[10px] font-bold rounded-lg border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all font-mono"
-                        style={{ color: 'var(--text)' }}
-                      />
-                    </div>
-                    <div className="relative">
-                      <label className="text-[8px] font-bold opacity-40 mb-0.5 block uppercase">Entrega</label>
-                      <input
-                        type="date"
-                        value={formData.estimatedDelivery || ''}
-                        onChange={e => { setFormData({ ...formData, estimatedDelivery: e.target.value }); markDirty(); }}
-                        className="w-full p-1.5 text-[10px] font-bold rounded-lg border outline-none bg-[var(--bg)] border-[var(--border)] focus:ring-1 focus:ring-blue-500/30 transition-all font-mono"
-                        style={{ color: 'var(--text)' }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Previsão Matemática baseada em Capacidade */}
-                  {!isNew && task && (
-                    <div className="mt-2 p-2 rounded-xl bg-slate-500/5 border border-[var(--border)]">
-                      <div className="space-y-2">
-                        {(() => {
-                          const predicted = CapacityUtils.calculateTaskPredictedEndDate(
-                            task, projects, tasks, projectMembers, timesheetEntries, holidays
-                          );
-                          const isIdealLate = formData.estimatedDelivery && predicted.ideal > formData.estimatedDelivery;
-                          const isRealisticLate = formData.estimatedDelivery && predicted.realistic > formData.estimatedDelivery;
-
-                          return (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-[8px] font-black uppercase text-emerald-500 tracking-widest flex items-center gap-1">
-                                  <Zap size={8} /> Prev. Ideal (100%)
-                                </span>
-                                <span className={`text-[9px] font-black font-mono ${isIdealLate ? 'text-amber-500' : 'text-emerald-500'}`}>
-                                  {new Date(predicted.ideal + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between border-t border-white/5 pt-1.5">
-                                <span className="text-[8px] font-black uppercase text-amber-500 tracking-widest flex items-center gap-1">
-                                  <Clock size={8} /> Prev. Realista (Dinâmico)
-                                </span>
-                                <div className="flex flex-col items-end">
-                                  <span className={`text-[9px] font-black font-mono ${predicted.isSaturated ? 'text-red-500' : isRealisticLate ? 'text-red-500' : 'text-amber-500'}`}>
-                                    {new Date(predicted.realistic + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                  </span>
-                                  {predicted.isSaturated && (
-                                    <span className="text-[6px] font-black text-red-500 uppercase tracking-tighter animate-pulse">Saturação Estrutural</span>
-                                  )}
-                                </div>
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform"><LayoutGrid size={12} /></div>
                 </div>
 
-                {/* Seção Realizado */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-                    <span className="text-[9px] font-black uppercase tracking-wider opacity-60">Executado</span>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                      <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">Planejado</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className={`p-2.5 rounded-2xl border group/date focus-within:border-blue-500/50 transition-colors ${!formData.scheduledStart ? 'bg-yellow-400/20 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.1)]' : 'bg-[var(--surface-hover)] border-[var(--border)]'}`}>
+                        <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block group-focus-within/date:text-blue-500 transition-colors ${!formData.scheduledStart ? 'text-yellow-500' : 'opacity-40'}`}>Início *</label>
+                        <input
+                          type="date"
+                          value={formData.scheduledStart || ''}
+                          onChange={e => { setFormData({ ...formData, scheduledStart: e.target.value }); markDirty(); }}
+                          className="w-full bg-transparent text-xs font-black text-[var(--text)] outline-none border-none p-0"
+                        />
+                      </div>
+                      <div className="p-2.5 rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] group/date focus-within:border-blue-500/50 transition-colors">
+                        <label className="text-[8px] font-black uppercase opacity-40 tracking-[0.2em] mb-1 block group-focus-within/date:text-blue-500 transition-colors">Entrega</label>
+                        <input
+                          type="date"
+                          value={formData.estimatedDelivery || ''}
+                          onChange={e => { setFormData({ ...formData, estimatedDelivery: e.target.value }); markDirty(); }}
+                          className="w-full bg-transparent text-xs font-black text-[var(--text)] outline-none border-none p-0"
+                        />
+                      </div>
+                    </div>
+
+                    <div className={`p-3 rounded-2xl border group/fc focus-within:border-blue-500/50 transition-colors mt-2 ${!formData.estimatedHours ? 'bg-yellow-400/20 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.1)]' : 'bg-[var(--surface-hover)] border-[var(--border)]'}`}>
+                      <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block group-focus-within/fc:text-blue-500 transition-colors ${!formData.estimatedHours ? 'text-yellow-500' : 'opacity-40'}`}>horas da tarefa *</label>
+                      <input
+                        type="text"
+                        value={editingMainHours !== null ? editingMainHours : formatDecimalToTime(formData.estimatedHours)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // Allow numbers and decimal/time separators
+                          if (!/^[0-9:.,]*$/.test(val)) return;
+                          setEditingMainHours(val);
+                          markDirty();
+                        }}
+                        onBlur={() => {
+                          if (editingMainHours !== null) {
+                            const dec = parseTimeToDecimal(editingMainHours);
+                            setFormData(prev => ({ ...prev, estimatedHours: dec }));
+                            setEditingMainHours(null);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        className="w-full bg-transparent text-[11px] font-black text-[var(--text)] outline-none tabular-nums p-0 border-none leading-none focus:text-blue-500 font-mono"
+                        placeholder="00:00"
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-0.5">
-                      <label className="text-[8px] font-bold opacity-40 uppercase">Início Real</label>
-                      <div className={`flex items-center gap-1.5 p-1.5 rounded-lg border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[28px] ${actualStartDate ? 'text-emerald-500' : 'text-[var(--muted)]'}`}>
-                        <Zap size={10} className={actualStartDate ? 'animate-pulse' : 'opacity-20'} />
-                        <span className="text-[10px] font-bold tabular-nums">
-                          {actualStartDate ? actualStartDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}
-                        </span>
-                      </div>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-2 border-t border-dashed border-[var(--border)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  <span className="text-[9px] font-black uppercase text-emerald-500 tracking-widest">Executado</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="px-2.5 py-1.5 rounded-xl bg-emerald-500/[0.03] border border-emerald-500/10 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Zap size={10} className="text-emerald-500" />
+                      <span className="text-[8px] font-bold text-emerald-600/60 uppercase">Início</span>
                     </div>
-                    <div className="space-y-0.5">
-                      <label className="text-[8px] font-bold opacity-40 uppercase">Entrega Real</label>
-                      <div className={`flex items-center gap-1.5 p-1.5 rounded-lg border bg-[var(--bg)] border-[var(--border)] opacity-80 min-h-[28px] ${formData.actualDelivery ? 'text-emerald-600' : 'text-[var(--muted)]'}`}>
-                        <CheckSquare size={10} className={formData.actualDelivery ? '' : 'opacity-20'} />
-                        <span className="text-[10px] font-bold tabular-nums">
-                          {formData.actualDelivery ? new Date(formData.actualDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}
-                        </span>
-                      </div>
+                    <span className="text-[10px] font-black">{actualStartDate ? actualStartDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}</span>
+                  </div>
+                  <div className="px-2.5 py-1.5 rounded-xl bg-slate-500/5 border border-[var(--border)] flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <CheckSquare size={10} className="opacity-30" />
+                      <span className="text-[8px] font-bold opacity-30 uppercase">Entrega</span>
                     </div>
+                    <span className="text-[10px] font-black ml-auto opacity-30">{formData.actualDelivery ? new Date(formData.actualDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}</span>
                   </div>
                 </div>
               </div>
@@ -656,14 +734,14 @@ const TaskDetail: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 p-6 rounded-[24px] border shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div>
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                   <LayoutGrid size={14} className="text-indigo-500" />
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Descrição da Atividade</h4>
                 </div>
                 <textarea
                   value={formData.description || ''}
                   onChange={e => { setFormData({ ...formData, description: e.target.value }); markDirty(); }}
-                  className="w-full h-20 p-4 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-indigo-500/30"
+                  className="w-full h-20 p-3 text-xs font-medium border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-indigo-500/30 leading-relaxed"
                   style={{ color: 'var(--text)' }}
                   placeholder="Instruções e detalhamento..."
                 />
@@ -671,14 +749,14 @@ const TaskDetail: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
                     <StickyNote size={14} className="text-amber-500" />
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-500">Anotações Internas</h4>
                   </div>
                   <textarea
                     value={formData.notes || ''}
                     onChange={e => { setFormData({ ...formData, notes: e.target.value }); markDirty(); }}
-                    className="w-full h-20 p-4 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-amber-500/30"
+                    className="w-full h-20 p-3 text-xs font-medium border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-amber-500/30 leading-relaxed"
                     style={{ color: 'var(--text)' }}
                     placeholder="Observações técnicas, credenciais..."
                   />
@@ -686,7 +764,7 @@ const TaskDetail: React.FC = () => {
 
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <FileSpreadsheet size={14} className="text-blue-500" />
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-500">Link de Documentação</h4>
                     </div>
@@ -706,27 +784,48 @@ const TaskDetail: React.FC = () => {
                       type="url"
                       value={formData.link_ef || ''}
                       onChange={e => { setFormData({ ...formData, link_ef: e.target.value }); markDirty(); }}
-                      className="w-full p-4 pr-10 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-blue-500/30 font-mono"
+                      className="w-full px-4 py-1.5 pr-10 text-xs border rounded-xl bg-[var(--bg)] border-[var(--border)] outline-none transition-all focus:ring-1 focus:ring-blue-500/30 font-mono"
                       style={{ color: 'var(--text)' }}
                       placeholder="https://docs.google.com/..."
                     />
                     <Zap size={14} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20 text-blue-500" />
                   </div>
-                  <p className="mt-2 text-[9px] opacity-40 italic">Cole aqui o link direto para o documento ou repositório.</p>
+                  <p className="mt-2 text-[10px] opacity-40 italic">Cole aqui o link direto para o documento ou repositório.</p>
                 </div>
               </div>
             </div>
 
-            <div className="p-6 rounded-[24px] border shadow-sm flex flex-col max-h-[340px]" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
+            <div className={`p-4 rounded-[24px] border shadow-sm flex flex-col max-h-[290px] transition-all duration-300 ${hasError('team') ? 'bg-yellow-400/10 border-yellow-400/50 shadow-[0_0_15px_rgba(250,204,21,0.1)]' : ''}`} style={{ backgroundColor: hasError('team') ? undefined : 'var(--surface)', borderColor: hasError('team') ? undefined : 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
                   <Users size={14} className="text-indigo-500" />
                   {/* Inclui o responsável principal no contador se ele existir */}
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1">
                     Equipe ({Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])])).filter(Boolean).length})
+                    {(() => {
+                      const totalAllocated = Object.values(localTaskAllocations).reduce((sum, val) => sum + (val || 0), 0);
+                      const limit = formData.estimatedHours || 0;
+
+                      let statusClasses = 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500/80';
+                      if (limit > 0) {
+                        if (Math.abs(totalAllocated - limit) < 0.01) {
+                          statusClasses = 'bg-emerald-500 text-white border-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.4)]';
+                        } else if (totalAllocated > limit) {
+                          statusClasses = 'bg-red-500 text-white border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse';
+                        } else {
+                          statusClasses = 'bg-yellow-400 text-black border-yellow-500 shadow-[0_0_10px_rgba(250,204,21,0.3)] font-black';
+                        }
+                      }
+
+                      return (
+                        <span className={`ml-2 px-2 py-0.5 rounded-lg border font-mono text-[9px] transition-all duration-300 ${statusClasses}`}>
+                          {formatDecimalToTime(totalAllocated)} / {formatDecimalToTime(limit)}
+                        </span>
+                      );
+                    })()}
                   </h4>
                 </div>
-                <button type="button" onClick={() => setIsAddMemberOpen(true)} className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500"><Plus size={14} /></button>
+                <button type="button" onClick={() => setIsAddMemberOpen(true)} className="p-1.5 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 transition-colors"><Plus size={14} /></button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                 {Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])]))
@@ -734,11 +833,22 @@ const TaskDetail: React.FC = () => {
                   .map(id => {
                     const u = users.find(usr => usr.id === id);
                     if (!u) return null;
-                    const memberInfo = projectMembers.find(pm => String(pm.id_projeto) === formData.projectId && String(pm.id_colaborador) === id);
-                    const teamCount = Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])])).filter(Boolean).length;
-                    const individualForecast = taskWeight.soldHours / (teamCount || 1);
-                    const memberRealHours = taskHours.filter(h => h.userId === id).reduce((sum, h) => sum + (Number(h.totalHours) || 0), 0);
 
+                    // Lógica de Disponibilidade no Período
+                    const tStart = formData.scheduledStart || '';
+                    const tEnd = formData.estimatedDelivery || '';
+                    const workingDaysInPeriod = CapacityUtils.getWorkingDaysInRange(tStart, tEnd, holidays);
+                    const dailyCap = u.dailyAvailableHours || 8;
+                    const continuousCommitment = CapacityUtils.getUserContinuousCommitment(id, projects, projectMembers, dailyCap);
+                    const periodAvailability = Math.max(0, dailyCap - continuousCommitment) * workingDaysInPeriod;
+
+                    const teamCount = Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])])).filter(Boolean).length;
+
+                    // Baseado no Esforço Operacional (Horas da Tarefa)
+                    const totalTaskHours = Number(formData.estimatedHours) || 0;
+                    const currentForecast = localTaskAllocations[id] || 0;
+                    const memberRealHours = taskHours.filter(h => h.userId === id).reduce((sum, h) => sum + (Number(h.totalHours) || 0), 0);
+                    const distributionPercent = totalTaskHours > 0 ? (currentForecast / totalTaskHours) * 100 : 0;
                     return (
                       <div key={id} className="flex flex-col gap-1.5 p-3 rounded-xl border bg-[var(--bg)] border-[var(--border)] group/member relative">
                         <div className="flex items-center gap-2">
@@ -749,11 +859,11 @@ const TaskDetail: React.FC = () => {
                             <p className="text-[11px] font-extrabold truncate uppercase" style={{ color: 'var(--text)' }}>{u.name.split(' (')[0]}</p>
                             <div className="flex items-center gap-2">
                               {id === formData.developerId ? (
-                                <span className="text-[7px] font-black bg-yellow-400 text-black px-1 rounded flex items-center gap-0.5">
-                                  <Crown size={6} /> RESPONSÁVEL
+                                <span className="text-[8px] font-black bg-yellow-400 text-black px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm">
+                                  <Crown size={8} /> RESPONSÁVEL
                                 </span>
                               ) : (
-                                <span className="text-[7px] font-black bg-indigo-500/10 text-indigo-500 px-1 rounded">MEMBRO</span>
+                                <span className="text-[8px] font-black bg-indigo-500/10 text-indigo-500 px-1.5 py-0.5 rounded">MEMBRO</span>
                               )}
                             </div>
                           </div>
@@ -762,14 +872,62 @@ const TaskDetail: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 mt-1 border-t border-[var(--border)] pt-2 border-dashed">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2 border-t border-[var(--border)] pt-2 border-dashed">
+                          {/* Saldo Disponível no Período */}
                           <div className="flex flex-col">
-                            <span className="text-[7px] font-black uppercase opacity-40">Forecast T.</span>
-                            <span className="text-[10px] font-black text-blue-500">{formatDecimalToTime(individualForecast)}</span>
+                            <span className="text-[9px] font-black uppercase opacity-40">Saldo Disp.</span>
+                            <span className={`text-[10px] font-black tabular-nums ${periodAvailability < currentForecast ? 'text-red-500' : 'text-indigo-500'}`}>
+                              {formatDecimalToTime(periodAvailability)}
+                            </span>
                           </div>
-                          <div className="flex flex-col border-l border-[var(--border)] pl-2">
-                            <span className="text-[7px] font-black uppercase opacity-40">Real Exec.</span>
-                            <span className={`text-[10px] font-black ${memberRealHours > individualForecast && individualForecast > 0 ? 'text-red-500' : memberRealHours > 0 ? 'text-emerald-500' : 'opacity-30'}`}>
+
+                          {/* Distribuição de Carga */}
+                          <div className="flex flex-col border-l border-[var(--border)] pl-3">
+                            <span className="text-[9px] font-black uppercase opacity-40">Distribuição</span>
+                            <span className="text-[10px] font-black text-amber-500 tabular-nums">
+                              {distributionPercent.toFixed(1)}%
+                            </span>
+                          </div>
+
+                          {/* Allocation Input */}
+                          <div className="flex flex-col group/alloc">
+                            <span className="text-[9px] font-black uppercase group-focus-within/alloc:text-blue-500 transition-colors">
+                              <span className="opacity-40">Horas Tarefa</span>
+                              <span className="opacity-20 ml-1">/ {formatDecimalToTime(totalTaskHours)}</span>
+                            </span>
+                            <div className="flex items-center">
+                              <input
+                                type="text"
+                                value={editingMemberHours[id] !== undefined ? editingMemberHours[id] : formatDecimalToTime(currentForecast)}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (!/^[0-9:.,]*$/.test(val)) return;
+                                  setEditingMemberHours(prev => ({ ...prev, [id]: val }));
+                                  markDirty();
+                                }}
+                                onBlur={() => {
+                                  if (editingMemberHours[id] !== undefined) {
+                                    const dec = parseTimeToDecimal(editingMemberHours[id]);
+                                    setLocalTaskAllocations(prev => ({ ...prev, [id]: dec }));
+                                    setEditingMemberHours(prev => {
+                                      const next = { ...prev };
+                                      delete next[id];
+                                      return next;
+                                    });
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                }}
+                                className="text-[10px] font-black text-blue-500 bg-transparent border-none outline-none p-0 w-12 tabular-nums"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Real Execution */}
+                          <div className="flex flex-col border-l border-[var(--border)] pl-3">
+                            <span className="text-[9px] font-black uppercase opacity-40">Real Exec.</span>
+                            <span className={`text-[10px] font-black tabular-nums ${memberRealHours > currentForecast && currentForecast > 0 ? 'text-red-500' : memberRealHours > 0 ? 'text-emerald-500' : 'opacity-30'}`}>
                               {formatDecimalToTime(memberRealHours)}
                             </span>
                           </div>
@@ -781,90 +939,95 @@ const TaskDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Timesheet Detail Section */}
-          {!isNew && taskHours.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-8 rounded-[32px] border shadow-sm overflow-hidden"
-              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              <div className="flex items-center justify-between mb-8 overflow-hidden">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center shadow-inner">
-                    <Clock size={24} className="text-emerald-500" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black uppercase tracking-widest text-emerald-500">Histórico de Apontamentos</h4>
-                    <p className="text-[10px] font-bold opacity-40 uppercase tracking-tighter" style={{ color: 'var(--muted)' }}>Detalhamento das horas registradas nesta tarefa</p>
-                  </div>
-                </div>
-                <div className="text-right bg-[var(--bg)] px-6 py-3 rounded-2xl border border-[var(--border)]">
-                  <p className="text-[9px] font-black uppercase opacity-40 tracking-widest mb-1" style={{ color: 'var(--muted)' }}>Total Acumulado</p>
-                  <p className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>
-                    {formatDecimalToTime(actualHoursSpent)}
-                  </p>
-                </div>
-              </div>
+          <div className="space-y-6 mt-6">
 
-              <div className="overflow-x-auto custom-scrollbar-thin">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-[var(--border)]">
-                      <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Data</th>
-                      <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Colaborador</th>
-                      <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Horas</th>
-                      <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Descrição</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border)]">
-                    {[...taskHours].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
-                      <tr key={entry.id} className="group hover:bg-[var(--surface-2)] transition-all">
-                        <td className="py-5 px-4 whitespace-nowrap">
-                          <span className="text-[11px] font-black" style={{ color: 'var(--border-strong)' }}>
-                            {new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                          </span>
-                        </td>
-                        <td className="py-5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-[var(--bg)] border border-[var(--border)] overflow-hidden flex items-center justify-center text-[11px] font-black shadow-sm">
-                              {users.find(u => u.id === entry.userId)?.avatarUrl ? (
-                                <img src={users.find(u => u.id === entry.userId)?.avatarUrl} className="w-full h-full object-cover" />
-                              ) : (
-                                <span style={{ color: 'var(--muted)' }}>{entry.userName?.substring(0, 2).toUpperCase()}</span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-[11px] font-bold m-0" style={{ color: 'var(--text)' }}>{entry.userName}</p>
-                              <p className="text-[8px] font-black uppercase tracking-widest opacity-30" style={{ color: 'var(--muted)' }}>Colaborador</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-5 px-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-black text-emerald-500 tabular-nums">{formatDecimalToTime(entry.totalHours)}</span>
-                            <div className="flex items-center gap-1 opacity-40 text-[9px] font-bold" style={{ color: 'var(--muted)' }}>
-                              <Clock size={8} />
-                              <span>{entry.startTime} - {entry.endTime}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-5 px-4 min-w-[300px]">
-                          <div className="p-3 rounded-xl bg-[var(--bg)] border border-dashed border-[var(--border)] group-hover:border-[var(--primary-soft)] transition-colors">
-                            <p className="text-[11px] leading-relaxed opacity-80" style={{ color: 'var(--text)' }}>
-                              {entry.description || <span className="italic opacity-30">Sem descrição detalhada...</span>}
-                            </p>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          )}
+            {/* Timesheet Detail Section */}
+            {
+              !isNew && taskHours.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-8 rounded-[32px] border shadow-sm overflow-hidden"
+                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                >
+                  <div className="flex items-center justify-between mb-8 overflow-hidden">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center shadow-inner">
+                        <Clock size={24} className="text-emerald-500" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-emerald-500">Histórico de Apontamentos</h4>
+                        <p className="text-[10px] font-bold opacity-40 uppercase tracking-tighter" style={{ color: 'var(--muted)' }}>Detalhamento das horas registradas nesta tarefa</p>
+                      </div>
+                    </div>
+                    <div className="text-right bg-[var(--bg)] px-6 py-3 rounded-2xl border border-[var(--border)]">
+                      <p className="text-[9px] font-black uppercase opacity-40 tracking-widest mb-1" style={{ color: 'var(--muted)' }}>Total Acumulado</p>
+                      <p className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+                        {formatDecimalToTime(actualHoursSpent)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto custom-scrollbar-thin">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-[var(--border)]">
+                          <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Data</th>
+                          <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Colaborador</th>
+                          <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Horas</th>
+                          <th className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Descrição</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border)]">
+                        {[...taskHours].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
+                          <tr key={entry.id} className="group hover:bg-[var(--surface-2)] transition-all">
+                            <td className="py-5 px-4 whitespace-nowrap">
+                              <span className="text-[11px] font-black" style={{ color: 'var(--border-strong)' }}>
+                                {new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                              </span>
+                            </td>
+                            <td className="py-5 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--bg)] border border-[var(--border)] overflow-hidden flex items-center justify-center text-[11px] font-black shadow-sm">
+                                  {users.find(u => u.id === entry.userId)?.avatarUrl ? (
+                                    <img src={users.find(u => u.id === entry.userId)?.avatarUrl} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span style={{ color: 'var(--muted)' }}>{entry.userName?.substring(0, 2).toUpperCase()}</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-[11px] font-bold m-0" style={{ color: 'var(--text)' }}>{entry.userName}</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest opacity-30" style={{ color: 'var(--muted)' }}>Colaborador</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-5 px-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-black text-emerald-500 tabular-nums">{formatDecimalToTime(entry.totalHours)}</span>
+                                <div className="flex items-center gap-1 opacity-40 text-[9px] font-bold" style={{ color: 'var(--muted)' }}>
+                                  <Clock size={8} />
+                                  <span>{entry.startTime} - {entry.endTime}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-5 px-4 min-w-[300px]">
+                              <div className="p-3 rounded-xl bg-[var(--bg)] border border-dashed border-[var(--border)] group-hover:border-[var(--primary-soft)] transition-colors">
+                                <p className="text-[11px] leading-relaxed opacity-80" style={{ color: 'var(--text)' }}>
+                                  {entry.description || <span className="italic opacity-30">Sem descrição detalhada...</span>}
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </motion.div>
+              )
+            }
+          </div>
         </form>
-      </div>
+      </div >
 
       <ConfirmationModal
         isOpen={!!deleteConfirmation}
@@ -915,8 +1078,7 @@ const TaskDetail: React.FC = () => {
                     className="w-full p-3 rounded-xl border-2 border-red-500/30 outline-none focus:border-red-500 text-xs font-black bg-red-500/5 text-red-600"
                   />
                 </div>
-              )
-              }
+              )}
             </div>
           ) : "Deseja realmente excluir esta tarefa?"
         }
@@ -927,37 +1089,41 @@ const TaskDetail: React.FC = () => {
         disabled={!!(deleteConfirmation?.force && (currentUser?.role !== 'system_admin' || deleteConfirmText !== task?.title))}
       />
 
-      {showPrompt && (
-        <ConfirmationModal
-          isOpen={true}
-          title="Descartar alterações?"
-          message="Existem alterações não salvas."
-          confirmText="Ficar"
-          cancelText="Sair"
-          onConfirm={continueEditing}
-          onCancel={() => { discardChanges(); navigate(-1); }}
-        />
-      )}
+      {
+        showPrompt && (
+          <ConfirmationModal
+            isOpen={true}
+            title="Descartar alterações?"
+            message="Existem alterações não salvas."
+            confirmText="Ficar"
+            cancelText="Sair"
+            onConfirm={continueEditing}
+            onCancel={() => { discardChanges(); navigate(-1); }}
+          />
+        )
+      }
 
-      {isAddMemberOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md bg-black/50" onClick={() => setIsAddMemberOpen(false)}>
-          <div className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-3xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-xs font-black uppercase">Adicionar Colaborador</h4>
-              <button onClick={() => setIsAddMemberOpen(false)}><X size={18} /></button>
-            </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {users.filter(u => u.active !== false && projectMembers.some(pm => String(pm.id_projeto) === formData.projectId && String(pm.id_colaborador) === u.id) && u.id !== formData.developerId && !formData.collaboratorIds?.includes(u.id)).map(u => (
-                <button key={u.id} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--surface-hover)]" onClick={() => { setFormData({ ...formData, collaboratorIds: [...(formData.collaboratorIds || []), u.id] }); setIsAddMemberOpen(false); markDirty(); }}>
-                  <div className="w-8 h-8 rounded-lg bg-[var(--surface-2)] flex items-center justify-center font-bold text-xs">{u.name[0]}</div>
-                  <div className="text-left font-bold text-xs uppercase">{u.name}</div>
-                </button>
-              ))}
+      {
+        isAddMemberOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md bg-black/50" onClick={() => setIsAddMemberOpen(false)}>
+            <div className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-3xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-xs font-black uppercase">Adicionar Colaborador</h4>
+                <button onClick={() => setIsAddMemberOpen(false)}><X size={18} /></button>
+              </div>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {users.filter(u => u.active !== false && projectMembers.some(pm => String(pm.id_projeto) === formData.projectId && String(pm.id_colaborador) === u.id) && u.id !== formData.developerId && !formData.collaboratorIds?.includes(u.id)).map(u => (
+                  <button key={u.id} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--surface-hover)]" onClick={() => { setFormData({ ...formData, collaboratorIds: [...(formData.collaboratorIds || []), u.id] }); setIsAddMemberOpen(false); markDirty(); }}>
+                    <div className="w-8 h-8 rounded-lg bg-[var(--surface-2)] flex items-center justify-center font-bold text-xs">{u.name[0]}</div>
+                    <div className="text-left font-bold text-xs uppercase">{u.name}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

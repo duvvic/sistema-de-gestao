@@ -105,6 +105,13 @@ export interface Task {
   deleted_at?: string;
 }
 
+export interface TaskMemberAllocation {
+  id?: string;
+  taskId: string;
+  userId: string;
+  reservedHours: number;
+}
+
 export interface TimesheetEntry {
   id: string;
   userId: string;

@@ -12,6 +12,17 @@ export function normalizeStatus(raw: string | null): Status {
     return "Todo";
 }
 
+export function getStatusDisplayName(status: Status): string {
+    switch (status) {
+        case 'Todo': return 'PRÉ-PROJETO';
+        case 'In Progress': return 'ANDAMENTO';
+        case 'Testing': return 'TESTE';
+        case 'Review': return 'ANÁLISE';
+        case 'Done': return 'CONCLUÍDO';
+        default: return status;
+    }
+}
+
 export function normalizePriority(raw: string | null): Priority | undefined {
     if (!raw) return undefined;
     const s = raw.toLowerCase().trim();
@@ -63,6 +74,16 @@ export function formatDate(dateStr: string | null): string {
         }
     } catch { }
     return new Date().toISOString().split("T")[0];
+}
+
+/**
+ * Formata uma data YYYY-MM-DD para o padrão brasileiro DD/MM/YYYY
+ */
+export function formatDateBR(dateStr: string | null | undefined): string {
+    if (!dateStr) return "---";
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
 export function mapDbTaskToTask(row: any, userMap?: Map<string, any>, projectName?: string, clientName?: string): Task {
@@ -123,7 +144,6 @@ function calculateDaysOverdue(estimated: string | null, actual: string | null, s
     now.setHours(0, 0, 0, 0);
 
     // Só é considerado atraso se o dia de hoje FOR MAIOR que o dia da entrega
-    // Se hoje for 23 e a entrega for 23, diff será 0.
     const diff = Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
     return diff > 0 ? diff : 0;
 }
@@ -155,6 +175,7 @@ export function mapDbTimesheetToEntry(r: any, taskExternalMap?: Map<string, stri
         deleted_at: r.deleted_at || undefined
     };
 }
+
 export function mapDbProjectToProject(row: any): Project {
     return {
         id: String(row.ID_Projeto),
@@ -231,11 +252,8 @@ export function mapDbAbsenceToAbsence(row: any): any {
     };
 }
 
-/**
- * Converte horas decimais (ex: 5.75) para o formato de tempo (ex: 5h 45m).
- */
 export function formatDecimalToTime(decimalHours: number | null | undefined): string {
-    if (decimalHours == null || isNaN(decimalHours) || decimalHours === 0) return "0:00h";
+    if (decimalHours == null || isNaN(decimalHours) || decimalHours === 0) return "0:00";
 
     const isNegative = decimalHours < 0;
     const absHours = Math.abs(decimalHours);
@@ -248,6 +266,6 @@ export function formatDecimalToTime(decimalHours: number | null | undefined): st
         minutes = 0;
     }
 
-    const timeStr = `${hours}:${minutes.toString().padStart(2, '0')}h`;
+    const timeStr = `${hours}:${minutes.toString().padStart(2, '0')}`;
     return isNegative ? `-${timeStr}` : timeStr;
 }

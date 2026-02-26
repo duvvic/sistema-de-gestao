@@ -9,7 +9,7 @@ import ConfirmationModal from "./ConfirmationModal";
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
 import * as CapacityUtils from '@/utils/capacity';
-import { formatDecimalToTime } from '@/utils/normalizers';
+import { formatDecimalToTime, formatDateBR } from '@/utils/normalizers';
 import { getProjectStatusByTimeline, getProjectStatusColor } from '@/utils/projectStatus';
 import CapacityDocumentation from "./CapacityDocumentation";
 
@@ -182,7 +182,7 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { clients, projects, tasks, error, loading, users, deleteProject, projectMembers, timesheetEntries, holidays } = useDataController();
+  const { clients, projects, tasks, error, loading, users, deleteProject, projectMembers, timesheetEntries, holidays, taskMemberAllocations } = useDataController();
   const { currentUser, isAdmin } = useAuth();
   const [sortBy, setSortBy] = useState<SortOption>(() => (localStorage.getItem('admin_clients_sort_by') as SortOption) || 'alphabetical');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'late' | 'ongoing' | 'done'>('all');
@@ -617,11 +617,11 @@ const AdminDashboard: React.FC = () => {
       }, 0) * 100) / 100;
 
       // 2. Alocado (Previsto - Via Nova Lógica de Projetos e Membros)
-      // Agora espera: user, monthStr, projects, projectMembers, timesheets, tasks, holidays
-      const capData = CapacityUtils.getUserMonthlyAvailability(u, capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays);
+      // Agora espera: user, monthStr, projects, projectMembers, timesheets, tasks, holidays, taskMemberAllocations
+      const capData = CapacityUtils.getUserMonthlyAvailability(u, capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays, taskMemberAllocations);
 
       // 3. Data de Disponibilidade (Preditivo - Baseado em Backlog Total)
-      const releaseDate = CapacityUtils.calculateIndividualReleaseDate(u, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays);
+      const releaseDate = CapacityUtils.calculateIndividualReleaseDate(u, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays, taskMemberAllocations);
 
       return {
         id: u.id,
@@ -635,7 +635,7 @@ const AdminDashboard: React.FC = () => {
         releaseDate
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [users, portfolioTimesheets, capacityMonth, safeTasks, safeProjects, projectMembers, timesheetEntries, holidays]);
+  }, [users, portfolioTimesheets, capacityMonth, safeTasks, safeProjects, projectMembers, timesheetEntries, holidays, taskMemberAllocations]);
 
   const systemicMetrics = useMemo(() => {
     if (!resourceMetrics || resourceMetrics.length === 0) return null;
@@ -672,18 +672,18 @@ const AdminDashboard: React.FC = () => {
 
   // --- ANÁLISE PROATIVA E TENDÊNCIAS ---
   const teamElasticity = useMemo(() => {
-    return CapacityUtils.calculateTeamElasticity(users || [], capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays);
-  }, [users, capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays]);
+    return CapacityUtils.calculateTeamElasticity(users || [], capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays, taskMemberAllocations);
+  }, [users, capacityMonth, safeProjects, projectMembers, timesheetEntries, safeTasks, holidays, taskMemberAllocations]);
 
   const saturationTrend = useMemo(() => {
-    return CapacityUtils.calculateTeamSaturationTrend(users || [], safeProjects, projectMembers, safeTasks, timesheetEntries, holidays);
-  }, [users, safeProjects, projectMembers, safeTasks, timesheetEntries, holidays]);
+    return CapacityUtils.calculateTeamSaturationTrend(users || [], safeProjects, projectMembers, safeTasks, timesheetEntries, holidays, taskMemberAllocations);
+  }, [users, safeProjects, projectMembers, safeTasks, timesheetEntries, holidays, taskMemberAllocations]);
 
   const [simulationHours, setSimulationHours] = useState<number>(0);
   const simulationImpact = useMemo(() => {
     if (simulationHours <= 0) return [];
-    return CapacityUtils.simulateNewProjectImpact(simulationHours, users || [], safeProjects, projectMembers, safeTasks, timesheetEntries, holidays);
-  }, [simulationHours, users, safeProjects, projectMembers, safeTasks, timesheetEntries, holidays]);
+    return CapacityUtils.simulateNewProjectImpact(simulationHours, users || [], safeProjects, projectMembers, safeTasks, timesheetEntries, holidays, taskMemberAllocations);
+  }, [simulationHours, users, safeProjects, projectMembers, safeTasks, timesheetEntries, holidays, taskMemberAllocations]);
 
 
   const changeMonth = (delta: number) => {
@@ -1126,7 +1126,7 @@ const AdminDashboard: React.FC = () => {
                             <td className="py-3 px-2 text-center border-b border-r border-[var(--border)]">
                               <div className="flex flex-col items-center">
                                 <span className={`text-[10px] font-black ${!res.releaseDate ? 'text-[var(--muted)] opacity-40' : (res.releaseDate as any).isSaturated ? 'text-red-500' : 'text-purple-500'}`}>
-                                  {(res.releaseDate as any)?.realistic || '---'}
+                                  {formatDateBR((res.releaseDate as any)?.realistic)}
                                 </span>
                                 {res.releaseDate && (
                                   <div className="flex flex-col gap-0 items-center">
@@ -1134,7 +1134,7 @@ const AdminDashboard: React.FC = () => {
                                       {(res.releaseDate as any).isSaturated ? 'SATURADO' : 'Previsão Realista'}
                                     </span>
                                     {(res.releaseDate as any).ideal !== (res.releaseDate as any).realistic && (
-                                      <span className="text-[6px] font-bold text-slate-400 uppercase tracking-tighter">Ideal: {(res.releaseDate as any).ideal}</span>
+                                      <span className="text-[6px] font-bold text-slate-400 uppercase tracking-tighter">Ideal: {formatDateBR((res.releaseDate as any).ideal)}</span>
                                     )}
                                   </div>
                                 )}

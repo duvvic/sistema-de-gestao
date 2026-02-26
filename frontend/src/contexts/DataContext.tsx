@@ -1,7 +1,7 @@
 // contexts/DataContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAppData } from '@/hooks/useAppData';
-import { Task, Project, Client, User, TimesheetEntry, Absence, ProjectMember, Holiday } from '@/types';
+import { Task, Project, Client, User, TimesheetEntry, Absence, ProjectMember, Holiday, TaskMemberAllocation } from '@/types';
 import { supabase } from '@/services/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { mapDbTaskToTask, mapDbTimesheetToEntry, mapDbProjectToProject, mapDbUserToUser, mapDbAbsenceToAbsence } from '@/utils/normalizers';
@@ -15,6 +15,7 @@ interface DataContextType {
     users: User[];
     timesheetEntries: TimesheetEntry[];
     projectMembers: ProjectMember[];
+    taskMemberAllocations: TaskMemberAllocation[];
     absences: Absence[];
     holidays: Holiday[];
     loading: boolean;
@@ -27,6 +28,7 @@ interface DataContextType {
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
     setTimesheetEntries: React.Dispatch<React.SetStateAction<TimesheetEntry[]>>;
     setProjectMembers: React.Dispatch<React.SetStateAction<ProjectMember[]>>;
+    setTaskMemberAllocations: React.Dispatch<React.SetStateAction<TaskMemberAllocation[]>>;
     setAbsences: React.Dispatch<React.SetStateAction<Absence[]>>;
     setHolidays: React.Dispatch<React.SetStateAction<Holiday[]>>;
 }
@@ -45,6 +47,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tasks: loadedTasks,
         timesheetEntries: loadedTimesheets,
         projectMembers: loadedProjectMembers,
+        taskMemberAllocations: loadedTaskMemberAllocations,
         absences: loadedAbsences,
         holidays: loadedHolidays,
         loading: dataLoading,
@@ -57,6 +60,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [users, setUsers] = useState<User[]>([]);
     const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>([]);
     const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+    const [taskMemberAllocations, setTaskMemberAllocations] = useState<TaskMemberAllocation[]>([]);
     const [absences, setAbsences] = useState<Absence[]>([]);
     const [holidays, setHolidays] = useState<Holiday[]>([]);
 
@@ -76,6 +80,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProjects(enrichProjectsWithTaskDates(loadedProjects, loadedTasks));
         setTimesheetEntries(loadedTimesheets);
         setProjectMembers(loadedProjectMembers || []);
+        setTaskMemberAllocations(loadedTaskMemberAllocations || []);
         setAbsences(loadedAbsences || []);
 
         setHolidays(loadedHolidays || []);
@@ -224,6 +229,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setHolidays(prev => prev.filter(h => h.id !== String(payload.old.id)));
                 }
             })
+            // 9. Alocações de Tarefas
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_member_allocations' }, (payload) => {
+                if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                    const allocation: TaskMemberAllocation = {
+                        id: String(payload.new.id),
+                        taskId: String(payload.new.task_id),
+                        userId: String(payload.new.user_id),
+                        reservedHours: Number(payload.new.reserved_hours)
+                    };
+                    setTaskMemberAllocations(prev => {
+                        const exists = prev.find(a => a.id === allocation.id);
+                        if (exists) return prev.map(a => a.id === allocation.id ? allocation : a);
+                        return [...prev, allocation];
+                    });
+                } else if (payload.eventType === 'DELETE') {
+                    setTaskMemberAllocations(prev => prev.filter(a => a.id !== String(payload.old.id)));
+                }
+            })
             .subscribe();
 
         return () => {
@@ -238,6 +261,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         users,
         timesheetEntries: timesheetEntries.filter(e => !(e as any).deleted_at),
         projectMembers,
+        taskMemberAllocations,
         absences,
         holidays,
         loading: dataLoading && (clients.length === 0),
@@ -248,6 +272,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUsers,
         setTimesheetEntries,
         setProjectMembers,
+        setTaskMemberAllocations,
         setAbsences,
         setHolidays
     }), [clients, projects, tasks, users, timesheetEntries, projectMembers, absences, holidays, dataLoading, dataError]);

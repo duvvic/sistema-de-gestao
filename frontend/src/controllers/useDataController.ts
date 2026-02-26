@@ -17,6 +17,7 @@ export const useDataController = () => {
         users, setUsers,
         timesheetEntries, setTimesheetEntries,
         projectMembers, setProjectMembers,
+        taskMemberAllocations, setTaskMemberAllocations,
         absences, setAbsences,
         holidays, setHolidays,
         loading,
@@ -365,6 +366,23 @@ export const useDataController = () => {
             .match({ id_projeto: Number(projectId), id_colaborador: Number(userId) });
         if (error) throw error;
         setProjectMembers(prev => prev.filter(pm => !(String(pm.id_projeto) === projectId && String(pm.id_colaborador) === userId)));
+
+        // --- LÓGICA AUTOMÁTICA: Remover membro das tarefas onde ele NÃO é o responsável principal ---
+        const relatedTasks = tasks.filter(t => t.projectId === projectId);
+        for (const task of relatedTasks) {
+            // Se ele for o responsável (developerId), MANTÉM ele na tarefa (e por consequência ele precisará ser removido manualmente se for o caso)
+            if (String(task.developerId) === String(userId)) {
+                console.log(`[DataController] Mantendo responsável na tarefa ${task.id}`);
+                continue;
+            }
+
+            // Se for apenas colaborador, removemos ele da tabela de vínculos
+            if (task.collaboratorIds?.includes(userId)) {
+                console.log(`[DataController] Removendo colaborador ${userId} da tarefa ${task.id}`);
+                const nextCollabs = task.collaboratorIds.filter(id => id !== userId);
+                await updateTask(task.id, { collaboratorIds: nextCollabs });
+            }
+        }
     };
 
     // === ABSENCE CONTROLLERS ===
@@ -471,6 +489,7 @@ export const useDataController = () => {
         getUserById, getActiveUsers, createUser, updateUser, deleteUser,
         getProjectMembers, addProjectMember, removeProjectMember,
         createAbsence, updateAbsence, deleteAbsence,
-        createHoliday, updateHoliday, deleteHoliday
+        createHoliday, updateHoliday, deleteHoliday,
+        taskMemberAllocations, setTaskMemberAllocations
     };
-};
+}
