@@ -336,19 +336,31 @@ export const getUserMonthlyAvailability = (
             totalEffort = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
         }
 
-        if (totalEffort <= 0) return;
+        // --- SUBTRAI HORAS JÁ EXECUTADAS PARA OBTER ESFORÇO RESTANTE ---
+        const reported = timesheetEntries
+            .filter(e => String(e.taskId) === String(t.id) && String(e.userId) === String(user.id))
+            .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
+
+        const effortRestante = Math.max(0, totalEffort - reported);
+
+        if (effortRestante <= 0) return;
 
         const tStart = t.scheduledStart || t.actualStart || p.startDate || startDate;
         const tEnd = t.estimatedDelivery || p.estimatedDelivery || endDate;
 
-        const totalTaskDays = getWorkingDaysInRange(tStart, tEnd, holidays);
-        if (totalTaskDays <= 0) return;
+        // Distribui o esforço APENAS nos dias restantes a partir de HOJE ou do INÍCIO DA TAREFA
+        const effectiveStart = tStart > todayStr ? tStart : todayStr;
 
-        const hoursPerDay = totalEffort / totalTaskDays;
-        const intStart = tStart > startDate ? tStart : startDate;
-        const intEnd = tEnd < endDate ? tEnd : endDate;
+        // Se a data de entrega já passou, concentra o esforço em 1 dia (HOJE) para causar alerta de atraso
+        const effectiveEnd = tEnd < todayStr ? todayStr : tEnd;
 
-        if (intStart <= intEnd) {
+        const remainingTaskDays = getWorkingDaysInRange(effectiveStart, effectiveEnd, holidays) || 1; // Mínimo 1 dia para evitar DivByZero
+        const hoursPerDay = effortRestante / remainingTaskDays;
+
+        const intStart = effectiveStart > startDate ? effectiveStart : startDate;
+        const intEnd = effectiveEnd < endDate ? effectiveEnd : endDate;
+
+        if (intStart <= intEnd && intStart <= endDate && intEnd >= startDate) {
             const bizDaysInMonth = getWorkingDaysInRange(intStart, intEnd, holidays);
             const effortInMonth = bizDaysInMonth * hoursPerDay;
 

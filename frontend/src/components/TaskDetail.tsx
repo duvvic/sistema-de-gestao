@@ -863,12 +863,24 @@ const TaskDetail: React.FC = () => {
                         const otherEnd = t.estimatedDelivery || '';
                         // Verifica se há sobreposição com o período desta tarefa
                         if (!otherEnd || (tEnd && otherStart > tEnd) || (effectiveStart && otherEnd < effectiveStart)) return sum;
+                        // Busca horas apontadas pelo usuário na outra tarefa
+                        const reportedOnOther = timesheetEntries
+                          .filter(e => String(e.taskId) === String(t.id) && String(e.userId) === String(id))
+                          .reduce((s, e) => s + (Number(e.totalHours) || 0), 0);
+
                         // Busca alocação específica desse membro nessa tarefa
+                        let allocation = 0;
                         const alloc = taskMemberAllocations.find(a => String(a.taskId) === String(t.id) && String(a.userId) === String(id));
-                        if (alloc) return sum + alloc.reservedHours;
-                        // Fallback: divide igualmente entre membros
-                        const teamSize = Array.from(new Set([t.developerId, ...(t.collaboratorIds || [])])).filter(Boolean).length || 1;
-                        return sum + ((Number(t.estimatedHours) || 0) / teamSize);
+                        if (alloc) {
+                          allocation = alloc.reservedHours;
+                        } else {
+                          // Fallback: divide igualmente entre membros
+                          const teamSize = Array.from(new Set([t.developerId, ...(t.collaboratorIds || [])])).filter(Boolean).length || 1;
+                          allocation = (Number(t.estimatedHours) || 0) / teamSize;
+                        }
+
+                        // Considera apenas o esforço restante
+                        return sum + Math.max(0, allocation - reportedOnOther);
                       }, 0);
 
                     const periodAvailability = Math.max(0, grossAvailability - otherTasksReserved);
