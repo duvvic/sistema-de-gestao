@@ -834,13 +834,45 @@ const TaskDetail: React.FC = () => {
                     const u = users.find(usr => usr.id === id);
                     if (!u) return null;
 
+
                     // Lógica de Disponibilidade no Período
                     const tStart = formData.scheduledStart || '';
                     const tEnd = formData.estimatedDelivery || '';
-                    const workingDaysInPeriod = CapacityUtils.getWorkingDaysInRange(tStart, tEnd, holidays);
+
+                    // Início efetivo: máx(hoje, início da tarefa)
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const effectiveStart = tStart && tStart > todayStr ? tStart : todayStr;
+
+                    const workingDaysInPeriod = CapacityUtils.getWorkingDaysInRange(effectiveStart, tEnd, holidays);
                     const dailyCap = u.dailyAvailableHours || 8;
                     const continuousCommitment = CapacityUtils.getUserContinuousCommitment(id, projects, projectMembers, dailyCap);
-                    const periodAvailability = Math.max(0, dailyCap - continuousCommitment) * workingDaysInPeriod;
+
+                    // Capacidade bruta no período (já descontando compromisso contínuo)
+                    const grossAvailability = Math.max(0, dailyCap - continuousCommitment) * workingDaysInPeriod;
+
+                    // Horas reservadas em OUTRAS tarefas que se sobrepõem a esse período
+                    const otherTasksReserved = tasks
+                      .filter(t =>
+                        t.id !== (isNew ? undefined : taskId) &&
+                        !t.deleted_at &&
+                        t.status !== 'Done' &&
+                        (String(t.developerId) === String(id) || t.collaboratorIds?.some(cid => String(cid) === String(id)))
+                      )
+                      .reduce((sum, t) => {
+                        const otherStart = t.scheduledStart || t.actualStart || '';
+                        const otherEnd = t.estimatedDelivery || '';
+                        // Verifica se há sobreposição com o período desta tarefa
+                        if (!otherEnd || (tEnd && otherStart > tEnd) || (effectiveStart && otherEnd < effectiveStart)) return sum;
+                        // Busca alocação específica desse membro nessa tarefa
+                        const alloc = taskMemberAllocations.find(a => String(a.taskId) === String(t.id) && String(a.userId) === String(id));
+                        if (alloc) return sum + alloc.reservedHours;
+                        // Fallback: divide igualmente entre membros
+                        const teamSize = Array.from(new Set([t.developerId, ...(t.collaboratorIds || [])])).filter(Boolean).length || 1;
+                        return sum + ((Number(t.estimatedHours) || 0) / teamSize);
+                      }, 0);
+
+                    const periodAvailability = Math.max(0, grossAvailability - otherTasksReserved);
+
 
                     const teamCount = Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])])).filter(Boolean).length;
 
