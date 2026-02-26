@@ -676,11 +676,11 @@ const TaskDetail: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className={`p-3 rounded-2xl border group/fc focus-within:border-blue-500/50 transition-colors mt-2 ${!formData.estimatedHours ? 'bg-yellow-400/20 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.1)]' : 'bg-[var(--surface-hover)] border-[var(--border)]'}`}>
+                    <div className={`p-3 rounded-2xl border group/fc focus-within:border-blue-500/50 transition-colors mt-2 ${!formData.estimatedHours ? 'bg-yellow-400/20 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.1)]' : 'bg-[var(--surface-hover)] border-[var(--border)] relative z-10'}`}>
                       <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block group-focus-within/fc:text-blue-500 transition-colors ${!formData.estimatedHours ? 'text-yellow-500' : 'opacity-40'}`}>horas da tarefa *</label>
                       <input
                         type="text"
-                        value={editingMainHours !== null ? editingMainHours : formatDecimalToTime(formData.estimatedHours)}
+                        value={editingMainHours !== null ? editingMainHours : formatDecimalToTime(formData.estimatedHours || 0)}
                         onChange={(e) => {
                           const val = e.target.value;
                           // Allow numbers and decimal/time separators
@@ -803,8 +803,16 @@ const TaskDetail: React.FC = () => {
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1">
                     Equipe ({Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])])).filter(Boolean).length})
                     {(() => {
-                      const totalAllocated = Object.values(localTaskAllocations).reduce((sum, val) => sum + (val || 0), 0);
                       const limit = formData.estimatedHours || 0;
+                      const hasAnyAllocation = Object.values(localTaskAllocations).some(val => val > 0);
+                      const teamCount = Array.from(new Set([formData.developerId, ...(formData.collaboratorIds || [])])).filter(Boolean).length || 1;
+
+                      let totalAllocated = 0;
+                      if (!hasAnyAllocation && limit > 0) {
+                        totalAllocated = limit; // Auto-distribuído
+                      } else {
+                        totalAllocated = Object.values(localTaskAllocations).reduce((sum, val) => sum + (val || 0), 0);
+                      }
 
                       let statusClasses = 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500/80';
                       if (limit > 0) {
@@ -890,7 +898,14 @@ const TaskDetail: React.FC = () => {
 
                     // Baseado no Esforço Operacional (Horas da Tarefa)
                     const totalTaskHours = Number(formData.estimatedHours) || 0;
-                    const currentForecast = localTaskAllocations[id] || 0;
+
+                    // Se o membro já tem uma alocação local salva, usamos ela. Caso contrário, se há horas de tarefa mas nenhum membro tem reserva, dividimos igualmente.
+                    const hasAnyAllocation = Object.values(localTaskAllocations).some(val => val > 0);
+                    let currentForecast = localTaskAllocations[id] || 0;
+                    if (!hasAnyAllocation && totalTaskHours > 0) {
+                      currentForecast = totalTaskHours / teamCount;
+                    }
+
                     const memberRealHours = taskHours.filter(h => h.userId === id).reduce((sum, h) => sum + (Number(h.totalHours) || 0), 0);
                     const distributionPercent = totalTaskHours > 0 ? (currentForecast / totalTaskHours) * 100 : 0;
                     return (
