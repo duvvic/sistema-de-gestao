@@ -7,7 +7,7 @@ import { Task, Role } from '@/types';
 import { User as UserIcon, Mail, Briefcase, Shield, Edit, Save, Trash2, ArrowLeft, CheckCircle, Clock, AlertCircle, Calendar, Zap, Info, LayoutGrid, ChevronRight } from 'lucide-react';
 import OrganizationalStructureSelector from './OrganizationalStructureSelector';
 import ConfirmationModal from './ConfirmationModal';
-import { getRoleDisplayName, formatDecimalToTime } from '@/utils/normalizers';
+import { getRoleDisplayName, formatDecimalToTime, getStatusDisplayName, formatDateBR } from '@/utils/normalizers';
 import { supabase } from '@/services/supabaseClient';
 
 import TimesheetCalendar from './TimesheetCalendar';
@@ -31,7 +31,7 @@ const TeamMemberDetail: React.FC = () => {
    const { userId } = useParams<{ userId: string }>();
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
-   const { users, tasks, projects, projectMembers, timesheetEntries, deleteUser, absences, holidays } = useDataController();
+   const { users, tasks, projects, projectMembers, timesheetEntries, deleteUser, absences, holidays, clients, taskMemberAllocations } = useDataController();
 
    // --- CAPACITY MONTH CONTROL ---
    const [capacityMonth, setCapacityMonth] = useState(() => {
@@ -73,6 +73,7 @@ const TeamMemberDetail: React.FC = () => {
 
    useEffect(() => {
       if (user) {
+         document.title = `${user.name} | Gestão de Equipe`;
          setFormData({
             name: user.name,
             email: user.email,
@@ -87,17 +88,29 @@ const TeamMemberDetail: React.FC = () => {
             monthlyAvailableHours: user.monthlyAvailableHours || 160
          });
       }
+      return () => {
+         document.title = 'Sistema de Gestão';
+      };
    }, [user]);
 
    const capData = useMemo(() => {
       if (!user) return null;
-      return CapacityUtils.getUserMonthlyAvailability(user, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays);
-   }, [user, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays]);
+      // Usar valores do formulário para feedback em tempo real no dashboard superior
+      const simulatedUser = {
+         ...user,
+         dailyAvailableHours: Number(String(formData.dailyAvailableHours).replace(',', '.')) || 0
+      };
+      return CapacityUtils.getUserMonthlyAvailability(simulatedUser, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays);
+   }, [user, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays, formData.dailyAvailableHours]);
 
    const releaseDate = useMemo(() => {
       if (!user) return null;
-      return CapacityUtils.calculateIndividualReleaseDate(user, projects, projectMembers, timesheetEntries, tasks, holidays);
-   }, [user, projects, projectMembers, timesheetEntries, tasks, holidays]);
+      const simulatedUser = {
+         ...user,
+         dailyAvailableHours: Number(String(formData.dailyAvailableHours).replace(',', '.')) || 0
+      };
+      return CapacityUtils.calculateIndividualReleaseDate(simulatedUser, projects, projectMembers, timesheetEntries, tasks, holidays);
+   }, [user, projects, projectMembers, timesheetEntries, tasks, holidays, formData.dailyAvailableHours]);
 
    const handleSave = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -139,19 +152,7 @@ const TeamMemberDetail: React.FC = () => {
 
    // --- HELPERS ---
    const getDelayDays = (task: Task) => (task.daysOverdue ?? 0);
-   const currentWorkingDays = useMemo(() => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      let count = 0;
-      for (let i = 1; i <= daysInMonth; i++) {
-         const date = new Date(year, month, i);
-         const day = date.getDay();
-         if (day !== 0 && day !== 6) count++;
-      }
-      return count;
-   }, []);
+
 
    const handleNumberChange = (field: keyof typeof formData, value: string) => {
       const cleanValue = value.replace(/[^0-9.,]/g, '');
@@ -167,9 +168,25 @@ const TeamMemberDetail: React.FC = () => {
 
    if (!user) return <div className="p-4 text-xs font-bold text-slate-500">Colaborador não encontrado.</div>;
 
-   let userTasks = tasks.filter(t => t.developerId === user.id || (t.collaboratorIds && t.collaboratorIds.includes(user.id)));
    const linkedProjectIds = projectMembers.filter(pm => String(pm.id_colaborador) === user.id).map(pm => String(pm.id_projeto));
    const userProjects = projects.filter(p => linkedProjectIds.includes(p.id) && p.active !== false);
+
+   const userTasks = tasks
+      .filter(t => {
+         const isDone = t.status === 'Done';
+         if (isDone) return false;
+
+         const isResponsible = t.developerId === user.id;
+         const isCollaborator = t.collaboratorIds && t.collaboratorIds.includes(user.id);
+         const isActiveInProject = linkedProjectIds.includes(String(t.projectId));
+
+         return isResponsible || (isCollaborator && isActiveInProject);
+      })
+      .sort((a, b) => {
+         const dateA = a.estimatedDelivery ? new Date(a.estimatedDelivery).getTime() : 9999999999999;
+         const dateB = b.estimatedDelivery ? new Date(b.estimatedDelivery).getTime() : 9999999999999;
+         return dateA - dateB;
+      });
    const delayedTasks = userTasks.filter(t => getDelayDays(t) > 0 && t.status !== 'Review');
 
    return (
@@ -208,25 +225,48 @@ const TeamMemberDetail: React.FC = () => {
 
          <div className="flex-1 overflow-y-auto custom-scrollbar">
             {/* SUB-NAVEGAÇÃO - ESTILO TABS */}
-            <div className="flex gap-1 border-b border-[var(--border)] sticky top-0 z-10 bg-[var(--bg)]/80 backdrop-blur-md px-8 pt-2">
+            <div className="flex gap-2 border-b border-[var(--border)] sticky top-0 z-10 bg-[var(--bg)]/60 backdrop-blur-xl px-8 pt-2">
                {[
-                  { id: 'details', label: 'Geral', count: null },
+                  { id: 'details', label: 'Dashboard', icon: LayoutGrid },
                   { id: 'projects', label: 'Projetos', count: userProjects.length },
                   { id: 'tasks', label: 'Tarefas', count: userTasks.length },
                   { id: 'delayed', label: 'Atrasos', count: delayedTasks.length },
-                  { id: 'ponto', label: 'Ponto', count: null },
-                  { id: 'absences', label: 'Ausências', count: null }
+                  { id: 'ponto', label: 'Presença', icon: Clock },
+                  { id: 'absences', label: 'Ausências', icon: AlertCircle }
                ].map(tab => (
                   <button
                      key={tab.id}
                      type="button"
                      onClick={() => setActiveTab(tab.id as ViewTab)}
-                     className={`px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 relative ${activeTab === tab.id
-                        ? 'border-[var(--primary)] text-[var(--primary)] bg-[var(--surface)] rounded-t-lg'
-                        : 'border-transparent text-[var(--muted)] hover:text-[var(--text)]'
+                     className={`px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative group ${activeTab === tab.id ? 'text-[var(--primary)]' : 'text-[var(--muted)] hover:text-[var(--text)]'
                         }`}
                   >
-                     {tab.label} {tab.count !== null && <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] ${tab.id === 'delayed' && tab.count > 0 ? 'bg-red-500 text-white' : 'bg-[var(--surface-2)] opacity-60'}`}>{tab.count}</span>}
+                     <div className="relative z-10 flex items-center gap-2">
+                        {tab.label}
+                        {(tab.count !== null && tab.count !== undefined) && (
+                           <span className={`px-1.5 py-0.5 rounded-lg text-[9px] font-black transition-all ${tab.id === 'delayed' && tab.count > 0
+                              ? 'bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.4)]'
+                              : activeTab === tab.id ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : 'bg-[var(--surface-2)]'
+                              }`}>
+                              {tab.count}
+                           </span>
+                        )}
+                     </div>
+
+                     {activeTab === tab.id && (
+                        <motion.div
+                           layoutId="activeTabPill"
+                           className="absolute inset-0 bg-[var(--surface)] rounded-t-2xl border-x border-t border-[var(--border)] z-0"
+                           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        />
+                     )}
+
+                     {activeTab === tab.id && (
+                        <motion.div
+                           layoutId="activeTabUnderline"
+                           className="absolute bottom-[-2px] left-0 right-0 h-[2px] bg-[var(--primary)] z-20"
+                        />
+                     )}
                   </button>
                ))}
             </div>
@@ -407,7 +447,7 @@ const TeamMemberDetail: React.FC = () => {
                                     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
 
                                     const daily = CapacityUtils.simulateUserDailyAllocation(
-                                       user.id, startDate, endDate, projects, tasks, projectMembers, timesheetEntries, holidays || [], user.dailyAvailableHours || 8
+                                       user.id, startDate, endDate, projects, tasks, projectMembers, timesheetEntries, holidays || [], Number(String(formData.dailyAvailableHours).replace(',', '.')) || 8
                                     );
 
                                     return daily.map(day => {
@@ -554,19 +594,69 @@ const TeamMemberDetail: React.FC = () => {
                                     <div className="space-y-1.5">
                                        <label className="block text-[10px] font-black text-[var(--muted)] uppercase">Hrs Meta Mês</label>
                                        {(() => {
-                                          const currentMonth = new Date().toISOString().slice(0, 7);
-                                          const workingDays = CapacityUtils.getWorkingDaysInMonth(currentMonth, holidays || []);
-                                          const calculatedMonthly = (formData.dailyAvailableHours || 0) * workingDays;
-                                          return (
-                                             <div className="w-full px-4 py-3 bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-black">
-                                                {formatDecimalToTime(calculatedMonthly)}
-                                             </div>
+                                          const currentMonth = capacityMonth;
+                                          const bizDays = CapacityUtils.getWorkingDaysInMonth(currentMonth, holidays || []);
+
+                                          // Subtrair ausências aprovadas do colaborador que caem em dias úteis
+                                          const userAbsences = absences.filter(a =>
+                                             String(a.userId) === String(userId) &&
+                                             (a.status === 'aprovada_gestao' || a.status === 'aprovada_rh' || a.status === 'finalizada_dp')
                                           );
-                                       })()}
-                                       <p className="text-[8px] font-bold uppercase opacity-40 mt-1">
-                                          Ref: {new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')} |
-                                          Meta: {formatDecimalToTime(CapacityUtils.getWorkingDaysInMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, holidays || []) * (formData.dailyAvailableHours || 8))} ({CapacityUtils.getWorkingDaysInMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, holidays || [])} dias)
-                                       </p>
+
+                                          let absenceDays = 0;
+                                          userAbsences.forEach(abs => {
+                                             const start = abs.startDate > `${currentMonth}-01` ? abs.startDate : `${currentMonth}-01`;
+                                             const [year, month] = currentMonth.split('-').map(Number);
+                                             const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+                                             const end = abs.endDate < lastDay ? abs.endDate : lastDay;
+
+                                             if (start <= end) {
+                                                absenceDays += CapacityUtils.getWorkingDaysInRange(start, end, holidays || []);
+                                             }
+                                          });
+
+                                                                                     const totalWorkingDays = Math.max(0, bizDays - absenceDays);
+                                           const today = new Date();
+                                           const todayStr = today.toISOString().split('T')[0];
+                                           const isCurrentMonth = todayStr.startsWith(currentMonth);
+                                           const [year, month] = currentMonth.split('-').map(Number);
+                                           const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+
+                                           const residualStart = isCurrentMonth ? todayStr : `${currentMonth}-01`;
+                                           const residualBizDays = CapacityUtils.getWorkingDaysInRange(residualStart, lastDay, holidays || []);
+
+                                           let residualAbsenceDays = 0;
+                                           userAbsences.forEach(abs => {
+                                              const end = abs.endDate < lastDay ? abs.endDate : lastDay;
+                                              const rStart = abs.startDate > residualStart ? abs.startDate : residualStart;
+                                              if (rStart <= end) {
+                                                 residualAbsenceDays += CapacityUtils.getWorkingDaysInRange(rStart, end, holidays || []);
+                                              }
+                                           });
+
+                                           const finalResidualDays = Math.max(0, residualBizDays - residualAbsenceDays);
+                                           const dailyMeta = Number(formData.dailyAvailableHours) || 0;
+                                           
+                                           const calculatedTotal = dailyMeta * totalWorkingDays;
+                                           const calculatedResidual = dailyMeta * finalResidualDays;
+
+                                           return (
+                                              <div className="space-y-1">
+                                                 <div className="w-full px-4 py-3 bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-black flex justify-between items-center">
+                                                    <span>{formatDecimalToTime(calculatedTotal)}</span>
+                                                    {isCurrentMonth && (
+                                                       <span className="text-[10px] bg-purple-500/10 text-purple-600 px-2 py-1 rounded-lg font-black uppercase tracking-tight">
+                                                          RESTAM: {formatDecimalToTime(calculatedResidual)}
+                                                       </span>
+                                                    )}
+                                                 </div>
+                                                 <p className="text-[8px] font-bold uppercase opacity-40 mt-1">
+                                                    REF: {new Date(capacityMonth + '-02').toLocaleString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()} |
+                                                    TOTAL: {totalWorkingDays} DIAS | {isCurrentMonth ? `SALDO: ${finalResidualDays} DIAS ÚTEIS` : ''}
+                                                 </p>
+                                              </div>
+                                           );
+                                        })()}
                                     </div>
                                  </div>
                               </div>
@@ -709,91 +799,221 @@ const TeamMemberDetail: React.FC = () => {
 
                {activeTab === 'tasks' && (
                   <div className="space-y-4 max-w-4xl mx-auto">
-                     {userTasks.map(t => {
-                        const predictedEnd = CapacityUtils.calculateTaskPredictedEndDate(
-                           t, projects, tasks, projectMembers, timesheetEntries, holidays || [], user.dailyAvailableHours || 8
-                        );
-                        const isPlanned = projects.find(p => String(p.id) === String(t.projectId))?.project_type === 'planned';
+                     <motion.div
+                        initial="hidden"
+                        animate="visible"
+                        variants={{
+                           visible: { transition: { staggerChildren: 0.05 } }
+                        }}
+                        className="space-y-3"
+                     >
+                        {userTasks.map((t) => {
+                           const client = clients.find(c => String(c.id) === String(t.clientId));
+                           const teamIds = Array.from(new Set([t.developerId, ...(t.collaboratorIds || [])])).filter(Boolean);
+                           const responsible = users.find(u => String(u.id) === String(t.developerId));
+                           const teamNames = teamIds
+                              .map(id => users.find(u => String(u.id) === String(id))?.name?.toUpperCase())
+                              .filter(Boolean)
+                              .join(', ');
 
-                        return (
-                           <div onClick={() => navigate(`/tasks/${t.id}`)} key={t.id} className="cursor-pointer ui-card p-5 flex justify-between items-center group">
-                              <div className="flex items-center gap-4">
-                                 <div className="w-10 h-10 rounded-xl bg-[var(--surface-2)] flex items-center justify-center text-[var(--muted)] group-hover:text-[var(--primary)] group-hover:bg-[var(--primary-soft)] transition-all">
-                                    <LayoutGrid className="w-5 h-5" />
+                           const allocatedHours = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
+                           const reportedHours = timesheetEntries.reduce((sum, entry) => {
+                              if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
+                                 return sum + (Number(entry.totalHours) || 0);
+                              }
+                              return sum;
+                           }, 0);
+
+                           const now = new Date();
+                           now.setHours(12, 0, 0, 0);
+                           const delivery = t.estimatedDelivery ? new Date(t.estimatedDelivery + 'T12:00:00') : null;
+                           const isOverdue = delivery ? now > delivery : false;
+
+                           return (
+                              <motion.div
+                                 variants={{
+                                    hidden: { opacity: 0, y: 10 },
+                                    visible: { opacity: 1, y: 0 }
+                                 }}
+                                 whileHover={{ scale: 1.005 }}
+                                 onClick={() => navigate(`/tasks/${t.id}`)}
+                                 key={t.id}
+                                 className="relative cursor-pointer bg-[#0c0c14] border border-white/5 p-4 rounded-[16px] mb-3 flex gap-5 items-center group transition-all"
+                              >
+                                 {/* LOGO EMPRESA */}
+                                 <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center p-2.5 shrink-0 shadow-lg">
+                                    {client?.logoUrl ? (
+                                       <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
+                                    ) : (
+                                       <LayoutGrid className="w-8 h-8 text-slate-200" />
+                                    )}
                                  </div>
-                                 <div>
-                                    <p className="font-black text-[var(--text)] text-sm group-hover:text-[var(--primary)] transition-all">{t.title}</p>
-                                    <div className="flex items-center gap-2 mt-1.5">
-                                       <span className="text-[9px] text-[var(--primary)] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--primary-soft)]">{t.status}</span>
-                                       <span className="text-[var(--border)] opacity-30">•</span>
-                                       <div className="flex items-center gap-1.5">
-                                          <Calendar className="w-3 h-3 text-[var(--muted)]" />
-                                          <span className="text-[9px] text-[var(--muted)] font-black uppercase tracking-tight">Início: {t.scheduledStart || t.actualStart || 'S/D'}</span>
+
+                                 {/* CONTEUDO */}
+                                 <div className="flex-1 min-w-0">
+                                    {/* HEADER: TITULO + HORAS + PROGRESSO (TEXTO) */}
+                                    <div className="flex items-center justify-between mb-1.5">
+                                       <div className="flex items-center gap-3">
+                                          <h4 className="text-white font-black text-[15px] tracking-tight truncate max-w-lg">
+                                             {t.title}
+                                          </h4>
+                                          <div className="bg-[#1a1625] px-3 py-1 rounded-full flex gap-1.5 items-center border border-white/5">
+                                             <span className="text-[11px] font-black text-slate-400 font-mono">{formatDecimalToTime(reportedHours)}h</span>
+                                             <span className="text-[11px] text-white/5">/</span>
+                                             <span className="text-[11px] font-black text-purple-500 font-mono">{formatDecimalToTime(allocatedHours)}h</span>
+                                          </div>
                                        </div>
-                                       <span className="text-[var(--border)] opacity-30">•</span>
-                                       <div className="flex items-center gap-1.5">
-                                          <Clock className="w-3 h-3 text-[var(--muted)]" />
-                                          <span className="text-[9px] text-[var(--muted)] font-black uppercase tracking-tight">Acordado: {t.estimatedDelivery || 'S/D'}</span>
+                                       <span className="text-purple-600 font-black text-[13px] font-mono">{t.progress}%</span>
+                                    </div>
+
+                                    {/* STATUS BADGE */}
+                                    <div className="mb-4">
+                                       <span className="bg-blue-600 text-[10px] font-black text-white px-3 py-1 rounded-md uppercase tracking-widest shadow-lg shadow-blue-500/20">
+                                          {getStatusDisplayName(t.status)}
+                                       </span>
+                                    </div>
+
+                                    {/* INFO ROW: PERIODO | RESPONSÁVEL | EQUIPE */}
+                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter mb-4">
+                                       <div className="flex items-center gap-2">
+                                          <Calendar className="w-3.5 h-3.5 opacity-30" />
+                                          <span>PERÍODO: <span className="text-slate-300">{formatDateBR(t.scheduledStart || t.actualStart)} - {formatDateBR(t.estimatedDelivery)}</span></span>
                                        </div>
-                                       {(isPlanned && predictedEnd) && (predictedEnd.ideal !== t.estimatedDelivery || predictedEnd.realistic !== t.estimatedDelivery) && (
-                                          <>
-                                             <span className="text-[var(--border)] opacity-30">•</span>
-                                             <div className="flex flex-col gap-0.5">
-                                                <div className="flex items-center gap-1 text-emerald-500">
-                                                   <Zap className="w-2.5 h-2.5" />
-                                                   <span className="text-[8px] font-black uppercase tracking-tight">Prev. Ideal: {predictedEnd.ideal}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 text-amber-500">
-                                                   <Clock className="w-2.5 h-2.5" />
-                                                   <span className="text-[8px] font-black uppercase tracking-tight">Prev. Realista: {predictedEnd.realistic}</span>
-                                                </div>
+                                       <div className="flex items-center gap-2">
+                                          <UserIcon className="w-3.5 h-3.5 opacity-30" />
+                                          <span>RESPONSÁVEL: <span className="text-slate-300">{responsible?.name?.toUpperCase()}</span></span>
+                                       </div>
+                                       <div className="h-3 w-[1px] bg-white/10 hidden xl:block" />
+                                       <div className="flex items-center gap-1 min-w-0">
+                                          <span>EQUIPE: <span className="text-slate-300 truncate">{teamNames}</span></span>
+                                       </div>
+                                    </div>
+
+                                    {/* FOOTER: AVATARES + ALERTA + PROGRESS BAR */}
+                                    <div className="flex items-center justify-between">
+                                       <div className="flex items-center gap-4">
+                                          <div className="flex -space-x-2.5">
+                                             {teamIds.slice(0, 8).map(id => {
+                                                const collabo = users.find(u => String(u.id) === String(id));
+                                                return (
+                                                   <div key={id} className="w-7 h-7 rounded-full border-2 border-[#0c0c14] overflow-hidden bg-slate-800 shadow-xl">
+                                                      {collabo?.avatarUrl ? <img src={collabo.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[7px] font-black text-white/30 uppercase">{collabo?.name?.substring(0, 1)}</div>}
+                                                   </div>
+                                                );
+                                             })}
+                                          </div>
+
+                                          {isOverdue && (
+                                             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-red-500/5 border border-red-500/20 text-red-500 shadow-2xl">
+                                                <AlertCircle className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-black uppercase tracking-[0.15em]">Tarefa Atrasada</span>
                                              </div>
-                                          </>
-                                       )}
+                                          )}
+                                       </div>
+
+                                       <div className="w-64 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5 group-hover:border-white/10 transition-all">
+                                          <div
+                                             className="h-full bg-purple-600/10"
+                                             style={{ width: '100%' }}
+                                          >
+                                             <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${t.progress}%` }}
+                                                transition={{ duration: 1.5, ease: "circOut" }}
+                                                className="h-full bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.35)]"
+                                             />
+                                          </div>
+                                       </div>
                                     </div>
                                  </div>
-                              </div>
-                              <div className="text-right">
-                                 <div className="text-xs font-black text-[var(--primary)]">{t.progress}%</div>
-                                 <div className="w-20 h-1.5 bg-[var(--surface-2)] rounded-full mt-1.5 overflow-hidden">
-                                    <div className="h-full bg-[var(--primary)]" style={{ width: `${t.progress}%` }}></div>
-                                 </div>
-                              </div>
-                           </div>
-                        );
-                     })}
+                              </motion.div>
+                           );
+                        })}
+                     </motion.div>
                      {userTasks.length === 0 && (
-                        <div className="py-20 text-center border-2 border-dashed border-[var(--border)] rounded-2xl">
-                           <p className="text-xs font-black text-[var(--muted)] uppercase tracking-widest">Nenhuma tarefa atribuída.</p>
-                        </div>
+                        <motion.div
+                           initial={{ opacity: 0 }}
+                           animate={{ opacity: 1 }}
+                           className="py-16 text-center border-2 border-dashed border-[var(--border-muted)] rounded-[32px] bg-[var(--surface-2)]/30 backdrop-blur-sm"
+                        >
+                           <LayoutGrid className="w-8 h-8 mx-auto text-[var(--muted)] opacity-20 mb-3" />
+                           <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-[0.2em] opacity-40">Nenhuma tarefa atribuída</p>
+                        </motion.div>
                      )}
                   </div>
                )}
 
                {activeTab === 'delayed' && (
-                  <div className="space-y-4 max-w-4xl mx-auto">
-                     {delayedTasks.map(t => (
-                        <div onClick={() => navigate(`/tasks/${t.id}`)} key={t.id} className="cursor-pointer bg-red-500/5 border border-red-500/20 p-6 rounded-2xl hover:bg-red-500/10 transition-all flex justify-between items-center group">
-                           <div>
-                              <p className="font-black text-red-900 dark:text-red-400 text-sm">{t.title}</p>
-                              <div className="flex items-center gap-2 mt-2">
-                                 <AlertCircle className="w-3.5 h-3.5 text-red-500" />
-                                 <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Atraso Crítico: {getDelayDays(t)} dias</p>
+                  <motion.div
+                     initial="hidden"
+                     animate="visible"
+                     variants={{
+                        visible: { transition: { staggerChildren: 0.05 } }
+                     }}
+                     className="space-y-3 max-w-4xl mx-auto"
+                  >
+                     {delayedTasks.map(t => {
+                        const client = clients.find(c => String(c.id) === String(t.clientId));
+                        return (
+                           <motion.div
+                              variants={{
+                                 hidden: { opacity: 0, x: -10 },
+                                 visible: { opacity: 1, x: 0 }
+                              }}
+                              whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
+                              onClick={() => navigate(`/tasks/${t.id}`)}
+                              key={t.id}
+                              className="cursor-pointer glass-effect p-3 rounded-[24px] hover:bg-red-500/[0.03] hover:border-red-500/30 transition-all flex justify-between items-center group shadow-sm border border-red-500/10 overflow-hidden relative"
+                           >
+                              <div className="absolute left-0 top-0 w-1 h-full bg-red-500/40" />
+
+                              <div className="flex items-center gap-4 min-w-0">
+                                 <div className="w-11 h-11 rounded-2xl bg-red-500/5 flex items-center justify-center text-red-500 shrink-0 border border-red-500/10 overflow-hidden shadow-inner">
+                                    {client?.logoUrl ? (
+                                       <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain p-2" />
+                                    ) : (
+                                       <AlertCircle className="w-5 h-5" />
+                                    )}
+                                 </div>
+                                 <div className="min-w-0">
+                                    <h4 className="font-black text-red-900 dark:text-red-400 text-[13px] truncate uppercase tracking-tight mb-1 group-hover:text-red-600 transition-colors">
+                                       {t.title}
+                                    </h4>
+                                    <div className="flex items-center gap-2">
+                                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20">
+                                          <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+                                          <span className="text-[8px] font-black text-red-700 dark:text-red-400 uppercase tracking-widest">Atraso Crítico: {getDelayDays(t)} dias</span>
+                                       </div>
+                                       <span className="text-[7px] font-bold text-red-400/50 uppercase tracking-widest">ID: #{t.id}</span>
+                                    </div>
+                                 </div>
                               </div>
-                           </div>
-                           <ChevronRight className="w-5 h-5 text-red-200" />
-                        </div>
-                     ))}
+                              <div className="flex items-center gap-3 pr-2">
+                                 <div className="text-right hidden sm:block">
+                                    <p className="text-[8px] font-black text-red-400 uppercase tracking-widest opacity-40">Responsável</p>
+                                    <p className="text-[10px] font-black text-red-900/60 dark:text-red-400/60 uppercase">
+                                       {users.find(u => String(u.id) === String(t.developerId))?.name?.split(' ')[0] || '---'}
+                                    </p>
+                                 </div>
+                                 <ChevronRight className="w-5 h-5 text-red-300 group-hover:text-red-600 transition-all group-hover:translate-x-1 shrink-0" />
+                              </div>
+                           </motion.div>
+                        );
+                     })}
                      {delayedTasks.length === 0 && (
-                        <div className="text-center py-20 bg-emerald-500/5 rounded-2xl border-2 border-dashed border-emerald-500/20">
-                           <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <CheckCircle className="w-8 h-8 text-emerald-500" />
+                        <motion.div
+                           initial={{ opacity: 0, scale: 0.95 }}
+                           animate={{ opacity: 1, scale: 1 }}
+                           className="text-center py-16 bg-emerald-500/5 rounded-[32px] border-2 border-dashed border-emerald-500/20 backdrop-blur-sm"
+                        >
+                           <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/20 shadow-lg">
+                              <CheckCircle className="w-7 h-7 text-emerald-500" />
                            </div>
-                           <p className="text-emerald-700 font-black text-sm uppercase tracking-widest">Monitoramento Impecável</p>
-                           <p className="text-xs text-emerald-600 font-bold mt-1 opacity-70 italic">Sem nenhum atraso registrado.</p>
-                        </div>
+                           <p className="text-emerald-700 dark:text-emerald-400 font-black text-xs uppercase tracking-[0.2em]">Monitoramento Impecável</p>
+                           <p className="text-[10px] text-emerald-600/60 dark:text-emerald-500/40 font-bold mt-1.5 italic">Sem nenhum atraso registrado no momento.</p>
+                        </motion.div>
                      )}
-                  </div>
+                  </motion.div>
                )}
 
                {activeTab === 'ponto' && (
@@ -817,7 +1037,6 @@ const TeamMemberDetail: React.FC = () => {
             onConfirm={handleDeleteUser}
             onCancel={() => setDeleteModalOpen(false)}
          />
-         {/* BREAKDOWN MODAL */}
          {showBreakdown && capData && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                <motion.div
@@ -886,7 +1105,7 @@ const TeamMemberDetail: React.FC = () => {
                </motion.div>
             </div>
          )}
-      </div>
+      </div >
    );
 };
 

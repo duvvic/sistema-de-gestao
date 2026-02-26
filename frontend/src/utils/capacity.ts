@@ -1,4 +1,4 @@
-import { User, Task, Project, ProjectMember, Holiday, TimesheetEntry } from '@/types';
+import { User, Task, Project, ProjectMember, Holiday, TimesheetEntry, TaskMemberAllocation } from '@/types';
 
 /**
  * Retorna o número de dias úteis (Segunda a Sexta) em um determinado mês, descontando feriados.
@@ -117,36 +117,9 @@ export const getUserContinuousCommitment = (
     userDailyCap: number = 8,
     dateStr?: string
 ): number => {
-    const userContinuousMemberships = projectMembers.filter(pm => {
-        if (String(pm.id_colaborador) !== String(userId)) return false;
-        const project = allProjects.find(p => String(p.id) === String(pm.id_projeto));
-
-        // Verifica se o projeto está ativo na data especificada (se fornecida)
-        const isActiveOnDate = !dateStr || (
-            (!project?.startDate || dateStr >= project.startDate) &&
-            (!project?.estimatedDelivery || dateStr <= project.estimatedDelivery)
-        );
-
-        return project?.project_type === 'continuous' && project.active !== false && isActiveOnDate;
-    });
-
-    if (userContinuousMemberships.length === 0) return 0;
-
-    let totalCommitment = 0;
-    userContinuousMemberships.forEach(pm => {
-        // Regra Oficial: Alocação direta nas horas do projeto (via percentual de alocação) se definido (> 0).
-        // Caso contrário, fallback para consumo proporcional ao número de membros vinculados (Regra 8h/N).
-        const allocation = Number(pm.allocation_percentage);
-
-        if (allocation > 0) {
-            totalCommitment += (allocation / 100) * userDailyCap;
-        } else {
-            const membersInThisProject = projectMembers.filter(m => String(m.id_projeto) === String(pm.id_projeto)).length;
-            totalCommitment += membersInThisProject > 0 ? (userDailyCap / membersInThisProject) : 0;
-        }
-    });
-
-    return totalCommitment;
+    // REFORMULADO: Alocação automática por membresia foi abolida.
+    // Agora o sistema considera apenas o que está explicitamente alocado em tarefas.
+    return 0;
 };
 
 /**
@@ -245,7 +218,8 @@ export const calculateTaskPredictedEndDate = (
     projectMembers: ProjectMember[],
     timesheetEntries: TimesheetEntry[],
     holidays: Holiday[] = [],
-    userDailyCap: number = 8
+    userDailyCap: number = 8,
+    taskMemberAllocations: TaskMemberAllocation[] = []
 ): { ideal: string; realistic: string; isSaturated?: boolean } => {
     const userId = task.developerId;
     const fallback = { ideal: task.estimatedDelivery || '', realistic: task.estimatedDelivery || '' };
@@ -259,7 +233,17 @@ export const calculateTaskPredictedEndDate = (
         .filter(e => String(e.taskId) === String(task.id) && String(e.userId) === String(userId))
         .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
 
-    const effortRestante = isIgnored ? 0 : Math.max(0, (Number(task.estimatedHours) || 0) - reported);
+    // --- LÓGICA DE ALOCAÇÃO ESPECÍFICA ---
+    const specificAllocation = taskMemberAllocations.find(a => String(a.taskId) === String(task.id) && String(a.userId) === String(userId));
+    let taskEffort = 0;
+    if (specificAllocation) {
+        taskEffort = specificAllocation.reservedHours;
+    } else {
+        const teamIds = Array.from(new Set([task.developerId, ...(task.collaboratorIds || [])])).filter(Boolean);
+        taskEffort = (Number(task.estimatedHours) || 0) / (teamIds.length || 1);
+    }
+
+    const effortRestante = isIgnored ? 0 : Math.max(0, taskEffort - reported);
     if (effortRestante <= 0) {
         const date = task.actualDelivery || task.estimatedDelivery || '';
         return { ideal: date, realistic: date };
@@ -297,7 +281,8 @@ export const getUserMonthlyAvailability = (
     projectMembers: ProjectMember[],
     timesheetEntries: TimesheetEntry[],
     tasks: Task[],
-    holidays: Holiday[] = []
+    holidays: Holiday[] = [],
+    taskMemberAllocations: TaskMemberAllocation[] = []
 ): {
     capacity: number;
     plannedHours: number;
@@ -314,84 +299,75 @@ export const getUserMonthlyAvailability = (
     };
 } => {
     const [year, month] = monthStr.split('-').map(Number);
-    const startDate = `${monthStr}-01`;
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const isCurrentMonth = todayStr.startsWith(monthStr);
+
+    const startDate = isCurrentMonth ? todayStr : `${monthStr}-01`;
     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
 
     const dailyGoal = user.dailyAvailableHours || 8;
-    const workingDays = getWorkingDaysInMonth(monthStr, holidays);
+    const workingDays = getWorkingDaysInRange(startDate, endDate, holidays);
     const capacity = dailyGoal * workingDays;
 
-    // 1. Calcular detalhamento de projetos contínuos
-    const continuousProjectsBreakdown: { id: string; name: string; hours: number }[] = [];
-    const userContinuousMemberships = projectMembers.filter(pm => {
-        if (String(pm.id_colaborador) !== String(user.id)) return false;
-        const p = projects.find(proj => String(proj.id) === String(pm.id_projeto));
-        return p?.project_type === 'continuous' && p.active !== false;
-    });
-
-    userContinuousMemberships.forEach(pm => {
-        const p = projects.find(proj => String(proj.id) === String(pm.id_projeto));
-        if (!p) return;
-
-        // Horas totais no mês para este projeto contínuo
-        let projectHours = 0;
-        const allocation = Number(pm.allocation_percentage);
-        const dailyCommitment = allocation > 0
-            ? (allocation / 100) * dailyGoal
-            : (projectMembers.filter(m => String(m.id_projeto) === String(p.id)).length > 0
-                ? (dailyGoal / projectMembers.filter(m => String(m.id_projeto) === String(p.id)).length)
-                : 0);
-
-        // Itera dias úteis para somar
-        const d = new Date(year, month - 1, 1, 12);
-        while (d.getMonth() === month - 1) {
-            const dateStr = d.toISOString().split('T')[0];
-            const isW = d.getDay() !== 0 && d.getDay() !== 6 && !holidays.some(h => dateStr >= h.date && dateStr <= (h.endDate || h.date));
-            if (isW) {
-                const isActiveOnDate = (!p.startDate || dateStr >= p.startDate) && (!p.estimatedDelivery || dateStr <= p.estimatedDelivery);
-                if (isActiveOnDate) projectHours += dailyCommitment;
-            }
-            d.setDate(d.getDate() + 1);
-        }
-
-        if (projectHours > 0) {
-            continuousProjectsBreakdown.push({ id: p.id, name: p.name, hours: Number(projectHours.toFixed(2)) });
-        }
-    });
-
-    // 2. Calcular detalhamento de projetos planejados
+    // 1. Calcular detalhamento de projetos (Baseado estritamente em horas alocadas às tarefas)
     const plannedProjectsBreakdown: { id: string; name: string; hours: number }[] = [];
-    const dailyAllocations = simulateUserDailyAllocation(user.id, startDate, endDate, projects, tasks, projectMembers, timesheetEntries, holidays, dailyGoal);
+    let plannedHoursTotal = 0;
+    const continuousProjectsBreakdown: { id: string; name: string; hours: number }[] = [];
+    let continuousHoursTotal = 0;
 
-    const plannedHoursTotal = dailyAllocations.reduce((sum, d) => sum + d.plannedHours, 0);
-    const continuousHoursTotal = dailyAllocations.reduce((sum, d) => sum + d.continuousHours, 0);
-
-    // Identifica quais projetos planejados tiveram tarefas ativas no mês
-    const activePlannedProjectIds = new Set<string>();
     tasks.forEach(t => {
         const isOwner = String(t.developerId) === String(user.id) || t.collaboratorIds?.some(id => String(id) === String(user.id));
+        // Se a tarefa estiver concluída, ela NÃO conta para o saldo/alocação ("liberará na hora")
         if (!isOwner || t.status === 'Done' || !!t.deleted_at) return;
 
         const p = projects.find(proj => proj.id === t.projectId);
-        if (p?.project_type !== 'planned') return;
+        if (!p) return;
 
-        // Verifica se a tarefa transita pelo mês
-        const tStart = t.scheduledStart || t.actualStart || p.startDate || '';
-        const tEnd = t.estimatedDelivery || '';
-        const overlap = (!tEnd || tEnd >= startDate) && (!tStart || tStart <= endDate);
+        // --- LÓGICA DE ALOCAÇÃO ESPECÍFICA ---
+        const specificAllocation = taskMemberAllocations.find(a => String(a.taskId) === String(t.id) && String(a.userId) === String(user.id));
 
-        if (overlap) activePlannedProjectIds.add(t.projectId);
+        let totalEffort = 0;
+        if (specificAllocation) {
+            totalEffort = specificAllocation.reservedHours;
+        } else {
+            // Fallback: Se não houver alocação específica, divide o esforço total pelo tamanho da equipe (developer + collaborators)
+            const teamIds = Array.from(new Set([t.developerId, ...(t.collaboratorIds || [])])).filter(Boolean);
+            totalEffort = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
+        }
+
+        if (totalEffort <= 0) return;
+
+        const tStart = t.scheduledStart || t.actualStart || p.startDate || startDate;
+        const tEnd = t.estimatedDelivery || p.estimatedDelivery || endDate;
+
+        const totalTaskDays = getWorkingDaysInRange(tStart, tEnd, holidays);
+        if (totalTaskDays <= 0) return;
+
+        const hoursPerDay = totalEffort / totalTaskDays;
+        const intStart = tStart > startDate ? tStart : startDate;
+        const intEnd = tEnd < endDate ? tEnd : endDate;
+
+        if (intStart <= intEnd) {
+            const bizDaysInMonth = getWorkingDaysInRange(intStart, intEnd, holidays);
+            const effortInMonth = bizDaysInMonth * hoursPerDay;
+
+            if (p.project_type === 'continuous') {
+                continuousHoursTotal += effortInMonth;
+                const existing = continuousProjectsBreakdown.find(pb => pb.id === p.id);
+                if (existing) existing.hours += effortInMonth;
+                else continuousProjectsBreakdown.push({ id: p.id, name: p.name, hours: effortInMonth });
+            } else {
+                plannedHoursTotal += effortInMonth;
+                const existing = plannedProjectsBreakdown.find(pb => pb.id === p.id);
+                if (existing) existing.hours += effortInMonth;
+                else plannedProjectsBreakdown.push({ id: p.id, name: p.name, hours: effortInMonth });
+            }
+        }
     });
 
-    // Distribui as horas planejadas totais entre os projetos ativos (proporcionalmente ou simplificado)
-    // Aqui usaremos uma distribuição simplificada: divide o total de horas planejadas do mês pelos projetos ativos
-    if (activePlannedProjectIds.size > 0 && plannedHoursTotal > 0) {
-        const hoursPerProject = plannedHoursTotal / activePlannedProjectIds.size;
-        activePlannedProjectIds.forEach(pid => {
-            const p = projects.find(proj => proj.id === pid);
-            if (p) plannedProjectsBreakdown.push({ id: p.id, name: p.name, hours: Number(hoursPerProject.toFixed(2)) });
-        });
-    }
+    plannedProjectsBreakdown.forEach(pb => pb.hours = Number(pb.hours.toFixed(2)));
+    continuousProjectsBreakdown.forEach(pb => pb.hours = Number(pb.hours.toFixed(2)));
 
     const totalOccupancy = plannedHoursTotal + continuousHoursTotal;
     const occupancyRateVal = capacity > 0 ? (totalOccupancy / capacity) : 0;
@@ -465,7 +441,8 @@ export const calculateIndividualReleaseDate = (
     projectMembers: ProjectMember[],
     timesheetEntries: TimesheetEntry[],
     allTasks: Task[],
-    holidays: Holiday[] = []
+    holidays: Holiday[] = [],
+    taskMemberAllocations: TaskMemberAllocation[] = []
 ): { ideal: string; realistic: string; isSaturated?: boolean } | null => {
     const userPlannedTasks = allTasks.filter(t => {
         const isOwner = String(t.developerId) === String(user.id);
@@ -475,7 +452,7 @@ export const calculateIndividualReleaseDate = (
         const project = allProjects.find(p => String(p.id) === String(t.projectId));
         const isIgnored = t.status === 'Done' || (t.status as string) === 'Cancelled' || (t.status as string) === 'Cancelada' || t.deleted_at;
 
-        return project?.active !== false && project?.project_type !== 'continuous' && !isIgnored;
+        return project?.active !== false && !isIgnored; // Consideramos todas as tarefas ativas
     });
 
     if (userPlannedTasks.length === 0) return null;
@@ -485,7 +462,18 @@ export const calculateIndividualReleaseDate = (
         const reported = timesheetEntries
             .filter(e => String(e.taskId) === String(task.id) && String(e.userId) === String(user.id))
             .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
-        totalEffortRemaining += Math.max(0, (Number(task.estimatedHours) || 0) - reported);
+
+        // --- NOVA LÓGICA: Busca alocação específica para o colaborador ---
+        const specificAllocation = taskMemberAllocations.find(a => String(a.taskId) === String(task.id) && String(a.userId) === String(user.id));
+        let taskEffort = 0;
+        if (specificAllocation) {
+            taskEffort = specificAllocation.reservedHours;
+        } else {
+            const teamIds = Array.from(new Set([task.developerId, ...(task.collaboratorIds || [])])).filter(Boolean);
+            taskEffort = (Number(task.estimatedHours) || 0) / (teamIds.length || 1);
+        }
+
+        totalEffortRemaining += Math.max(0, taskEffort - reported);
     });
 
     if (totalEffortRemaining <= 0) return null;
@@ -520,7 +508,8 @@ export const calculateTeamSaturationTrend = (
     projectMembers: ProjectMember[],
     allTasks: Task[],
     timesheetEntries: TimesheetEntry[],
-    holidays: Holiday[] = []
+    holidays: Holiday[] = [],
+    taskMemberAllocations: TaskMemberAllocation[] = []
 ): { month: string; saturationRate: number; avgLoad: number }[] => {
     const trends: { month: string; saturationRate: number; avgLoad: number }[] = [];
     const today = new Date();
@@ -536,14 +525,10 @@ export const calculateTeamSaturationTrend = (
         let totalLoad = 0;
 
         operationalUsers.forEach(u => {
-            const availability = getUserMonthlyAvailability(u, monthStr, allProjects, projectMembers, timesheetEntries, allTasks, holidays);
+            const availability = getUserMonthlyAvailability(u, monthStr, allProjects, projectMembers, timesheetEntries, allTasks, holidays, taskMemberAllocations);
             totalLoad += availability.occupancyRate;
 
-            // Um colaborador é considerado saturado na tendência se o compromisso contínuo dele
-            // naquela data futura ainda ocupar 100% da sua carga
-            const dateInMonth = `${monthStr}-15`; // Ponto médio do mês para amostragem
-            const commitment = getUserContinuousCommitment(String(u.id), allProjects, projectMembers, u.dailyAvailableHours || 8, dateInMonth);
-            if (commitment >= (u.dailyAvailableHours || 8)) {
+            if (availability.occupancyRate >= 100) {
                 saturatedCount++;
             }
         });
@@ -569,7 +554,8 @@ export const calculateTeamElasticity = (
     projectMembers: ProjectMember[],
     timesheetEntries: TimesheetEntry[],
     tasks: Task[],
-    holidays: Holiday[] = []
+    holidays: Holiday[] = [],
+    taskMemberAllocations: TaskMemberAllocation[] = []
 ): number => {
     const operationalUsers = users.filter(u => u.active !== false && (u.torre || '').toUpperCase() !== 'N/A');
     if (operationalUsers.length === 0) return 0;
@@ -578,7 +564,7 @@ export const calculateTeamElasticity = (
     let totalAvailable = 0;
 
     operationalUsers.forEach(u => {
-        const data = getUserMonthlyAvailability(u, monthStr, projects, projectMembers, timesheetEntries, tasks, holidays);
+        const data = getUserMonthlyAvailability(u, monthStr, projects, projectMembers, timesheetEntries, tasks, holidays, taskMemberAllocations);
         totalCapacity += data.capacity;
         totalAvailable += Math.max(0, data.available); // Apenas saldo positivo conta como elasticidade
     });
@@ -597,13 +583,14 @@ export const simulateNewProjectImpact = (
     projectMembers: ProjectMember[],
     allTasks: Task[],
     timesheetEntries: TimesheetEntry[],
-    holidays: Holiday[] = []
+    holidays: Holiday[] = [],
+    taskMemberAllocations: TaskMemberAllocation[] = []
 ): { userId: string; name: string; releaseDateBefore: string; releaseDateAfter: string; isNewSaturated: boolean }[] => {
     const impact: any[] = [];
     const operationalUsers = users.filter(u => u.active !== false && (u.torre || '').toUpperCase() !== 'N/A');
 
     operationalUsers.forEach(u => {
-        const current = calculateIndividualReleaseDate(u, allProjects, projectMembers, timesheetEntries, allTasks, holidays);
+        const current = calculateIndividualReleaseDate(u, allProjects, projectMembers, timesheetEntries, allTasks, holidays, taskMemberAllocations);
         if (!current) return;
 
         // Simula o acréscimo de horas distribuído no backlog do usuário
@@ -618,7 +605,7 @@ export const simulateNewProjectImpact = (
         } as any;
 
         const simulatedTasks = [...allTasks, ghostTask];
-        const after = calculateIndividualReleaseDate(u, allProjects, projectMembers, timesheetEntries, simulatedTasks, holidays);
+        const after = calculateIndividualReleaseDate(u, allProjects, projectMembers, timesheetEntries, simulatedTasks, holidays, taskMemberAllocations);
 
         impact.push({
             userId: u.id,
