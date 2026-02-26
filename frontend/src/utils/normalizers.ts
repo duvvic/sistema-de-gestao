@@ -130,8 +130,6 @@ export function mapDbTaskToTask(row: any, userMap?: Map<string, any>, projectNam
 
 function calculateDaysOverdue(estimated: string | null, actual: string | null, status: Status): number {
     if (!estimated) return 0;
-
-    // Status 'Done' não conta como 'em atraso' — desconsiderar completamente
     if (status === 'Done') return 0;
 
     const parseLocalDate = (dateStr: string) => {
@@ -143,7 +141,6 @@ function calculateDaysOverdue(estimated: string | null, actual: string | null, s
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    // Só é considerado atraso se o dia de hoje FOR MAIOR que o dia da entrega
     const diff = Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
     return diff > 0 ? diff : 0;
 }
@@ -202,7 +199,7 @@ export function mapDbProjectToProject(row: any): Project {
         weeklyStatusReport: row.weekly_status_report || undefined,
         complexidade: row.complexidade || undefined,
         horas_vendidas: row.horas_vendidas ? Number(row.horas_vendidas) : undefined,
-        project_type: row.project_type || 'continuous',
+        project_type: row.project_type || 'planned',
         valor_diario: row.valor_diario ? Number(row.valor_diario) : undefined,
     };
 }
@@ -254,18 +251,41 @@ export function mapDbAbsenceToAbsence(row: any): any {
 
 export function formatDecimalToTime(decimalHours: number | null | undefined): string {
     if (decimalHours == null || isNaN(decimalHours) || decimalHours === 0) return "0:00";
-
     const isNegative = decimalHours < 0;
     const absHours = Math.abs(decimalHours);
-
     let hours = Math.floor(absHours);
     let minutes = Math.round((absHours - hours) * 60);
-
     if (minutes === 60) {
         hours += 1;
         minutes = 0;
     }
-
     const timeStr = `${hours}:${minutes.toString().padStart(2, '0')}`;
     return isNegative ? `-${timeStr}` : timeStr;
+}
+
+export function parseTimeToDecimal(timeStr: string): number {
+    if (!timeStr) return 0;
+    let val = timeStr.trim().replace(',', '.');
+    val = val.replace('h', '');
+
+    if (val.includes(':')) {
+        const parts = val.split(':');
+        const h = parseInt(parts[0], 10) || 0;
+        const m = parseInt(parts[1], 10) || 0;
+        return h + (m / 60);
+    }
+
+    if (val.includes('.')) {
+        return parseFloat(val) || 0;
+    }
+
+    if (/^\d{3,4}$/.test(val)) {
+        if (val.length === 4 || (val.length === 3 && val.startsWith('0'))) {
+            const h = parseInt(val.slice(0, val.length - 2), 10) || 0;
+            const m = parseInt(val.slice(val.length - 2), 10) || 0;
+            return h + (m / 60);
+        }
+    }
+
+    return parseFloat(val) || 0;
 }
