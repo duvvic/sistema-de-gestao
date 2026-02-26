@@ -353,10 +353,23 @@ const TaskDetail: React.FC = () => {
 
       // Save member allocations
       if (finalTaskId) {
-        const allocationsToSave = Object.entries(finalAllocations).map(([userId, hours]) => ({
-          userId,
-          reservedHours: hours
-        }));
+        // Se houver membros alocados mas nenhuma alocação explícita (tudo zero), salva o fallback distribuído.
+        const teamIds = Array.from(new Set([payload.developerId, ...(payload.collaboratorIds || [])])).filter(Boolean);
+        const hasAnyAllocation = Object.values(finalAllocations).some(val => val > 0);
+
+        let allocationsToSave = [];
+        if (!hasAnyAllocation && payload.estimatedHours > 0 && teamIds.length > 0) {
+          const fallbackHours = payload.estimatedHours / teamIds.length;
+          allocationsToSave = teamIds.map(uid => ({
+            userId: String(uid),
+            reservedHours: fallbackHours
+          }));
+        } else {
+          allocationsToSave = Object.entries(finalAllocations).map(([userId, hours]) => ({
+            userId,
+            reservedHours: hours
+          }));
+        }
         await allocationService.saveTaskAllocations(finalTaskId, allocationsToSave);
       }
 
