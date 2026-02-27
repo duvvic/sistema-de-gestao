@@ -615,48 +615,48 @@ const TeamMemberDetail: React.FC = () => {
                                              }
                                           });
 
-                                                                                     const totalWorkingDays = Math.max(0, bizDays - absenceDays);
-                                           const today = new Date();
-                                           const todayStr = today.toISOString().split('T')[0];
-                                           const isCurrentMonth = todayStr.startsWith(currentMonth);
-                                           const [year, month] = currentMonth.split('-').map(Number);
-                                           const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+                                          const totalWorkingDays = Math.max(0, bizDays - absenceDays);
+                                          const today = new Date();
+                                          const todayStr = today.toISOString().split('T')[0];
+                                          const isCurrentMonth = todayStr.startsWith(currentMonth);
+                                          const [year, month] = currentMonth.split('-').map(Number);
+                                          const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
 
-                                           const residualStart = isCurrentMonth ? todayStr : `${currentMonth}-01`;
-                                           const residualBizDays = CapacityUtils.getWorkingDaysInRange(residualStart, lastDay, holidays || []);
+                                          const residualStart = isCurrentMonth ? todayStr : `${currentMonth}-01`;
+                                          const residualBizDays = CapacityUtils.getWorkingDaysInRange(residualStart, lastDay, holidays || []);
 
-                                           let residualAbsenceDays = 0;
-                                           userAbsences.forEach(abs => {
-                                              const end = abs.endDate < lastDay ? abs.endDate : lastDay;
-                                              const rStart = abs.startDate > residualStart ? abs.startDate : residualStart;
-                                              if (rStart <= end) {
-                                                 residualAbsenceDays += CapacityUtils.getWorkingDaysInRange(rStart, end, holidays || []);
-                                              }
-                                           });
+                                          let residualAbsenceDays = 0;
+                                          userAbsences.forEach(abs => {
+                                             const end = abs.endDate < lastDay ? abs.endDate : lastDay;
+                                             const rStart = abs.startDate > residualStart ? abs.startDate : residualStart;
+                                             if (rStart <= end) {
+                                                residualAbsenceDays += CapacityUtils.getWorkingDaysInRange(rStart, end, holidays || []);
+                                             }
+                                          });
 
-                                           const finalResidualDays = Math.max(0, residualBizDays - residualAbsenceDays);
-                                           const dailyMeta = Number(formData.dailyAvailableHours) || 0;
-                                           
-                                           const calculatedTotal = dailyMeta * totalWorkingDays;
-                                           const calculatedResidual = dailyMeta * finalResidualDays;
+                                          const finalResidualDays = Math.max(0, residualBizDays - residualAbsenceDays);
+                                          const dailyMeta = Number(formData.dailyAvailableHours) || 0;
 
-                                           return (
-                                              <div className="space-y-1">
-                                                 <div className="w-full px-4 py-3 bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-black flex justify-between items-center">
-                                                    <span>{formatDecimalToTime(calculatedTotal)}</span>
-                                                    {isCurrentMonth && (
-                                                       <span className="text-[10px] bg-purple-500/10 text-purple-600 px-2 py-1 rounded-lg font-black uppercase tracking-tight">
-                                                          RESTAM: {formatDecimalToTime(calculatedResidual)}
-                                                       </span>
-                                                    )}
-                                                 </div>
-                                                 <p className="text-[8px] font-bold uppercase opacity-40 mt-1">
-                                                    REF: {new Date(capacityMonth + '-02').toLocaleString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()} |
-                                                    TOTAL: {totalWorkingDays} DIAS | {isCurrentMonth ? `SALDO: ${finalResidualDays} DIAS ÚTEIS` : ''}
-                                                 </p>
-                                              </div>
-                                           );
-                                        })()}
+                                          const calculatedTotal = dailyMeta * totalWorkingDays;
+                                          const calculatedResidual = dailyMeta * finalResidualDays;
+
+                                          return (
+                                             <div className="space-y-1">
+                                                <div className="w-full px-4 py-3 bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-black flex justify-between items-center">
+                                                   <span>{formatDecimalToTime(calculatedTotal)}</span>
+                                                   {isCurrentMonth && (
+                                                      <span className="text-[10px] bg-purple-500/10 text-purple-600 px-2 py-1 rounded-lg font-black uppercase tracking-tight">
+                                                         RESTAM: {formatDecimalToTime(calculatedResidual)}
+                                                      </span>
+                                                   )}
+                                                </div>
+                                                <p className="text-[8px] font-bold uppercase opacity-40 mt-1">
+                                                   REF: {new Date(capacityMonth + '-02').toLocaleString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()} |
+                                                   TOTAL: {totalWorkingDays} DIAS | {isCurrentMonth ? `SALDO: ${finalResidualDays} DIAS ÚTEIS` : ''}
+                                                </p>
+                                             </div>
+                                          );
+                                       })()}
                                     </div>
                                  </div>
                               </div>
@@ -816,7 +816,16 @@ const TeamMemberDetail: React.FC = () => {
                               .filter(Boolean)
                               .join(', ');
 
-                           const allocatedHours = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
+                           const alloc = taskMemberAllocations.find(a => String(a.taskId) === String(t.id) && String(a.userId) === String(user?.id));
+                           let allocatedHours = 0;
+                           if (alloc && alloc.reservedHours > 0) {
+                              allocatedHours = alloc.reservedHours;
+                           } else {
+                              const hasAnyAllocationInTask = taskMemberAllocations.some(a => String(a.taskId) === String(t.id) && a.reservedHours > 0);
+                              if (!hasAnyAllocationInTask) {
+                                 allocatedHours = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
+                              }
+                           }
                            const reportedHours = timesheetEntries.reduce((sum, entry) => {
                               if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
                                  return sum + (Number(entry.totalHours) || 0);

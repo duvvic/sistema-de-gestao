@@ -370,7 +370,13 @@ const TaskDetail: React.FC = () => {
             reservedHours: hours
           }));
         }
-        await allocationService.saveTaskAllocations(finalTaskId, allocationsToSave);
+        const savedAllocs = await allocationService.saveTaskAllocations(finalTaskId, allocationsToSave);
+        if (setTaskMemberAllocations) {
+          setTaskMemberAllocations((prev: any[]) => {
+            const others = prev.filter(a => String(a.taskId) !== String(finalTaskId));
+            return [...others, ...savedAllocs];
+          });
+        }
       }
 
       discardChanges();
