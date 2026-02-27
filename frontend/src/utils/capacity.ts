@@ -307,8 +307,12 @@ export const getUserMonthlyAvailability = (
     const todayStr = today.toISOString().split('T')[0];
     const isCurrentMonth = todayStr.startsWith(monthStr);
 
-    const startDate = isCurrentMonth ? todayStr : `${monthStr}-01`;
+    const startDate = `${monthStr}-01`;
     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+    // Ocultar Warning unused
+    const _todayStr = todayStr;
+    const _isCurrentMonth = isCurrentMonth;
 
     const dailyGoal = user.dailyAvailableHours || 8;
     const workingDays = getWorkingDaysInRange(startDate, endDate, holidays);
@@ -322,8 +326,8 @@ export const getUserMonthlyAvailability = (
 
     tasks.forEach(t => {
         const isOwner = String(t.developerId) === String(user.id) || t.collaboratorIds?.some(id => String(id) === String(user.id));
-        // Se a tarefa estiver concluída, ela NÃO conta para o saldo/alocação ("liberará na hora")
-        if (!isOwner || t.status === 'Done' || !!t.deleted_at) return;
+        // Permitir que tarefas concluídas (mas não deletadas) entrem no cálculo ALOCADO do mês
+        if (!isOwner || !!t.deleted_at) return;
 
         const p = projects.find(proj => proj.id === t.projectId);
         if (!p) return;
@@ -343,26 +347,18 @@ export const getUserMonthlyAvailability = (
             totalEffort = 0;
         }
 
-        // --- SUBTRAI HORAS JÁ EXECUTADAS PARA OBTER ESFORÇO RESTANTE ---
-        const reported = timesheetEntries
-            .filter(e => String(e.taskId) === String(t.id) && String(e.userId) === String(user.id))
-            .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
-
-        const effortRestante = Math.max(0, totalEffort - reported);
-
-        if (effortRestante <= 0) return;
+        if (totalEffort <= 0) return;
 
         const tStart = t.scheduledStart || t.actualStart || p.startDate || startDate;
-        const tEnd = t.estimatedDelivery || p.estimatedDelivery || endDate;
+        // Se a tarefa já foi entregue, o esforço real de alocação terminou na data de entrega efetiva
+        const tEnd = t.actualDelivery || t.estimatedDelivery || p.estimatedDelivery || endDate;
 
-        // Distribui o esforço APENAS nos dias restantes a partir de HOJE ou do INÍCIO DA TAREFA
-        const effectiveStart = tStart > todayStr ? tStart : todayStr;
+        // Distribuição teórica linear do Esforço por todos os dias da tarefa
+        const effectiveStart = tStart;
+        const effectiveEnd = tEnd;
 
-        // Se a data de entrega já passou, concentra o esforço em 1 dia (HOJE) para causar alerta de atraso
-        const effectiveEnd = tEnd < todayStr ? todayStr : tEnd;
-
-        const remainingTaskDays = getWorkingDaysInRange(effectiveStart, effectiveEnd, holidays) || 1; // Mínimo 1 dia para evitar DivByZero
-        const hoursPerDay = effortRestante / remainingTaskDays;
+        const totalTaskDays = getWorkingDaysInRange(effectiveStart, effectiveEnd, holidays) || 1; // Mínimo 1 dia
+        const hoursPerDay = totalEffort / totalTaskDays;
 
         const intStart = effectiveStart > startDate ? effectiveStart : startDate;
         const intEnd = effectiveEnd < endDate ? effectiveEnd : endDate;
