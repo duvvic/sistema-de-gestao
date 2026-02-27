@@ -196,7 +196,22 @@ const TeamMemberDetail: React.FC = () => {
          const isCollaborator = t.collaboratorIds && t.collaboratorIds.includes(user.id);
          const isActiveInProject = linkedProjectIds.includes(String(t.projectId));
 
-         return isResponsible || (isCollaborator && isActiveInProject);
+         if (!isResponsible && !(isCollaborator && isActiveInProject)) return false;
+
+         // Verificar se a tarefa cai no mês selecionado (mesmo critério de horas alocadas)
+         const startDate = `${capacityMonth}-01`;
+         const [year, month] = capacityMonth.split('-').map(Number);
+         const lastDay = new Date(year, month, 0).getDate();
+         const endDate = `${capacityMonth}-${String(lastDay).padStart(2, '0')}`;
+
+         const p = projects.find(proj => proj.id === t.projectId);
+         const effectiveStart = t.scheduledStart || t.actualStart || p?.startDate || startDate;
+         const effectiveEnd = t.actualDelivery || t.estimatedDelivery || p?.estimatedDelivery || endDate;
+
+         const intStart = effectiveStart > startDate ? effectiveStart : startDate;
+         const intEnd = effectiveEnd < endDate ? effectiveEnd : endDate;
+
+         return (intStart <= intEnd && intStart <= endDate && intEnd >= startDate);
       })
       .sort((a, b) => {
          const dateA = a.actualDelivery ? new Date(a.actualDelivery).getTime() : 0;

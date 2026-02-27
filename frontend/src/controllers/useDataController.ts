@@ -404,6 +404,20 @@ export const useDataController = () => {
             .single();
 
         if (error) throw error;
+
+        const newAbsence: Absence = {
+            id: String(row.id),
+            userId: data.userId!,
+            type: data.type as any,
+            startDate: data.startDate!,
+            endDate: data.endDate!,
+            status: data.status as any,
+            observations: data.observations,
+            period: data.period as any,
+            endTime: data.endTime
+        };
+        setAbsences(prev => [...prev, newAbsence]);
+
         return String(row.id);
     };
 
@@ -422,6 +436,7 @@ export const useDataController = () => {
             .eq('id', Number(id));
 
         if (error) throw error;
+        setAbsences(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
     };
 
     const deleteAbsence = async (id: string): Promise<void> => {
@@ -431,6 +446,7 @@ export const useDataController = () => {
             .eq('id', Number(id));
 
         if (error) throw error;
+        setAbsences(prev => prev.filter(a => a.id !== id));
     };
 
     // === HOLIDAY CONTROLLERS ===
@@ -451,6 +467,19 @@ export const useDataController = () => {
             .single();
 
         if (error) throw error;
+
+        const newHoliday: Holiday = {
+            id: String(row.id),
+            name: data.name!,
+            date: data.date!,
+            endDate: data.endDate || data.date!,
+            type: data.type as any,
+            observations: data.observations,
+            period: data.period as any,
+            endTime: data.endTime
+        };
+        setHolidays(prev => [...prev, newHoliday]);
+
         return String(row.id);
     };
 
@@ -469,6 +498,7 @@ export const useDataController = () => {
             .eq('id', Number(id));
 
         if (error) throw error;
+        setHolidays(prev => prev.map(h => h.id === id ? { ...h, ...updates } : h));
     };
 
     const deleteHoliday = async (id: string): Promise<void> => {
@@ -478,6 +508,7 @@ export const useDataController = () => {
             .eq('id', Number(id));
 
         if (error) throw error;
+        setHolidays(prev => prev.filter(h => h.id !== id));
     };
 
     return {

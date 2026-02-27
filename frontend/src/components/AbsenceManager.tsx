@@ -65,7 +65,7 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                 status: isAdmin ? 'aprovada_gestao' : 'sugestao',
                 observations,
                 period,
-                endTime
+                endTime: endTime ? endTime : undefined
             });
             setIsAdding(false);
             resetForm();
