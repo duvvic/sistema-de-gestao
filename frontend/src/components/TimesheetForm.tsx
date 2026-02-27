@@ -400,7 +400,8 @@ const TimesheetForm: React.FC = () => {
 
   const currentProject = projects.find(p => p.id === formData.projectId);
   const isTrainingProject = currentProject && currentProject.name &&
-    (currentProject.name.toLowerCase().includes('treinamento') || currentProject.name.toLowerCase().includes('capacitação'));
+    (currentProject.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('treinamento') ||
+      currentProject.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('capacitacao'));
 
   if (!user) return <div className="p-8">Usuário não identificado</div>;
 

@@ -1,4 +1,4 @@
-import { User, Task, Project, ProjectMember, Holiday, TimesheetEntry, TaskMemberAllocation } from '@/types';
+import { User, Task, Project, ProjectMember, Holiday, TimesheetEntry, TaskMemberAllocation, Absence } from '@/types';
 
 /**
  * Retorna o número de dias úteis (Segunda a Sexta) em um determinado mês, descontando feriados.
@@ -37,7 +37,7 @@ export const getWorkingDaysInMonth = (monthStr: string, holidays: Holiday[] = []
 /**
  * Retorna o número de dias úteis entre duas datas (inclusive), descontando feriados.
  */
-export const getWorkingDaysInRange = (startDate: string, endDate: string, holidays: Holiday[] = []): number => {
+export const getWorkingDaysInRange = (startDate: string, endDate: string, holidays: Holiday[] = [], absences: Absence[] = []): number => {
     if (!startDate || !endDate) return 0;
     const start = new Date(startDate + 'T12:00:00');
     const end = new Date(endDate + 'T12:00:00');
@@ -60,7 +60,13 @@ export const getWorkingDaysInRange = (startDate: string, endDate: string, holida
                 return dateStr >= hStart && dateStr <= hEnd;
             });
 
-            if (!isHoliday) {
+            const isAbsent = absences.some(a => {
+                const aStart = a.startDate;
+                const aEnd = a.endDate || a.startDate;
+                return dateStr >= aStart && dateStr <= aEnd && a.status === 'aprovada_gestao';
+            });
+
+            if (!isHoliday && !isAbsent) {
                 workingDays++;
             }
         }
@@ -286,7 +292,8 @@ export const getUserMonthlyAvailability = (
     timesheetEntries: TimesheetEntry[],
     tasks: Task[],
     holidays: Holiday[] = [],
-    taskMemberAllocations: TaskMemberAllocation[] = []
+    taskMemberAllocations: TaskMemberAllocation[] = [],
+    absences: Absence[] = []
 ): {
     capacity: number;
     plannedHours: number;
@@ -315,7 +322,8 @@ export const getUserMonthlyAvailability = (
     const _isCurrentMonth = isCurrentMonth;
 
     const dailyGoal = user.dailyAvailableHours || 8;
-    const workingDays = getWorkingDaysInRange(startDate, endDate, holidays);
+    const userAbsences = absences.filter(a => String(a.userId) === String(user.id) && a.status === 'aprovada_gestao');
+    const workingDays = getWorkingDaysInRange(startDate, endDate, holidays, userAbsences);
     const capacity = dailyGoal * workingDays;
 
     // 1. Calcular detalhamento de projetos (Baseado estritamente em horas alocadas às tarefas)
@@ -357,14 +365,14 @@ export const getUserMonthlyAvailability = (
         const effectiveStart = tStart;
         const effectiveEnd = tEnd;
 
-        const totalTaskDays = getWorkingDaysInRange(effectiveStart, effectiveEnd, holidays) || 1; // Mínimo 1 dia
+        const totalTaskDays = getWorkingDaysInRange(effectiveStart, effectiveEnd, holidays, userAbsences) || 1; // Mínimo 1 dia
         const hoursPerDay = totalEffort / totalTaskDays;
 
         const intStart = effectiveStart > startDate ? effectiveStart : startDate;
         const intEnd = effectiveEnd < endDate ? effectiveEnd : endDate;
 
         if (intStart <= intEnd && intStart <= endDate && intEnd >= startDate) {
-            const bizDaysInMonth = getWorkingDaysInRange(intStart, intEnd, holidays);
+            const bizDaysInMonth = getWorkingDaysInRange(intStart, intEnd, holidays, userAbsences);
             const effortInMonth = bizDaysInMonth * hoursPerDay;
 
             if (p.project_type === 'continuous') {

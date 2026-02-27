@@ -180,7 +180,22 @@ const TeamMemberDetail: React.FC = () => {
          const isCollaborator = t.collaboratorIds && t.collaboratorIds.includes(user.id);
          const isActiveInProject = linkedProjectIds.includes(String(t.projectId));
 
-         return isResponsible || (isCollaborator && isActiveInProject);
+         if (!isResponsible && !(isCollaborator && isActiveInProject)) return false;
+
+         // Verificar se a tarefa cai no mês selecionado
+         const startDate = `${capacityMonth}-01`;
+         const [year, month] = capacityMonth.split('-').map(Number);
+         const lastDay = new Date(year, month, 0).getDate();
+         const endDate = `${capacityMonth}-${String(lastDay).padStart(2, '0')}`;
+
+         const p = projects.find(proj => proj.id === t.projectId);
+         const effectiveStart = t.scheduledStart || t.actualStart || p?.startDate || startDate;
+         const effectiveEnd = t.estimatedDelivery || p?.estimatedDelivery || endDate;
+
+         const intStart = effectiveStart > startDate ? effectiveStart : startDate;
+         const intEnd = effectiveEnd < endDate ? effectiveEnd : endDate;
+
+         return (intStart <= intEnd && intStart <= endDate && intEnd >= startDate);
       })
       .sort((a, b) => {
          const dateA = a.estimatedDelivery ? new Date(a.estimatedDelivery).getTime() : 9999999999999;
@@ -856,6 +871,38 @@ const TeamMemberDetail: React.FC = () => {
                                  allocatedHours = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
                               }
                            }
+
+                           // --- CÁLCULO MENSAL NO MÊS SELECIONADO ---
+                           const startDate = `${capacityMonth}-01`;
+                           const [year, month] = capacityMonth.split('-').map(Number);
+                           const lastDay = new Date(year, month, 0).getDate();
+                           const endDate = `${capacityMonth}-${String(lastDay).padStart(2, '0')}`;
+                           const p = projects.find(proj => proj.id === t.projectId);
+                           const effectiveStart = t.scheduledStart || t.actualStart || p?.startDate || startDate;
+                           const effectiveEnd = t.actualDelivery || t.estimatedDelivery || p?.estimatedDelivery || endDate;
+
+                           const userAbsences = absences.filter(a => String(a.userId) === String(user.id) && a.status === 'aprovada_gestao');
+                           const totalTaskDays = CapacityUtils.getWorkingDaysInRange(effectiveStart, effectiveEnd, holidays, userAbsences) || 1;
+                           const hoursPerDay = allocatedHours / totalTaskDays;
+
+                           const intStart = effectiveStart > startDate ? effectiveStart : startDate;
+                           const intEnd = effectiveEnd < endDate ? effectiveEnd : endDate;
+
+                           let monthlyAllocatedHours = 0;
+                           if (intStart <= intEnd && intStart <= endDate && intEnd >= startDate) {
+                              const bizDaysInMonth = CapacityUtils.getWorkingDaysInRange(intStart, intEnd, holidays, userAbsences);
+                              monthlyAllocatedHours = bizDaysInMonth * hoursPerDay;
+                           }
+
+                           const monthlyReportedHours = timesheetEntries.reduce((sum, entry) => {
+                              if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
+                                 if (entry.date.startsWith(capacityMonth)) {
+                                    return sum + (Number(entry.totalHours) || 0);
+                                 }
+                              }
+                              return sum;
+                           }, 0);
+
                            const reportedHours = timesheetEntries.reduce((sum, entry) => {
                               if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
                                  return sum + (Number(entry.totalHours) || 0);
@@ -896,10 +943,15 @@ const TeamMemberDetail: React.FC = () => {
                                           <h4 className="text-white font-black text-[15px] tracking-tight truncate max-w-lg">
                                              {t.title}
                                           </h4>
-                                          <div className="bg-[#1a1625] px-3 py-1 rounded-full flex gap-1.5 items-center border border-white/5">
-                                             <span className="text-[11px] font-black text-slate-400 font-mono">{formatDecimalToTime(reportedHours)}h</span>
-                                             <span className="text-[11px] text-white/5">/</span>
-                                             <span className="text-[11px] font-black text-purple-500 font-mono">{formatDecimalToTime(allocatedHours)}h</span>
+                                          <div className="flex items-center gap-2">
+                                             <div className="bg-[#1a1625] px-3 py-1 rounded-full flex gap-1.5 items-center border border-white/5" title="Horas no Mês Selecionado">
+                                                <span className="text-[11px] font-black text-slate-400 font-mono">{formatDecimalToTime(monthlyReportedHours)}h</span>
+                                                <span className="text-[11px] text-white/5">/</span>
+                                                <span className="text-[11px] font-black text-purple-500 font-mono">{formatDecimalToTime(monthlyAllocatedHours)}h</span>
+                                             </div>
+                                             <div className="hidden sm:flex bg-blue-500/10 px-3 py-1 rounded-full flex gap-1.5 items-center border border-blue-500/20" title="Horas Totais da Tarefa">
+                                                <span className="text-[10px] font-bold text-blue-400 font-mono">Total {formatDecimalToTime(reportedHours)}h / {formatDecimalToTime(allocatedHours)}h</span>
+                                             </div>
                                           </div>
                                        </div>
                                        <span className="text-purple-600 font-black text-[13px] font-mono">{t.progress}%</span>
