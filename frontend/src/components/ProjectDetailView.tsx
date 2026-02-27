@@ -744,7 +744,7 @@ const ProjectDetailView: React.FC = () => {
                           const taskFactor = performance?.projectFactors?.find(f => f.id === task.id)?.factor || 0;
                           const weight = (performance?.totalFactor || 0) > 0 ? (taskFactor / performance!.totalFactor) * 100 : 0;
 
-                          const taskSoldHours = (project?.horas_vendidas || 0) > 0 ? (weight / 100) * project!.horas_vendidas : 0;
+                          const taskSoldHours = (project?.horas_vendidas || 0) > 0 ? (weight / 100) * project!.horas_vendidas : (Number(task.estimatedHours) || 0);
                           const collaboratorCount = (task.collaboratorIds?.length || 0);
                           const isHourOverrun = taskSoldHours > 0 && taskReported > taskSoldHours;
                           const isDelayed = task.status !== 'Done' && (

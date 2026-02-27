@@ -235,12 +235,16 @@ export const calculateTaskPredictedEndDate = (
 
     // --- LÓGICA DE ALOCAÇÃO ESPECÍFICA ---
     const specificAllocation = taskMemberAllocations.find(a => String(a.taskId) === String(task.id) && String(a.userId) === String(userId));
+    const hasAnyAllocationInTask = taskMemberAllocations.some(a => String(a.taskId) === String(task.id) && a.reservedHours > 0);
+
     let taskEffort = 0;
-    if (specificAllocation) {
+    if (specificAllocation && specificAllocation.reservedHours > 0) {
         taskEffort = specificAllocation.reservedHours;
-    } else {
+    } else if (!hasAnyAllocationInTask) {
         const teamIds = Array.from(new Set([task.developerId, ...(task.collaboratorIds || [])])).filter(Boolean);
         taskEffort = (Number(task.estimatedHours) || 0) / (teamIds.length || 1);
+    } else {
+        taskEffort = 0;
     }
 
     const effortRestante = isIgnored ? 0 : Math.max(0, taskEffort - reported);
@@ -326,14 +330,17 @@ export const getUserMonthlyAvailability = (
 
         // --- LÓGICA DE ALOCAÇÃO ESPECÍFICA ---
         const specificAllocation = taskMemberAllocations.find(a => String(a.taskId) === String(t.id) && String(a.userId) === String(user.id));
+        const hasAnyAllocationInTask = taskMemberAllocations.some(a => String(a.taskId) === String(t.id) && a.reservedHours > 0);
 
         let totalEffort = 0;
-        if (specificAllocation) {
+        if (specificAllocation && specificAllocation.reservedHours > 0) {
             totalEffort = specificAllocation.reservedHours;
-        } else {
-            // Fallback: Se não houver alocação específica, divide o esforço total pelo tamanho da equipe (developer + collaborators)
+        } else if (!hasAnyAllocationInTask) {
+            // Fallback: Se NINGUÉM tiver alocação manual, divide o esforço total pelo tamanho da equipe
             const teamIds = Array.from(new Set([t.developerId, ...(t.collaboratorIds || [])])).filter(Boolean);
             totalEffort = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
+        } else {
+            totalEffort = 0;
         }
 
         // --- SUBTRAI HORAS JÁ EXECUTADAS PARA OBTER ESFORÇO RESTANTE ---
@@ -477,12 +484,16 @@ export const calculateIndividualReleaseDate = (
 
         // --- NOVA LÓGICA: Busca alocação específica para o colaborador ---
         const specificAllocation = taskMemberAllocations.find(a => String(a.taskId) === String(task.id) && String(a.userId) === String(user.id));
+        const hasAnyAllocationInTask = taskMemberAllocations.some(a => String(a.taskId) === String(task.id) && a.reservedHours > 0);
+
         let taskEffort = 0;
-        if (specificAllocation) {
+        if (specificAllocation && specificAllocation.reservedHours > 0) {
             taskEffort = specificAllocation.reservedHours;
-        } else {
+        } else if (!hasAnyAllocationInTask) {
             const teamIds = Array.from(new Set([task.developerId, ...(task.collaboratorIds || [])])).filter(Boolean);
             taskEffort = (Number(task.estimatedHours) || 0) / (teamIds.length || 1);
+        } else {
+            taskEffort = 0;
         }
 
         totalEffortRemaining += Math.max(0, taskEffort - reported);
