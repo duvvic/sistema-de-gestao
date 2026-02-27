@@ -45,14 +45,17 @@ export function normalizeImpact(raw: string | null): Impact | undefined {
 export function getRoleDisplayName(role: string): string {
     const r = role.toLowerCase().trim();
     switch (r) {
-        case 'admin': return 'Administrador';
+        case 'system_admin':
+        case 'admin': return 'Administrador TI (System Admin)';
+        case 'executive': return 'Gestão Executiva / Executivo';
+        case 'ceo':
+        case 'diretoria': return 'Diretoria Geral / CEO';
+        case 'pmo': return 'Planejamento / PMO';
+        case 'tech_lead': return 'Tech Lead / Liderança';
+        case 'developer':
+        case 'consultor': return 'Operacional / Consultor';
         case 'gestor': return 'Gestor / Gerente';
-        case 'diretoria': return 'Diretoria';
-        case 'pmo': return 'PMO';
         case 'financeiro': return 'Financeiro';
-        case 'tech_lead': return 'Tech Lead';
-        case 'consultor': return 'Consultor';
-        case 'developer': return 'Desenvolvedor';
         default: return role.charAt(0).toUpperCase() + role.slice(1);
     }
 }
@@ -215,6 +218,8 @@ export function mapDbUserToUser(row: any): User {
         if (p === 'tech lead' || p === 'tech_lead') return 'tech_lead';
         if (p === 'financeiro') return 'financeiro';
         if (p === 'administrador' || p === 'admin') return 'admin';
+        if (p === 'executive' || p === 'executivo') return 'executive';
+        if (p === 'ceo') return 'ceo';
         return 'developer';
     };
 
