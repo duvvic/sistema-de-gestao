@@ -202,9 +202,16 @@ const TimesheetForm: React.FC = () => {
       return;
     }
 
-    if (!formData.description || formData.description.trim().length < 120) {
-      alert("O status é obrigatório e deve ter no mínimo 120 caracteres para descrever bem a atividade.");
-      return;
+    // Exceção: se o projeto for 'Treinamento e Capacitação', não exigir descrição
+    const selectedProject = projects.find(p => p.id === formData.projectId);
+    const isTrainingProject = selectedProject && selectedProject.name &&
+      (selectedProject.name.toLowerCase().includes('treinamento') || selectedProject.name.toLowerCase().includes('capacitação'));
+
+    if (!isTrainingProject) {
+      if (!formData.description || formData.description.trim().length < 120) {
+        alert("O status é obrigatório e deve ter no mínimo 120 caracteres para descrever bem a atividade.");
+        return;
+      }
     }
 
     // Check for time conflicts
