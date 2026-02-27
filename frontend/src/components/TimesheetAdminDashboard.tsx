@@ -67,7 +67,9 @@ const TimesheetAdminDashboard: React.FC = () => {
          );
 
          const datesWithEntries = new Set(userEntries.map(e => e.date));
-         const missingDays = workDaysUntilYesterday.filter(day => !datesWithEntries.has(day));
+
+         const isExempt = ['ceo', 'diretoria', 'executive'].includes(user.role?.toLowerCase() || '');
+         const missingDays = isExempt ? [] : workDaysUntilYesterday.filter(day => !datesWithEntries.has(day));
 
          const dailyGoal = user.dailyAvailableHours || 8;
          const expectedHours = workDaysUntilYesterday.length * dailyGoal;
