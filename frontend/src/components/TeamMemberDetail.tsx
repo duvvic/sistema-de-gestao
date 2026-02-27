@@ -25,7 +25,7 @@ const InfoTooltip: React.FC<{ title: string; content: string }> = ({ title, cont
    </div>
 );
 
-type ViewTab = 'details' | 'projects' | 'tasks' | 'delayed' | 'ponto' | 'absences';
+type ViewTab = 'details' | 'projects' | 'tasks' | 'completed' | 'ponto' | 'absences';
 
 const TeamMemberDetail: React.FC = () => {
    const { userId } = useParams<{ userId: string }>();
@@ -187,7 +187,22 @@ const TeamMemberDetail: React.FC = () => {
          const dateB = b.estimatedDelivery ? new Date(b.estimatedDelivery).getTime() : 9999999999999;
          return dateA - dateB;
       });
-   const delayedTasks = userTasks.filter(t => getDelayDays(t) > 0 && t.status !== 'Review');
+   const completedTasks = tasks
+      .filter(t => {
+         const isDone = t.status === 'Done';
+         if (!isDone) return false;
+
+         const isResponsible = t.developerId === user.id;
+         const isCollaborator = t.collaboratorIds && t.collaboratorIds.includes(user.id);
+         const isActiveInProject = linkedProjectIds.includes(String(t.projectId));
+
+         return isResponsible || (isCollaborator && isActiveInProject);
+      })
+      .sort((a, b) => {
+         const dateA = a.actualDelivery ? new Date(a.actualDelivery).getTime() : 0;
+         const dateB = b.actualDelivery ? new Date(b.actualDelivery).getTime() : 0;
+         return dateB - dateA;
+      });
 
    return (
       <div className="h-full flex flex-col bg-[var(--bg)] overflow-hidden">
@@ -230,7 +245,7 @@ const TeamMemberDetail: React.FC = () => {
                   { id: 'details', label: 'Dashboard', icon: LayoutGrid },
                   { id: 'projects', label: 'Projetos', count: userProjects.length },
                   { id: 'tasks', label: 'Tarefas', count: userTasks.length },
-                  { id: 'delayed', label: 'Atrasos', count: delayedTasks.length },
+                  { id: 'completed', label: 'Concluídos', count: completedTasks.length },
                   { id: 'ponto', label: 'Presença', icon: Clock },
                   { id: 'absences', label: 'Ausências', icon: AlertCircle }
                ].map(tab => (
@@ -244,8 +259,8 @@ const TeamMemberDetail: React.FC = () => {
                      <div className="relative z-10 flex items-center gap-2">
                         {tab.label}
                         {(tab.count !== null && tab.count !== undefined) && (
-                           <span className={`px-1.5 py-0.5 rounded-lg text-[9px] font-black transition-all ${tab.id === 'delayed' && tab.count > 0
-                              ? 'bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.4)]'
+                           <span className={`px-1.5 py-0.5 rounded-lg text-[9px] font-black transition-all ${tab.id === 'completed' && tab.count > 0
+                              ? 'bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]'
                               : activeTab === tab.id ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : 'bg-[var(--surface-2)]'
                               }`}>
                               {tab.count}
@@ -952,7 +967,7 @@ const TeamMemberDetail: React.FC = () => {
                   </div>
                )}
 
-               {activeTab === 'delayed' && (
+               {activeTab === 'completed' && (
                   <motion.div
                      initial="hidden"
                      animate="visible"
@@ -961,8 +976,14 @@ const TeamMemberDetail: React.FC = () => {
                      }}
                      className="space-y-3 max-w-4xl mx-auto"
                   >
-                     {delayedTasks.map(t => {
+                     {completedTasks.map(t => {
                         const client = clients.find(c => String(c.id) === String(t.clientId));
+                        const reportedHours = timesheetEntries.reduce((sum, entry) => {
+                           if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
+                              return sum + (Number(entry.totalHours) || 0);
+                           }
+                           return sum;
+                        }, 0);
                         return (
                            <motion.div
                               variants={{
@@ -972,54 +993,54 @@ const TeamMemberDetail: React.FC = () => {
                               whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
                               onClick={() => navigate(`/tasks/${t.id}`)}
                               key={t.id}
-                              className="cursor-pointer glass-effect p-3 rounded-[24px] hover:bg-red-500/[0.03] hover:border-red-500/30 transition-all flex justify-between items-center group shadow-sm border border-red-500/10 overflow-hidden relative"
+                              className="cursor-pointer glass-effect p-3 rounded-[24px] hover:bg-emerald-500/[0.03] hover:border-emerald-500/30 transition-all flex justify-between items-center group shadow-sm border border-emerald-500/10 overflow-hidden relative"
                            >
-                              <div className="absolute left-0 top-0 w-1 h-full bg-red-500/40" />
+                              <div className="absolute left-0 top-0 w-1 h-full bg-emerald-500/40" />
 
                               <div className="flex items-center gap-4 min-w-0">
-                                 <div className="w-11 h-11 rounded-2xl bg-red-500/5 flex items-center justify-center text-red-500 shrink-0 border border-red-500/10 overflow-hidden shadow-inner">
+                                 <div className="w-11 h-11 rounded-2xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 shrink-0 border border-emerald-500/10 overflow-hidden shadow-inner">
                                     {client?.logoUrl ? (
                                        <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain p-2" />
                                     ) : (
-                                       <AlertCircle className="w-5 h-5" />
+                                       <CheckCircle className="w-5 h-5" />
                                     )}
                                  </div>
                                  <div className="min-w-0">
-                                    <h4 className="font-black text-red-900 dark:text-red-400 text-[13px] truncate uppercase tracking-tight mb-1 group-hover:text-red-600 transition-colors">
+                                    <h4 className="font-black text-emerald-900 dark:text-emerald-400 text-[13px] truncate uppercase tracking-tight mb-1 group-hover:text-emerald-600 transition-colors">
                                        {t.title}
                                     </h4>
                                     <div className="flex items-center gap-2">
-                                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20">
-                                          <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
-                                          <span className="text-[8px] font-black text-red-700 dark:text-red-400 uppercase tracking-widest">Atraso Crítico: {getDelayDays(t)} dias</span>
+                                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                          <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                                          <span className="text-[8px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Entregue: {formatDateBR(t.actualDelivery || t.estimatedDelivery)}</span>
                                        </div>
-                                       <span className="text-[7px] font-bold text-red-400/50 uppercase tracking-widest">ID: #{t.id}</span>
+                                       <span className="text-[7px] font-bold text-emerald-400/50 uppercase tracking-widest">ID: #{t.id}</span>
                                     </div>
                                  </div>
                               </div>
                               <div className="flex items-center gap-3 pr-2">
                                  <div className="text-right hidden sm:block">
-                                    <p className="text-[8px] font-black text-red-400 uppercase tracking-widest opacity-40">Responsável</p>
-                                    <p className="text-[10px] font-black text-red-900/60 dark:text-red-400/60 uppercase">
-                                       {users.find(u => String(u.id) === String(t.developerId))?.name?.split(' ')[0] || '---'}
+                                    <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest opacity-40">Reportado</p>
+                                    <p className="text-[10px] font-black text-emerald-900/60 dark:text-emerald-400/60 uppercase">
+                                       {formatDecimalToTime(reportedHours)}h
                                     </p>
                                  </div>
-                                 <ChevronRight className="w-5 h-5 text-red-300 group-hover:text-red-600 transition-all group-hover:translate-x-1 shrink-0" />
+                                 <ChevronRight className="w-5 h-5 text-emerald-300 group-hover:text-emerald-600 transition-all group-hover:translate-x-1 shrink-0" />
                               </div>
                            </motion.div>
                         );
                      })}
-                     {delayedTasks.length === 0 && (
+                     {completedTasks.length === 0 && (
                         <motion.div
                            initial={{ opacity: 0, scale: 0.95 }}
                            animate={{ opacity: 1, scale: 1 }}
-                           className="text-center py-16 bg-emerald-500/5 rounded-[32px] border-2 border-dashed border-emerald-500/20 backdrop-blur-sm"
+                           className="text-center py-16 bg-slate-500/5 rounded-[32px] border-2 border-dashed border-slate-500/20 backdrop-blur-sm"
                         >
-                           <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/20 shadow-lg">
-                              <CheckCircle className="w-7 h-7 text-emerald-500" />
+                           <div className="w-14 h-14 bg-slate-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-500/20 shadow-lg">
+                              <CheckCircle className="w-7 h-7 text-slate-500" />
                            </div>
-                           <p className="text-emerald-700 dark:text-emerald-400 font-black text-xs uppercase tracking-[0.2em]">Monitoramento Impecável</p>
-                           <p className="text-[10px] text-emerald-600/60 dark:text-emerald-500/40 font-bold mt-1.5 italic">Sem nenhum atraso registrado no momento.</p>
+                           <p className="text-slate-700 dark:text-slate-400 font-black text-xs uppercase tracking-[0.2em]">Nenhuma Tarefa Concluída</p>
+                           <p className="text-[10px] text-slate-600/60 dark:text-slate-500/40 font-bold mt-1.5 italic">Ainda não há tarefas finalizadas.</p>
                         </motion.div>
                      )}
                   </motion.div>
