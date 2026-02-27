@@ -32,6 +32,7 @@ export const getUserStatus = (
     const isSystemCollaborator = (user.torre && user.torre !== 'N/A') || activeRoles.includes(user.role?.toLowerCase() || '');
 
     if (user.active === false) return { label: 'Desligado', color: '#ef4444' };
+    if (user.torre === 'TODAS') return { label: 'Administrador', color: '#8b5cf6' };
     if (user.torre === 'N/A') return { label: 'Fora do Fluxo', color: '#64748b' };
     if (!isSystemCollaborator) return { label: 'N/A', color: '#94a3b8' };
     if (hasDelayed) return { label: 'Atrasado', color: '#ef4444' };

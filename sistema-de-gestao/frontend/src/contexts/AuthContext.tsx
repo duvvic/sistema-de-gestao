@@ -317,7 +317,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             currentUser,
             isLoading: !authReady || isLoading,
             authReady,
-            isAdmin: !!currentUser && ['admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'tech_lead', 'system_admin', 'executive', 'ceo'].includes(currentUser.role),
+            isAdmin: !!currentUser && ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'financial', 'tech_lead', 'executive', 'ceo', 'rh'].includes(currentUser.role),
             login,
             loginWithSession,
             logout,

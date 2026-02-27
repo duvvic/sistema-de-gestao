@@ -246,12 +246,14 @@ const TeamMemberDetail: React.FC = () => {
                                        disabled={!isEditing}
                                        className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-bold focus:ring-2 focus:ring-[var(--primary)]/20 outline-none disabled:bg-transparent disabled:px-0 disabled:border-none disabled:appearance-none disabled:text-[var(--primary)]"
                                     >
-                                       <option value="developer">Operacional / Consultor</option>
-                                       <option value="tech_lead">Tech Lead / Liderança</option>
-                                       <option value="pmo">Planejamento / PMO</option>
-                                       <option value="executive">Gestão Executiva / Executivo</option>
-                                       <option value="system_admin">Administrador TI (System Admin)</option>
-                                       <option value="diretoria">Diretoria Geral</option>
+                                       <option value="developer">Consultor / Operacional</option>
+                                       <option value="tech_lead">Tech Lead / Liderança Técnica</option>
+                                       <option value="pmo">Gerente de Projetos / PMO</option>
+                                       <option value="financial">Financeiro / Controladoria</option>
+                                       <option value="rh">Recursos Humanos / RH</option>
+                                       <option value="executive">Direção / Gestão Executiva</option>
+                                       <option value="system_admin">Administrador do Sistema (TI)</option>
+                                       <option value="ceo">CEO / Presidência</option>
                                     </select>
                                  </div>
                               </div>

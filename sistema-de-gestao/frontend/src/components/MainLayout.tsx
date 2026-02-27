@@ -58,7 +58,7 @@ const MainLayout: React.FC = () => {
         { path: '/docs', icon: Book, label: 'Documentação' },
     ];
 
-    const adminRoles: Role[] = ['admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'tech_lead', 'system_admin', 'executive', 'ceo'];
+    const adminRoles: Role[] = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'financial', 'tech_lead', 'executive', 'ceo', 'rh'];
 
     const menuItems = adminRoles.includes(currentUser?.role as Role)
         ? adminMenuItems

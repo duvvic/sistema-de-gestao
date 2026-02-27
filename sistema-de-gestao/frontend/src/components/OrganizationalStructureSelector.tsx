@@ -205,9 +205,16 @@ const OrganizationalStructureSelector: React.FC<OrganizationalStructureSelectorP
                                 <button
                                     type="button"
                                     onClick={() => setTorre('N/A')}
-                                    className="px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                                    className="px-4 py-2 bg-[var(--surface-3)] border border-[var(--border)] text-[var(--muted)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[var(--surface)] transition-all"
                                 >
                                     Pular / N/A
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTorre('TODAS')}
+                                    className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-md shadow-[var(--primary)]/20"
+                                >
+                                    Acesso Total (Todas)
                                 </button>
                             </div>
                         </div>

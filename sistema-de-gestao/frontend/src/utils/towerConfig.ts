@@ -229,7 +229,8 @@ export const CARGOS: CargoConfig[] = [
 ];
 
 export const SPECIAL_TOWERS = {
-    NA: { id: 'N/A', name: 'Não participa do fluxo (N/A)', description: 'O colaborador não será monitorado em dashboards de capacidade ou alocado em tarefas.' }
+    NA: { id: 'N/A', name: 'Não participa do fluxo (N/A)', description: 'O colaborador não será monitorado em dashboards de capacidade ou alocado em tarefas.' },
+    ALL: { id: 'TODAS', name: 'Acesso Total (Todas as Torres)', description: 'O colaborador terá visão administrativa de todas as torres do sistema.' }
 };
 
 export function getLevelsForCargo(cargoId: string): Level[] {

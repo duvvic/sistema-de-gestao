@@ -42,6 +42,7 @@ const Badge = ({ children, status, className = "" }: { children: React.ReactNode
         'pre-projeto': 'bg-slate-100 text-slate-700 border-slate-200',
         'saudavel': 'bg-emerald-100 text-emerald-700 border-emerald-200',
         'critico': 'bg-red-100 text-red-700 border-red-200',
+        'ausente': 'bg-slate-200 text-slate-500 border-slate-300',
     };
     const key = status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
     const colorClass = colors[key] || 'bg-slate-100 text-slate-600 border-slate-200';
@@ -75,7 +76,7 @@ const CompactStat = ({ label, count, icon: Icon, colorClass }: { label: string, 
 // --- Componente Principal ---
 
 const AdminMonitoringView: React.FC = () => {
-    const { tasks: allTasks, projects: allProjects, users: allUsers, clients: allClients, loading, timesheetEntries: allTimesheets } = useDataController();
+    const { tasks: allTasks, projects: allProjects, users: allUsers, clients: allClients, loading, timesheetEntries: allTimesheets, absences: allAbsences } = useDataController();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [weather, setWeather] = useState<{
         temp: number;
@@ -95,12 +96,14 @@ const AdminMonitoringView: React.FC = () => {
     const clientsRef = useRef(allClients);
     const usersRef = useRef(allUsers);
     const tasksRef = useRef(allTasks);
+    const absencesRef = useRef(allAbsences);
 
     useEffect(() => {
         clientsRef.current = allClients;
         usersRef.current = allUsers;
         tasksRef.current = allTasks;
-    }, [allClients, allUsers, allTasks]);
+        absencesRef.current = allAbsences;
+    }, [allClients, allUsers, allTasks, allAbsences]);
 
     // Sincronizar ref para acesso em intervalos
     useEffect(() => {
@@ -464,7 +467,7 @@ const AdminMonitoringView: React.FC = () => {
     }, [tasksInProgress.length, taskPage, itemsPerPage]);
 
     const filteredUsers = useMemo(() => {
-        const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'developer'];
+        const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'financial', 'tech_lead', 'executive', 'ceo', 'rh', 'developer'];
         return allUsers.filter(u =>
             u.active !== false && (u.torre !== 'N/A' || activeRoles.includes(u.role?.toLowerCase() || ''))
         );
@@ -493,6 +496,17 @@ const AdminMonitoringView: React.FC = () => {
         const todayStr = now.toISOString().split('T')[0];
 
         const members = filteredUsers.map(user => {
+            // Check de ausência aprovada
+            const isAbsent = allAbsences.some(abs => {
+                if (String(abs.userId) !== String(user.id)) return false;
+                const status = (abs.status || '').toLowerCase();
+                if (status !== 'finalizada_dp' && status !== 'aprovada_rh') return false;
+
+                const start = new Date(abs.startDate + 'T00:00:00');
+                const end = new Date(abs.endDate + 'T23:59:59');
+                return now >= start && now <= end;
+            });
+
             // Tarefas onde ele é o principal ou colaborador extra
             const userTasks = allTasks.filter(t =>
                 t.developerId === user.id ||
@@ -518,10 +532,12 @@ const AdminMonitoringView: React.FC = () => {
                 entry.date === todayStr
             );
 
-            let status: 'LIVRE' | 'ESTUDANDO' | 'INICIADO' | 'APONTADO' | 'ATRASADO' = 'LIVRE';
+            let status: 'LIVRE' | 'ESTUDANDO' | 'INICIADO' | 'APONTADO' | 'ATRASADO' | 'AUSENTE' = 'LIVRE';
 
-            // Hierarquia: Atrasado > Apontado (após 16h) > Iniciado > Estudando > Livre
-            if (delayedTasksForStatus.length > 0) {
+            // Hierarquia: Ausente > Atrasado > Apontado (após 16h) > Iniciado > Estudando > Livre
+            if (isAbsent) {
+                status = 'AUSENTE';
+            } else if (delayedTasksForStatus.length > 0) {
                 status = 'ATRASADO';
             } else if (isAfter16h && hasTimesheetToday) {
                 status = 'APONTADO';
@@ -535,7 +551,7 @@ const AdminMonitoringView: React.FC = () => {
         });
 
         return members;
-    }, [allUsers, allTasks, allTimesheets]);
+    }, [allUsers, allTasks, allTimesheets, allAbsences]);
 
     const stats = useMemo(() => {
         const delayed = allTasks.filter(t => t.status !== 'Done' && (t.status === 'In Progress' || t.status === 'Testing') && (t.progress || 0) < 100 && (t.daysOverdue ?? 0) > 0).length;
@@ -574,7 +590,8 @@ const AdminMonitoringView: React.FC = () => {
                 iniciado: teamStatus.filter(m => m.boardStatus === 'INICIADO').length,
                 atrasado: teamStatus.filter(m => m.boardStatus === 'ATRASADO').length,
                 estudando: teamStatus.filter(m => m.boardStatus === 'ESTUDANDO').length,
-                apontado: teamStatus.filter(m => m.boardStatus === 'APONTADO').length
+                apontado: teamStatus.filter(m => m.boardStatus === 'APONTADO').length,
+                ausente: teamStatus.filter(m => m.boardStatus === 'AUSENTE').length
             }
         };
     }, [allTasks, allProjects, teamStatus]);
@@ -955,6 +972,7 @@ const AdminMonitoringView: React.FC = () => {
                             <CompactStat label="Em Atividade" count={stats.team.iniciado + stats.team.apontado} icon={PlayCircle} colorClass="text-purple-600" />
                             <CompactStat label="Estudando" count={stats.team.estudando} icon={Box} colorClass="text-blue-500" />
                             <CompactStat label="Atrasados" count={stats.team.atrasado} icon={AlertTriangle} colorClass="text-red-600" />
+                            <CompactStat label="Ausente" count={stats.team.ausente} icon={Ban} colorClass="text-slate-400" />
                         </SectionHeader>
                         <div className="relative w-full overflow-hidden pb-1.5">
                             <div className="flex gap-2 sm:gap-3 lg:gap-4 w-max animate-marquee-reverse hover:[animation-play-state:paused]">
@@ -964,14 +982,16 @@ const AdminMonitoringView: React.FC = () => {
                                         'INICIADO': 'text-purple-600 border-purple-500 bg-purple-50',
                                         'ESTUDANDO': 'text-blue-600 border-blue-500 bg-blue-50',
                                         'ATRASADO': 'text-red-600 border-red-500 bg-red-50',
-                                        'APONTADO': 'text-indigo-700 border-indigo-500 bg-indigo-50'
+                                        'APONTADO': 'text-indigo-700 border-indigo-500 bg-indigo-50',
+                                        'AUSENTE': 'text-slate-500 border-slate-400 bg-slate-50'
                                     };
                                     const dotColors: any = {
                                         'LIVRE': 'bg-emerald-500',
                                         'INICIADO': 'bg-purple-500',
                                         'ESTUDANDO': 'bg-blue-500',
                                         'ATRASADO': 'bg-red-500',
-                                        'APONTADO': 'bg-indigo-600'
+                                        'APONTADO': 'bg-indigo-600',
+                                        'AUSENTE': 'bg-slate-400'
                                     };
 
                                     return (

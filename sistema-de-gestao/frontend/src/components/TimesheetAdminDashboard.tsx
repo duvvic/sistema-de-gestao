@@ -10,7 +10,7 @@ const TimesheetAdminDashboard: React.FC = () => {
    const [searchParams, setSearchParams] = useSearchParams();
    const navigate = useNavigate();
 
-   const { users, clients, projects, tasks, timesheetEntries: entries } = useDataController();
+   const { users, clients, projects, tasks, timesheetEntries: entries, absences } = useDataController();
 
    const initialTab = (searchParams.get('tab') as 'projects' | 'collaborators' | 'status') || 'projects';
    const selectedClientId = searchParams.get('clientId');
@@ -69,7 +69,25 @@ const TimesheetAdminDashboard: React.FC = () => {
             );
 
             const datesWithEntries = new Set(userEntries.map(e => e.date));
-            const missingDays = workDaysUntilYesterday.filter(day => !datesWithEntries.has(day));
+            const userAbsences = absences.filter(abs => {
+               if (String(abs.userId) !== String(user.id)) return false;
+               const status = (abs.status || '').toLowerCase();
+               return status === 'finalizada_dp' || status === 'aprovada_rh';
+            });
+
+            const missingDays = workDaysUntilYesterday.filter(day => {
+               if (datesWithEntries.has(day)) return false;
+
+               // Check if day is within an approved absence
+               const dayDate = new Date(day + 'T12:00:00');
+               const isAbsent = userAbsences.some(abs => {
+                  const start = new Date(abs.startDate + 'T00:00:00');
+                  const end = new Date(abs.endDate + 'T23:59:59');
+                  return dayDate >= start && dayDate <= end;
+               });
+
+               return !isAbsent;
+            });
 
             const dailyGoal = user.dailyAvailableHours || 8;
             const expectedHours = workDaysUntilYesterday.length * dailyGoal;

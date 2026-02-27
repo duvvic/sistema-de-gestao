@@ -207,12 +207,14 @@ const UserForm: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
                   className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-sm font-black text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition-all"
                 >
-                  <option value="developer">Operacional / Consultor</option>
-                  <option value="tech_lead">Tech Lead / Liderança</option>
-                  <option value="pmo">Planejamento / PMO</option>
-                  <option value="executive">Gestão Executiva</option>
-                  <option value="system_admin">Admin TI / Suporte</option>
-                  <option value="ceo">Presidência</option>
+                  <option value="developer">Consultor / Operacional</option>
+                  <option value="tech_lead">Tech Lead / Liderança Técnica</option>
+                  <option value="pmo">Gerente de Projetos / PMO</option>
+                  <option value="financial">Financeiro / Controladoria</option>
+                  <option value="rh">Recursos Humanos / RH</option>
+                  <option value="executive">Direção / Gestão Executiva</option>
+                  <option value="system_admin">Administrador do Sistema (TI)</option>
+                  <option value="ceo">CEO / Presidência</option>
                 </select>
               </div>
               <div className="space-y-4">
