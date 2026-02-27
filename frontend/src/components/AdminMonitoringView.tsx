@@ -75,7 +75,7 @@ const CompactStat = ({ label, count, icon: Icon, colorClass }: { label: string, 
 // --- Componente Principal ---
 
 const AdminMonitoringView: React.FC = () => {
-    const { tasks: allTasks, projects: allProjects, users: allUsers, clients: allClients, loading, timesheetEntries: allTimesheets } = useDataController();
+    const { tasks: allTasks, projects: allProjects, users: allUsers, clients: allClients, loading, timesheetEntries: allTimesheets, absences: allAbsences } = useDataController();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [weather, setWeather] = useState<{
         temp: number;
@@ -518,10 +518,24 @@ const AdminMonitoringView: React.FC = () => {
                 entry.date === todayStr
             );
 
-            let status: 'LIVRE' | 'ESTUDANDO' | 'INICIADO' | 'APONTADO' | 'ATRASADO' = 'LIVRE';
+            let status: 'LIVRE' | 'ESTUDANDO' | 'INICIADO' | 'APONTADO' | 'ATRASADO' | 'AUSENTE' = 'LIVRE';
+            let absenceData = undefined;
 
-            // Hierarquia: Atrasado > Apontado (após 16h) > Iniciado > Estudando > Livre
-            if (delayedTasksForStatus.length > 0) {
+            // Check if absent today
+            const userAbsences = allAbsences.filter(a => a.userId === user.id && a.status === 'finalizada_dp');
+            const absentToday = userAbsences.find(a => {
+                const start = new Date(a.startDate + 'T00:00:00');
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(a.endDate + 'T23:59:59');
+                end.setHours(23, 59, 59, 999);
+                return now >= start && now <= end;
+            });
+
+            // Hierarquia: Ausente > Atrasado > Apontado (após 16h) > Iniciado > Estudando > Livre
+            if (absentToday) {
+                status = 'AUSENTE';
+                absenceData = absentToday;
+            } else if (delayedTasksForStatus.length > 0) {
                 status = 'ATRASADO';
             } else if (isAfter16h && hasTimesheetToday) {
                 status = 'APONTADO';
@@ -531,11 +545,11 @@ const AdminMonitoringView: React.FC = () => {
                 status = 'ESTUDANDO';
             }
 
-            return { ...user, boardStatus: status };
+            return { ...user, boardStatus: status, absenceData };
         });
 
         return members;
-    }, [allUsers, allTasks, allTimesheets]);
+    }, [allUsers, allTasks, allTimesheets, allAbsences]);
 
     const stats = useMemo(() => {
         const delayed = allTasks.filter(t => t.status !== 'Done' && (t.status === 'In Progress' || t.status === 'Testing') && (t.progress || 0) < 100 && (t.daysOverdue ?? 0) > 0).length;
@@ -574,7 +588,8 @@ const AdminMonitoringView: React.FC = () => {
                 iniciado: teamStatus.filter(m => m.boardStatus === 'INICIADO').length,
                 atrasado: teamStatus.filter(m => m.boardStatus === 'ATRASADO').length,
                 estudando: teamStatus.filter(m => m.boardStatus === 'ESTUDANDO').length,
-                apontado: teamStatus.filter(m => m.boardStatus === 'APONTADO').length
+                apontado: teamStatus.filter(m => m.boardStatus === 'APONTADO').length,
+                ausente: teamStatus.filter(m => m.boardStatus === 'AUSENTE').length
             }
         };
     }, [allTasks, allProjects, teamStatus]);
@@ -955,6 +970,7 @@ const AdminMonitoringView: React.FC = () => {
                             <CompactStat label="Em Atividade" count={stats.team.iniciado + stats.team.apontado} icon={PlayCircle} colorClass="text-purple-600" />
                             <CompactStat label="Estudando" count={stats.team.estudando} icon={Box} colorClass="text-blue-500" />
                             <CompactStat label="Atrasados" count={stats.team.atrasado} icon={AlertTriangle} colorClass="text-red-600" />
+                            {stats.team.ausente > 0 && <CompactStat label="Ausentes" count={stats.team.ausente} icon={AlertCircle} colorClass="text-orange-600" />}
                         </SectionHeader>
                         <div className="relative w-full overflow-hidden pb-1.5">
                             <div className="flex gap-2 sm:gap-3 lg:gap-4 w-max animate-marquee-reverse hover:[animation-play-state:paused]">
@@ -964,14 +980,16 @@ const AdminMonitoringView: React.FC = () => {
                                         'INICIADO': 'text-purple-600 border-purple-500 bg-purple-50',
                                         'ESTUDANDO': 'text-blue-600 border-blue-500 bg-blue-50',
                                         'ATRASADO': 'text-red-600 border-red-500 bg-red-50',
-                                        'APONTADO': 'text-indigo-700 border-indigo-500 bg-indigo-50'
+                                        'APONTADO': 'text-indigo-700 border-indigo-500 bg-indigo-50',
+                                        'AUSENTE': 'text-orange-600 border-orange-500 bg-orange-50'
                                     };
                                     const dotColors: any = {
                                         'LIVRE': 'bg-emerald-500',
                                         'INICIADO': 'bg-purple-500',
                                         'ESTUDANDO': 'bg-blue-500',
                                         'ATRASADO': 'bg-red-500',
-                                        'APONTADO': 'bg-indigo-600'
+                                        'APONTADO': 'bg-indigo-600',
+                                        'AUSENTE': 'bg-orange-500'
                                     };
 
                                     return (
@@ -996,7 +1014,7 @@ const AdminMonitoringView: React.FC = () => {
 
                                             <div className="border-t border-slate-50 pt-1 2xl:pt-3 flex items-center justify-between">
                                                 <span className={`text-[7px] 2xl:text-[10px] font-black px-2 py-0.5 rounded-lg border ${colors[member.boardStatus]} whitespace-nowrap`}>
-                                                    {member.boardStatus}
+                                                    {member.boardStatus === 'AUSENTE' && (member as any).absenceData ? `AUSENTE: ${((member as any).absenceData).type}` : member.boardStatus}
                                                 </span>
                                                 <div className={`w-1.5 h-1.5 2xl:w-2.5 2xl:h-2.5 rounded-full ${dotColors[member.boardStatus]} shadow-md`} />
                                             </div>

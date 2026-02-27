@@ -176,130 +176,135 @@ const RHManagement: React.FC = () => {
                 </header>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        <div className="lg:col-span-3">
-                            <AbsenceStatusWidget />
-                        </div>
-                        <div className="lg:col-span-1 bg-gradient-to-br from-[var(--surface)] to-[var(--surface-2)] border border-[var(--border)] rounded-[2rem] p-6 shadow-xl relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                                <ShieldCheck size={80} />
-                            </div>
-                            <div className="flex items-center gap-2 mb-4">
-                                <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-white">
-                                    <Info size={14} />
-                                </div>
-                                <h3 className="text-xs font-black uppercase text-[var(--text)] tracking-widest">Políticas 2026</h3>
-                            </div>
-                            <div className="space-y-3">
-                                {[
-                                    { text: 'Solicite com 30d de antecedência', color: 'bg-amber-400' },
-                                    { text: 'Um período deve ter 14d+', color: 'bg-emerald-400' },
-                                    { text: 'Duração mínima de 5d fixos', color: 'bg-indigo-400' }
-                                ].map((rule, idx) => (
-                                    <div key={idx} className="flex items-center gap-3 p-2 bg-[var(--surface)]/50 rounded-xl border border-[var(--border)]/50">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${rule.color}`} />
-                                        <span className="text-[10px] font-bold text-[var(--text-2)]">{rule.text}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
                     {activeTab === 'requests' && (
-                        <div className="space-y-4 animate-in fade-in duration-500 flex flex-col h-full">
-                            <div className="bg-[var(--surface-2)] p-1.5 rounded-2xl border border-[var(--border)] flex flex-col md:flex-row items-center gap-3 shadow-sm">
-                                <div className="flex-1 flex items-center bg-[var(--surface)] rounded-xl px-3 py-2 gap-2 border border-[var(--border)] w-full">
-                                    <Search size={14} className="text-[var(--muted)]" />
-                                    <input
-                                        type="text"
-                                        placeholder="Procurar por nome ou observação..."
-                                        className="bg-transparent border-none outline-none w-full text-[11px] font-black placeholder:text-[var(--muted)]"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
+                        <div className="flex flex-col xl:flex-row gap-6 animate-in fade-in duration-500 h-full min-h-0">
+                            {/* LEFT SIDE: LIST & FILTERS */}
+                            <div className="flex-1 flex flex-col space-y-4 min-w-0">
+                                <div className="bg-[var(--surface-2)] p-1.5 rounded-2xl border border-[var(--border)] flex flex-col md:flex-row items-center gap-3 shadow-sm">
+                                    <div className="flex-1 flex items-center bg-[var(--surface)] rounded-xl px-3 py-2 gap-2 border border-[var(--border)] w-full">
+                                        <Search size={14} className="text-[var(--muted)]" />
+                                        <input
+                                            type="text"
+                                            placeholder="Procurar por nome ou observação..."
+                                            className="bg-transparent border-none outline-none w-full text-[11px] font-black placeholder:text-[var(--muted)]"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 w-full md:w-auto">
+                                        <select
+                                            value={towerFilter}
+                                            onChange={(e) => setTowerFilter(e.target.value)}
+                                            className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[9px] font-black outline-none uppercase min-w-[100px]"
+                                        >
+                                            <option value="all">TODAS TORRES</option>
+                                            {Array.from(new Set(users.map(u => u.torre).filter(Boolean))).map(t => (
+                                                <option key={t} value={t!}>{t!.toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value as any)}
+                                            className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[9px] font-black outline-none uppercase min-w-[100px]"
+                                        >
+                                            <option value="all">TODOS STATUS</option>
+                                            <option value="sugestao">1. Sugestão</option>
+                                            <option value="aprovada_gestao">2. Gestão</option>
+                                            <option value="aprovada_rh">3. RH</option>
+                                            <option value="finalizada_dp">4. DP/PAGO</option>
+                                        </select>
+                                    </div>
+                                    <div className="hidden lg:flex items-center gap-3 px-3 py-1.5 border-l border-[var(--border)] ml-1">
+                                        <span title="1. Sugestão" className="w-2.5 h-2.5 rounded bg-amber-400 border border-amber-600/20" />
+                                        <span title="2. Gestão" className="w-2.5 h-2.5 rounded bg-cyan-400 border border-blue-600/20" />
+                                        <span title="3. RH" className="w-2.5 h-2.5 rounded bg-emerald-400 border border-emerald-600/20" />
+                                        <span title="4. DP" className="w-2.5 h-2.5 rounded bg-purple-400 border border-purple-600/20" />
+                                    </div>
                                 </div>
-                                <div className="flex gap-2 w-full md:w-auto">
-                                    <select
-                                        value={towerFilter}
-                                        onChange={(e) => setTowerFilter(e.target.value)}
-                                        className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[9px] font-black outline-none uppercase min-w-[100px]"
-                                    >
-                                        <option value="all">TODAS TORRES</option>
-                                        {Array.from(new Set(users.map(u => u.torre).filter(Boolean))).map(t => (
-                                            <option key={t} value={t!}>{t!.toUpperCase()}</option>
-                                        ))}
-                                    </select>
-                                    <select
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value as any)}
-                                        className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[9px] font-black outline-none uppercase min-w-[100px]"
-                                    >
-                                        <option value="all">TODOS STATUS</option>
-                                        <option value="sugestao">1. Sugestão</option>
-                                        <option value="aprovada_gestao">2. Gestão</option>
-                                        <option value="aprovada_rh">3. RH</option>
-                                        <option value="finalizada_dp">4. DP/PAGO</option>
-                                    </select>
-                                </div>
-                                <div className="hidden lg:flex items-center gap-3 px-3 py-1.5 border-l border-[var(--border)] ml-1">
-                                    <span title="1. Sugestão" className="w-2.5 h-2.5 rounded bg-amber-400 border border-amber-600/20" />
-                                    <span title="2. Gestão" className="w-2.5 h-2.5 rounded bg-cyan-400 border border-blue-600/20" />
-                                    <span title="3. RH" className="w-2.5 h-2.5 rounded bg-emerald-400 border border-emerald-600/20" />
-                                    <span title="4. DP" className="w-2.5 h-2.5 rounded bg-purple-400 border border-purple-600/20" />
+
+                                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm flex-1 flex flex-col">
+                                    <div className="grid grid-cols-12 gap-2 p-2.5 bg-[var(--surface-2)] border-b border-[var(--border)] text-[9px] font-black uppercase text-[var(--muted)] sticky top-0 z-10">
+                                        <span className="col-span-3 border-r border-[var(--border)] pr-2">Colaborador / Tipo</span>
+                                        <span className="col-span-2 border-r border-[var(--border)] pr-2 text-center">Período</span>
+                                        <span className="col-span-1 border-r border-[var(--border)] pr-2 text-center">Dias</span>
+                                        <span className="col-span-2 border-r border-[var(--border)] pr-2">Torre / Cargo</span>
+                                        <span className="col-span-2 border-r border-[var(--border)] pr-2 text-center">Status</span>
+                                        <span className="col-span-2 text-right pr-4">Ações</span>
+                                    </div>
+                                    <div className="divide-y divide-[var(--border)] overflow-y-auto custom-scrollbar">
+                                        {filteredAbsences.map(a => {
+                                            const user = users.find(u => u.id === a.userId);
+                                            const days = calculateDays(a.startDate, a.endDate);
+                                            return (
+                                                <div key={a.id} className="grid grid-cols-12 gap-2 p-3 items-center hover:bg-[var(--primary-soft)]/30 transition-colors group">
+                                                    <div className="col-span-3 flex items-center gap-3 min-w-0">
+                                                        <div className="w-8 h-8 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center font-black text-xs shrink-0">
+                                                            {user?.name.charAt(0)}
+                                                        </div>
+                                                        <div className="truncate">
+                                                            <p className="text-[11px] font-black text-[var(--text)] truncate">{user?.name}</p>
+                                                            <p className="text-[8px] font-black text-[var(--muted)] uppercase">{a.type}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-2 text-[10px] font-black text-[var(--text)]">
+                                                        {new Date(a.startDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {new Date(a.endDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                    </div>
+                                                    <div className="col-span-1 text-center font-black text-xs text-[var(--primary)] bg-[var(--primary-soft)]/50 py-1 rounded-lg border border-[var(--primary-soft)]">
+                                                        {days}d
+                                                    </div>
+                                                    <div className="col-span-2 truncate text-[9px] font-black text-[var(--text)] uppercase">
+                                                        {user?.torre || 'N/A'}
+                                                    </div>
+                                                    <div className="col-span-2">
+                                                        <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase border shadow-sm block text-center truncate ${getStatusStyle(a.status)}`}>
+                                                            {getStatusLabel(a.status)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="col-span-2 flex items-center justify-end gap-1.5 flex-wrap">
+                                                        {a.status !== 'finalizada_dp' && a.status !== 'rejeitado' && (
+                                                            <button onClick={() => setActionModal({ id: a.id, type: 'approve' })} className="h-7 px-3 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase hover:bg-emerald-500 transition-all">Avançar</button>
+                                                        )}
+                                                        {a.status === 'rejeitado' && (
+                                                            <button onClick={() => setActionModal({ id: a.id, type: 'revert' })} className="h-7 w-7 flex items-center justify-center bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white border border-blue-200"><RotateCcw size={12} /></button>
+                                                        )}
+                                                        <button onClick={() => setActionModal({ id: a.id, type: 'delete' })} className="h-7 w-7 flex items-center justify-center bg-slate-50 text-slate-400 rounded-lg hover:bg-red-500 hover:text-white border border-slate-100 opacity-0 group-hover:opacity-100"><Trash2 size={12} /></button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm flex-1 flex flex-col">
-                                <div className="grid grid-cols-12 gap-2 p-2.5 bg-[var(--surface-2)] border-b border-[var(--border)] text-[9px] font-black uppercase text-[var(--muted)] sticky top-0 z-10">
-                                    <span className="col-span-3 border-r border-[var(--border)] pr-2">Colaborador / Tipo</span>
-                                    <span className="col-span-2 border-r border-[var(--border)] pr-2 text-center">Período</span>
-                                    <span className="col-span-1 border-r border-[var(--border)] pr-2 text-center">Dias</span>
-                                    <span className="col-span-2 border-r border-[var(--border)] pr-2">Torre / Cargo</span>
-                                    <span className="col-span-2 border-r border-[var(--border)] pr-2 text-center">Status</span>
-                                    <span className="col-span-2 text-right pr-4">Ações</span>
-                                </div>
-                                <div className="divide-y divide-[var(--border)] overflow-y-auto custom-scrollbar">
-                                    {filteredAbsences.map(a => {
-                                        const user = users.find(u => u.id === a.userId);
-                                        const days = calculateDays(a.startDate, a.endDate);
-                                        return (
-                                            <div key={a.id} className="grid grid-cols-12 gap-2 p-3 items-center hover:bg-[var(--primary-soft)]/30 transition-colors group">
-                                                <div className="col-span-3 flex items-center gap-3 min-w-0">
-                                                    <div className="w-8 h-8 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center font-black text-xs shrink-0">
-                                                        {user?.name.charAt(0)}
-                                                    </div>
-                                                    <div className="truncate">
-                                                        <p className="text-[11px] font-black text-[var(--text)] truncate">{user?.name}</p>
-                                                        <p className="text-[8px] font-black text-[var(--muted)] uppercase">{a.type}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="col-span-2 text-[10px] font-black text-[var(--text)]">
-                                                    {new Date(a.startDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {new Date(a.endDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                                </div>
-                                                <div className="col-span-1 text-center font-black text-xs text-[var(--primary)] bg-[var(--primary-soft)]/50 py-1 rounded-lg border border-[var(--primary-soft)]">
-                                                    {days}d
-                                                </div>
-                                                <div className="col-span-2 truncate text-[9px] font-black text-[var(--text)] uppercase">
-                                                    {user?.torre || 'N/A'}
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase border shadow-sm block text-center truncate ${getStatusStyle(a.status)}`}>
-                                                        {getStatusLabel(a.status)}
-                                                    </span>
-                                                </div>
-                                                <div className="col-span-2 flex items-center justify-end gap-1.5 flex-wrap">
-                                                    {a.status !== 'finalizada_dp' && a.status !== 'rejeitado' && (
-                                                        <button onClick={() => setActionModal({ id: a.id, type: 'approve' })} className="h-7 px-3 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase hover:bg-emerald-500 transition-all">Avançar</button>
-                                                    )}
-                                                    {a.status === 'rejeitado' && (
-                                                        <button onClick={() => setActionModal({ id: a.id, type: 'revert' })} className="h-7 w-7 flex items-center justify-center bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white border border-blue-200"><RotateCcw size={12} /></button>
-                                                    )}
-                                                    <button onClick={() => setActionModal({ id: a.id, type: 'delete' })} className="h-7 w-7 flex items-center justify-center bg-slate-50 text-slate-400 rounded-lg hover:bg-red-500 hover:text-white border border-slate-100 opacity-0 group-hover:opacity-100"><Trash2 size={12} /></button>
-                                                </div>
+                            {/* RIGHT SIDE: SIDEBAR */}
+                            <div className="w-full xl:w-[340px] flex-shrink-0 flex flex-col gap-6">
+                                {/* POLÍTICAS 2026 - Dark Theme as requested */}
+                                <div className="bg-[#130E1F] border border-[#2A233C] rounded-[24px] p-6 shadow-xl relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                                        <ShieldCheck size={80} className="text-white" />
+                                    </div>
+                                    <div className="flex items-center gap-3 mb-5">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                                            <Info size={14} />
+                                        </div>
+                                        <h3 className="text-[13px] font-bold tracking-widest text-[#EADDFF]">POLÍTICAS 2026</h3>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {[
+                                            { text: 'Solicite com 30d de antecedência', color: 'bg-amber-400' },
+                                            { text: 'Um período deve ter 14d+', color: 'bg-emerald-400' },
+                                            { text: 'Duração mínima de 5d fixos', color: 'bg-indigo-400' }
+                                        ].map((rule, idx) => (
+                                            <div key={idx} className="flex items-center gap-3 p-3 bg-[#1B1429]/80 rounded-xl border border-[#2A233C]/50">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${rule.color}`} />
+                                                <span className="text-[11px] font-medium text-[#D0C6E6]">{rule.text}</span>
                                             </div>
-                                        );
-                                    })}
+                                        ))}
+                                    </div>
                                 </div>
+
+                                {/* RELATÓRIO DE AUSÊNCIAS */}
+                                <AbsenceStatusWidget />
                             </div>
                         </div>
                     )}

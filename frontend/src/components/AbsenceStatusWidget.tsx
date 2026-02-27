@@ -1,10 +1,7 @@
 import React, { useMemo } from 'react';
 import { useDataController } from '@/controllers/useDataController';
 import { Absence, User } from '@/types';
-import {
-    Calendar, Clock, Palmtree, ArrowRight, CheckCircle2,
-    AlertCircle, PartyPopper, Coffee, Briefcase
-} from 'lucide-react';
+import { Calendar, Palmtree, AlertCircle, Coffee, Briefcase, CheckSquare, CalendarDays, User as UserIcon } from 'lucide-react';
 
 const AbsenceStatusWidget: React.FC = () => {
     const { absences, users } = useDataController();
@@ -49,101 +46,145 @@ const AbsenceStatusWidget: React.FC = () => {
         return { returningToday, absentToday, futureAbsences };
     }, [absences, users, today, isMonday, yesterday]);
 
-    const getTypeIcon = (type: Absence['type']) => {
+    const formatShortDate = (dateStr: string) => {
+        return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    const getTypeDisplay = (type: Absence['type']) => {
         switch (type) {
-            case 'férias': return <Palmtree size={12} className="text-emerald-500" />;
-            case 'atestado': return <AlertCircle size={12} className="text-red-500" />;
-            case 'day-off': return <Coffee size={12} className="text-amber-500" />;
-            default: return <Briefcase size={12} className="text-blue-500" />;
+            case 'férias': return 'Férias';
+            case 'atestado': return 'Atestado Médico';
+            case 'day-off': return 'Day Off / Folga';
+            default: return 'Ausência planejada';
         }
     };
 
-    if (statusData.returningToday.length === 0 && statusData.absentToday.length === 0 && statusData.futureAbsences.length === 0) {
-        return null;
-    }
+    // Usar uma imagem genérica ou ícone para o robô, já que não temos a original
+    const robotAvatarUrl = "https://api.dicebear.com/7.x/bottts/svg?seed=niclabs&backgroundColor=f8f9fa";
 
     return (
-        <div className="flex flex-col gap-3">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 opacity-70">
-                <Calendar size={12} className="text-[var(--primary)]" />
-                Painel de Disponibilidade em Tempo Real
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                {/* 1. DE VOLTA HOJE */}
-                <div className="bg-[var(--surface-2)] p-2 rounded-xl border border-[var(--border)]">
-                    <div className="flex items-center gap-2 text-[8px] font-black uppercase text-emerald-600 mb-2">
-                        <PartyPopper size={10} /> De Volta Hoje
-                    </div>
-                    <div className="space-y-1">
-                        {statusData.returningToday.length > 0 ? (
-                            statusData.returningToday.map(({ user }) => (
-                                <div key={user.id} className="flex items-center gap-2 px-2 py-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
-                                    <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] font-black text-emerald-700 shrink-0 capitalize">
-                                        {user.name.charAt(0)}
-                                    </div>
-                                    <p className="text-[10px] font-black text-[var(--text)] truncate">{user.name}</p>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-[7px] font-bold text-[var(--muted)] italic text-center p-1 opacity-40">Nenhum retorno</p>
-                        )}
-                    </div>
+        <div className="bg-white dark:bg-[var(--surface-2)] rounded-[24px] border border-gray-100 dark:border-[var(--border)] shadow-sm overflow-hidden flex flex-col font-sans">
+            {/* Cabecalho */}
+            <div className="p-5 flex items-center gap-4 border-b border-gray-100 dark:border-[var(--border)]">
+                <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border-4 border-white dark:border-[var(--surface)] shadow-sm overflow-hidden">
+                    <img src={robotAvatarUrl} alt="Relatório" className="w-full h-full object-cover" />
                 </div>
+                <div>
+                    <h2 className="text-[18px] font-medium text-slate-800 dark:text-[var(--text)] leading-tight">Relatório de Ausências</h2>
+                    <p className="text-[14px] text-slate-500 dark:text-[var(--muted)] mt-0.5 font-normal">Atualização Diária</p>
+                </div>
+            </div>
 
-                {/* 2. AUSENTES HOJE */}
-                <div className="bg-[var(--surface-2)] p-2 rounded-xl border border-[var(--border)]">
-                    <div className="flex items-center gap-2 text-[8px] font-black uppercase text-amber-600 mb-2">
-                        <Clock size={10} /> Ausentes Agora
-                    </div>
-                    <div className="space-y-1">
-                        {statusData.absentToday.length > 0 ? (
-                            statusData.absentToday.map(({ user, absence }) => (
-                                <div key={absence.id} className="flex items-center gap-2 px-2 py-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
-                                    <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center text-[8px] font-black text-amber-700 shrink-0">
-                                        {user.name.charAt(0)}
+            <div className="flex flex-col divide-y divide-gray-100 dark:divide-[var(--border)]">
+                {/* 1. DE VOLTA HOJE */}
+                {statusData.returningToday.length > 0 && (
+                    <div className="p-5">
+                        <h3 className="text-[16px] font-normal text-slate-800 dark:text-[var(--text)] mb-4">De volta hoje!</h3>
+                        <div className="space-y-4">
+                            {statusData.returningToday.map(({ user }) => (
+                                <div key={user.id} className="flex items-start gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0 overflow-hidden border border-blue-200 shadow-sm">
+                                        {user.avatarUrl ? (
+                                            <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <UserIcon size={20} className="text-blue-500" />
+                                        )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] font-black text-[var(--text)] truncate leading-none mb-0.5">{user.name}</p>
-                                        <div className="flex items-center gap-1">
-                                            {getTypeIcon(absence.type)}
-                                            <span className="text-[7px] font-black text-amber-600 uppercase">Volta {new Date(absence.endDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                    <div className="flex-1 pt-0.5">
+                                        <p className="text-[13px] text-slate-600 dark:text-[var(--muted)] mb-0.5 leading-none">De volta hoje!</p>
+                                        <p className="text-[15px] font-medium text-slate-800 dark:text-[var(--text)] mb-1 leading-none">{user.name}</p>
+                                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500">
+                                            <CheckSquare size={14} className="fill-emerald-100 dark:fill-emerald-500/20" />
+                                            <span className="text-[13px] font-medium">Disponível</span>
                                         </div>
                                     </div>
                                 </div>
-                            ))
-                        ) : (
-                            <p className="text-[7px] font-bold text-[var(--muted)] italic text-center p-1 opacity-40">Time completo</p>
-                        )}
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {/* 3. PRÓXIMAS AUSÊNCIAS */}
-                <div className="bg-[var(--surface-2)] p-2 rounded-xl border border-[var(--border)]">
-                    <div className="flex items-center gap-2 text-[8px] font-black uppercase text-[var(--primary)] mb-2">
-                        <ArrowRight size={10} /> Escala Próxima
-                    </div>
-                    <div className="space-y-1">
-                        {statusData.futureAbsences.length > 0 ? (
-                            statusData.futureAbsences.slice(0, 3).map(({ user, absence }) => (
-                                <div key={absence.id} className="flex items-center gap-2 px-2 py-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg opacity-80">
-                                    <div className="w-5 h-5 rounded-full bg-[var(--surface-2)] flex items-center justify-center text-[8px] font-black text-[var(--muted)] shrink-0">
-                                        {user.name.charAt(0)}
+                {/* 2. AUSENTES HOJE */}
+                {statusData.absentToday.length > 0 && (
+                    <div className="p-5">
+                        <h3 className="text-[16px] font-normal text-slate-800 dark:text-[var(--text)] mb-4">Ausentes hoje</h3>
+                        <div className="space-y-4">
+                            {statusData.absentToday.map(({ user, absence }) => (
+                                <div key={absence.id} className="flex items-start gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0 overflow-hidden border border-amber-200 shadow-sm">
+                                        {user.avatarUrl ? (
+                                            <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <UserIcon size={20} className="text-amber-500" />
+                                        )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] font-black text-[var(--text)] truncate leading-none mb-0.5">{user.name}</p>
-                                        <span className="text-[7px] font-bold text-[var(--muted)] uppercase">Início {new Date(absence.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                    <div className="flex-1 pt-0.5">
+                                        <p className="text-[13px] text-slate-600 dark:text-[var(--muted)] mb-0.5 leading-none">{getTypeDisplay(absence.type)}</p>
+                                        <p className="text-[15px] font-medium text-slate-800 dark:text-[var(--text)] mb-1 leading-none">{user.name}</p>
+                                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                            {absence.type === 'férias' ? (
+                                                <Palmtree size={14} className="text-orange-500" />
+                                            ) : (
+                                                <CalendarDays size={14} className="text-blue-400" />
+                                            )}
+                                            <span className="text-[13px] font-normal">Volta em: {formatShortDate(addBusinessDaysString(absence.endDate, 1))}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            ))
-                        ) : (
-                            <p className="text-[7px] font-bold text-[var(--muted)] italic text-center p-1 opacity-40">Sem agendamentos</p>
-                        )}
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {/* 3. PRÓXIMAS AUSÊNCIAS */}
+                {statusData.futureAbsences.length > 0 && (
+                    <div className="p-5">
+                        <h3 className="text-[16px] font-normal text-slate-800 dark:text-[var(--text)] mb-4">Próximas Ausências</h3>
+                        <div className="space-y-4">
+                            {statusData.futureAbsences.slice(0, 5).map(({ user, absence }) => (
+                                <div key={absence.id} className="flex items-start gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
+                                        {user.avatarUrl ? (
+                                            <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <UserIcon size={20} className="text-slate-400" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 pt-0.5">
+                                        <p className="text-[13px] text-slate-600 dark:text-[var(--muted)] mb-0.5 leading-none">{getTypeDisplay(absence.type)}</p>
+                                        <p className="text-[15px] font-medium text-slate-800 dark:text-[var(--text)] mb-1 leading-none">{user.name}</p>
+                                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                            <CalendarDays size={14} className="text-indigo-400" />
+                                            <span className="text-[13px] font-normal">{formatShortDate(absence.startDate)} - {formatShortDate(absence.endDate)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* EMPTy STATE */}
+                {statusData.returningToday.length === 0 && statusData.absentToday.length === 0 && statusData.futureAbsences.length === 0 && (
+                    <div className="p-8 flex items-center justify-center flex-col text-center opacity-50">
+                        <Calendar size={32} className="text-slate-400 mb-3" />
+                        <p className="text-[14px] text-slate-600 dark:text-[var(--muted)]">Nenhum registro de ausência no momento.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
+
+// Helper function equivalent to adding 1 day, roughly (without holiday logic, just simple +1 day)
+function addBusinessDaysString(dateStr: string, days: number): string {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    // Skip weekends
+    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+
+    return d.toISOString().split('T')[0];
+}
 
 export default AbsenceStatusWidget;

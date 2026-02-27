@@ -10,7 +10,7 @@ const TimesheetAdminDashboard: React.FC = () => {
    const [searchParams, setSearchParams] = useSearchParams();
    const navigate = useNavigate();
 
-   const { users, clients, projects, tasks, timesheetEntries: entries } = useDataController();
+   const { users, clients, projects, tasks, timesheetEntries: entries, absences } = useDataController();
 
    const initialTab = (searchParams.get('tab') as 'projects' | 'collaborators' | 'status') || 'projects';
    const selectedClientId = searchParams.get('clientId');
@@ -72,8 +72,20 @@ const TimesheetAdminDashboard: React.FC = () => {
          const dailyGoal = user.dailyAvailableHours || 8;
          const expectedHours = workDaysUntilYesterday.length * dailyGoal;
 
+         // Check absence today
+         const userAbsences = absences.filter(a => a.userId === user.id && a.status === 'finalizada_dp');
+         const now = new Date();
+         const absentToday = userAbsences.find(a => {
+            const start = new Date(a.startDate + 'T00:00:00');
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(a.endDate + 'T23:59:59');
+            end.setHours(23, 59, 59, 999);
+            return now >= start && now <= end;
+         });
+
          return {
             user,
+            absenceData: absentToday,
             totalDays: workDaysUntilYesterday.length,
             daysWithEntries: datesWithEntries.size,
             missingDays: missingDays.length,
@@ -351,7 +363,13 @@ const TimesheetAdminDashboard: React.FC = () => {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                        <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
-                                       <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
+                                       {s.absenceData ? (
+                                          <span className="text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 inline-block mt-0.5">
+                                             Ausente: {s.absenceData.type}
+                                          </span>
+                                       ) : (
+                                          <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
+                                       )}
                                     </div>
                                     <div className="text-right">
                                        <p className="text-sm font-black" style={{ color: 'var(--success-text)' }}>{formatDecimalToTime(s.totalHours)}</p>
@@ -394,7 +412,13 @@ const TimesheetAdminDashboard: React.FC = () => {
                                        </div>
                                        <div className="min-w-0 flex-1">
                                           <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
-                                          <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
+                                          {s.absenceData ? (
+                                             <span className="text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md bg-orange-100 text-orange-700">
+                                                Ausente: {s.absenceData.type}
+                                             </span>
+                                          ) : (
+                                             <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
+                                          )}
                                        </div>
                                        <div className="text-right">
                                           <div className="flex flex-col items-end">
@@ -438,7 +462,13 @@ const TimesheetAdminDashboard: React.FC = () => {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                        <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
-                                       <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
+                                       {s.absenceData ? (
+                                          <span className="text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 inline-block mt-0.5">
+                                             Ausente: {s.absenceData.type}
+                                          </span>
+                                       ) : (
+                                          <p className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>{s.user.cargo || 'Desenvolvedor'}</p>
+                                       )}
                                     </div>
                                     <div className="text-right">
                                        <p className="text-sm font-black" style={{ color: 'var(--danger)' }}>{s.missingDays}</p>
