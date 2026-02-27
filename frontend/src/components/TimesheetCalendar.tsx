@@ -160,6 +160,11 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
       return `${y}-${m}-${d}`;
     };
 
+    const usr = safeUsers.find(u => u.id === uid);
+    if (usr && ['ceo', 'diretoria', 'executive'].includes(usr.role?.toLowerCase() || '')) {
+      return 0; // Diretoria/Executivos não possuem pendência de timesheet
+    }
+
     const userEntries = allEntries.filter(e => {
       if (!e.date) return false;
       const [y, m] = e.date.split('-').map(Number);
