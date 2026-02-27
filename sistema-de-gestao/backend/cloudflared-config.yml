@@ -1,0 +1,5 @@
+tunnel: sistema-gestao-backend
+credentials-file: C:\Users\login\.cloudflared\sistema-gestao-backend.json
+
+ingress:
+  - service: http://localhost:3001

@@ -1,0 +1,462 @@
+/* ================================================
+   THEME SYSTEM - LIGHT & DARK MODE
+   Professional Color System with Depth & Contrast
+   ================================================ */
+
+:root {
+  /* ============================================
+     LIGHT MODE - Premium & Professional
+     Sophisticated tones with clear visual depth
+     ============================================ */
+
+  /* Core Backgrounds - Clear layering with depth perception */
+  --bg: #F0F4F8;              /* Cool gray-blue - Soft main background */
+  --bg-elevated: #F7F9FB;      /* Slightly lighter - App container */
+  --surface: #FFFFFF;          /* Pure white - Primary cards (clearly elevated) */
+  --surface-elevated: #FFFFFF; /* Pure white - Modals, dropdowns (highest elevation) */
+  --surface-2: #F8FAFB;        /* Very light blue-gray - Nested sections within cards */
+  --surface-3: #F0F3F7;        /* Light blue-gray - Input fields & subtle containers */
+  --surface-hover: #F7F9FC;    /* Subtle blue tint - Hover states */
+  --surface-pressed: #EDF1F5;  /* Slightly darker - Pressed states */
+
+  /* Input & Form Elements */
+  --input-bg: #F8FAFB;         /* Soft background for inputs */
+  --input-bg-focus: #FFFFFF;   /* Pure white on focus for clarity */
+  --input-border: #D5DBE1;     /* Medium gray - Visible but not harsh */
+  --input-border-focus: #A0AEC0; /* Darker on focus for emphasis */
+  --input-disabled: #F0F3F7;   /* Muted for disabled state */
+
+  /* Sidebar & Brand */
+  --sidebar-bg: #4C1D95;       /* Purple 900 */
+  --sidebar-bg-2: #5B21B6;     /* Purple 800 */
+  --sidebar-hover: #6D28D9;    /* Purple 700 */
+  --primary: #7C3AED;          /* Purple 600 */
+  --primary-hover: #6D28D9;    /* Purple 700 */
+  --primary-soft: #F5F3FF;     /* Purple 50 */
+  --primary-muted: #EDE9FE;    /* Purple 100 */
+
+  /* Text Hierarchy - Strong readability */
+  --text: #1A202C;             /* Deep slate - Primary text (softer than pure black) */
+  --text-2: #2D3748;           /* Slate 800 - Secondary text */
+  --text-3: #4A5568;           /* Slate 600 - Tertiary text */
+  --text-muted: #718096;       /* Slate 500 - Muted text */
+  --text-placeholder: #A0AEC0; /* Slate 400 - Placeholders */
+
+  /* Borders & Dividers - Clear separation */
+  --border: #D5DBE1;           /* Medium gray - Clearly visible borders */
+  --border-strong: #B8C1CC;    /* Darker gray - Emphasized borders */
+  --border-muted: #E8ECF0;     /* Very light - Subtle dividers */
+  --divider: #E2E8F0;          /* Light gray - Section dividers */
+
+  /* Interactive States */
+  --hover-overlay: rgba(0, 0, 0, 0.03);
+  --pressed-overlay: rgba(0, 0, 0, 0.06);
+  --focus-ring: rgba(124, 58, 237, 0.25);
+
+  /* Status Colors */
+  --success: #10B981;          /* Emerald 500 */
+  --success-bg: #D1FAE5;       /* Emerald 100 - More visible */
+  --success-text: #047857;     /* Emerald 700 - Better contrast */
+  --warning: #F59E0B;          /* Amber 500 */
+  --warning-bg: #FEF3C7;       /* Amber 100 - More visible */
+  --warning-text: #B45309;     /* Amber 700 - Better contrast */
+  --danger: #EF4444;           /* Red 500 */
+  --danger-bg: #FEE2E2;        /* Red 100 - More visible */
+  --danger-text: #B91C1C;      /* Red 700 - Better contrast */
+  --info: #3B82F6;             /* Blue 500 */
+  --info-bg: #DBEAFE;          /* Blue 100 - More visible */
+  --info-text: #1E40AF;        /* Blue 800 */
+
+  /* Shadows - Enhanced for depth perception */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.12), 0 1px 2px 0 rgba(0, 0, 0, 0.08);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.18);
+  --shadow-card: 0 2px 8px -2px rgba(0, 0, 0, 0.08), 0 4px 16px -4px rgba(0, 0, 0, 0.06);
+
+  /* Overlay & Modal */
+  --overlay: rgba(15, 23, 42, 0.45);   /* Slightly stronger for better modal focus */
+  --modal-bg: #FFFFFF;
+
+  /* Kanban Specific - Light Mode */
+  --status-todo: rgba(100, 116, 139, 0.05);
+  --status-review: rgba(245, 158, 11, 0.08);
+  --status-progress: rgba(14, 165, 233, 0.08);
+  --status-testing: rgba(139, 92, 246, 0.08);
+  --status-done: rgba(16, 185, 129, 0.08);
+  
+  /* Card Status Colors */
+  --card-delayed: #dc2626;        /* Red 600 - Urgent */
+  --card-impediment: #ea580c;     /* Orange 600 - Blocked (darker than Análise) */
+  --card-study: #eab308;          /* Yellow 500 - Learning */
+  --card-delayed-bg: rgba(220, 38, 38, 0.06);
+  --card-impediment-bg: rgba(234, 88, 12, 0.06);
+  --card-study-bg: rgba(234, 179, 8, 0.06);
+
+  /* Note Colors - Light Mode */
+  --note-yellow: #F59E0B;
+  --note-blue: #3B82F6;
+  --note-purple: #7C3AED;
+  --note-orange: #F97316;
+  --note-green: #10B981;
+  --note-bg-yellow: rgba(251, 191, 36, 0.12);
+  --note-bg-blue: rgba(59, 130, 246, 0.12);
+  --note-bg-purple: rgba(124, 58, 237, 0.12);
+  --note-bg-orange: rgba(249, 115, 22, 0.12);
+  --note-bg-green: rgba(16, 185, 129, 0.12);
+
+  /* Deprecated/Legacy - Kept for backwards compatibility */
+  --bg-app: var(--bg);
+  --bgApp: var(--bg);
+  --bg-surface: var(--surface);
+  --surfaceHover: var(--surface-hover);
+  --text-primary: var(--text);
+  --textTitle: var(--text);
+  --textMuted: var(--text-muted);
+  --muted: var(--text-3);
+  --brand: var(--primary);
+  --brandHover: var(--primary-hover);
+  --ring: var(--focus-ring);
+}
+
+html.dark {
+  /* ============================================
+     DARK MODE - Deep & Professional
+     ============================================ */
+
+  /* Core Backgrounds - Deep layering with proper depth */
+  --bg: #0A0A0F;               /* Very dark base - almost black */
+  --bg-elevated: #13121C;      /* Slightly elevated */
+  --surface: #1A1825;          /* Card backgrounds - clearly elevated */
+  --surface-elevated: #211E30; /* Modals, dropdowns - even more elevated */
+  --surface-2: #100E18;        /* Nested sections - darker than surface */
+  --surface-3: #0D0B13;        /* Input fields - darker still */
+  --surface-hover: #252233;    /* Hover states - lighter */
+  --surface-pressed: #1E1B2E;  /* Pressed states */
+
+  /* Input & Form Elements */
+  --input-bg: #13121C;         /* Darker for depth */
+  --input-bg-focus: #1A1825;   /* Slightly lighter on focus */
+  --input-border: #2D2839;     /* Subtle border */
+  --input-border-focus: #3D3750; /* More visible on focus */
+  --input-disabled: #0D0B13;   /* Very dark when disabled */
+
+  /* Sidebar & Brand */
+  --sidebar-bg: #13101C;       /* Very dark purple-tinted */
+  --sidebar-bg-2: #1A1625;     /* Slightly lighter */
+  --sidebar-hover: #252040;    /* Hover state */
+  --primary: #8B5CF6;          /* Purple 500 - brighter for dark mode */
+  --primary-hover: #A78BFA;    /* Purple 400 - even brighter on hover */
+  --primary-soft: rgba(139, 92, 246, 0.12);
+  --primary-muted: rgba(139, 92, 246, 0.2);
+
+  /* Text Hierarchy - Adjusted for dark backgrounds */
+  --text: #F1F5F9;             /* Slate 100 - Very light */
+  --text-2: #CBD5E1;           /* Slate 300 - Secondary */
+  --text-3: #94A3B8;           /* Slate 400 - Tertiary */
+  --text-muted: #64748B;       /* Slate 500 - Muted */
+  --text-placeholder: #475569; /* Slate 600 - Placeholders */
+
+  /* Borders & Dividers */
+  --border: #2D2839;           /* Subtle purple-tinted border */
+  --border-strong: #3D3750;    /* More visible borders */
+  --border-muted: #1E1B2E;     /* Very subtle dividers */
+  --divider: #252233;
+
+  /* Interactive States */
+  --hover-overlay: rgba(255, 255, 255, 0.03);
+  --pressed-overlay: rgba(255, 255, 255, 0.05);
+  --focus-ring: rgba(139, 92, 246, 0.3);
+
+  /* Status Colors - Adjusted brightness for dark mode */
+  --success: #34D399;          /* Emerald 400 - brighter */
+  --success-bg: rgba(52, 211, 153, 0.15);
+  --success-text: #6EE7B7;     /* Emerald 300 */
+  --warning: #FBBF24;          /* Amber 400 - brighter */
+  --warning-bg: rgba(251, 191, 36, 0.15);
+  --warning-text: #FCD34D;     /* Amber 300 */
+  --danger: #F87171;           /* Red 400 - brighter */
+  --danger-bg: rgba(248, 113, 113, 0.15);
+  --danger-text: #FCA5A5;      /* Red 300 */
+  --info: #60A5FA;             /* Blue 400 - brighter */
+  --info-bg: rgba(96, 165, 250, 0.15);
+  --info-text: #93C5FD;        /* Blue 300 */
+
+  /* Shadows - Stronger in Dark Mode for depth */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  --shadow-card: 0 4px 20px -5px rgba(0, 0, 0, 0.6), 0 2px 8px -4px rgba(0, 0, 0, 0.5);
+
+  /* Overlay & Modal */
+  --overlay: rgba(0, 0, 0, 0.7);
+  --modal-bg: #1A1825;
+
+  /* Kanban Specific - Dark Mode */
+  --status-todo: rgba(100, 116, 139, 0.12);
+  --status-review: rgba(245, 158, 11, 0.15);
+  --status-progress: rgba(14, 165, 233, 0.15);
+  --status-testing: rgba(139, 92, 246, 0.15);
+  --status-done: rgba(52, 211, 153, 0.15);
+  
+  /* Card Status Colors - Dark Mode */
+  --card-delayed: #ef4444;        /* Red 500 - Brighter for dark */
+  --card-impediment: #f97316;     /* Orange 500 - Brighter but distinct */
+  --card-study: #fbbf24;          /* Yellow 400 - Brighter */
+  --card-delayed-bg: rgba(239, 68, 68, 0.12);
+  --card-impediment-bg: rgba(249, 115, 22, 0.12);
+  --card-study-bg: rgba(251, 191, 36, 0.12);
+
+  /* Note Colors */
+  --note-yellow: #FBBF24;
+  --note-blue: #60A5FA;
+  --note-purple: #A78BFA;
+  --note-orange: #FB923C;
+  --note-green: #4ADE80;
+  --note-bg-yellow: rgba(251, 191, 36, 0.15);
+  --note-bg-blue: rgba(96, 165, 250, 0.15);
+  --note-bg-purple: rgba(167, 139, 250, 0.15);
+  --note-bg-orange: rgba(251, 146, 60, 0.15);
+  --note-bg-green: rgba(74, 222, 128, 0.15);
+
+  /* Deprecated/Legacy */
+  --bg-app: var(--bg);
+  --bgApp: var(--bg);
+  --bg-surface: var(--surface);
+  --surfaceHover: var(--surface-hover);
+  --text-primary: var(--text);
+  --textTitle: var(--text);
+  --textMuted: var(--text-muted);
+  --muted: var(--text-3);
+  --brand: var(--primary);
+  --brandHover: var(--primary-hover);
+  --ring: var(--focus-ring);
+}
+
+/* ================================================
+   UTILITY CLASSES
+   ================================================ */
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Glass Effects */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(213, 219, 225, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+html.dark .glass-effect {
+  background: rgba(26, 24, 37, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.glass-purple {
+  background: rgba(124, 58, 237, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.glass-purple:hover {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.25);
+}
+
+html.dark .glass-purple {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+html.dark .glass-purple:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+/* Card Components */
+.ui-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+/* Custom Scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 20px;
+  transition: background 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 10px;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* No Scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Input Number Spinners Hidden */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/* ================================================
+   TAILWIND COLOR OVERRIDES FOR CONSISTENCY
+   ================================================ */
+
+/* Light Mode Adjustments */
+:root:not(.dark) {
+  /* Text Colors - Updated for better hierarchy */
+  .text-slate-400,
+  .text-gray-400 {
+    color: #718096 !important; /* Slate 500 - more visible */
+  }
+
+  .text-slate-500,
+  .text-gray-500 {
+    color: #4A5568 !important; /* Slate 600 - stronger */
+  }
+
+  .text-slate-600,
+  .text-gray-600 {
+    color: #2D3748 !important; /* Slate 800 - more contrast */
+  }
+
+  .text-slate-700,
+  .text-gray-700 {
+    color: #1A202C !important; /* Deep slate - strong text */
+  }
+
+  /* Background Colors - New tones for depth */
+  .bg-slate-50 {
+    background-color: #F7F9FB !important;
+  }
+
+  .bg-slate-100 {
+    background-color: #F0F4F8 !important;
+  }
+
+  .bg-slate-200 {
+    background-color: #E2E8F0 !important;
+  }
+
+  .bg-slate-800 {
+    background-color: #2D3748 !important;
+  }
+
+  .bg-slate-900 {
+    background-color: #1A202C !important;
+  }
+
+  /* Border Colors - More visible */
+  .border-slate-100 {
+    border-color: #E8ECF0 !important;
+  }
+
+  .border-slate-200 {
+    border-color: #D5DBE1 !important;
+  }
+
+  .border-slate-300 {
+    border-color: #B8C1CC !important;
+  }
+
+  /* Placeholder Colors */
+  input::placeholder,
+  textarea::placeholder {
+    color: #A0AEC0 !important;
+    opacity: 1;
+  }
+
+  /* Opacity Adjustments */
+  .opacity-30 {
+    opacity: 0.5 !important;
+  }
+
+  .opacity-40 {
+    opacity: 0.6 !important;
+  }
+
+  .opacity-50 {
+    opacity: 0.7 !important;
+  }
+}
+
+/* Dark Mode - Keep as is */
+html.dark {
+  .opacity-30 {
+    opacity: 0.3 !important;
+  }
+
+  .opacity-40 {
+    opacity: 0.4 !important;
+  }
+
+  .opacity-50 {
+    opacity: 0.5 !important;
+  }
+
+  .opacity-60 {
+    opacity: 0.6 !important;
+  }
+}

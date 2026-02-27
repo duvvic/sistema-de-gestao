@@ -1,0 +1,30 @@
+﻿node : file:///C:/Users/login/OneDrive/%C3%81rea%
+20de%20Trabalho/Projetos/sistema-de-gest-o/backen
+d/src/supabaseAdmin.js:7
+No linha:1 caractere:1
++ node src/server.js 2>&1 | Out-File -FilePath 
+startup_error_3.txt -Enc ...
++ ~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (fil 
+   e:///C:/User...abaseAdmin.js:7:String) [], R  
+  emoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    throw new Error("SUPABASE_URL e 
+SUPABASE_SERVICE_ROLE_KEY s├úo obrigat├│rios no 
+backend.");
+          ^
+
+Error: SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY 
+s├úo obrigat├│rios no backend.
+    at file:///C:/Users/login/OneDrive/%C3%81rea%
+20de%20Trabalho/Projetos/sistema-de-gest-o/backen
+d/src/supabaseAdmin.js:7:11
+    at ModuleJob.run 
+(node:internal/modules/esm/module_job:377:25)
+    at async onImport.tracePromise.__proto__ 
+(node:internal/modules/esm/loader:671:26)
+    at async asyncRunEntryPointWithESMLoader 
+(node:internal/modules/run_main:101:5)
+
+Node.js v24.11.1
