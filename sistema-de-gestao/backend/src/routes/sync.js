@@ -1,0 +1,300 @@
+import express from "express";
+import multer from "multer";
+import ExcelJS from "exceljs";
+import { randomUUID } from "crypto";
+import { supabaseAdmin } from "../config/supabaseAdmin.js";
+import { requireAdmin } from "../middleware/requireAdmin.js";
+
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+const normalizeKey = (key) => key?.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[-_]/g, '').replace(/\s/g, '') || '';
+
+async function syncTable(sheet, tableName, onConflict) {
+    const rows = [];
+    const excelHeaders = {};
+
+    const translations = {
+        'idtarefa': 'ID_Tarefa',
+        'idprojeto': 'ID_Projeto',
+        'idcliente': 'ID_Cliente',
+        'idcolaborador': 'ID_Colaborador',
+        'idcolaborado': 'ID_Colaborador',
+        'oqueprecisaserfeito': 'Afazer',
+        'tarefa': 'Afazer',
+        'atividades': 'Afazer',
+        'titulo': 'Afazer',
+        'nome': 'Afazer',
+        'statustaref': 'StatusTarefa',
+        'contatoprincipal': 'contato_principal',
+        'inicioprevist': 'inicio_previsto',
+        'inicioreal': 'inicio_real',
+        'entregaestim': 'entrega_estimada',
+        'entregareal': 'entrega_real',
+        'porcentagem': 'Porcentagem',
+        'prioridade': 'Prioridade',
+        'impacto': 'Impacto',
+        'riscos': 'Riscos',
+        'idhorastrabalhadas': 'ID_Horas_Trabalhadas',
+        'idhorastrabalhada': 'ID_Horas_Trabalhadas',
+        'horastrabalhadas': 'Horas_Trabalhadas',
+        'horastrabalhada': 'Horas_Trabalhadas',
+        'pais': 'Pais',
+        'nomeprojeto': 'NomeProjeto',
+        'nomecliente': 'NomeCliente',
+        'email': 'email',
+        'data': 'Data',
+        'descricao': 'Descricao',
+        'horainicio': 'Hora_Inicio',
+        'horafim': 'Hora_Fim',
+        'almocodeduzido': 'Almoco_Deduzido',
+        'papel': 'role',
+        'role': 'role',
+        'funcao': 'role'
+    };
+
+    sheet.getRow(1).eachCell((cell, colNumber) => {
+        const norm = normalizeKey(cell.value);
+        excelHeaders[colNumber] = translations[norm] || cell.value?.toString().trim();
+    });
+
+    sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const rowData = {};
+        let hasData = false;
+
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const dbField = excelHeaders[colNumber];
+            if (!dbField || dbField === 'id_tarefa_novo') return;
+
+            let val = cell.value;
+            if (val && typeof val === 'object' && val.result !== undefined) val = val.result;
+            if (val && typeof val === 'object' && val.text !== undefined) val = val.text;
+            if (val && typeof val === 'object' && val.hyperlink !== undefined) val = val.hyperlink;
+
+            if (dbField === 'Data') {
+                if (val instanceof Date) {
+                    const y = val.getUTCFullYear();
+                    const m = String(val.getUTCMonth() + 1).padStart(2, '0');
+                    const d = String(val.getUTCDate()).padStart(2, '0');
+                    val = `${y}-${m}-${d}`;
+                } else if (typeof val === 'string' && val.includes('/')) {
+                    const p = val.split('/');
+                    if (p.length === 3) {
+                        const d = p[0].padStart(2, '0');
+                        const m = p[1].padStart(2, '0');
+                        const y = p[2].length === 2 ? `20${p[2]}` : p[2];
+                        val = `${y}-${m}-${d}`;
+                    }
+                }
+            }
+
+            rowData[dbField] = val;
+            hasData = true;
+        });
+
+        if (hasData && tableName === 'horas_trabalhadas' && !rowData['ID_Horas_Trabalhadas']) {
+            rowData['ID_Horas_Trabalhadas'] = randomUUID();
+        }
+
+        if (hasData && tableName === 'horas_trabalhadas') {
+            const ALLOWED = ['ID_Horas_Trabalhadas', 'Data', 'ID_Colaborador', 'ID_Cliente', 'ID_Projeto', 'ID_Tarefa', 'Horas_Trabalhadas', 'Hora_Inicio', 'Hora_Fim', 'Almoco_Deduzido', 'Descricao', 'id_tarefa_novo'];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) {
+                    delete rowData[key];
+                }
+            });
+        }
+
+        if (hasData && tableName === 'fato_tarefas') {
+            const ALLOWED = [
+                'ID_Tarefa', 'ID_Cliente', 'ID_Projeto', 'Afazer', 'ID_Colaborador',
+                'inicio_previsto', 'inicio_real', 'entrega_estimada', 'entrega_real',
+                'Prioridade', 'Impacto', 'Riscos', 'Porcentagem', 'StatusTarefa', 'id_tarefa_novo'
+            ];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) {
+                    delete rowData[key];
+                }
+            });
+        }
+
+        if (hasData && tableName === 'dim_clientes') {
+            const ALLOWED = ['ID_Cliente', 'NomeCliente', 'contato_principal', 'ativo', 'Contrato', 'Criado', 'NewLogo', 'Pais', 'Desativado'];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) delete rowData[key];
+            });
+        }
+
+        if (hasData && tableName === 'dim_projetos') {
+            const ALLOWED = ['ID_Projeto', 'ID_Cliente', 'NomeProjeto', 'StatusProjeto', 'budget', 'startDate', 'estimatedDelivery', 'manager', 'description', 'ativo', 'valor_total_rs'];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) delete rowData[key];
+            });
+        }
+
+        if (hasData && tableName === 'dim_colaboradores') {
+            const ALLOWED = ['ID_Colaborador', 'NomeColaborador', 'email', 'Cargo', 'role', 'ativo', 'avatar_url', 'auth_user_id'];
+            Object.keys(rowData).forEach(key => {
+                if (!ALLOWED.includes(key)) delete rowData[key];
+            });
+        }
+
+        if (hasData) rows.push(rowData);
+    });
+
+    if (rows.length === 0) return { count: 0 };
+
+    if (tableName === 'horas_trabalhadas') {
+        process.stdout.write(`[Sync] Vinculando IDs novos para ${rows.length} registros de horas...\n`);
+        const { data: tasks } = await supabaseAdmin.from('fato_tarefas').select('ID_Tarefa, id_tarefa_novo');
+        const taskMap = tasks?.reduce((acc, t) => {
+            if (t.ID_Tarefa) acc[t.ID_Tarefa.toString().toLowerCase()] = t.id_tarefa_novo;
+            return acc;
+        }, {}) || {};
+
+        rows.forEach(r => {
+            const oldId = r.ID_Tarefa?.toString().toLowerCase();
+            if (oldId && taskMap[oldId]) {
+                r.id_tarefa_novo = taskMap[oldId];
+            }
+        });
+    }
+
+    const uniqueRows = onConflict ? Array.from(new Map(rows.reverse().map(r => [r[onConflict], r])).values()).reverse() : rows;
+    const { error } = await supabaseAdmin.from(tableName).upsert(uniqueRows, { onConflict });
+    if (error) throw error;
+
+    return { count: uniqueRows.length };
+}
+
+router.post("/excel", requireAdmin, upload.single("file"), async (req, res) => {
+    try {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+        const mapping = {
+            "dim_clientes": "ID_Cliente",
+            "dim_colaboradores": "email",
+            "dim_projetos": "ID_Projeto",
+            "fato_tarefas": "ID_Tarefa",
+            "horas_trabalhadas": "ID_Horas_Trabalhadas"
+        };
+        const results = {};
+
+        const priority = {
+            "dim_clientes": 1,
+            "dim_colaboradores": 2,
+            "dim_projetos": 3,
+            "fato_tarefas": 4,
+            "horas_trabalhadas": 5
+        };
+
+        const sheets = workbook.worksheets.sort((a, b) => {
+            const nameA = Object.keys(mapping).find(m => normalizeKey(a.name) === normalizeKey(m));
+            const nameB = Object.keys(mapping).find(m => normalizeKey(b.name) === normalizeKey(m));
+            return (priority[nameA] || 99) - (priority[nameB] || 99);
+        });
+
+        for (const sheet of sheets) {
+            const normName = normalizeKey(sheet.name);
+            const tableKey = Object.keys(mapping).find(m => normalizeKey(m) === normName);
+            if (tableKey) {
+                const res = await syncTable(sheet, tableKey, mapping[tableKey]);
+                results[tableKey] = res.count;
+            }
+        }
+        res.json({ message: "Sincronização concluída", details: results });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get("/export-database", requireAdmin, async (req, res) => {
+    try {
+        const workbook = new ExcelJS.Workbook();
+
+        // Definir as tabelas - vamos buscar TODOS os campos com select('*')
+        const tableNames = ['dim_clientes', 'dim_colaboradores', 'dim_projetos', 'fato_tarefas', 'horas_trabalhadas'];
+
+        for (const tableName of tableNames) {
+            // Buscar TODOS os dados da tabela
+            const { data, error } = await supabaseAdmin.from(tableName).select('*');
+
+            if (error) {
+                console.error(`Erro ao buscar dados de ${tableName}:`, error);
+                continue;
+            }
+
+            if (!data || data.length === 0) {
+                console.log(`Tabela ${tableName} está vazia, pulando...`);
+                continue;
+            }
+
+            // Criar worksheet
+            const sheet = workbook.addWorksheet(tableName);
+
+            // Pegar TODAS as colunas do primeiro registro
+            const allColumns = Object.keys(data[0]);
+
+            // Configurar colunas dinamicamente
+            sheet.columns = allColumns.map(col => ({
+                header: col,
+                key: col,
+                width: col.length > 20 ? 25 : 15
+            }));
+
+            // Estilizar cabeçalho
+            const headerRow = sheet.getRow(1);
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // Adicionar dados
+            data.forEach(row => {
+                const rowData = {};
+                allColumns.forEach(col => {
+                    let value = row[col];
+
+                    // Formatar datas (manter apenas YYYY-MM-DD)
+                    if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        value = value.split('T')[0];
+                    }
+
+                    // Converter null para string vazia
+                    rowData[col] = value ?? '';
+                });
+                sheet.addRow(rowData);
+            });
+
+            // Aplicar bordas e alternância de cores nas linhas
+            sheet.eachRow((row, rowNumber) => {
+                if (rowNumber > 1) {
+                    row.eachCell((cell) => {
+                        cell.border = {
+                            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+                        };
+                    });
+
+                    // Linhas alternadas
+                    if (rowNumber % 2 === 0) {
+                        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+                    }
+                }
+            });
+        }
+
+        // Configurar resposta
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="backup_completo_${new Date().toISOString().split('T')[0]}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error("Erro ao exportar banco de dados:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+export default router;
