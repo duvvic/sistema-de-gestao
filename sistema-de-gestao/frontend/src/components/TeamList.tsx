@@ -46,7 +46,7 @@ const TeamList: React.FC = () => {
   const visibleUsers = useMemo(() => {
     return showInactive
       ? users.filter(u => u.active === false)
-      : users.filter(u => u.active !== false);
+      : users.filter(u => u.active !== false && u.torre !== 'N/A');
   }, [users, showInactive]);
 
   const cargoOptions = useMemo(() => {

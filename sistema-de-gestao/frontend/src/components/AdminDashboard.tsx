@@ -581,7 +581,7 @@ const AdminDashboard: React.FC = () => {
     if (!users || !portfolioTimesheets) return [];
 
     const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'developer'];
-    return users.filter(u => u.active !== false && (u.torre !== 'N/A' || activeRoles.includes(u.role?.toLowerCase() || ''))).map(u => {
+    return users.filter(u => u.active !== false && u.torre !== 'N/A').map(u => {
       // 1. Apontado (Realizado - Timesheet)
       const [yearStr, monthStr] = capacityMonth.split('-');
       const year = parseInt(yearStr);

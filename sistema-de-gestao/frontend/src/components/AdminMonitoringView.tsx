@@ -439,12 +439,27 @@ const AdminMonitoringView: React.FC = () => {
     }, [windowSize]);
 
 
+
+
+
+
+
+
+    const filteredUsers = useMemo(() => {
+        return allUsers.filter(u =>
+            u.active !== false && u.torre !== 'N/A'
+        );
+    }, [allUsers]);
+
+    const userMap = useMemo(() => new Map(filteredUsers.map(u => [u.id, u])), [filteredUsers]);
+
     const tasksInProgressRaw = useMemo(() =>
         allTasks.filter(t => {
             const status = (t.status || '').toLowerCase();
-            return status === 'in progress' || status === 'review';
+            const isInFlow = !t.developerId || userMap.has(t.developerId);
+            return (status === 'in progress' || status === 'review') && isInFlow;
         }),
-        [allTasks]);
+        [allTasks, userMap]);
 
     const tasksInProgress = tasksInProgressRaw;
 
@@ -465,15 +480,6 @@ const AdminMonitoringView: React.FC = () => {
 
         return () => clearInterval(interval);
     }, [tasksInProgress.length, taskPage, itemsPerPage]);
-
-    const filteredUsers = useMemo(() => {
-        const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'financial', 'tech_lead', 'executive', 'ceo', 'rh', 'developer'];
-        return allUsers.filter(u =>
-            u.active !== false && (u.torre !== 'N/A' || activeRoles.includes(u.role?.toLowerCase() || ''))
-        );
-    }, [allUsers]);
-
-    const userMap = useMemo(() => new Map(filteredUsers.map(u => [u.id, u])), [filteredUsers]);
 
     const clientMap = useMemo(() => new Map(allClients.map(c => [c.id, c])), [allClients]);
     const projectMap = useMemo(() => new Map(allProjects.map(p => [p.id, p])), [allProjects]);
@@ -554,8 +560,16 @@ const AdminMonitoringView: React.FC = () => {
     }, [allUsers, allTasks, allTimesheets, allAbsences]);
 
     const stats = useMemo(() => {
-        const delayed = allTasks.filter(t => t.status !== 'Done' && (t.status === 'In Progress' || t.status === 'Testing') && (t.progress || 0) < 100 && (t.daysOverdue ?? 0) > 0).length;
-        const review = allTasks.filter(t => t.status === 'Review').length;
+        const delayed = allTasks.filter(t => {
+            const isInFlow = !t.developerId || userMap.has(t.developerId);
+            return t.status !== 'Done' && (t.status === 'In Progress' || t.status === 'Testing') && (t.progress || 0) < 100 && (t.daysOverdue ?? 0) > 0 && isInFlow;
+        }).length;
+
+        const review = allTasks.filter(t => {
+            const isInFlow = !t.developerId || userMap.has(t.developerId);
+            return t.status === 'Review' && isInFlow;
+        }).length;
+
         const preProjeto = allProjects.filter(p => !allTasks.some(t => t.projectId === p.id)).length;
         const analise = allProjects.filter(p => {
             const tasks = allTasks.filter(t => t.projectId === p.id);
@@ -567,15 +581,33 @@ const AdminMonitoringView: React.FC = () => {
         }).length;
 
         const tasksByStatus = {
-            todo: allTasks.filter(t => t.status === 'Todo').length,
-            inProgress: allTasks.filter(t => t.status === 'In Progress').length,
-            testing: allTasks.filter(t => t.status === 'Testing').length,
-            review: allTasks.filter(t => t.status === 'Review').length,
-            done: allTasks.filter(t => t.status === 'Done').length,
+            todo: allTasks.filter(t => {
+                const isInFlow = !t.developerId || userMap.has(t.developerId);
+                return t.status === 'Todo' && isInFlow;
+            }).length,
+            inProgress: allTasks.filter(t => {
+                const isInFlow = !t.developerId || userMap.has(t.developerId);
+                return t.status === 'In Progress' && isInFlow;
+            }).length,
+            testing: allTasks.filter(t => {
+                const isInFlow = !t.developerId || userMap.has(t.developerId);
+                return t.status === 'Testing' && isInFlow;
+            }).length,
+            review: allTasks.filter(t => {
+                const isInFlow = !t.developerId || userMap.has(t.developerId);
+                return t.status === 'Review' && isInFlow;
+            }).length,
+            done: allTasks.filter(t => {
+                const isInFlow = !t.developerId || userMap.has(t.developerId);
+                return t.status === 'Done' && isInFlow;
+            }).length,
         };
 
         const todayStr = new Date().toISOString().split('T')[0];
-        const entregaHoje = allTasks.filter(t => t.estimatedDelivery && t.estimatedDelivery.startsWith(todayStr) && t.status !== 'Done').length;
+        const entregaHoje = allTasks.filter(t => {
+            const isInFlow = !t.developerId || userMap.has(t.developerId);
+            return t.estimatedDelivery && t.estimatedDelivery.startsWith(todayStr) && t.status !== 'Done' && isInFlow;
+        }).length;
 
         return {
             atrasados: delayed,
