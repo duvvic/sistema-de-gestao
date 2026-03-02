@@ -9,6 +9,7 @@ import OrganizationalStructureSelector from './OrganizationalStructureSelector';
 import ConfirmationModal from './ConfirmationModal';
 import { getRoleDisplayName, formatDecimalToTime } from '@/utils/normalizers';
 import { supabase } from '@/services/supabaseClient';
+import { isWildcardTask } from '@/utils/userStatus';
 
 import TimesheetCalendar from './TimesheetCalendar';
 import AbsenceManager from './AbsenceManager';
@@ -135,7 +136,12 @@ const TeamMemberDetail: React.FC = () => {
    let userTasks = tasks.filter(t => t.developerId === user.id || (t.collaboratorIds && t.collaboratorIds.includes(user.id)));
    const linkedProjectIds = projectMembers.filter(pm => String(pm.id_colaborador) === user.id).map(pm => String(pm.id_projeto));
    const userProjects = projects.filter(p => linkedProjectIds.includes(p.id) && p.active !== false);
-   const delayedTasks = userTasks.filter(t => getDelayDays(t) > 0 && t.status !== 'Review');
+   const delayedTasks = userTasks.filter(t =>
+      getDelayDays(t) > 0 &&
+      t.status !== 'Done' &&
+      t.status !== 'Review' &&
+      !isWildcardTask(t, projects, [])
+   );
 
    return (
       <div className="h-full flex flex-col bg-[var(--bg)] overflow-hidden">
