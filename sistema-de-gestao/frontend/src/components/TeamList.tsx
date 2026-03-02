@@ -7,7 +7,7 @@ import { Briefcase, Mail, CheckSquare, ShieldCheck, User as UserIcon, Search, Tr
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmationModal from './ConfirmationModal';
 import { getRoleDisplayName } from '@/utils/normalizers';
-import { getUserStatus } from '@/utils/userStatus';
+import { getUserStatus, isWildcardTask, isTaskDelayed } from '@/utils/userStatus';
 
 const TeamList: React.FC = () => {
   const navigate = useNavigate();
@@ -38,8 +38,8 @@ const TeamList: React.FC = () => {
   };
 
   // Helpers
-  const isTaskDelayed = (task: Task): boolean => {
-    return (task.daysOverdue ?? 0) > 0;
+  const isTaskDelayedLocal = (task: Task): boolean => {
+    return isTaskDelayed(task, projects, clients);
   };
 
   // Filter Logic
@@ -57,7 +57,7 @@ const TeamList: React.FC = () => {
   const lateDevelopers = useMemo(() => {
     const devMap = new Map<string, { user: User; count: number }>();
     tasks.forEach(t => {
-      if (isTaskDelayed(t) && t.developerId) {
+      if (isTaskDelayedLocal(t) && t.developerId) {
         const u = users.find(user => user.id === t.developerId);
         if (u) {
           const existing = devMap.get(t.developerId) || { user: u, count: 0 };
@@ -66,7 +66,7 @@ const TeamList: React.FC = () => {
       }
     });
     return Array.from(devMap.values()).sort((a, b) => b.count - a.count);
-  }, [tasks, users]);
+  }, [tasks, users, projects, clients]);
 
   const filteredUsers = useMemo(() => {
     return visibleUsers.filter(user => {
@@ -81,12 +81,9 @@ const TeamList: React.FC = () => {
       const userActiveTasks = userAllTasks.filter(t => t.status !== 'Done');
 
       // Status Logic using the same hierarchy as the card
-      const hasDelayed = userActiveTasks.some(isTaskDelayed);
+      const hasDelayed = userActiveTasks.some(t => isTaskDelayedLocal(t) && t.status !== 'Review');
       const hasInProgress = userActiveTasks.some(t => t.status === 'In Progress');
-      const hasStudy = userActiveTasks.some(t => {
-        const p = projects.find(proj => proj.id === t.projectId);
-        return p?.name.toLowerCase().includes('treinamento') || p?.name.toLowerCase().includes('capacitação');
-      });
+      const hasStudy = userActiveTasks.some(t => isWildcardTask(t, projects, clients));
 
       let userStatus: 'Livre' | 'Ocupado' | 'Estudando' | 'Atrasado' | 'Indisponível' = 'Livre';
       const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'developer'];

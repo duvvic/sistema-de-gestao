@@ -5,7 +5,30 @@ export interface UserStatus {
     color: string;
 }
 
-export const isTaskDelayed = (task: any): boolean => {
+export const isWildcardTask = (task: Task, projects: Project[], clients: Client[]): boolean => {
+    const p = projects.find(proj => proj.id === task.projectId);
+    if (!p) return false;
+    const c = clients.find(cl => cl.id === p.clientId);
+    if (!c) return false;
+
+    const projName = (p.name || '').toLowerCase();
+    const clientName = (c.name || '').toLowerCase();
+
+    const isStudyProject = projName.includes('treinamento') ||
+        projName.includes('capacitação') ||
+        projName.includes('capacitacao') ||
+        projName.includes('capacidação');
+
+    const isNicLabs = clientName.includes('nic-labs');
+
+    return isStudyProject && isNicLabs;
+};
+
+export const isTaskDelayed = (task: any, projects: Project[] = [], clients: Client[] = []): boolean => {
+    // Se for tarefa "curinga" (treinamento nic-labs), nunca conta como atrasada para o status
+    if (projects.length > 0 && clients.length > 0 && isWildcardTask(task, projects, clients)) {
+        return false;
+    }
     return (task.daysOverdue ?? 0) > 0;
 };
 
@@ -50,15 +73,10 @@ export const getUserStatus = (
     const userAllTasks = tasks.filter(t => t.developerId === user.id || (t.collaboratorIds && t.collaboratorIds.includes(user.id)));
     const userActiveTasks = userAllTasks.filter(t => t.status !== 'Done');
 
-    const hasDelayed = userActiveTasks.some(t => isTaskDelayed(t) && t.status !== 'Review');
+    // Só conta atraso se NÃO for tarefa curinga
+    const hasDelayed = userActiveTasks.some(t => isTaskDelayed(t, projects, clients) && t.status !== 'Review');
     const hasInProgress = userActiveTasks.some(t => t.status === 'In Progress');
-    const hasStudy = userActiveTasks.some(t => {
-        const p = projects.find(proj => proj.id === t.projectId);
-        const c = clients.find(cl => cl.id === p?.clientId);
-        const isStudyProject = p?.name?.toLowerCase().includes('treinamento') || p?.name?.toLowerCase().includes('capacitação');
-        const isNicLabs = c?.name?.toLowerCase().includes('nic-labs');
-        return isStudyProject && isNicLabs;
-    });
+    const hasStudy = userActiveTasks.some(t => isWildcardTask(t, projects, clients));
 
     const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'developer'];
     const isSystemCollaborator = (user.torre && user.torre !== 'N/A') || activeRoles.includes(user.role?.toLowerCase() || '');

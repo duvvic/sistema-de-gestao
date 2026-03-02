@@ -5,6 +5,7 @@ import { supabase } from '@/services/supabaseClient';
 import { Task, Project, User, Client } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getProjectStatusByTimeline, getProjectStatusColor } from '@/utils/projectStatus';
+import { isWildcardTask, isTaskDelayed as checkIsDelayed } from '@/utils/userStatus';
 import {
     Activity,
     Timer,
@@ -502,8 +503,8 @@ const AdminMonitoringView: React.FC = () => {
     const clientMap = useMemo(() => new Map(allClients.map(c => [c.id, c])), [allClients]);
     const projectMap = useMemo(() => new Map(allProjects.map(p => [p.id, p])), [allProjects]);
 
-    const isTaskDelayed = (task: Task) => task.status !== 'Done' && task.status !== 'Review' && (task.progress || 0) < 100 && (task.daysOverdue ?? 0) > 0;
-    const isCollaboratorDelayed = (task: Task) => task.status !== 'Done' && task.status !== 'Review' && (task.progress || 0) < 100 && (task.daysOverdue ?? 0) > 0;
+    const isTaskDelayed = (task: Task) => !isWildcardTask(task, allProjects, allClients) && task.status !== 'Done' && task.status !== 'Review' && (task.progress || 0) < 100 && (task.daysOverdue ?? 0) > 0;
+    const isCollaboratorDelayed = (task: Task) => !isWildcardTask(task, allProjects, allClients) && task.status !== 'Done' && task.status !== 'Review' && (task.progress || 0) < 100 && (task.daysOverdue ?? 0) > 0;
 
     const activeProjects = useMemo(() => {
         return allProjects.filter(p => {
@@ -588,7 +589,8 @@ const AdminMonitoringView: React.FC = () => {
     const stats = useMemo(() => {
         const delayed = allTasks.filter(t => {
             const isInFlow = !t.developerId || userMap.has(t.developerId);
-            return t.status !== 'Done' && (t.status === 'In Progress' || t.status === 'Testing') && (t.progress || 0) < 100 && (t.daysOverdue ?? 0) > 0 && isInFlow;
+            const isDelayed = !isWildcardTask(t, allProjects, allClients) && t.status !== 'Done' && (t.status === 'In Progress' || t.status === 'Testing') && (t.progress || 0) < 100 && (t.daysOverdue ?? 0) > 0;
+            return isDelayed && isInFlow;
         }).length;
 
         const review = allTasks.filter(t => {
