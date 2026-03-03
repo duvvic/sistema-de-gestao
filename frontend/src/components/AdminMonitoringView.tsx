@@ -767,7 +767,8 @@ const AdminMonitoringView: React.FC = () => {
                                                 isReview ? 'shadow-[0_8px_30px_rgb(234,179,8,0.2)] border-yellow-200' :
                                                     'shadow-[0_8px_30px_rgb(147,51,234,0.1)] border-purple-100';
 
-                                        const extraCollaborators = (task.collaboratorIds || [])
+                                        const extraCollaborators = Array.from(new Set(task.collaboratorIds || []))
+                                            .filter(id => id !== task.developerId)
                                             .map(id => userMap.get(id))
                                             .filter(Boolean) as User[];
 
