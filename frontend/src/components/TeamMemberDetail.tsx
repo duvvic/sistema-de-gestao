@@ -118,7 +118,7 @@ const TeamMemberDetail: React.FC = () => {
          ...user,
          dailyAvailableHours: Number(String(formData.dailyAvailableHours).replace(',', '.')) || 0
       };
-      return CapacityUtils.getUserMonthlyAvailability(simulatedUser, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays);
+      return CapacityUtils.getUserMonthlyAvailability(simulatedUser, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays, taskMemberAllocations, absences);
    }, [user, capacityMonth, projects, projectMembers, timesheetEntries, tasks, holidays, formData.dailyAvailableHours]);
 
    const releaseDate = useMemo(() => {
@@ -127,7 +127,7 @@ const TeamMemberDetail: React.FC = () => {
          ...user,
          dailyAvailableHours: Number(String(formData.dailyAvailableHours).replace(',', '.')) || 0
       };
-      return CapacityUtils.calculateIndividualReleaseDate(simulatedUser, projects, projectMembers, timesheetEntries, tasks, holidays);
+      return CapacityUtils.calculateIndividualReleaseDate(simulatedUser, projects, projectMembers, timesheetEntries, tasks, holidays, taskMemberAllocations, absences);
    }, [user, projects, projectMembers, timesheetEntries, tasks, holidays, formData.dailyAvailableHours]);
 
    const handleSave = async (e: React.FormEvent) => {
@@ -196,9 +196,8 @@ const TeamMemberDetail: React.FC = () => {
 
          const isResponsible = t.developerId === user.id;
          const isCollaborator = t.collaboratorIds && t.collaboratorIds.includes(user.id);
-         const isActiveInProject = linkedProjectIds.includes(String(t.projectId));
 
-         if (!isResponsible && !(isCollaborator && isActiveInProject)) return false;
+         if (!isResponsible && !isCollaborator) return false;
 
          // Verificar se a tarefa cai no mês selecionado
          const startDate = `${capacityMonth}-01`;
@@ -245,9 +244,8 @@ const TeamMemberDetail: React.FC = () => {
 
          const isResponsible = t.developerId === user.id;
          const isCollaborator = t.collaboratorIds && t.collaboratorIds.includes(user.id);
-         const isActiveInProject = linkedProjectIds.includes(String(t.projectId));
 
-         if (!isResponsible && !(isCollaborator && isActiveInProject)) return false;
+         if (!isResponsible && !isCollaborator) return false;
 
          // Verificar se a tarefa cai no mês selecionado (mesmo critério de horas alocadas)
          const startDate = `${capacityMonth}-01`;
@@ -550,7 +548,7 @@ const TeamMemberDetail: React.FC = () => {
                                     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
 
                                     const daily = CapacityUtils.simulateUserDailyAllocation(
-                                       user.id, startDate, endDate, projects, tasks, projectMembers, timesheetEntries, holidays || [], Number(String(formData.dailyAvailableHours).replace(',', '.')) || 8
+                                       user.id, startDate, endDate, projects, tasks, projectMembers, timesheetEntries, holidays || [], Number(String(formData.dailyAvailableHours).replace(',', '.')) || 8, absences
                                     );
 
                                     return daily.map(day => {
@@ -560,26 +558,33 @@ const TeamMemberDetail: React.FC = () => {
                                        return (
                                           <div key={day.date} className="group relative">
                                              <div
-                                                className={`w-10 h-10 rounded-xl border flex flex-col items-center justify-center transition-all cursor-default overflow-hidden ${isOverloaded ? 'ring-2 ring-red-500/20' : ''
-                                                   }`}
+                                                className={`w-10 h-10 rounded-xl border flex flex-col items-center justify-center transition-all cursor-default overflow-hidden ${isOverloaded ? 'ring-2 ring-red-500/20' : ''} ${day.isAbsent ? 'bg-orange-500/10 border-orange-200' : ''}`}
                                                 style={{
-                                                   backgroundColor: 'var(--bg)',
-                                                   borderColor: isOverloaded ? '#ef4444' : 'var(--border)'
+                                                   backgroundColor: day.isAbsent ? undefined : 'var(--bg)',
+                                                   borderColor: isOverloaded ? '#ef4444' : (day.isAbsent ? undefined : 'var(--border)')
                                                 }}
                                              >
                                                 {/* Heatmap Bars */}
-                                                <div className="w-full h-full flex flex-col">
-                                                   <div className="flex-1 bg-blue-500/80" style={{ height: `${(day.plannedHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
-                                                   <div className="flex-1 bg-amber-400/80" style={{ height: `${(day.continuousHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
-                                                   <div className="flex-1 bg-emerald-400/20" style={{ height: `${(day.bufferHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
-                                                </div>
+                                                {!day.isAbsent && (
+                                                   <div className="w-full h-full flex flex-col">
+                                                      <div className="flex-1 bg-blue-500/80" style={{ height: `${(day.plannedHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
+                                                      <div className="flex-1 bg-amber-400/80" style={{ height: `${(day.continuousHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
+                                                      <div className="flex-1 bg-emerald-400/20" style={{ height: `${(day.bufferHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none' }} />
+                                                   </div>
+                                                )}
+                                                
+                                                {day.isAbsent && (
+                                                   <div className="w-full h-full bg-orange-500/20 flex items-center justify-center">
+                                                      <AlertCircle size={14} className="text-orange-500 opacity-40" />
+                                                   </div>
+                                                )}
 
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                   <span className="text-[10px] font-black tabular-nums group-hover:hidden" style={{ color: isOverloaded ? '#ef4444' : 'var(--text)' }}>
+                                                   <span className="text-[10px] font-black tabular-nums group-hover:hidden" style={{ color: isOverloaded ? '#ef4444' : (day.isAbsent ? '#f97316' : 'var(--text)') }}>
                                                       {day.date.split('-')[2]}
                                                    </span>
-                                                   <span className="text-[7px] font-black hidden group-hover:block uppercase" style={{ color: isOverloaded ? '#ef4444' : 'var(--text)' }}>
-                                                      {total}h
+                                                   <span className="text-[7px] font-black hidden group-hover:block uppercase" style={{ color: isOverloaded ? '#ef4444' : (day.isAbsent ? '#f97316' : 'var(--text)') }}>
+                                                      {day.isAbsent ? day.absenceType || 'OFF' : `${total}h`}
                                                    </span>
                                                 </div>
                                              </div>
@@ -590,22 +595,30 @@ const TeamMemberDetail: React.FC = () => {
                                                    {new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}
                                                 </p>
                                                 <div className="space-y-1.5">
-                                                   <div className="flex justify-between items-center text-[8px] font-bold">
-                                                      <span className="text-blue-400">PLANEJADO:</span>
-                                                      <span>{day.plannedHours}h</span>
-                                                   </div>
-                                                   <div className="flex justify-between items-center text-[8px] font-bold">
-                                                      <span className="text-amber-400">RESERVA:</span>
-                                                      <span>{day.continuousHours}h</span>
-                                                   </div>
-                                                   <div className="flex justify-between items-center text-[8px] font-bold border-t border-white/5 pt-1.5 mt-1.5">
-                                                      <span className="text-emerald-400">BUFFER:</span>
-                                                      <span>{day.bufferHours}h</span>
-                                                   </div>
-                                                   <div className={`flex justify-between items-center text-[9px] font-black pt-1 ${isOverloaded ? 'text-red-500' : 'text-white'}`}>
-                                                      <span>TOTAL:</span>
-                                                      <span>{total}h</span>
-                                                   </div>
+                                                   {day.isAbsent ? (
+                                                      <div className="text-[9px] font-black text-orange-400 uppercase text-center py-1">
+                                                         {day.absenceType || 'AUSENTE'}
+                                                      </div>
+                                                   ) : (
+                                                      <>
+                                                         <div className="flex justify-between items-center text-[8px] font-bold">
+                                                            <span className="text-blue-400">PLANEJADO:</span>
+                                                            <span>{day.plannedHours}h</span>
+                                                         </div>
+                                                         <div className="flex justify-between items-center text-[8px] font-bold">
+                                                            <span className="text-amber-400">RESERVA:</span>
+                                                            <span>{day.continuousHours}h</span>
+                                                         </div>
+                                                         <div className="flex justify-between items-center text-[8px] font-bold border-t border-white/5 pt-1.5 mt-1.5">
+                                                            <span className="text-emerald-400">BUFFER:</span>
+                                                            <span>{day.bufferHours}h</span>
+                                                         </div>
+                                                         <div className={`flex justify-between items-center text-[9px] font-black pt-1 ${isOverloaded ? 'text-red-500' : 'text-white'}`}>
+                                                            <span>TOTAL:</span>
+                                                            <span>{total}h</span>
+                                                         </div>
+                                                      </>
+                                                   )}
                                                 </div>
                                                 <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-950"></div>
                                              </div>
@@ -920,28 +933,46 @@ const TeamMemberDetail: React.FC = () => {
                               .join(', ');
 
                            const alloc = taskMemberAllocations.find(a => String(a.taskId) === String(t.id) && String(a.userId) === String(user?.id));
-                           let allocatedHours = 0;
+                           let baseAllocated = 0;
                            if (alloc && alloc.reservedHours > 0) {
-                              allocatedHours = alloc.reservedHours;
+                              baseAllocated = alloc.reservedHours;
                            } else {
                               const hasAnyAllocationInTask = taskMemberAllocations.some(a => String(a.taskId) === String(t.id) && a.reservedHours > 0);
                               if (!hasAnyAllocationInTask) {
-                                 allocatedHours = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
+                                 baseAllocated = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
                               }
+                           }
+
+                           const reportedOnTask = timesheetEntries.reduce((sum, entry) => {
+                              if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
+                                 return sum + (Number(entry.totalHours) || 0);
+                              }
+                              return sum;
+                           }, 0);
+
+                           let totalEffort = baseAllocated;
+                           if (t.status === 'Done') {
+                              totalEffort = reportedOnTask;
+                           } else if (reportedOnTask > baseAllocated) {
+                              totalEffort = reportedOnTask;
                            }
 
                            // --- CÁLCULO MENSAL NO MÊS SELECIONADO ---
                            const startDate = `${capacityMonth}-01`;
+                           const todayStr = new Date().toISOString().split('T')[0];
                            const [year, month] = capacityMonth.split('-').map(Number);
                            const lastDay = new Date(year, month, 0).getDate();
                            const endDate = `${capacityMonth}-${String(lastDay).padStart(2, '0')}`;
                            const p = projects.find(proj => proj.id === t.projectId);
+                           const nominalEnd = t.actualDelivery || t.estimatedDelivery || p?.estimatedDelivery || endDate;
+                           const effectiveEnd = (t.status !== 'Done' && nominalEnd < todayStr && nominalEnd >= startDate)
+                              ? todayStr
+                              : nominalEnd;
                            const effectiveStart = t.scheduledStart || t.actualStart || p?.startDate || startDate;
-                           const effectiveEnd = t.actualDelivery || t.estimatedDelivery || p?.estimatedDelivery || endDate;
 
                            const userAbsences = absences.filter(a => String(a.userId) === String(user.id) && a.status === 'aprovada_gestao');
                            const totalTaskDays = CapacityUtils.getWorkingDaysInRange(effectiveStart, effectiveEnd, holidays, userAbsences) || 1;
-                           const hoursPerDay = allocatedHours / totalTaskDays;
+                           const hoursPerDay = totalEffort / totalTaskDays;
 
                            const intStart = effectiveStart > startDate ? effectiveStart : startDate;
                            const intEnd = effectiveEnd < endDate ? effectiveEnd : endDate;
@@ -1002,13 +1033,16 @@ const TeamMemberDetail: React.FC = () => {
                                              {t.title}
                                           </h4>
                                           <div className="flex items-center gap-2">
-                                             <div className="bg-[#1a1625] px-3 py-1 rounded-full flex gap-1.5 items-center border border-white/5" title="Horas no Mês Selecionado">
-                                                <span className="text-[11px] font-black text-slate-400 font-mono">{formatDecimalToTime(monthlyReportedHours)}h</span>
-                                                <span className="text-[11px] text-white/5">/</span>
-                                                <span className="text-[11px] font-black text-purple-500 font-mono">{formatDecimalToTime(monthlyAllocatedHours)}h</span>
-                                             </div>
-                                             <div className="hidden sm:flex bg-blue-500/10 px-3 py-1 rounded-full flex gap-1.5 items-center border border-blue-500/20" title="Horas Totais da Tarefa">
-                                                <span className="text-[10px] font-bold text-blue-400 font-mono">Total {formatDecimalToTime(reportedHours)}h / {formatDecimalToTime(allocatedHours)}h</span>
+                                             <div className="bg-[#1a1625] px-4 py-1.5 rounded-xl flex gap-4 items-center border border-white/5 shadow-inner" title="Horas e Apontamentos do Mês Selecionado">
+                                                <div className="flex flex-col items-start leading-tight">
+                                                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Alocado (Mês)</span>
+                                                   <span className="text-[12px] font-black text-purple-500 font-mono">{formatDecimalToTime(monthlyAllocatedHours)}h</span>
+                                                </div>
+                                                <div className="w-[1px] h-6 bg-white/10" />
+                                                <div className="flex flex-col items-start leading-tight">
+                                                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Apontado</span>
+                                                   <span className="text-[12px] font-black text-blue-400 font-mono">{formatDecimalToTime(monthlyReportedHours)}h</span>
+                                                </div>
                                              </div>
                                           </div>
                                        </div>
@@ -1111,6 +1145,17 @@ const TeamMemberDetail: React.FC = () => {
                               .filter(Boolean)
                               .join(', ');
 
+                           const alloc = taskMemberAllocations.find(a => String(a.taskId) === String(t.id) && String(a.userId) === String(user?.id));
+                           let allocatedHours = 0;
+                           if (alloc && alloc.reservedHours > 0) {
+                              allocatedHours = alloc.reservedHours;
+                           } else {
+                              const hasAnyAllocationInTask = taskMemberAllocations.some(a => String(a.taskId) === String(t.id) && a.reservedHours > 0);
+                              if (!hasAnyAllocationInTask) {
+                                 allocatedHours = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
+                              }
+                           }
+
                            const reportedHours = timesheetEntries.reduce((sum, entry) => {
                               if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
                                  return sum + (Number(entry.totalHours) || 0);
@@ -1143,8 +1188,16 @@ const TeamMemberDetail: React.FC = () => {
                                           <h4 className="text-white font-black text-[15px] tracking-tight truncate max-w-lg">
                                              {t.title}
                                           </h4>
-                                          <div className="bg-red-500/10 px-3 py-1 rounded-full flex gap-1.5 items-center border border-red-500/20">
-                                             <span className="text-[10px] font-bold text-red-500 font-mono">Total {formatDecimalToTime(reportedHours)}h / {formatDecimalToTime(t.estimatedHours || 0)}h</span>
+                                          <div className="bg-red-500/5 px-4 py-1.5 rounded-xl flex gap-4 items-center border border-red-500/20">
+                                             <div className="flex flex-col items-start leading-tight">
+                                                <span className="text-[7px] font-black text-red-500/50 uppercase tracking-widest">Alocado (Total)</span>
+                                                <span className="text-[12px] font-black text-red-400 font-mono">{formatDecimalToTime(allocatedHours)}h</span>
+                                             </div>
+                                             <div className="w-[1px] h-6 bg-red-500/10" />
+                                             <div className="flex flex-col items-start leading-tight">
+                                                <span className="text-[7px] font-black text-red-500/50 uppercase tracking-widest">Apontado</span>
+                                                <span className="text-[12px] font-black text-red-600 font-mono">{formatDecimalToTime(reportedHours)}h</span>
+                                             </div>
                                           </div>
                                        </div>
                                        <span className="text-red-500 font-black text-[13px] font-mono">{t.progress}%</span>
@@ -1222,9 +1275,59 @@ const TeamMemberDetail: React.FC = () => {
                   >
                      {completedTasks.map(t => {
                         const client = clients.find(c => String(c.id) === String(t.clientId));
-                        const reportedHours = timesheetEntries.reduce((sum, entry) => {
+                        const teamIds = Array.from(new Set([t.developerId, ...(t.collaboratorIds || [])])).filter(Boolean);
+                        const alloc = taskMemberAllocations.find(a => String(a.taskId) === String(t.id) && String(a.userId) === String(user?.id));
+                        let allocatedHours = 0;
+                        if (alloc && alloc.reservedHours > 0) {
+                           allocatedHours = alloc.reservedHours;
+                        } else {
+                           const hasAnyAllocationInTask = taskMemberAllocations.some(a => String(a.taskId) === String(t.id) && a.reservedHours > 0);
+                           if (!hasAnyAllocationInTask) {
+                              allocatedHours = (Number(t.estimatedHours) || 0) / (teamIds.length || 1);
+                           }
+                        }
+
+                        const reportedOnTask = timesheetEntries.reduce((sum, entry) => {
                            if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
                               return sum + (Number(entry.totalHours) || 0);
+                           }
+                           return sum;
+                        }, 0);
+
+                        let totalEffort = allocatedHours;
+                        if (t.status === 'Done') {
+                           totalEffort = reportedOnTask;
+                        } else if (reportedOnTask > allocatedHours) {
+                           totalEffort = reportedOnTask;
+                        }
+
+                        const startDateBoundary = `${capacityMonth}-01`;
+                        const [year, month] = capacityMonth.split('-').map(Number);
+                        const lastDay = new Date(year, month, 0).getDate();
+                        const endDateBoundary = `${capacityMonth}-${String(lastDay).padStart(2, '0')}`;
+                        const p = projects.find(proj => proj.id === t.projectId);
+
+                        const effectiveStart = t.scheduledStart || t.actualStart || p?.startDate || startDateBoundary;
+                        const effectiveEnd = t.actualDelivery || t.estimatedDelivery || p?.estimatedDelivery || endDateBoundary;
+
+                        const userAbsences = absences.filter(a => String(a.userId) === String(user.id) && a.status === 'aprovada_gestao');
+                        const totalTaskDays = CapacityUtils.getWorkingDaysInRange(effectiveStart, effectiveEnd, holidays, userAbsences) || 1;
+                        const hoursPerDay = totalEffort / totalTaskDays;
+
+                        const intStart = effectiveStart > startDateBoundary ? effectiveStart : startDateBoundary;
+                        const intEnd = effectiveEnd < endDateBoundary ? effectiveEnd : endDateBoundary;
+
+                        let monthlyAllocatedHours = 0;
+                        if (intStart <= intEnd && intStart <= endDateBoundary && intEnd >= startDateBoundary) {
+                           const bizDaysInMonth = CapacityUtils.getWorkingDaysInRange(intStart, intEnd, holidays, userAbsences);
+                           monthlyAllocatedHours = bizDaysInMonth * hoursPerDay;
+                        }
+
+                        const monthlyReportedHours = timesheetEntries.reduce((sum, entry) => {
+                           if (String(entry.taskId) === String(t.id) && String(entry.userId) === String(user.id)) {
+                              if (entry.date.startsWith(capacityMonth)) {
+                                 return sum + (Number(entry.totalHours) || 0);
+                              }
                            }
                            return sum;
                         }, 0);
@@ -1263,11 +1366,15 @@ const TeamMemberDetail: React.FC = () => {
                                  </div>
                               </div>
                               <div className="flex items-center gap-3 pr-2">
-                                 <div className="text-right hidden sm:block">
-                                    <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest opacity-40">Reportado</p>
-                                    <p className="text-[10px] font-black text-emerald-900/60 dark:text-emerald-400/60 uppercase">
-                                       {formatDecimalToTime(reportedHours)}h
-                                    </p>
+                                 <div className="bg-emerald-500/5 px-3 py-1.5 rounded-xl flex gap-3 items-center border border-emerald-500/10">
+                                    <div className="flex flex-col items-start leading-tight border-r border-emerald-500/10 pr-3">
+                                       <span className="text-[7px] font-black text-emerald-600/50 uppercase tracking-widest opacity-60">Alocado (Mês)</span>
+                                       <span className="text-[10px] font-black text-emerald-600 font-mono">{formatDecimalToTime(monthlyAllocatedHours)}h</span>
+                                    </div>
+                                    <div className="flex flex-col items-start leading-tight">
+                                       <span className="text-[7px] font-black text-emerald-600/50 uppercase tracking-widest opacity-60">Apontado</span>
+                                       <span className="text-[10px] font-black text-emerald-500 font-mono">{formatDecimalToTime(monthlyReportedHours)}h</span>
+                                    </div>
                                  </div>
                                  <ChevronRight className="w-5 h-5 text-emerald-300 group-hover:text-emerald-600 transition-all group-hover:translate-x-1 shrink-0" />
                               </div>

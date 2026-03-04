@@ -3,14 +3,15 @@ import { useDataController } from '@/controllers/useDataController';
 import { useAuth } from '@/contexts/AuthContext';
 import { Absence } from '@/types';
 import {
-    Calendar, Users, Clock, CheckCircle, XCircle, AlertCircle,
+    Calendar, Users as UsersIcon, Clock, CheckCircle, XCircle, AlertCircle,
     Search, UserPlus, Download, Trash2, ShieldCheck, CheckCheck,
-    Landmark, Info, Plus, Flag, ArrowRight, RotateCcw
+    Landmark, Info, Plus, Flag, ArrowRight, RotateCcw, Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import HolidayManager from '@/components/HolidayManager';
 import AbsenceManager from '@/components/AbsenceManager';
+import { addBusinessDays } from '@/utils/capacity';
 
 
 const RHManagement: React.FC = () => {
@@ -26,6 +27,7 @@ const RHManagement: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [actionModal, setActionModal] = useState<{ id: string, type: 'approve' | 'reject' | 'delete' | 'revert' } | null>(null);
     const [showRequestModal, setShowRequestModal] = useState(false);
+    const [editingAbsenceId, setEditingAbsenceId] = useState<string | null>(null);
 
     // Filters
     const filteredAbsences = useMemo(() => {
@@ -105,7 +107,7 @@ const RHManagement: React.FC = () => {
                 <div>
                     <div className="flex items-center gap-3 mb-1">
                         <div className="p-2 bg-[var(--primary)] rounded-xl text-white shadow-lg shadow-purple-500/20">
-                            <Users size={18} />
+                            <UsersIcon size={18} />
                         </div>
                         <h1 className="text-sm font-black text-[var(--text)] uppercase tracking-tighter leading-none">Gestão de RH</h1>
                     </div>
@@ -153,7 +155,7 @@ const RHManagement: React.FC = () => {
                 {/* TOP BAR ACTION */}
                 <header className="h-20 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between px-8 shrink-0">
                     <div className="flex items-center gap-4">
-                        <button className="md:hidden p-2 text-[var(--muted)]"><Users size={20} /></button>
+                        <button className="md:hidden p-2 text-[var(--muted)]"><UsersIcon size={20} /></button>
                         <div>
                             <h2 className="text-xl font-black text-[var(--text)] leading-none italic">
                                 {activeTab === 'requests' ? 'Pipeline de Aprovação' : activeTab === 'calendar' ? 'Visibilidade de Equipe' : activeTab === 'collaborators' ? 'Gestão de Saldos' : 'Configurações'}
@@ -247,7 +249,10 @@ const RHManagement: React.FC = () => {
                                                         </div>
                                                     </div>
                                                     <div className="col-span-2 text-[10px] font-black text-[var(--text)]">
-                                                        {new Date(a.startDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {new Date(a.endDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                        <div className="flex flex-col">
+                                                            <span>{new Date(a.startDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {new Date(a.endDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                            <span className="text-[8px] text-emerald-600 uppercase font-black">Retorno: {new Date(addBusinessDays(a.endDate, 1, holidays) + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                        </div>
                                                     </div>
                                                     <div className="col-span-1 text-center font-black text-xs text-[var(--primary)] bg-[var(--primary-soft)]/50 py-1 rounded-lg border border-[var(--primary-soft)]">
                                                         {days}d
@@ -261,6 +266,17 @@ const RHManagement: React.FC = () => {
                                                         </span>
                                                     </div>
                                                     <div className="col-span-2 flex items-center justify-end gap-1.5 flex-wrap">
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingAbsenceId(a.id);
+                                                                setShowRequestModal(true);
+                                                            }}
+                                                            className="h-7 w-7 flex items-center justify-center bg-slate-50 text-slate-400 rounded-lg hover:bg-[var(--primary)] hover:text-white border border-slate-100"
+                                                            title="Editar Solicitação"
+                                                        >
+                                                            <Edit2 size={12} />
+                                                        </button>
+
                                                         {a.status !== 'finalizada_dp' && a.status !== 'rejeitado' && (
                                                             <button onClick={() => setActionModal({ id: a.id, type: 'approve' })} className="h-7 px-3 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase hover:bg-emerald-500 transition-all">Avançar</button>
                                                         )}
@@ -406,13 +422,31 @@ const RHManagement: React.FC = () => {
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-[var(--bg)] w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-[40px] shadow-2xl border border-[var(--border)] flex flex-col">
                             <div className="p-6 border-b flex justify-between items-center bg-[var(--surface-2)]">
                                 <div className="flex flex-col">
-                                    <h2 className="text-lg font-black uppercase text-[var(--text)]">Nova Solicitação</h2>
+                                    <h2 className="text-lg font-black uppercase text-[var(--text)]">
+                                        {editingAbsenceId ? 'Editar Solicitação' : 'Nova Solicitação'}
+                                    </h2>
                                     <p className="text-[10px] font-bold text-[var(--muted)] uppercase">Submeta ao fluxo de RH</p>
                                 </div>
-                                <button onClick={() => setShowRequestModal(false)} className="p-2 hover:bg-[var(--surface)] rounded-2xl text-[var(--muted)] shadow-sm"><XCircle size={20} /></button>
+                                <button
+                                    onClick={() => {
+                                        setShowRequestModal(false);
+                                        setEditingAbsenceId(null);
+                                    }}
+                                    className="p-2 hover:bg-[var(--surface)] rounded-2xl text-[var(--muted)] shadow-sm"
+                                >
+                                    <XCircle size={20} />
+                                </button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[var(--bg)]">
-                                <AbsenceManager targetUserId={currentUser?.id} targetUserName={currentUser?.name} />
+                                <AbsenceManager
+                                    targetUserId={editingAbsenceId ? absences.find(a => a.id === editingAbsenceId)?.userId : currentUser?.id}
+                                    targetUserName={editingAbsenceId ? users.find(u => u.id === absences.find(ab => ab.id === editingAbsenceId)?.userId)?.name : currentUser?.name}
+                                    initialAbsenceId={editingAbsenceId}
+                                    onClose={() => {
+                                        setShowRequestModal(false);
+                                        setEditingAbsenceId(null);
+                                    }}
+                                />
                             </div>
                         </motion.div>
                     </div>

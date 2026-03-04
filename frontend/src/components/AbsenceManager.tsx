@@ -1,20 +1,24 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDataController } from '@/controllers/useDataController';
 import { useAuth } from '@/contexts/AuthContext';
 import { Absence, User } from '@/types';
-import { Calendar, Plus, Trash2, Edit2, AlertCircle, Info, CheckCircle, Clock, Plane, Stethoscope, Palmtree } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit2, AlertCircle, Info, CheckCircle, Clock, Plane, Stethoscope, Palmtree, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmationModal from './ConfirmationModal';
+import { addBusinessDays } from '@/utils/capacity';
 
 interface AbsenceManagerProps {
     targetUserId?: string;
     targetUserName?: string;
+    initialAbsenceId?: string | null;
+    onClose?: () => void;
 }
 
-const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUserName }) => {
+const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUserName, initialAbsenceId, onClose }) => {
     const { currentUser, isAdmin } = useAuth();
-    const { absences, users, createAbsence, deleteAbsence, tasks, updateTask, projectMembers } = useDataController();
+    const { absences, users, createAbsence, updateAbsence, deleteAbsence, tasks, updateTask, projectMembers, holidays } = useDataController();
     const [isAdding, setIsAdding] = useState(false);
+    const [editingAbsenceId, setEditingAbsenceId] = useState<string | null>(null);
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
     // Context determines whose absences we manage
@@ -35,6 +39,16 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
         if (!effectiveUserId) return [];
         return absences.filter(a => a.userId === effectiveUserId).sort((a, b) => b.startDate.localeCompare(a.startDate));
     }, [absences, effectiveUserId]);
+
+    // Externally triggered edit
+    useEffect(() => {
+        if (initialAbsenceId) {
+            const absence = absences.find(a => a.id === initialAbsenceId);
+            if (absence) {
+                handleEdit(absence);
+            }
+        }
+    }, [initialAbsenceId, absences]);
 
     // Check for task collisions (tasks active during absence)
     const collidingTasks = useMemo(() => {
@@ -57,7 +71,7 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
 
         try {
             setLoading(true);
-            await createAbsence({
+            const payload: Partial<Absence> = {
                 userId: effectiveUserId,
                 type,
                 startDate,
@@ -66,8 +80,17 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                 observations,
                 period,
                 endTime: endTime ? endTime : undefined
-            });
+            };
+
+            if (editingAbsenceId) {
+                await updateAbsence(editingAbsenceId, payload);
+            } else {
+                await createAbsence(payload);
+            }
+
+            if (onClose) onClose();
             setIsAdding(false);
+            setEditingAbsenceId(null);
             resetForm();
         } catch (error) {
             console.error(error);
@@ -77,6 +100,17 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
         }
     };
 
+    const handleEdit = (absence: Absence) => {
+        setEditingAbsenceId(absence.id);
+        setType(absence.type);
+        setStartDate(absence.startDate);
+        setEndDate(absence.endDate);
+        setObservations(absence.observations || '');
+        setPeriod(absence.period || 'integral');
+        setEndTime(absence.endTime || '');
+        setIsAdding(true);
+    };
+
     const resetForm = () => {
         setType('férias');
         setStartDate('');
@@ -84,6 +118,7 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
         setObservations('');
         setPeriod('integral');
         setEndTime('');
+        setEditingAbsenceId(null);
     };
 
     const handleDelete = async () => {
@@ -124,7 +159,9 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                     <h2 className="text-xl font-black text-[var(--text)]">
                         {targetUserId ? `Ausências: ${targetUserName}` : 'Minhas Ausências'}
                     </h2>
-                    <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">Gerenciamento de férias, atestados e folgas</p>
+                    <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">
+                        {editingAbsenceId ? 'Editando registro existente' : 'Gerenciamento de férias, atestados e folgas'}
+                    </p>
                 </div>
                 {!isAdding && (
                     <button
@@ -184,14 +221,24 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black uppercase text-[var(--muted)] mb-2">Data Fim</label>
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        disabled={type === 'day-off'}
-                                        className={`w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-[var(--primary)] outline-none ${type === 'day-off' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        required
-                                    />
+                                    <div className="space-y-2">
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            disabled={type === 'day-off'}
+                                            className={`w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-[var(--primary)] outline-none ${type === 'day-off' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            required
+                                        />
+                                        {endDate && (
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
+                                                <ArrowRight size={12} className="text-emerald-500" />
+                                                <span className="text-[10px] font-black text-emerald-600 uppercase">
+                                                    Retorno em: {new Date(addBusinessDays(endDate, 1, holidays) + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -314,7 +361,11 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                             <div className="flex justify-end gap-3 pt-4 border-t border-[var(--border)]">
                                 <button
                                     type="button"
-                                    onClick={() => { setIsAdding(false); resetForm(); }}
+                                    onClick={() => {
+                                        if (onClose) onClose();
+                                        setIsAdding(false);
+                                        resetForm();
+                                    }}
                                     className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-[var(--muted)] hover:bg-[var(--surface-2)] transition-all"
                                 >
                                     Cancelar
@@ -324,7 +375,7 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                                     disabled={loading}
                                     className="bg-[var(--primary)] text-white px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
                                 >
-                                    {loading ? 'Salvando...' : 'Confirmar Agendamento'}
+                                    {loading ? 'Salvando...' : editingAbsenceId ? 'Salvar Alterações' : 'Confirmar Agendamento'}
                                 </button>
                             </div>
                         </form>
@@ -354,12 +405,22 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                                             {getTypeIcon(absence.type)}
                                             {absence.type}
                                         </div>
-                                        <button
-                                            onClick={() => setItemToDelete(absence.id)}
-                                            className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => handleEdit(absence)}
+                                                className="p-2 text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                title="Editar"
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => setItemToDelete(absence.id)}
+                                                className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                title="Excluir"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-3">

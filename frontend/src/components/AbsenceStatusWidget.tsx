@@ -2,9 +2,10 @@ import React, { useMemo } from 'react';
 import { useDataController } from '@/controllers/useDataController';
 import { Absence, User } from '@/types';
 import { Calendar, Palmtree, AlertCircle, Coffee, Briefcase, CheckSquare, CalendarDays, User as UserIcon } from 'lucide-react';
+import { addBusinessDays } from '@/utils/capacity';
 
 const AbsenceStatusWidget: React.FC = () => {
-    const { absences, users } = useDataController();
+    const { absences, users, holidays } = useDataController();
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -28,8 +29,8 @@ const AbsenceStatusWidget: React.FC = () => {
             const start = new Date(a.startDate + 'T00:00:00');
             const end = new Date(a.endDate + 'T00:00:00');
 
-            const isReturningFromWeekend = isMonday && (end >= new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000) && end < today);
-            const isReturningToday = end.getTime() === yesterday.getTime() || isReturningFromWeekend;
+            const nextBizDay = addBusinessDays(a.endDate, 1, holidays);
+            const isReturningToday = nextBizDay === today.toISOString().split('T')[0];
 
             if (isReturningToday) {
                 returningToday.push({ user, absence: a });
@@ -127,7 +128,7 @@ const AbsenceStatusWidget: React.FC = () => {
                                             ) : (
                                                 <CalendarDays size={14} className="text-blue-400" />
                                             )}
-                                            <span className="text-[13px] font-normal">Volta em: {formatShortDate(addBusinessDaysString(absence.endDate, 1))}</span>
+                                            <span className="text-[13px] font-normal">Volta em: {formatShortDate(addBusinessDays(absence.endDate, 1, holidays))}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -176,15 +177,5 @@ const AbsenceStatusWidget: React.FC = () => {
     );
 };
 
-// Helper function equivalent to adding 1 day, roughly (without holiday logic, just simple +1 day)
-function addBusinessDaysString(dateStr: string, days: number): string {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + days);
-    // Skip weekends
-    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
-    if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-
-    return d.toISOString().split('T')[0];
-}
 
 export default AbsenceStatusWidget;

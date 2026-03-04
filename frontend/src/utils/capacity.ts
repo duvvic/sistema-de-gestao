@@ -63,7 +63,8 @@ export const getWorkingDaysInRange = (startDate: string, endDate: string, holida
             const isAbsent = absences.some(a => {
                 const aStart = a.startDate;
                 const aEnd = a.endDate || a.startDate;
-                return dateStr >= aStart && dateStr <= aEnd && a.status === 'aprovada_gestao';
+                const isApproved = a.status === 'aprovada_gestao' || a.status === 'aprovada_rh' || a.status === 'finalizada_dp';
+                return dateStr >= aStart && dateStr <= aEnd && isApproved;
             });
 
             if (!isHoliday && !isAbsent) {
@@ -79,7 +80,7 @@ export const getWorkingDaysInRange = (startDate: string, endDate: string, holida
 /**
  * Adiciona dias úteis a uma data.
  */
-export const addBusinessDays = (startDate: string, daysToAdd: number, holidays: Holiday[] = []): string => {
+export const addBusinessDays = (startDate: string, daysToAdd: number, holidays: Holiday[] = [], absences: Absence[] = []): string => {
     if (daysToAdd <= 0) return startDate;
     let current = new Date(startDate + 'T12:00:00');
     let added = 0;
@@ -93,7 +94,15 @@ export const addBusinessDays = (startDate: string, daysToAdd: number, holidays: 
                 const hEnd = h.endDate || h.date;
                 return dateStr >= hStart && dateStr <= hEnd;
             });
-            if (!isHoliday) added++;
+
+            const isAbsent = absences.some(a => {
+                const aStart = a.startDate;
+                const aEnd = a.endDate || a.startDate;
+                const isApproved = a.status === 'aprovada_gestao' || a.status === 'aprovada_rh' || a.status === 'finalizada_dp';
+                return dateStr >= aStart && dateStr <= aEnd && isApproved;
+            });
+
+            if (!isHoliday && !isAbsent) added++;
         }
     }
     return current.toISOString().split('T')[0];
@@ -109,6 +118,8 @@ export interface DayAllocation {
     bufferHours: number;
     totalOccupancy: number;
     isWorkingDay: boolean;
+    isAbsent: boolean;
+    absenceType?: string;
     capacity: number;
 }
 
@@ -141,7 +152,8 @@ export const simulateUserDailyAllocation = (
     projectMembers: ProjectMember[],
     timesheetEntries: TimesheetEntry[],
     holidays: Holiday[] = [],
-    userDailyCap: number = 8
+    userDailyCap: number = 8,
+    absences: Absence[] = []
 ): DayAllocation[] => {
     const allocations: DayAllocation[] = [];
     const start = new Date(startDate + 'T12:00:00');
@@ -155,11 +167,21 @@ export const simulateUserDailyAllocation = (
         const dayOfWeek = current.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const isHoliday = holidays.some(h => dateStr >= h.date && dateStr <= (h.endDate || h.date));
-        const isWorkingDay = !isWeekend && !isHoliday;
+
+        const activeAbsence = absences.find(a => {
+            const aStart = a.startDate;
+            const aEnd = a.endDate || a.startDate;
+            const isApproved = a.status === 'aprovada_gestao' || a.status === 'aprovada_rh' || a.status === 'finalizada_dp';
+            return String(a.userId) === String(userId) && dateStr >= aStart && dateStr <= aEnd && isApproved;
+        });
+
+        const isAbsent = !!activeAbsence;
+        const isWorkingDay = !isWeekend && !isHoliday && !isAbsent;
 
         let plannedHours = 0;
         let continuousHours = 0;
         let bufferHours = 0;
+        let currentCapacity = isAbsent ? 0 : capacityDia;
 
         if (isWorkingDay) {
             // 1. Verificar tarefas planejadas ativas no dia
@@ -191,7 +213,7 @@ export const simulateUserDailyAllocation = (
             } else {
                 // Sem tarefas planejadas: Aloca apenas o compromisso contínuo real e libera o resto como disponível (Buffer)
                 continuousHours = continuousCommitment;
-                bufferHours = Math.max(0, capacityDia - continuousHours);
+                bufferHours = Math.max(0, currentCapacity - continuousHours);
             }
         }
 
@@ -202,7 +224,9 @@ export const simulateUserDailyAllocation = (
             bufferHours: Number(bufferHours.toFixed(2)),
             totalOccupancy: Number((plannedHours + continuousHours).toFixed(2)),
             isWorkingDay,
-            capacity: capacityDia
+            isAbsent,
+            absenceType: activeAbsence?.type,
+            capacity: currentCapacity
         });
 
         current.setDate(current.getDate() + 1);
@@ -225,7 +249,8 @@ export const calculateTaskPredictedEndDate = (
     timesheetEntries: TimesheetEntry[],
     holidays: Holiday[] = [],
     userDailyCap: number = 8,
-    taskMemberAllocations: TaskMemberAllocation[] = []
+    taskMemberAllocations: TaskMemberAllocation[] = [],
+    absences: Absence[] = []
 ): { ideal: string; realistic: string; isSaturated?: boolean } => {
     const userId = task.developerId;
     const fallback = { ideal: task.estimatedDelivery || '', realistic: task.estimatedDelivery || '' };
@@ -263,7 +288,7 @@ export const calculateTaskPredictedEndDate = (
 
     // MODO IDEAL: 100% da capacidade
     const diasIdeal = Math.ceil(effortRestante / userDailyCap);
-    const idealDate = addBusinessDays(startCalc, diasIdeal, holidays);
+    const idealDate = addBusinessDays(startCalc, diasIdeal, holidays, absences);
 
     // MODO REALISTA: Dinâmico (Capacidade Total - Compromisso Contínuo)
     const commitment = getUserContinuousCommitment(String(userId), allProjects, projectMembers, userDailyCap);
@@ -276,7 +301,7 @@ export const calculateTaskPredictedEndDate = (
     const capRealista = Math.max(0.1, userDailyCap - commitment);
 
     const diasRealista = Math.ceil(effortRestante / capRealista);
-    const realisticDate = addBusinessDays(startCalc, diasRealista, holidays);
+    const realisticDate = addBusinessDays(startCalc, diasRealista, holidays, absences);
 
     return { ideal: idealDate, realistic: realisticDate, isSaturated };
 };
@@ -311,7 +336,10 @@ export const getUserAvailabilityInRange = (
     };
 } => {
     const dailyGoal = user.dailyAvailableHours || 8;
-    const userAbsences = absences.filter(a => String(a.userId) === String(user.id) && a.status === 'aprovada_gestao');
+    const userAbsences = absences.filter(a =>
+        String(a.userId) === String(user.id) &&
+        (a.status === 'aprovada_gestao' || a.status === 'aprovada_rh' || a.status === 'finalizada_dp')
+    );
     const workingDays = getWorkingDaysInRange(startDate, endDate, holidays, userAbsences);
     const capacity = dailyGoal * workingDays;
 
@@ -360,10 +388,13 @@ export const getUserAvailabilityInRange = (
         if (totalEffort <= 0 && t.status !== 'Done') return;
 
         const tStart = t.scheduledStart || t.actualStart || p.startDate || startDate;
-        // Para tarefas não concluídas, a data final para cálculo de distribuição deve ser no mínimo 'hoje'
         const todayStr = new Date().toISOString().split('T')[0];
         const nominalEnd = t.actualDelivery || t.estimatedDelivery || p.estimatedDelivery || endDate;
-        const effectiveEnd = (t.status !== 'Done' && nominalEnd < todayStr) ? todayStr : nominalEnd;
+        // Só estende para hoje se a tarefa estava ORIGINALMENTE programada para terminar dentro do período atual.
+        // Isso evita que tarefas atrasadas de meses anteriores (ex: venceu em Jan) poluam o mês de Março.
+        const effectiveEnd = (t.status !== 'Done' && nominalEnd < todayStr && nominalEnd >= startDate)
+            ? todayStr
+            : nominalEnd;
         const effectiveStart = tStart;
 
         // Distribuição teórica linear do Esforço por todos os dias da tarefa
@@ -499,7 +530,8 @@ export const calculateIndividualReleaseDate = (
     timesheetEntries: TimesheetEntry[],
     allTasks: Task[],
     holidays: Holiday[] = [],
-    taskMemberAllocations: TaskMemberAllocation[] = []
+    taskMemberAllocations: TaskMemberAllocation[] = [],
+    absences: Absence[] = []
 ): { ideal: string; realistic: string; isSaturated?: boolean } | null => {
     const userPlannedTasks = allTasks.filter(t => {
         const isOwner = String(t.developerId) === String(user.id);
@@ -544,7 +576,7 @@ export const calculateIndividualReleaseDate = (
 
     // IDEAL (100%)
     const diasIdeal = Math.ceil(totalEffortRemaining / dailyCap);
-    const ideal = addBusinessDays(today, diasIdeal, holidays);
+    const ideal = addBusinessDays(today, diasIdeal, holidays, absences.filter(a => String(a.userId) === String(user.id)));
 
     // REALISTA (Dinâmico)
     const commitment = getUserContinuousCommitment(String(user.id), allProjects, projectMembers, dailyCap);
@@ -554,7 +586,7 @@ export const calculateIndividualReleaseDate = (
     const capRealista = Math.max(0.1, dailyCap - commitment);
 
     const diasRealista = Math.ceil(totalEffortRemaining / capRealista);
-    const realistic = addBusinessDays(today, diasRealista, holidays);
+    const realistic = addBusinessDays(today, diasRealista, holidays, absences.filter(a => String(a.userId) === String(user.id)));
 
     return { ideal, realistic, isSaturated };
 };
