@@ -309,7 +309,8 @@ const TeamMemberDetail: React.FC = () => {
                   <button
                      type="button"
                      onClick={() => setIsEditing(!isEditing)}
-                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${isEditing ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-slate-900 dark:bg-slate-700 text-white hover:bg-black'}`}
+                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${isEditing ? 'bg-amber-500 text-white hover:bg-amber-600 hover:opacity-90' : 'text-white hover:opacity-90'}`}
+                     style={!isEditing ? { backgroundColor: 'var(--text)' } : {}}
                   >
                      {isEditing ? 'Cancelar Edição' : 'Editar Perfil'}
                   </button>
@@ -387,7 +388,7 @@ const TeamMemberDetail: React.FC = () => {
                               </div>
 
                               {/* Navegação de Mês */}
-                              <div className="flex items-center gap-4 bg-white/40 dark:bg-black/20 p-2 rounded-2xl border border-[var(--border)]">
+                              <div className="flex items-center gap-4 p-2 rounded-2xl border border-[var(--border)]" style={{ backgroundColor: 'var(--surface-2)' }}>
                                  <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-all text-[var(--text)]">
                                     <ChevronRight className="w-5 h-5 rotate-180" />
                                  </button>
@@ -1353,13 +1354,13 @@ const TeamMemberDetail: React.FC = () => {
                                     )}
                                  </div>
                                  <div className="min-w-0">
-                                    <h4 className="font-black text-emerald-900 dark:text-emerald-400 text-[13px] truncate uppercase tracking-tight mb-1 group-hover:text-emerald-600 transition-colors">
+                                    <h4 className="font-black text-emerald-700 dark:text-emerald-400 text-[13px] truncate uppercase tracking-tight mb-1 group-hover:text-emerald-500 transition-colors">
                                        {t.title}
                                     </h4>
                                     <div className="flex items-center gap-2">
                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                                           <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                                          <span className="text-[8px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Entregue: {formatDateBR(t.actualDelivery || t.estimatedDelivery)}</span>
+                                          <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Entregue: {formatDateBR(t.actualDelivery || t.estimatedDelivery)}</span>
                                        </div>
                                        <span className="text-[7px] font-bold text-emerald-400/50 uppercase tracking-widest">ID: #{t.id}</span>
                                     </div>
@@ -1390,8 +1391,8 @@ const TeamMemberDetail: React.FC = () => {
                            <div className="w-14 h-14 bg-slate-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-500/20 shadow-lg">
                               <CheckCircle className="w-7 h-7 text-slate-500" />
                            </div>
-                           <p className="text-slate-700 dark:text-slate-400 font-black text-xs uppercase tracking-[0.2em]">Nenhuma Tarefa Concluída</p>
-                           <p className="text-[10px] text-slate-600/60 dark:text-slate-500/40 font-bold mt-1.5 italic">Ainda não há tarefas finalizadas.</p>
+                           <p className="font-black text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-3)' }}>Nenhuma Tarefa Concluída</p>
+                           <p className="text-[10px] font-bold mt-1.5 italic" style={{ color: 'var(--text-muted)' }}>Ainda não há tarefas finalizadas.</p>
                         </motion.div>
                      )}
                   </motion.div>

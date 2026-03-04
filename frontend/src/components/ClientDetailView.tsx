@@ -105,11 +105,11 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Todo': return 'bg-slate-100 dark:bg-slate-800/50';
-      case 'In Progress': return 'bg-blue-50 dark:bg-blue-900/20';
-      case 'Review': return 'bg-purple-50 dark:bg-purple-900/20';
-      case 'Done': return 'bg-green-50 dark:bg-green-900/20';
-      default: return 'bg-slate-100 dark:bg-slate-800/50';
+      case 'Todo': return 'bg-[var(--surface-2)]';
+      case 'In Progress': return 'surface-tinted-blue';
+      case 'Review': return 'surface-tinted-purple';
+      case 'Done': return 'surface-tinted-emerald';
+      default: return 'bg-[var(--surface-2)]';
     }
   };
 
@@ -118,7 +118,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       case 'Todo': return 'text-[var(--textMuted)]';
       case 'In Progress': return 'text-blue-600 dark:text-blue-400';
       case 'Review': return 'text-purple-600 dark:text-purple-400';
-      case 'Done': return 'text-green-600 dark:text-green-400';
+      case 'Done': return 'text-emerald-600 dark:text-emerald-400';
       default: return 'text-[var(--textMuted)]';
     }
   };
@@ -318,7 +318,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                     <div
                       key={project.id}
                       onClick={() => onProjectClick?.(project.id)}
-                      className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 hover:shadow-md hover:border-[#d8b4fe] dark:hover:border-purple-800 transition-all cursor-pointer"
+                      className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 hover:shadow-md hover:border-[var(--primary)] transition-all cursor-pointer"
                     >
                       <h3 className="text-lg font-semibold text-[var(--textTitle)]">{project.name}</h3>
                       {project.description && (
@@ -326,8 +326,8 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                       )}
                       <div className="mt-4 flex items-center gap-2">
                         <span className={`text-xs font-bold px-3 py-1 rounded-full ${project.status === 'Em andamento'
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                          : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          ? 'surface-tinted-blue text-blue-600 dark:text-blue-400 border'
+                          : 'surface-tinted-emerald text-emerald-600 dark:text-emerald-400 border'
                           }`}>
                           {project.status}
                         </span>

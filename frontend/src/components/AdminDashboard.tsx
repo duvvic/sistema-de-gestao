@@ -1320,33 +1320,33 @@ const AdminDashboard: React.FC = () => {
                               {/* Coluna de Métricas */}
                               <div className="md:col-span-2 space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
-                                  <div className="p-6 rounded-[2rem] border border-emerald-100 bg-emerald-50/30">
-                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Faturamento Total</p>
+                                  <div className="p-6 rounded-[2rem] border surface-tinted-emerald">
+                                    <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Faturamento Total</p>
                                     <p className="text-2xl font-black text-[var(--textTitle)] font-mono">
                                       {partner.totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
                                     </p>
                                   </div>
-                                  <div className="p-6 rounded-[2rem] border border-blue-100 bg-blue-50/30">
-                                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Carga Horária</p>
+                                  <div className="p-6 rounded-[2rem] border surface-tinted-blue">
+                                    <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Carga Horária</p>
                                     <p className="text-2xl font-black text-[var(--textTitle)] font-mono">
                                       {Math.round(partner.totalHours)}<span className="text-xs ml-0.5 opacity-50 uppercase">h</span>
                                     </p>
                                   </div>
-                                  <div className="p-6 rounded-[2rem] border border-purple-100 bg-purple-50/30">
-                                    <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-1">SLA / Entregabilidade</p>
+                                  <div className="p-6 rounded-[2rem] border surface-tinted-purple">
+                                    <p className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-1">SLA / Entregabilidade</p>
                                     <p className="text-2xl font-black text-[var(--textTitle)] font-mono">{Math.round(partner.averageProgress)}%</p>
                                   </div>
-                                  <div className="p-6 rounded-[2rem] border border-amber-100 bg-amber-50/30">
-                                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Volume de Tarefas</p>
+                                  <div className="p-6 rounded-[2rem] border surface-tinted-amber">
+                                    <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Volume de Tarefas</p>
                                     <p className="text-2xl font-black text-[var(--textTitle)] font-mono">{partner.taskCount}</p>
                                   </div>
                                 </div>
 
-                                <div className="p-8 rounded-[2.5rem] bg-slate-50 border border-[var(--border)]">
+                                <div className="p-8 rounded-[2.5rem] border" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                                   <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--muted)] mb-6 flex items-center gap-2">
                                     <TrendingUp size={14} className="text-purple-500" /> Histórico de Performance
                                   </h4>
-                                  <div className="h-40 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                  <div className="h-40 flex items-center justify-center border-2 border-dashed rounded-2xl text-[10px] font-bold uppercase tracking-widest" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
                                     Gráfico de Crescimento (Em breve)
                                   </div>
                                 </div>
@@ -1354,24 +1354,24 @@ const AdminDashboard: React.FC = () => {
 
                               {/* Coluna de Contato Rápido */}
                               <div className="space-y-6">
-                                <div className="p-6 rounded-[2.5rem] bg-white border border-[var(--border)] shadow-sm">
-                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 pb-2 border-b border-slate-100">Gestão do Relacionamento</h4>
+                                <div className="p-6 rounded-[2.5rem] border shadow-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-6 pb-2 border-b" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-muted)' }}>Gestão do Relacionamento</h4>
                                   <div className="space-y-8">
                                     <div className="flex items-center gap-4">
                                       <div className="w-12 h-12 rounded-2xl bg-purple-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-purple-500/20">
                                         {internalResp?.name?.charAt(0) || 'N'}
                                       </div>
                                       <div>
-                                        <p className="text-[9px] font-black text-purple-600 uppercase tracking-widest mb-0.5">Gestor Interno</p>
+                                        <p className="text-[9px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-0.5">Gestor Interno</p>
                                         <p className="text-sm font-black text-[var(--textTitle)]">{internalResp?.name || 'Não atribuído'}</p>
                                       </div>
                                     </div>
 
-                                    <div className="space-y-4 pt-4 border-t border-slate-50">
+                                    <div className="space-y-4 pt-4 border-t" style={{ borderColor: 'var(--border-muted)' }}>
                                       <div>
                                         <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mb-3">Ponto Focal Parceiro</p>
                                         <div className="flex items-center gap-3 mb-3">
-                                          <div className="p-2 rounded-lg bg-slate-50 text-slate-400"><UserIcon size={16} /></div>
+                                          <div className="p-2 rounded-lg icon-box" style={{ color: 'var(--text-muted)' }}><UserIcon size={16} /></div>
                                           <p className="text-[13px] font-black text-[var(--textTitle)]">{partner.responsavel_externo || 'Não informado'}</p>
                                         </div>
                                         <div className="flex flex-col gap-2 pl-11">
@@ -1392,7 +1392,7 @@ const AdminDashboard: React.FC = () => {
 
                           {partnerSubTab === 'info' && (
                             <div className="max-w-4xl animate-in fade-in duration-300">
-                              <div className="p-10 rounded-[2.5rem] bg-white border border-[var(--border)] shadow-sm space-y-10">
+                               <div className="p-10 rounded-[2.5rem] border shadow-sm space-y-10" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                                 <div className="flex justify-between items-start">
                                   <div className="space-y-1">
                                     <h4 className="text-xl font-black text-[var(--textTitle)]">Detalhes do Registro</h4>
@@ -1409,33 +1409,33 @@ const AdminDashboard: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                                   <div className="space-y-1.5">
                                     <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Nome do Parceiro</p>
-                                    <p className="text-sm font-bold text-[var(--textTitle)] border-b border-slate-50 pb-2">{partner.name}</p>
+                                   <p className="text-sm font-bold text-[var(--textTitle)] border-b pb-2" style={{ borderColor: 'var(--border-muted)' }}>{partner.name}</p>
                                   </div>
-                                  <div className="space-y-1.5">
-                                    <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">CNPJ</p>
-                                    <p className="text-sm font-mono font-bold text-[var(--textTitle)] border-b border-slate-50 pb-2">{partner.cnpj || '---'}</p>
+                                   <div className="space-y-1.5">
+                                     <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">CNPJ</p>
+                                     <p className="text-sm font-mono font-bold text-[var(--textTitle)] border-b pb-2" style={{ borderColor: 'var(--border-muted)' }}>{partner.cnpj || '---'}</p>
                                   </div>
-                                  <div className="space-y-1.5">
-                                    <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Email Principal</p>
-                                    <p className="text-sm font-bold text-[var(--textTitle)] border-b border-slate-50 pb-2">{partner.email_contato || '---'}</p>
+                                   <div className="space-y-1.5">
+                                     <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Email Principal</p>
+                                     <p className="text-sm font-bold text-[var(--textTitle)] border-b pb-2" style={{ borderColor: 'var(--border-muted)' }}>{partner.email_contato || '---'}</p>
                                   </div>
-                                  <div className="space-y-1.5">
-                                    <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Telefone</p>
-                                    <p className="text-sm font-bold text-[var(--textTitle)] border-b border-slate-50 pb-2">{partner.telefone || '---'}</p>
+                                   <div className="space-y-1.5">
+                                     <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Telefone</p>
+                                     <p className="text-sm font-bold text-[var(--textTitle)] border-b pb-2" style={{ borderColor: 'var(--border-muted)' }}>{partner.telefone || '---'}</p>
                                   </div>
-                                  <div className="space-y-1.5">
-                                    <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Responsável Externo</p>
-                                    <p className="text-sm font-bold text-[var(--textTitle)] border-b border-slate-50 pb-2">{partner.responsavel_externo || '---'}</p>
+                                   <div className="space-y-1.5">
+                                     <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Responsável Externo</p>
+                                     <p className="text-sm font-bold text-[var(--textTitle)] border-b pb-2" style={{ borderColor: 'var(--border-muted)' }}>{partner.responsavel_externo || '---'}</p>
                                   </div>
-                                  <div className="space-y-1.5">
-                                    <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Gestor da Conta (Interno)</p>
-                                    <p className="text-sm font-bold text-[var(--textTitle)] border-b border-slate-50 pb-2">{internalResp?.name || '---'}</p>
+                                   <div className="space-y-1.5">
+                                     <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Gestor da Conta (Interno)</p>
+                                     <p className="text-sm font-bold text-[var(--textTitle)] border-b pb-2" style={{ borderColor: 'var(--border-muted)' }}>{internalResp?.name || '---'}</p>
                                   </div>
                                 </div>
 
                                 <div className="pt-6">
                                   <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-4">Identidade Visual</p>
-                                  <div className="w-32 h-32 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-4 flex items-center justify-center">
+                                  <div className="w-32 h-32 rounded-2xl border-2 border-dashed p-4 flex items-center justify-center" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                                     <img src={partner.logoUrl} className="max-w-full max-h-full object-contain mix-blend-multiply" alt="Logo" />
                                   </div>
                                 </div>
@@ -2280,37 +2280,37 @@ const AdminDashboard: React.FC = () => {
                           <Target size={12} className="text-emerald-500" /> Saúde do Canal
                         </h3>
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/30">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              <p className="text-[9px] font-black text-emerald-600 uppercase">Faturamento</p>
+                          <div className="p-5 rounded-2xl border surface-tinted-emerald">
+                             <div className="flex items-center gap-2 mb-1">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                               <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase">Faturamento</p>
                             </div>
                             <p className="text-lg font-black text-[var(--textTitle)] font-mono">
                               {partner.totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
                             </p>
                           </div>
-                          <div className="p-5 rounded-2xl border border-blue-100 bg-blue-50/30">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                              <p className="text-[9px] font-black text-blue-600 uppercase">Esforço (Horas)</p>
+                          <div className="p-5 rounded-2xl border surface-tinted-blue">
+                             <div className="flex items-center gap-2 mb-1">
+                               <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                               <p className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase">Esforço (Horas)</p>
                             </div>
                             <p className="text-lg font-black text-[var(--textTitle)] font-mono">
                               {Math.round(partner.totalHours)}<span className="text-xs ml-0.5 opacity-50 uppercase">h</span>
                             </p>
                           </div>
-                          <div className="p-5 rounded-2xl border border-purple-100 bg-purple-50/30">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                              <p className="text-[9px] font-black text-purple-600 uppercase">Contas Ativas</p>
+                          <div className="p-5 rounded-2xl border surface-tinted-purple">
+                             <div className="flex items-center gap-2 mb-1">
+                               <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                               <p className="text-[9px] font-black text-purple-600 dark:text-purple-400 uppercase">Contas Ativas</p>
                             </div>
                             <p className="text-lg font-black text-[var(--textTitle)] font-mono">
                               {partner.projectCount}
                             </p>
                           </div>
-                          <div className="p-5 rounded-2xl border border-amber-100 bg-amber-50/30">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                              <p className="text-[9px] font-black text-amber-600 uppercase">Progresso Médio</p>
+                          <div className="p-5 rounded-2xl border surface-tinted-amber">
+                             <div className="flex items-center gap-2 mb-1">
+                               <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                               <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase">Progresso Médio</p>
                             </div>
                             <p className="text-lg font-black text-[var(--textTitle)] font-mono">
                               {Math.round(partner.averageProgress)}%
@@ -2384,8 +2384,8 @@ const AdminDashboard: React.FC = () => {
                       {/* Sessão 1: Identificação Básica */}
                       <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                            <Building2 size={16} className="text-slate-500" />
+                          <div className="p-2 rounded-lg icon-box">
+                             <Building2 size={16} style={{ color: 'var(--text-muted)' }} />
                           </div>
                           <div>
                             <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Documentação</p>
@@ -2394,8 +2394,8 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         {partner && (
                           <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                              <Handshake size={16} className="text-slate-500" />
+                            <div className="p-2 rounded-lg icon-box">
+                              <Handshake size={16} style={{ color: 'var(--text-muted)' }} />
                             </div>
                             <div>
                               <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Parceiro</p>
@@ -2404,8 +2404,8 @@ const AdminDashboard: React.FC = () => {
                           </div>
                         )}
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                            <Briefcase size={16} className="text-slate-500" />
+                          <div className="p-2 rounded-lg icon-box">
+                             <Briefcase size={16} style={{ color: 'var(--text-muted)' }} />
                           </div>
                           <div>
                             <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Projetos Ativos</p>
@@ -2420,7 +2420,7 @@ const AdminDashboard: React.FC = () => {
                           <h3 className="text-[10px] font-black text-[var(--muted)] uppercase tracking-[0.2em] flex items-center gap-2 border-b border-[var(--border)] pb-2">
                             <UserIcon size={12} className="text-blue-500" /> Contatos
                           </h3>
-                          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/20 border border-[var(--border)] shadow-sm">
+                           <div className="p-5 rounded-2xl border shadow-sm" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                             <div className="space-y-3">
                               {client.contato_principal && (
                                 <div className="flex items-center gap-2">

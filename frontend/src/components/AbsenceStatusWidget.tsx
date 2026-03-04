@@ -64,23 +64,23 @@ const AbsenceStatusWidget: React.FC = () => {
     const robotAvatarUrl = "https://api.dicebear.com/7.x/bottts/svg?seed=niclabs&backgroundColor=f8f9fa";
 
     return (
-        <div className="bg-white dark:bg-[var(--surface-2)] rounded-[24px] border border-gray-100 dark:border-[var(--border)] shadow-sm overflow-hidden flex flex-col font-sans">
+        <div className="rounded-[24px] shadow-sm overflow-hidden flex flex-col font-sans" style={{ backgroundColor: 'var(--surface-2)', border: '1px solid var(--border)' }}>
             {/* Cabecalho */}
-            <div className="p-5 flex items-center gap-4 border-b border-gray-100 dark:border-[var(--border)]">
-                <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border-4 border-white dark:border-[var(--surface)] shadow-sm overflow-hidden">
+            <div className="p-5 flex items-center gap-4 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border-4 shadow-sm overflow-hidden" style={{ borderColor: 'var(--surface)' }}>
                     <img src={robotAvatarUrl} alt="Relatório" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                    <h2 className="text-[18px] font-medium text-slate-800 dark:text-[var(--text)] leading-tight">Relatório de Ausências</h2>
-                    <p className="text-[14px] text-slate-500 dark:text-[var(--muted)] mt-0.5 font-normal">Atualização Diária</p>
+                    <h2 className="text-[18px] font-medium leading-tight" style={{ color: 'var(--text)' }}>Relatório de Ausências</h2>
+                    <p className="text-[14px] mt-0.5 font-normal" style={{ color: 'var(--text-muted)' }}>Atualização Diária</p>
                 </div>
             </div>
 
-            <div className="flex flex-col divide-y divide-gray-100 dark:divide-[var(--border)]">
+            <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
                 {/* 1. DE VOLTA HOJE */}
                 {statusData.returningToday.length > 0 && (
                     <div className="p-5">
-                        <h3 className="text-[16px] font-normal text-slate-800 dark:text-[var(--text)] mb-4">De volta hoje!</h3>
+                        <h3 className="text-[16px] font-normal mb-4" style={{ color: 'var(--text)' }}>De volta hoje!</h3>
                         <div className="space-y-4">
                             {statusData.returningToday.map(({ user }) => (
                                 <div key={user.id} className="flex items-start gap-4">
@@ -92,10 +92,10 @@ const AbsenceStatusWidget: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="flex-1 pt-0.5">
-                                        <p className="text-[13px] text-slate-600 dark:text-[var(--muted)] mb-0.5 leading-none">De volta hoje!</p>
-                                        <p className="text-[15px] font-medium text-slate-800 dark:text-[var(--text)] mb-1 leading-none">{user.name}</p>
-                                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500">
-                                            <CheckSquare size={14} className="fill-emerald-100 dark:fill-emerald-500/20" />
+                                        <p className="text-[13px] mb-0.5 leading-none" style={{ color: 'var(--text-muted)' }}>De volta hoje!</p>
+                                        <p className="text-[15px] font-medium mb-1 leading-none" style={{ color: 'var(--text)' }}>{user.name}</p>
+                                        <div className="flex items-center gap-1.5 text-emerald-500">
+                                            <CheckSquare size={14} />
                                             <span className="text-[13px] font-medium">Disponível</span>
                                         </div>
                                     </div>
@@ -108,7 +108,7 @@ const AbsenceStatusWidget: React.FC = () => {
                 {/* 2. AUSENTES HOJE */}
                 {statusData.absentToday.length > 0 && (
                     <div className="p-5">
-                        <h3 className="text-[16px] font-normal text-slate-800 dark:text-[var(--text)] mb-4">Ausentes hoje</h3>
+                        <h3 className="text-[16px] font-normal mb-4" style={{ color: 'var(--text)' }}>Ausentes hoje</h3>
                         <div className="space-y-4">
                             {statusData.absentToday.map(({ user, absence }) => (
                                 <div key={absence.id} className="flex items-start gap-4">
@@ -120,9 +120,9 @@ const AbsenceStatusWidget: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="flex-1 pt-0.5">
-                                        <p className="text-[13px] text-slate-600 dark:text-[var(--muted)] mb-0.5 leading-none">{getTypeDisplay(absence.type)}</p>
-                                        <p className="text-[15px] font-medium text-slate-800 dark:text-[var(--text)] mb-1 leading-none">{user.name}</p>
-                                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                        <p className="text-[13px] mb-0.5 leading-none" style={{ color: 'var(--text-muted)' }}>{getTypeDisplay(absence.type)}</p>
+                                        <p className="text-[15px] font-medium mb-1 leading-none" style={{ color: 'var(--text)' }}>{user.name}</p>
+                                        <div className="flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
                                             {absence.type === 'férias' ? (
                                                 <Palmtree size={14} className="text-orange-500" />
                                             ) : (
@@ -140,11 +140,11 @@ const AbsenceStatusWidget: React.FC = () => {
                 {/* 3. PRÓXIMAS AUSÊNCIAS */}
                 {statusData.futureAbsences.length > 0 && (
                     <div className="p-5">
-                        <h3 className="text-[16px] font-normal text-slate-800 dark:text-[var(--text)] mb-4">Próximas Ausências</h3>
+                        <h3 className="text-[16px] font-normal mb-4" style={{ color: 'var(--text)' }}>Próximas Ausências</h3>
                         <div className="space-y-4">
                             {statusData.futureAbsences.slice(0, 5).map(({ user, absence }) => (
                                 <div key={absence.id} className="flex items-start gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-sm icon-box">
                                         {user.avatarUrl ? (
                                             <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                                         ) : (
@@ -152,9 +152,9 @@ const AbsenceStatusWidget: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="flex-1 pt-0.5">
-                                        <p className="text-[13px] text-slate-600 dark:text-[var(--muted)] mb-0.5 leading-none">{getTypeDisplay(absence.type)}</p>
-                                        <p className="text-[15px] font-medium text-slate-800 dark:text-[var(--text)] mb-1 leading-none">{user.name}</p>
-                                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                        <p className="text-[13px] mb-0.5 leading-none" style={{ color: 'var(--text-muted)' }}>{getTypeDisplay(absence.type)}</p>
+                                        <p className="text-[15px] font-medium mb-1 leading-none" style={{ color: 'var(--text)' }}>{user.name}</p>
+                                        <div className="flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
                                             <CalendarDays size={14} className="text-indigo-400" />
                                             <span className="text-[13px] font-normal">{formatShortDate(absence.startDate)} - {formatShortDate(absence.endDate)}</span>
                                         </div>
@@ -169,7 +169,7 @@ const AbsenceStatusWidget: React.FC = () => {
                 {statusData.returningToday.length === 0 && statusData.absentToday.length === 0 && statusData.futureAbsences.length === 0 && (
                     <div className="p-8 flex items-center justify-center flex-col text-center opacity-50">
                         <Calendar size={32} className="text-slate-400 mb-3" />
-                        <p className="text-[14px] text-slate-600 dark:text-[var(--muted)]">Nenhum registro de ausência no momento.</p>
+                        <p className="text-[14px]" style={{ color: 'var(--text-muted)' }}>Nenhum registro de ausência no momento.</p>
                     </div>
                 )}
             </div>

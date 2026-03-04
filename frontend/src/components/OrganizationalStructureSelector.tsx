@@ -205,7 +205,8 @@ const OrganizationalStructureSelector: React.FC<OrganizationalStructureSelectorP
                                 <button
                                     type="button"
                                     onClick={() => setTorre('N/A')}
-                                    className="px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                                    className="px-4 py-2 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+                                    style={{ backgroundColor: 'var(--text)' }}
                                 >
                                     Pular / N/A
                                 </button>
@@ -222,7 +223,7 @@ const OrganizationalStructureSelector: React.FC<OrganizationalStructureSelectorP
                             </div>
                             <div>
                                 <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest mb-1">Configuração Concluída</h4>
-                                <div className="flex items-center gap-2 text-sm font-black text-emerald-900 dark:text-emerald-400">
+                                <div className="flex items-center gap-2 text-sm font-black text-emerald-600 dark:text-emerald-400">
                                     <span>{cargo}</span>
                                     <ChevronRight className="w-4 h-4 opacity-40" />
                                     <span>{nivel}</span>

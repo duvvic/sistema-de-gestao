@@ -902,10 +902,10 @@ const ProjectDetailView: React.FC = () => {
                 {/* KPI ROW */}
                 <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}>
                   {/* Resumo do Planejamento - Cronograma & Peso */}
-                  <div className="p-4 rounded-[32px] border shadow-sm relative overflow-hidden transition-all hover:shadow-md flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', height: '280px' }}>
+                  <div className="p-4 rounded-[32px] border shadow-sm relative overflow-hidden transition-all hover:shadow-md flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', height: '400px' }}>
                     <div className="flex items-center justify-between mb-4 shrink-0">
                       <div>
-                        <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Cronograma e Peso</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>TAREFAS</h4>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] font-black text-purple-600/80 bg-purple-500/5 px-2 py-0.5 rounded-full border border-purple-500/10 uppercase tracking-tighter">
                             {formData.startDate ? new Date(formData.startDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'S/D'} → {formData.estimatedDelivery ? new Date(formData.estimatedDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'S/D'}
@@ -1014,7 +1014,7 @@ const ProjectDetailView: React.FC = () => {
                                 </div>
                               </div>
 
-                              <div className="h-0.5 w-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-0.5 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border-muted)' }}>
                                 <div
                                   className={`h-full transition-all duration-1000 ${isHourOverrun ? 'bg-red-500' : 'bg-purple-600'}`}
                                   style={{ width: `${Math.min(100, (taskReported / (taskSoldHours || 1)) * 100)}%` }}
@@ -1066,7 +1066,7 @@ const ProjectDetailView: React.FC = () => {
                   </div>
 
                   {/* Progresso vs Plano */}
-                  <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[350px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[400px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
 
                     <div className="mb-6 pb-6 border-b border-dashed shrink-0" style={{ borderColor: 'var(--border)' }}>
                       <h4 className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: 'var(--muted)' }}>Status de Entrega</h4>
@@ -1149,7 +1149,7 @@ const ProjectDetailView: React.FC = () => {
 
                   {/* Finanças (Visible only to Admin) */}
                   {isAdmin && (
-                    <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[350px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                    <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md h-[400px] flex flex-col" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
 
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Finanças</h4>
@@ -1224,9 +1224,9 @@ const ProjectDetailView: React.FC = () => {
                   )}
 
                   {/* Timeline do Projeto */}
-                  <div className="p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <div className="h-[400px] flex flex-col p-5 rounded-[32px] border shadow-sm relative transition-all hover:shadow-md" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                     <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--muted)' }}>Timeline do Projeto</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Timeline do Projeto</h4>
                       <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500">
                         <Calendar size={14} />
                       </div>

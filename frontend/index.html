@@ -19,27 +19,41 @@
     }
 
     ::-webkit-scrollbar-track {
-      background: #f3e8ff;
-      /* purple-100 (Lilac background) */
+      background: #f3e8ff; /* light mode: purple-100 */
       border-radius: 4px;
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #d8b4fe;
-      /* purple-300 (Soft Purple thumb) */
+      background: #d8b4fe; /* light mode: purple-300 */
       border-radius: 4px;
       transition: background 0.2s ease;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-      background: #c084fc;
-      /* purple-400 */
+      background: #c084fc; /* purple-400 */
     }
 
     /* Firefox support */
     * {
       scrollbar-width: thin;
       scrollbar-color: #d8b4fe #f3e8ff;
+    }
+
+    /* Dark mode scrollbar */
+    html.dark ::-webkit-scrollbar-track {
+      background: #1A1825;
+    }
+
+    html.dark ::-webkit-scrollbar-thumb {
+      background: #3D3750;
+    }
+
+    html.dark ::-webkit-scrollbar-thumb:hover {
+      background: #8B5CF6;
+    }
+
+    html.dark * {
+      scrollbar-color: #3D3750 #1A1825;
     }
   </style>
 

@@ -259,8 +259,8 @@ const ClientsList: React.FC = () => {
                   </div>
                   <span
                     className={`px-2 py-1 rounded-lg text-xs font-bold ${client.activeProjectCount > 0
-                        ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'
+                        ? 'surface-tinted-emerald border text-emerald-700 dark:text-emerald-400'
+                        : 'bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-muted)]'
                       }`}
                   >
                     {client.activeProjectCount > 0 ? 'Ativo' : 'Inativo'}

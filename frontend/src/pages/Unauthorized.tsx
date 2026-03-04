@@ -20,7 +20,7 @@ const Unauthorized: React.FC = () => {
             <div className="max-w-md w-full text-center">
                 {/* Ícone de Alerta */}
                 <div className="mb-8 flex justify-center">
-                    <div className="p-6 rounded-full bg-red-100 dark:bg-red-900/20">
+                    <div className="p-6 rounded-full surface-tinted-red border">
                         <ShieldAlert className="w-16 h-16 text-red-600" />
                     </div>
                 </div>
@@ -36,7 +36,7 @@ const Unauthorized: React.FC = () => {
                 </p>
 
                 {/* Informação do Role */}
-                <div className="mb-8 p-4 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <div className="mb-8 p-4 rounded-xl border" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                     <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
                         Seu perfil atual:
                     </p>
@@ -72,7 +72,7 @@ const Unauthorized: React.FC = () => {
                 </div>
 
                 {/* Informação Adicional */}
-                <div className="mt-8 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
+                <div className="mt-8 p-4 rounded-xl border surface-tinted-blue">
                     <p className="text-sm" style={{ color: 'var(--muted)' }}>
                         Se você acredita que deveria ter acesso a este recurso, entre em contato com o administrador do sistema.
                     </p>

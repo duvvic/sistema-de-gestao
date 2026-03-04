@@ -384,7 +384,7 @@ const TaskColumn: React.FC<{
                 const show = !hasEntry && task.status !== 'Done';
                 return show ? (
                   <div className="mt-3">
-                    <span className="inline-block px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">Sem Apontamento</span>
+                    <span className="inline-block px-2 py-0.5 text-[10px] font-bold rounded-full border surface-tinted-red text-red-600 dark:text-red-400">Sem Apontamento</span>
                   </div>
                 ) : null;
               })()}

@@ -176,8 +176,8 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
       <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bgApp)' }}>
         <div className="w-full max-w-md rounded-2xl shadow-xl border p-8 text-center space-y-6" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
+            <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(16,185,129,0.1)' }}>
+              <CheckCircle className="w-12 h-12 text-emerald-500" />
             </div>
           </div>
           <div>
@@ -221,9 +221,9 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-lg p-3 space-y-1 text-left">
-              <p className="text-xs font-semibold text-purple-800 dark:text-purple-300 uppercase tracking-wider">Requisitos da senha:</p>
-              <ul className="text-xs text-purple-700 dark:text-purple-400 list-disc list-inside space-y-0.5">
+            <div className="border rounded-lg p-3 space-y-1 text-left surface-tinted-purple">
+              <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Requisitos da senha:</p>
+              <ul className="text-xs text-purple-600 dark:text-purple-400 list-disc list-inside space-y-0.5">
                 <li>No mínimo 7 caracteres</li>
                 <li>Deve conter letras e números</li>
               </ul>

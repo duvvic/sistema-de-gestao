@@ -71,12 +71,12 @@ const RHManagement: React.FC = () => {
 
     const getStatusStyle = (status: Absence['status']) => {
         switch (status) {
-            case 'sugestao': return 'bg-amber-100/40 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30';
-            case 'aprovada_gestao': return 'bg-cyan-100/40 text-cyan-700 border-cyan-200 dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/30';
-            case 'aprovada_rh': return 'bg-emerald-100/40 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30';
-            case 'finalizada_dp': return 'bg-purple-100/40 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/30';
-            case 'rejeitado': return 'bg-rose-100/40 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30';
-            default: return 'bg-slate-100/40 text-slate-700 border-slate-200 dark:bg-white/5 dark:text-slate-400 dark:border-white/10';
+        case 'sugestao': return 'surface-tinted-amber text-amber-700 dark:text-amber-400 border';
+        case 'aprovada_gestao': return 'surface-tinted-blue text-cyan-700 dark:text-cyan-400 border';
+        case 'aprovada_rh': return 'surface-tinted-emerald text-emerald-700 dark:text-emerald-400 border';
+        case 'finalizada_dp': return 'surface-tinted-purple text-purple-700 dark:text-purple-400 border';
+        case 'rejeitado': return 'surface-tinted-red text-rose-700 dark:text-rose-400 border';
+        default: return 'bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)]';
         }
     };
 

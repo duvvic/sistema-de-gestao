@@ -348,6 +348,79 @@ html.dark .glass-purple:hover {
   scrollbar-width: none;
 }
 
+/* Dark mode scrollbar override */
+html.dark .custom-scrollbar::-webkit-scrollbar-track,
+html.dark ::-webkit-scrollbar-track {
+  background: var(--surface-2);
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb,
+html.dark ::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* ================================================
+   TINTED SURFACE CARDS
+   Colored tinted cards with auto light/dark mode.
+   Use: <div className="border surface-tinted-emerald">
+   ================================================ */
+
+.surface-tinted-emerald {
+  background-color: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+html.dark .surface-tinted-emerald {
+  background-color: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.surface-tinted-blue {
+  background-color: rgba(59, 130, 246, 0.06);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+html.dark .surface-tinted-blue {
+  background-color: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.2);
+}
+
+.surface-tinted-amber {
+  background-color: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+html.dark .surface-tinted-amber {
+  background-color: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.surface-tinted-purple {
+  background-color: rgba(124, 58, 237, 0.06);
+  border-color: rgba(124, 58, 237, 0.2);
+}
+html.dark .surface-tinted-purple {
+  background-color: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+.surface-tinted-red {
+  background-color: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+html.dark .surface-tinted-red {
+  background-color: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.2);
+}
+
+/* Icon Box — replaces bg-slate-100 dark:bg-slate-800 pattern */
+.icon-box {
+  background-color: var(--surface-3);
+  border: 1px solid var(--border);
+}
+
 /* Input Number Spinners Hidden */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {

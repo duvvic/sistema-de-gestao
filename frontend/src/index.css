@@ -1,2 +1,10 @@
 @import "./styles/theme.css";
 @import "tailwindcss";
+
+/* ================================================
+   DARK MODE - Class Strategy (html.dark)
+   Makes dark: Tailwind variants respond to the
+   html.dark class toggled by the theme system,
+   instead of the OS media query preference.
+   ================================================ */
+@custom-variant dark (&:where(.dark, .dark *));

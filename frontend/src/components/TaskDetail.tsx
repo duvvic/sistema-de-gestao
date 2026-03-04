@@ -645,7 +645,7 @@ const TaskDetail: React.FC = () => {
 
                 <div className="space-y-3">
                   {/* Big Display for Hours Spent */}
-                  <div className="flex items-center justify-between bg-emerald-500/5 dark:bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 shadow-inner group/effort relative overflow-hidden">
+                  <div className="flex items-center justify-between p-4 rounded-2xl border border-emerald-500/20 shadow-inner group/effort relative overflow-hidden" style={{ backgroundColor: 'rgba(16,185,129,0.08)' }}>
                     <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full -mr-8 -mt-8 group-hover/effort:scale-125 transition-transform duration-700" />
                     <div className="flex items-center gap-2.5 relative z-10">
                       <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
@@ -653,7 +653,7 @@ const TaskDetail: React.FC = () => {
                       </div>
                       <div className="flex flex-col">
                         <p className="text-[8px] font-black uppercase text-emerald-500/60 tracking-[0.2em] mb-0.5">Horas Apontadas (Total)</p>
-                        <p className="text-2xl font-black tabular-nums text-emerald-600 dark:text-emerald-400 leading-none">{formatDecimalToTime(actualHoursSpent)}</p>
+                        <p className="text-2xl font-black tabular-nums text-emerald-500 leading-none">{formatDecimalToTime(actualHoursSpent)}</p>
                       </div>
                     </div>
                   </div>
@@ -688,7 +688,8 @@ const TaskDetail: React.FC = () => {
                       setFormData({ ...formData, progress: newProgress, status: newStatus, actualDelivery: newActualDelivery });
                       markDirty();
                     }}
-                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-600 shadow-inner border border-transparent"
+                    className="w-full h-1 rounded-full appearance-none cursor-pointer accent-indigo-600 shadow-inner border border-transparent"
+                    style={{ backgroundColor: 'var(--surface-3)' }}
                   />
                 </div>
               </div>
@@ -1147,13 +1148,13 @@ const TaskDetail: React.FC = () => {
         message={
           deleteConfirmation?.force ? (
             <div className="space-y-4">
-              <div className="p-4 bg-red-50 dark:bg-red-500/10 rounded-2xl border border-red-200 dark:border-red-500/20">
+              <div className="p-4 rounded-2xl border surface-tinted-red">
                 <p className="text-red-600 dark:text-red-400 font-black text-sm mb-2">
                   ATENÇÃO: Foram encontrados {taskHours.length} apontamentos ({totalTaskHours}h total).
                 </p>
                 <div className="max-h-32 overflow-y-auto space-y-2 mb-4 scrollbar-hide">
                   {taskHours.map((h: any) => (
-                    <div key={h.id} className="text-[10px] flex justify-between items-center p-2 bg-white dark:bg-black/20 rounded-lg">
+                    <div key={h.id} className="text-[10px] flex justify-between items-center p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-2)' }}>
                       <span className="font-bold">{new Date(h.date).toLocaleDateString()}</span>
                       <span className="opacity-70">{h.userName}</span>
                       <span className="font-black text-red-500">{h.totalHours}h</span>
@@ -1161,7 +1162,7 @@ const TaskDetail: React.FC = () => {
                   ))}
                 </div>
 
-                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white dark:bg-black/20 rounded-xl border border-red-200 dark:border-red-500/10 hover:border-red-500 transition-all">
+                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-red-200 dark:border-red-500/20 hover:border-red-500 transition-all" style={{ backgroundColor: 'var(--surface)' }}>
                   <input
                     type="checkbox"
                     checked={shouldDeleteHours}

@@ -291,9 +291,9 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
 
                                     <div className="space-y-3">
                                         {collidingTasks.map(t => (
-                                            <div key={t.id} className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white dark:bg-slate-800/50 p-3 rounded-2xl border border-amber-200 shadow-sm gap-4">
+                                            <div key={t.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-2xl border border-amber-200 dark:border-amber-500/30 shadow-sm gap-4" style={{ backgroundColor: 'var(--surface)' }}>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-black text-slate-800 dark:text-slate-100 truncate">{t.title}</p>
+                                                    <p className="text-[11px] font-black truncate" style={{ color: 'var(--text)' }}>{t.title}</p>
                                                     <p className="text-[9px] font-bold text-amber-600 uppercase">Entrega: {new Date(t.estimatedDelivery).toLocaleDateString()}</p>
                                                 </div>
 
@@ -307,7 +307,8 @@ const AbsenceManager: React.FC<AbsenceManagerProps> = ({ targetUserId, targetUse
                                                                 alert('Tarefa redirecionada com sucesso!');
                                                             }
                                                         }}
-                                                        className="flex-1 md:w-40 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:ring-2 focus:ring-purple-500"
+                                                        className="flex-1 md:w-40 rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                                        style={{ backgroundColor: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text)' }}
                                                     >
                                                         <option value="keep">Manter comigo (Não redirecionar)</option>
                                                         <optgroup label="Colaboradores do Projeto">

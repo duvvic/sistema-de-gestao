@@ -39,7 +39,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       <div className="rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4 text-red-600">
-            <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(239,68,68,0.1)' }}>
               <AlertTriangle className="w-6 h-6" />
             </div>
             <h3 className="text-xl font-bold" style={{ color: 'var(--text)' }}>{title}</h3>

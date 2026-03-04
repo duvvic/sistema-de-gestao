@@ -1303,13 +1303,13 @@ export const KanbanBoard = () => {
         message={
           isForceDelete ? (
             <div className="space-y-4">
-              <div className="p-4 bg-red-50 dark:bg-red-500/10 rounded-2xl border border-red-200 dark:border-red-500/20">
+              <div className="p-4 rounded-2xl border surface-tinted-red">
                 <p className="text-red-600 dark:text-red-400 font-black text-[11px] mb-2 uppercase">
                   Atenção: Esta tarefa possui horas apontadas.
                 </p>
                 <div className="max-h-32 overflow-y-auto space-y-1 mb-3 scrollbar-hide">
                   {timesheetEntries.filter(h => h.taskId === taskToDelete?.id).map(h => (
-                    <div key={h.id} className="text-[9px] flex justify-between items-center p-2 bg-white dark:bg-black/20 rounded-lg">
+                    <div key={h.id} className="text-[9px] flex justify-between items-center p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-2)' }}>
                       <span className="font-bold">{new Date(h.date).toLocaleDateString()}</span>
                       <span className="opacity-70">{h.userName}</span>
                       <span className="font-black text-red-500">{h.totalHours}h</span>
@@ -1317,7 +1317,7 @@ export const KanbanBoard = () => {
                   ))}
                 </div>
 
-                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white dark:bg-black/20 rounded-xl border border-red-200 dark:border-red-500/10 hover:border-red-500 transition-all">
+                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-red-200 dark:border-red-500/20 hover:border-red-500 transition-all" style={{ backgroundColor: 'var(--surface)' }}>
                   <input
                     type="checkbox"
                     checked={shouldDeleteHours}
