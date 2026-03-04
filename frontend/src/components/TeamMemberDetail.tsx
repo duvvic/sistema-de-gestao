@@ -527,18 +527,18 @@ const TeamMemberDetail: React.FC = () => {
                                     <p className="text-[9px] font-bold text-[var(--muted)] opacity-50 uppercase mt-0.5">Visão granular do fluxo de trabalho</p>
                                  </div>
                                  <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-1.5">
-                                       <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                       <span className="text-[8px] font-black uppercase text-[var(--muted)]">Planejado</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                       <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                                       <span className="text-[8px] font-black uppercase text-[var(--muted)]">Reserva</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                       <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                                       <span className="text-[8px] font-black uppercase text-[var(--muted)]">Buffer</span>
-                                    </div>
+                                    <div className="flex items-center gap-1.5" title="Horas dedicadas a projetos com prazos definidos">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]"></div>
+                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Projetos Ativos</span>
+                                     </div>
+                                    <div className="flex items-center gap-1.5" title="Horas de suporte ou atividades contínuas">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.3)]"></div>
+                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Ativ. Contínuas</span>
+                                     </div>
+                                    <div className="flex items-center gap-1.5" title="Horas disponíveis livre de alocações">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.3)]"></div>
+                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Horas Livres</span>
+                                     </div>
                                  </div>
                               </div>
 
@@ -603,19 +603,19 @@ const TeamMemberDetail: React.FC = () => {
                                                    ) : (
                                                       <>
                                                          <div className="flex justify-between items-center text-[8px] font-bold">
-                                                            <span className="text-blue-400">PLANEJADO:</span>
+                                                            <span className="text-blue-400">PROJETOS:</span>
                                                             <span>{day.plannedHours}h</span>
                                                          </div>
                                                          <div className="flex justify-between items-center text-[8px] font-bold">
-                                                            <span className="text-amber-400">RESERVA:</span>
+                                                            <span className="text-amber-400">CONTÍNUO:</span>
                                                             <span>{day.continuousHours}h</span>
                                                          </div>
                                                          <div className="flex justify-between items-center text-[8px] font-bold border-t border-white/5 pt-1.5 mt-1.5">
-                                                            <span className="text-emerald-400">BUFFER:</span>
+                                                            <span className="text-emerald-400">DISPONÍVEL:</span>
                                                             <span>{day.bufferHours}h</span>
                                                          </div>
                                                          <div className={`flex justify-between items-center text-[9px] font-black pt-1 ${isOverloaded ? 'text-red-500' : 'text-white'}`}>
-                                                            <span>TOTAL:</span>
+                                                            <span>CARGA TOTAL:</span>
                                                             <span>{total}h</span>
                                                          </div>
                                                       </>
