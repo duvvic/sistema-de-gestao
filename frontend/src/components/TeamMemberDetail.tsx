@@ -529,15 +529,19 @@ const TeamMemberDetail: React.FC = () => {
                                  <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-1.5" title="Horas dedicadas a projetos com prazos definidos">
                                         <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]"></div>
-                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Projetos Ativos</span>
+                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Ocupado</span>
                                      </div>
                                     <div className="flex items-center gap-1.5" title="Horas de suporte ou atividades contínuas">
                                         <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.3)]"></div>
-                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Ativ. Contínuas</span>
+                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Reserva</span>
                                      </div>
                                     <div className="flex items-center gap-1.5" title="Horas disponíveis livre de alocações">
                                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.3)]"></div>
-                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Horas Livres</span>
+                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Livre</span>
+                                     </div>
+                                     <div className="flex items-center gap-1.5" title="Dias de ausência">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.3)]"></div>
+                                        <span className="text-[9px] font-black uppercase text-[var(--muted)]">Ausência</span>
                                      </div>
                                  </div>
                               </div>
@@ -585,7 +589,7 @@ const TeamMemberDetail: React.FC = () => {
                                                       {day.date.split('-')[2]}
                                                    </span>
                                                    <span className="text-[7px] font-black hidden group-hover:block uppercase" style={{ color: isOverloaded ? '#ef4444' : (day.isAbsent ? '#f97316' : 'var(--text)') }}>
-                                                      {day.isAbsent ? day.absenceType || 'OFF' : `${total}h`}
+                                                      {day.isAbsent ? day.absenceType || 'AUS' : `${total}h`}
                                                    </span>
                                                 </div>
                                              </div>
@@ -598,7 +602,7 @@ const TeamMemberDetail: React.FC = () => {
                                                 <div className="space-y-1.5">
                                                    {day.isAbsent ? (
                                                       <div className="text-[9px] font-black text-orange-400 uppercase text-center py-1">
-                                                         {day.absenceType || 'AUSENTE'}
+                                                         {day.absenceType || 'AUSÊNCIA'}
                                                       </div>
                                                    ) : (
                                                       <>
@@ -1005,17 +1009,18 @@ const TeamMemberDetail: React.FC = () => {
                            const delivery = t.estimatedDelivery ? new Date(t.estimatedDelivery + 'T12:00:00') : null;
                            const isOverdue = delivery ? now > delivery : false;
 
-                           return (
-                              <motion.div
-                                 variants={{
-                                    hidden: { opacity: 0, y: 10 },
-                                    visible: { opacity: 1, y: 0 }
-                                 }}
-                                 whileHover={{ scale: 1.005 }}
-                                 onClick={() => navigate(`/tasks/${t.id}`)}
-                                 key={t.id}
-                                 className="relative cursor-pointer bg-[#0c0c14] border border-white/5 p-4 rounded-[16px] mb-3 flex gap-5 items-center group transition-all"
-                              >
+                            return (
+                               <motion.div
+                                  variants={{
+                                     hidden: { opacity: 0, y: 10 },
+                                     visible: { opacity: 1, y: 0 }
+                                  }}
+                                  whileHover={{ scale: 1.005 }}
+                                  onClick={() => navigate(`/tasks/${t.id}`)}
+                                  key={t.id}
+                                  className="relative cursor-pointer border p-4 rounded-[16px] mb-3 flex gap-5 items-center group transition-all"
+                                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                               >
                                  {/* LOGO EMPRESA */}
                                  <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center p-2.5 shrink-0 shadow-lg">
                                     {client?.logoUrl ? (
@@ -1029,25 +1034,25 @@ const TeamMemberDetail: React.FC = () => {
                                  <div className="flex-1 min-w-0">
                                     {/* HEADER: TITULO + HORAS + PROGRESSO (TEXTO) */}
                                     <div className="flex items-center justify-between mb-1.5">
-                                       <div className="flex items-center gap-3">
-                                          <h4 className="text-white font-black text-[15px] tracking-tight truncate max-w-lg">
-                                             {t.title}
-                                          </h4>
-                                          <div className="flex items-center gap-2">
-                                             <div className="bg-[#1a1625] px-4 py-1.5 rounded-xl flex gap-4 items-center border border-white/5 shadow-inner" title="Horas e Apontamentos do Mês Selecionado">
-                                                <div className="flex flex-col items-start leading-tight">
-                                                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Alocado (Mês)</span>
-                                                   <span className="text-[12px] font-black text-purple-500 font-mono">{formatDecimalToTime(monthlyAllocatedHours)}h</span>
-                                                </div>
-                                                <div className="w-[1px] h-6 bg-white/10" />
-                                                <div className="flex flex-col items-start leading-tight">
-                                                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Apontado</span>
-                                                   <span className="text-[12px] font-black text-blue-400 font-mono">{formatDecimalToTime(monthlyReportedHours)}h</span>
-                                                </div>
+                                        <div className="flex items-center gap-3">
+                                           <h4 className="font-black text-[15px] tracking-tight truncate max-w-lg" style={{ color: 'var(--text)' }}>
+                                              {t.title}
+                                           </h4>
+                                           <div className="flex items-center gap-2">
+                                              <div className="px-4 py-1.5 rounded-xl flex gap-4 items-center border shadow-inner" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }} title="Horas e Apontamentos do Mês Selecionado">
+                                                 <div className="flex flex-col items-start leading-tight">
+                                                    <span className="text-[7px] font-black uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Alocado (Mês)</span>
+                                                    <span className="text-[12px] font-black text-purple-500 font-mono">{formatDecimalToTime(monthlyAllocatedHours)}h</span>
+                                                 </div>
+                                                 <div className="w-[1px] h-6" style={{ backgroundColor: 'var(--border)' }} />
+                                                 <div className="flex flex-col items-start leading-tight">
+                                                    <span className="text-[7px] font-black uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Apontado</span>
+                                                    <span className="text-[12px] font-black text-blue-400 font-mono">{formatDecimalToTime(monthlyReportedHours)}h</span>
+                                                 </div>
                                              </div>
                                           </div>
                                        </div>
-                                       <span className="text-purple-600 font-black text-[13px] font-mono">{t.progress}%</span>
+                                        <span className="font-black text-[13px] font-mono text-purple-500" style={{ color: 'var(--primary)' }}>{t.progress}%</span>
                                     </div>
 
                                     {/* STATUS BADGE */}
@@ -1057,49 +1062,49 @@ const TeamMemberDetail: React.FC = () => {
                                        </span>
                                     </div>
 
-                                    {/* INFO ROW: PERIODO | RESPONSÁVEL | EQUIPE */}
-                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter mb-4">
-                                       <div className="flex items-center gap-2">
-                                          <Calendar className="w-3.5 h-3.5 opacity-30" />
-                                          <span>PERÍODO: <span className="text-slate-300">{formatDateBR(t.scheduledStart || t.actualStart)} - {formatDateBR(t.estimatedDelivery)}</span></span>
-                                       </div>
-                                       <div className="flex items-center gap-2">
-                                          <UserIcon className="w-3.5 h-3.5 opacity-30" />
-                                          <span>RESPONSÁVEL: <span className="text-slate-300">{responsible?.name?.toUpperCase()}</span></span>
-                                       </div>
-                                       <div className="h-3 w-[1px] bg-white/10 hidden xl:block" />
-                                       <div className="flex items-center gap-1 min-w-0">
-                                          <span>EQUIPE: <span className="text-slate-300 truncate">{teamNames}</span></span>
-                                       </div>
-                                    </div>
+                                     {/* INFO ROW: PERIODO | RESPONSÁVEL | EQUIPE */}
+                                     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-bold uppercase tracking-tighter mb-4" style={{ color: 'var(--text-muted)' }}>
+                                        <div className="flex items-center gap-2">
+                                           <Calendar className="w-3.5 h-3.5 opacity-30" />
+                                           <span>PERÍODO: <span style={{ color: 'var(--text)' }}>{formatDateBR(t.scheduledStart || t.actualStart)} - {formatDateBR(t.estimatedDelivery)}</span></span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                           <UserIcon className="w-3.5 h-3.5 opacity-30" />
+                                           <span>RESPONSÁVEL: <span style={{ color: 'var(--text)' }}>{responsible?.name?.toUpperCase()}</span></span>
+                                        </div>
+                                        <div className="h-3 w-[1px] hidden xl:block" style={{ backgroundColor: 'var(--border)' }} />
+                                        <div className="flex items-center gap-1 min-w-0">
+                                           <span>EQUIPE: <span style={{ color: 'var(--text)', truncate: true }}>{teamNames}</span></span>
+                                        </div>
+                                     </div>
 
-                                    {/* FOOTER: AVATARES + ALERTA + PROGRESS BAR */}
-                                    <div className="flex items-center justify-between">
-                                       <div className="flex items-center gap-4">
-                                          <div className="flex -space-x-2.5">
-                                             {teamIds.slice(0, 8).map(id => {
-                                                const collabo = users.find(u => String(u.id) === String(id));
-                                                return (
-                                                   <div key={id} className="w-7 h-7 rounded-full border-2 border-[#0c0c14] overflow-hidden bg-slate-800 shadow-xl">
-                                                      {collabo?.avatarUrl ? <img src={collabo.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[7px] font-black text-white/30 uppercase">{collabo?.name?.substring(0, 1)}</div>}
-                                                   </div>
-                                                );
-                                             })}
-                                          </div>
+                                     {/* FOOTER: AVATARES + ALERTA + PROGRESS BAR */}
+                                     <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                           <div className="flex -space-x-2.5">
+                                              {teamIds.slice(0, 8).map(id => {
+                                                 const collabo = users.find(u => String(u.id) === String(id));
+                                                 return (
+                                                    <div key={id} className="w-7 h-7 rounded-full border-2 overflow-hidden shadow-xl" style={{ borderColor: 'var(--surface)', backgroundColor: 'var(--surface-2)' }}>
+                                                       {collabo?.avatarUrl ? <img src={collabo.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[7px] font-black uppercase" style={{ color: 'var(--text-muted)' }}>{collabo?.name?.substring(0, 1)}</div>}
+                                                    </div>
+                                                 );
+                                              })}
+                                           </div>
 
-                                          {isOverdue && (
-                                             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-red-500/5 border border-red-500/20 text-red-500 shadow-2xl">
+                                           {isOverdue && (
+                                              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-red-500/5 border border-red-500/20 text-red-500 shadow-2xl">
                                                 <AlertCircle className="w-3.5 h-3.5" />
                                                 <span className="text-[10px] font-black uppercase tracking-[0.15em]">Tarefa Atrasada</span>
                                              </div>
                                           )}
                                        </div>
 
-                                       <div className="w-64 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5 group-hover:border-white/10 transition-all">
-                                          <div
-                                             className="h-full bg-purple-600/10"
-                                             style={{ width: '100%' }}
-                                          >
+                                        <div className="w-64 h-1.5 rounded-full overflow-hidden border transition-all" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                                           <div
+                                              className="h-full bg-purple-600/10"
+                                              style={{ width: '100%' }}
+                                           >
                                              <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${t.progress}%` }}
@@ -1213,31 +1218,31 @@ const TeamMemberDetail: React.FC = () => {
                                        </span>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter mb-4">
-                                       <div className="flex items-center gap-2">
-                                          <Calendar className="w-3.5 h-3.5 opacity-30" />
-                                          <span>PRAZO VENCIDO: <span className="text-red-400">{formatDateBR(t.estimatedDelivery)}</span></span>
-                                       </div>
-                                       <div className="flex items-center gap-2">
-                                          <UserIcon className="w-3.5 h-3.5 opacity-30" />
-                                          <span>RESPONSÁVEL: <span className="text-slate-300">{responsible?.name?.toUpperCase()}</span></span>
-                                       </div>
-                                    </div>
+                                     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-bold uppercase tracking-tighter mb-4" style={{ color: 'var(--text-muted)' }}>
+                                        <div className="flex items-center gap-2">
+                                           <Calendar className="w-3.5 h-3.5 opacity-30" />
+                                           <span>PRAZO VENCIDO: <span className="text-red-400">{formatDateBR(t.estimatedDelivery)}</span></span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                           <UserIcon className="w-3.5 h-3.5 opacity-30" />
+                                           <span>RESPONSÁVEL: <span style={{ color: 'var(--text)' }}>{responsible?.name?.toUpperCase()}</span></span>
+                                        </div>
+                                     </div>
 
-                                    <div className="flex items-center justify-between">
-                                       <div className="flex -space-x-2.5">
-                                          {teamIds.slice(0, 8).map(id => {
-                                             const collabo = users.find(u => String(u.id) === String(id));
-                                             return (
-                                                <div key={id} className="w-7 h-7 rounded-full border-2 border-[#0c0c14] overflow-hidden bg-slate-800 shadow-xl">
-                                                   {collabo?.avatarUrl ? <img src={collabo.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[7px] font-black text-white/30 uppercase">{collabo?.name?.substring(0, 1)}</div>}
-                                                </div>
+                                     <div className="flex items-center justify-between">
+                                        <div className="flex -space-x-2.5">
+                                           {teamIds.slice(0, 8).map(id => {
+                                              const collabo = users.find(u => String(u.id) === String(id));
+                                              return (
+                                                 <div key={id} className="w-7 h-7 rounded-full border-2 overflow-hidden shadow-xl" style={{ borderColor: 'var(--surface)', backgroundColor: 'var(--surface-2)' }}>
+                                                    {collabo?.avatarUrl ? <img src={collabo.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[7px] font-black uppercase" style={{ color: 'var(--text-muted)' }}>{collabo?.name?.substring(0, 1)}</div>}
+                                                 </div>
                                              );
                                           })}
                                        </div>
 
-                                       <div className="w-64 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                          <div className="h-full bg-red-600/10" style={{ width: '100%' }}>
+                                        <div className="w-64 h-1.5 rounded-full overflow-hidden border" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                                           <div className="h-full bg-red-600/10" style={{ width: '100%' }}>
                                              <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${t.progress}%` }}

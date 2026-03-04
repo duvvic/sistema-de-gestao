@@ -2193,7 +2193,7 @@ const AdminDashboard: React.FC = () => {
                         <X size={20} className="text-[var(--text)]" />
                       </button>
                       <div className="flex items-center gap-5 mt-4">
-                        <div className="w-20 h-20 bg-white rounded-3xl p-3 shadow-xl border border-[var(--border)]">
+                        <div className="w-20 h-20 rounded-3xl p-3 shadow-xl border border-[var(--border)]" style={{ backgroundColor: 'var(--surface)' }}>
                           <img
                             src={partner.logoUrl}
                             className="w-full h-full object-contain"
@@ -2212,8 +2212,8 @@ const AdminDashboard: React.FC = () => {
                       {/* Sessão 1: Identificação Básica */}
                       <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-slate-100 border border-slate-200">
-                            <Building2 size={16} className="text-slate-500" />
+                          <div className="p-2 rounded-lg border icon-box">
+                            <Building2 size={16} style={{ color: 'var(--text-muted)' }} />
                           </div>
                           <div>
                             <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Documentação</p>
@@ -2221,8 +2221,8 @@ const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-slate-100 border border-slate-200">
-                            <Calendar size={16} className="text-slate-500" />
+                          <div className="p-2 rounded-lg border icon-box">
+                            <Calendar size={16} style={{ color: 'var(--text-muted)' }} />
                           </div>
                           <div>
                             <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Tempo de Parceria</p>
@@ -2250,7 +2250,7 @@ const AdminDashboard: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="p-5 rounded-2xl bg-white border border-[var(--border)] shadow-sm">
+                          <div className="p-5 rounded-2xl border border-[var(--border)] shadow-sm" style={{ backgroundColor: 'var(--surface)' }}>
                             <p className="text-[9px] font-black text-[var(--muted)] uppercase mb-3">Ponto de Contato (Parceiro)</p>
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
@@ -2365,7 +2365,7 @@ const AdminDashboard: React.FC = () => {
                         <X size={20} className="text-[var(--text)]" />
                       </button>
                       <div className="flex items-center gap-5 mt-4">
-                        <div className="w-20 h-20 bg-white rounded-3xl p-3 shadow-xl border border-[var(--border)]">
+                        <div className="w-20 h-20 rounded-3xl p-3 shadow-xl border border-[var(--border)]" style={{ backgroundColor: 'var(--surface)' }}>
                           <img
                             src={client.logoUrl}
                             className="w-full h-full object-contain"

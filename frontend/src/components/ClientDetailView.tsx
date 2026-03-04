@@ -232,15 +232,16 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         <div className="max-w-7xl mx-auto">
           {activeTab === 'details' && (
             <div className="max-w-4xl mx-auto">
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+              <div className="rounded-2xl shadow-sm border p-8" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                 <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-xl font-bold flex items-center gap-3 text-slate-800">
+                  <h3 className="text-xl font-bold flex items-center gap-3" style={{ color: 'var(--text)' }}>
                     <Briefcase className="w-6 h-6 text-purple-600" />
                     Dados do Cliente
                   </h3>
                   <button
                     onClick={() => setIsEditing(!isEditing)}
-                    className={`px-5 py-2 rounded-xl font-bold flex items-center gap-2 transition-all ${isEditing ? 'bg-slate-100 text-slate-600' : 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200'}`}
+                    className={`px-5 py-2 rounded-xl font-bold flex items-center gap-2 transition-all ${isEditing ? 'text-white hover:opacity-90' : 'text-white hover:opacity-90 shadow-lg'}`}
+                    style={!isEditing ? { backgroundColor: 'var(--primary)' } : { backgroundColor: '#6b7280' }}
                   >
                     {isEditing ? 'Cancelar Edição' : <> <Edit className="w-4 h-4" /> Editar Informações </>}
                   </button>
@@ -250,35 +251,35 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                   <fieldset disabled={!isEditing} className="group-disabled:opacity-100 disabled:opacity-100 space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div>
-                        <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Nome do Cliente / Empresa</label>
-                        <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-lg" required />
+                        <label className="block text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Nome do Cliente / Empresa</label>
+                        <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none transition-all font-bold focus:border-purple-500 disabled:bg-transparent disabled:px-0 disabled:border-b-2 disabled:rounded-none disabled:text-lg" style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text)', focusBorderColor: 'var(--primary)' }} required />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">URL do Logo</label>
-                        <input type="text" value={formData.logoUrl} onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-lg" placeholder="https://..." />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Contato Principal</label>
-                        <input type="text" value={formData.contato_principal} onChange={(e) => setFormData({ ...formData, contato_principal: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-lg" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">CNPJ</label>
-                        <input type="text" value={formData.cnpj} onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-lg" />
+                        <label className="block text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>URL do Logo</label>
+                        <input type="text" value={formData.logoUrl} onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })} className="w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none transition-all font-bold focus:border-purple-500 disabled:bg-transparent disabled:px-0 disabled:border-b-2 disabled:rounded-none disabled:text-lg" style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text)' }} placeholder="https://..." />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Telefone</label>
-                        <input type="text" value={formData.telefone} onChange={(e) => setFormData({ ...formData, telefone: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-lg" />
+                        <label className="block text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Contato Principal</label>
+                        <input type="text" value={formData.contato_principal} onChange={(e) => setFormData({ ...formData, contato_principal: e.target.value })} className="w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none transition-all font-bold focus:border-purple-500 disabled:bg-transparent disabled:px-0 disabled:border-b-2 disabled:rounded-none disabled:text-lg" style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text)' }} />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">País</label>
-                        <input type="text" value={formData.pais} onChange={(e) => setFormData({ ...formData, pais: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl outline-none transition-all text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-lg" />
+                        <label className="block text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>CNPJ</label>
+                        <input type="text" value={formData.cnpj} onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })} className="w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none transition-all font-bold focus:border-purple-500 disabled:bg-transparent disabled:px-0 disabled:border-b-2 disabled:rounded-none disabled:text-lg" style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text)' }} />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Tipo de Cliente</label>
-                        <select value={formData.tipo_cliente} onChange={(e) => setFormData({ ...formData, tipo_cliente: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl outline-none text-slate-800 font-bold disabled:bg-transparent disabled:px-0 disabled:border-b-slate-200 disabled:rounded-none disabled:text-lg disabled:appearance-none">
+                        <label className="block text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Telefone</label>
+                        <input type="text" value={formData.telefone} onChange={(e) => setFormData({ ...formData, telefone: e.target.value })} className="w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none transition-all font-bold focus:border-purple-500 disabled:bg-transparent disabled:px-0 disabled:border-b-2 disabled:rounded-none disabled:text-lg" style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text)' }} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>País</label>
+                        <input type="text" value={formData.pais} onChange={(e) => setFormData({ ...formData, pais: e.target.value })} className="w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none transition-all font-bold focus:border-purple-500 disabled:bg-transparent disabled:px-0 disabled:border-b-2 disabled:rounded-none disabled:text-lg" style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text)' }} />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Tipo de Cliente</label>
+                        <select value={formData.tipo_cliente} onChange={(e) => setFormData({ ...formData, tipo_cliente: e.target.value })} className="w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none font-bold focus:border-purple-500 disabled:bg-transparent disabled:px-0 disabled:border-b-2 disabled:rounded-none disabled:text-lg disabled:appearance-none" style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text)' }}>
                           <option value="cliente_final">Cliente Final</option>
                           <option value="parceiro">Parceiro</option>
                         </select>
