@@ -45,7 +45,7 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
         '/projetos': '/v_projetos',
         '/tarefas': '/v_tarefas',
         '/timesheets': '/horas_trabalhadas',
-        '/allocations': '/task_allocations'
+        '/allocations': '/task_member_allocations'
     };
 
     Object.entries(mappings).forEach(([key, val]) => {
