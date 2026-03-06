@@ -37,6 +37,39 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
+    // Mapeamento e Higienização para Supabase REST
+    let finalPath = path;
+
+    // 1. Mapeia /support/... para support_... (vistas criadas)
+    if (finalPath.startsWith('/support/')) {
+        finalPath = finalPath.replace('/support/', '/support_');
+    }
+
+    // 2. Remove parâmetros que o PostgREST não reconhece (Ex: includeInactive=true)
+    if (finalPath.includes('?')) {
+        const parts = finalPath.split('?');
+        const urlStr = parts[0];
+        const paramsStr = parts[1];
+        const searchParams = new URLSearchParams(paramsStr);
+
+        // PostgREST conhece: select, limit, offset, order, columns, or, and
+        // E filtros como "coluna=op.valor"
+        const postgrestReserves = ['select', 'limit', 'offset', 'order', 'columns', 'or', 'and'];
+        const suspiciousKeys: string[] = [];
+
+        searchParams.forEach((val, key) => {
+            // Se o parâmetro não é reservado e não parece um filtro (não tem um ponto '.', ex: eq.xxx)
+            // removemos para evitar erro 400 do PostgREST
+            if (!postgrestReserves.includes(key) && !val.includes('.')) {
+                suspiciousKeys.push(key);
+            }
+        });
+
+        suspiciousKeys.forEach(k => searchParams.delete(k));
+        const newQuery = searchParams.toString();
+        finalPath = newQuery ? `${urlStr}?${newQuery}` : urlStr;
+    }
+
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'apikey': supabaseKey, // Obrigatório para o REST do Supabase
@@ -48,7 +81,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(`${baseUrl}${finalPath}`, {
         ...options,
         headers,
     });
