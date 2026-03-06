@@ -45,26 +45,41 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
         finalPath = finalPath.replace('/support/', '/support_');
     }
 
+    // 2. Mapeia audit-logs (hífen) para audit_logs (underscore) se houver hífen na rota base
+    if (finalPath.includes('/audit-logs')) {
+        finalPath = finalPath.replace('/audit-logs', '/audit_logs');
+    }
+
+    // 3. Suporte para IDs RESTful legados (Ex: /colaboradores/41 -> /colaboradores?id=eq.41)
+    const urlParts = finalPath.split('?')[0].split('/');
+    if (urlParts.length > 2 && !isNaN(Number(urlParts[urlParts.length - 1]))) {
+        const id = urlParts.pop();
+        const resource = urlParts.join('/');
+        finalPath = `${resource}?id=eq.${id}${finalPath.includes('?') ? '&' + finalPath.split('?')[1] : ''}`;
+    }
+
     // Garante que o finalPath sempre comece com / antes de concatenar com baseUrl
     if (!finalPath.startsWith('/')) {
         finalPath = '/' + finalPath;
     }
 
-    // 2. Remove parâmetros que o PostgREST não reconhece (Ex: includeInactive=true)
+    // 4. Ajuste de método HTTP para PostgREST (Supabase)
+    const fetchOptions = { ...options };
+    if (fetchOptions.method === 'PUT') {
+        fetchOptions.method = 'PATCH';
+    }
+
+    // 5. Remove parâmetros que o PostgREST não reconhece (Ex: includeInactive=true)
     if (finalPath.includes('?')) {
         const parts = finalPath.split('?');
         const urlStr = parts[0];
         const paramsStr = parts[1];
         const searchParams = new URLSearchParams(paramsStr);
 
-        // PostgREST conhece: select, limit, offset, order, columns, or, and
-        // E filtros como "coluna=op.valor"
         const postgrestReserves = ['select', 'limit', 'offset', 'order', 'columns', 'or', 'and'];
         const suspiciousKeys: string[] = [];
 
         searchParams.forEach((val, key) => {
-            // Se o parâmetro não é reservado e não parece um filtro (não tem um ponto '.', ex: eq.xxx)
-            // removemos para evitar erro 400 do PostgREST
             if (!postgrestReserves.includes(key) && !val.includes('.')) {
                 suspiciousKeys.push(key);
             }
@@ -79,6 +94,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
         'Content-Type': 'application/json',
         'apikey': supabaseKey, // Obrigatório para o REST do Supabase
         'ngrok-skip-browser-warning': 'true',
+        'Prefer': 'return=representation', // Força o Supabase a retornar os dados após Insert/Update
         ...(options.headers as any),
     };
 
@@ -87,7 +103,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     }
 
     const response = await fetch(`${baseUrl}${finalPath}`, {
-        ...options,
+        ...fetchOptions,
         headers,
     });
 
