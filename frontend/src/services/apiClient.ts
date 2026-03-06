@@ -40,9 +40,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     // Mapeamento e Higienização para Supabase REST
     let finalPath = path;
 
-    // 1. Mapeia /support/... para support_... (vistas criadas)
+    // 1. Mapeia /support/... para /support_... (vistas criadas)
     if (finalPath.startsWith('/support/')) {
         finalPath = finalPath.replace('/support/', '/support_');
+    }
+
+    // Garante que o finalPath sempre comece com / antes de concatenar com baseUrl
+    if (!finalPath.startsWith('/')) {
+        finalPath = '/' + finalPath;
     }
 
     // 2. Remove parâmetros que o PostgREST não reconhece (Ex: includeInactive=true)

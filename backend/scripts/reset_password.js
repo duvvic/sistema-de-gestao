@@ -21,8 +21,8 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false }
 });
 
-const targetEmail = 'miguel.teodoro@geradornv.com.br';
-const newPassword = 'adm@2025';
+const targetEmail = 'manutencao@nic-labs.com.br';
+const newPassword = 'adm@1999';
 
 async function resetPassword() {
     console.log(`Buscando usuário por email: ${targetEmail}...`);
