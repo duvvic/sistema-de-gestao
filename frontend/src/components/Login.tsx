@@ -4,182 +4,304 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, Eye, EyeOff, Loader2, ShieldCheck, Key, UserCheck } from 'lucide-react';
 import { Role } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiRequest } from '@/services/apiClient';
+import { createClient } from '@supabase/supabase-js';
 
 type Mode = 'login' | 'set-password' | 'otp-verification' | 'first-access';
 
+// Cliente Supabase para este frontend
+const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 export default function Login() {
-    const navigate = useNavigate();
-    const { login, currentUser, authReady } = useAuth();
+    const navigate = useNavigate()
+    const { login, currentUser, authReady } = useAuth()
 
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [rememberMe, setRememberMe] = useState(false);
-    const [mode, setMode] = useState<Mode>('login');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [otpToken, setOtpToken] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [pendingRedirect, setPendingRedirect] = useState(false);
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [rememberMe, setRememberMe] = useState(false)
+    const [mode, setMode] = useState<Mode>('login')
 
-    const [showFirstAccess, setShowFirstAccess] = useState(false);
-    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
-    const [showPasswordInput, setShowPasswordInput] = useState(false);
+    const [newPassword, setNewPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+    const [otpToken, setOtpToken] = useState('')
 
-    // Estados para visualização de senha
-    const [showPass, setShowPass] = useState(false);
-    const [showNewPass, setShowNewPass] = useState(false);
-    const [showConfirmPass, setShowConfirmPass] = useState(false);
+    const [loading, setLoading] = useState(false)
+    const [pendingRedirect, setPendingRedirect] = useState(false)
 
-    const passwordRef = useRef<HTMLInputElement>(null);
+    const [showFirstAccess, setShowFirstAccess] = useState(false)
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+    const [showPasswordInput, setShowPasswordInput] = useState(false)
+
+    const [showPass, setShowPass] = useState(false)
+    const [showNewPass, setShowNewPass] = useState(false)
+    const [showConfirmPass, setShowConfirmPass] = useState(false)
+
+    const passwordRef = useRef<HTMLInputElement>(null)
 
     const [alertConfig, setAlertConfig] = useState<{ show: boolean, message: string, title?: string }>({
         show: false,
         message: '',
         title: ''
-    });
+    })
 
-    useEffect(() => {
-        const savedEmail = localStorage.getItem('remembered_email');
-        if (savedEmail) {
-            setEmail(savedEmail);
-            setRememberMe(true);
-            setTimeout(() => handleEmailBlur(savedEmail), 300);
-        }
-    }, []);
+    const adminRoles: Role[] = [
+        'admin',
+        'gestor',
+        'diretoria',
+        'pmo',
+        'financeiro',
+        'tech_lead',
+        'system_admin',
+        'executive',
+        'ceo'
+    ]
+
+    const redirectUser = (role: Role) => {
+        const path = adminRoles.includes(role)
+            ? '/admin/clients'
+            : '/developer/projects'
+
+        navigate(path, { replace: true })
+    }
 
     const showAlert = (message: string, title?: string) => {
-        setAlertConfig({ show: true, message, title: title || 'Aviso' });
-    };
+        setAlertConfig({
+            show: true,
+            message,
+            title: title || 'Aviso'
+        })
+    }
 
     const closeAlert = () => {
-        setAlertConfig(prev => ({ ...prev, show: false }));
-        if (pendingRedirect) {
-            const adminRoles: Role[] = ['admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'tech_lead', 'system_admin', 'executive', 'ceo'];
-            const path = adminRoles.includes(currentUser?.role as Role) ? '/admin/clients' : '/developer/projects';
-            navigate(path, { replace: true });
+        setAlertConfig((prev) => ({
+            ...prev,
+            show: false
+        }))
+
+        if (pendingRedirect && currentUser) {
+            redirectUser(currentUser.role)
         }
-    };
+    }
 
     useEffect(() => {
-        if (!authReady) return;
-        if (currentUser && mode === 'login') {
-            const adminRoles: Role[] = ['admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'tech_lead', 'system_admin', 'executive', 'ceo'];
-            const path = adminRoles.includes(currentUser.role) ? '/admin/clients' : '/developer/projects';
-            navigate(path, { replace: true });
+        const savedEmail = localStorage.getItem('remembered_email')
+        if (savedEmail) {
+            setEmail(savedEmail)
+            setRememberMe(true)
+            setTimeout(() => {
+                handleEmailBlur(savedEmail)
+            }, 300)
         }
-    }, [authReady, currentUser, mode, navigate]);
+    }, [])
+
+    useEffect(() => {
+        if (!authReady) return
+        if (currentUser && mode === 'login') {
+            redirectUser(currentUser.role)
+        }
+    }, [authReady, currentUser, mode])
 
     const handleEmailBlur = async (emailVal?: string) => {
-        const val = (emailVal || email).trim().toLowerCase();
-        if (!val) return;
+        const val = (emailVal || email).trim().toLowerCase()
+        if (!val) return
 
-        setIsCheckingEmail(true);
+        setIsCheckingEmail(true)
         try {
-            const res = await apiRequest<any>('/auth/check-email?email=' + val);
-            if (res.exists) {
-                if (!res.hasPassword) {
-                    setShowFirstAccess(true);
-                    setShowPasswordInput(false);
-                } else {
-                    setShowPasswordInput(true);
-                    setShowFirstAccess(false);
-                }
+            const { data: colab } = await sb
+                .from('dim_colaboradores')
+                .select('id_colaborador, email')
+                .eq('email', val)
+                .maybeSingle()
+
+            if (!colab) {
+                setShowPasswordInput(false)
+                setShowFirstAccess(false)
+                return
+            }
+
+            const { data: cred } = await sb
+                .from('user_credentials')
+                .select('colaborador_id')
+                .eq('colaborador_id', colab.id_colaborador)
+                .maybeSingle()
+
+            if (!cred) {
+                setShowFirstAccess(true)
+                setShowPasswordInput(false)
+            } else {
+                setShowPasswordInput(true)
+                setShowFirstAccess(false)
+                setTimeout(() => {
+                    passwordRef.current?.focus()
+                }, 100)
             }
         } catch (e) {
-            console.warn('Erro ao validar e-mail:', e);
+            console.warn('Erro ao validar email', e)
         } finally {
-            setIsCheckingEmail(false);
+            setIsCheckingEmail(false)
         }
-    };
+    }
 
     const handleLogin = async () => {
-        setLoading(true);
+        setLoading(true)
         try {
-            const normalizedEmail = email.trim().toLowerCase();
-            const res = await apiRequest<any>('/auth/login', {
-                method: 'POST',
-                body: JSON.stringify({ email: normalizedEmail, password })
-            });
+            const normalizedEmail = email.trim().toLowerCase()
+            const { data, error } = await sb.auth.signInWithPassword({
+                email: normalizedEmail,
+                password
+            })
 
-            if (rememberMe) {
-                localStorage.setItem('remembered_email', normalizedEmail);
-            } else {
-                localStorage.removeItem('remembered_email');
+            if (error) {
+                let msg = error.message
+                if (msg === 'Invalid login credentials') {
+                    msg = 'E-mail ou senha incorretos.'
+                }
+                throw new Error(msg)
             }
 
-            login(res.user, res.session.access_token);
+            if (rememberMe) {
+                localStorage.setItem('remembered_email', normalizedEmail)
+            } else {
+                localStorage.removeItem('remembered_email')
+            }
+
+            const { data: colab } = await sb
+                .from('dim_colaboradores')
+                .select(`
+          id_colaborador,
+          nome_colaborador,
+          email,
+          role,
+          cargo,
+          avatar_url,
+          ativo
+        `)
+                .eq('email', normalizedEmail)
+                .maybeSingle()
+
+            if (!colab || !data.session) {
+                throw new Error('Perfil do colaborador não encontrado.')
+            }
+
+            const user = {
+                id: String(colab.id_colaborador),
+                name: colab.nome_colaborador,
+                email: colab.email,
+                role: (colab.role || 'resource') as Role,
+                cargo: colab.cargo,
+                avatarUrl: colab.avatar_url,
+                active: colab.ativo ?? true
+            }
+
+            localStorage.setItem(
+                'nic_labs_auth_token',
+                data.session.access_token
+            )
+
+            login(user, data.session.access_token)
         } catch (err: any) {
-            showAlert(err.message, 'Falha no Acesso');
+            showAlert(err.message, 'Falha no acesso')
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
 
     const handleSendOtp = async () => {
-        setLoading(true);
+        setLoading(true)
         try {
-            const normalizedEmail = email.trim().toLowerCase();
-            await apiRequest('/auth/send-otp', {
-                method: 'POST',
-                body: JSON.stringify({ email: normalizedEmail })
-            });
-            setMode('otp-verification');
-            showAlert('Código de segurança enviado para seu e-mail.', 'Verificação');
+            const normalizedEmail = email.trim().toLowerCase()
+            const { error } = await sb.auth.signInWithOtp({
+                email: normalizedEmail
+            })
+            if (error) throw error
+
+            setMode('otp-verification')
+            showAlert(
+                'Código de segurança enviado para seu e-mail.',
+                'Verificação'
+            )
         } catch (err: any) {
-            showAlert('Falha ao enviar código: ' + err.message, 'Erro');
+            showAlert(err.message, 'Erro')
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
 
     const handleVerifyOtp = async () => {
-        setLoading(true);
+        setLoading(true)
         try {
-            const res = await apiRequest<any>('/auth/verify-otp', {
-                method: 'POST',
-                body: JSON.stringify({ email, token: otpToken })
-            });
-            localStorage.setItem('nic_labs_auth_token', res.session.access_token);
-            setMode('set-password');
+            const normalizedEmail = email.trim().toLowerCase()
+            const { error } = await sb.auth.verifyOtp({
+                email: normalizedEmail,
+                token: otpToken.trim(),
+                type: 'email'
+            })
+            if (error) throw error
+
+            const { data: sessionData } = await sb.auth.getSession()
+            if (!sessionData.session) {
+                throw new Error('Falha ao estabelecer sessão.')
+            }
+
+            localStorage.setItem(
+                'nic_labs_auth_token',
+                sessionData.session.access_token
+            )
+
+            setMode('set-password')
         } catch (err: any) {
-            showAlert(err.message, 'Código Inválido');
+            showAlert(err.message, 'Código inválido')
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
 
     const handleCreatePassword = async () => {
         if (!newPassword || newPassword !== confirmPassword) {
-            showAlert('As senhas não conferem.', 'Erro de Senha');
-            return;
+            showAlert(
+                'As senhas não conferem.',
+                'Erro de senha'
+            )
+            return
         }
-        setLoading(true);
+
+        setLoading(true)
         try {
-            await apiRequest('/auth/set-password', {
-                method: 'POST',
-                body: JSON.stringify({ email, password: newPassword })
-            });
-            setPendingRedirect(true);
-            showAlert('Sua senha foi definida com sucesso!', 'Sucesso!');
+            const { error } = await sb.auth.updateUser({
+                password: newPassword
+            })
+            if (error) throw error
+
+            setPendingRedirect(true)
+            showAlert(
+                'Sua senha foi definida com sucesso!',
+                'Sucesso'
+            )
         } catch (err: any) {
-            showAlert('Erro ao definir senha: ' + err.message, 'Erro');
+            showAlert(
+                'Erro ao definir senha: ' + err.message,
+                'Erro'
+            )
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+        e.preventDefault()
         if (mode === 'login') {
-            if (showFirstAccess) await handleSendOtp();
-            else await handleLogin();
+            if (showFirstAccess) {
+                await handleSendOtp()
+            } else {
+                await handleLogin()
+            }
         } else if (mode === 'otp-verification') {
-            await handleVerifyOtp();
+            await handleVerifyOtp()
         } else if (mode === 'set-password') {
-            await handleCreatePassword();
+            await handleCreatePassword()
         }
-    };
+    }
 
     return (
         <div className="min-h-screen flex flex-col justify-center items-center p-4 relative font-sans overflow-hidden bg-[#0f172a]">

@@ -1,23 +1,39 @@
+// frontend/src/services/api.ts (ou o nome do seu arquivo de api)
+
 const AUTH_TOKEN_KEY = 'nic_labs_auth_token';
 let cachedApiUrl: string | null = null;
 
 export async function getApiBaseUrl(): Promise<string> {
+    // Tenta pegar do .env do Vite
     const envUrl = (import.meta as any).env?.VITE_API_URL?.toString()?.trim();
-    if (envUrl && envUrl !== 'undefined') {
+    
+    if (envUrl && envUrl !== 'undefined' && envUrl !== '') {
         let url = envUrl.replace(/\/$/, '');
         if (!url.endsWith('/api')) url += '/api';
         cachedApiUrl = url;
         return url;
     }
+
     if (cachedApiUrl) return cachedApiUrl;
-    return 'http://localhost:3000/api'; // Ajustado para porta padrão do backend 3000
+
+    // EM PRODUÇÃO: Se não houver VITE_API_URL, o app falharia aqui.
+    // Para o Caminho A (Supabase), não queremos o localhost:3000 como padrão.
+    // Retornamos vazio ou a URL do Supabase como último recurso para evitar o erro de localhost
+    const supabaseFallback = (import.meta as any).env?.VITE_SUPABASE_URL;
+    return supabaseFallback ? `${supabaseFallback}/rest/v1` : ''; 
 }
 
 /**
- * Helper centralizado para chamadas à API com autenticação via JWT local
+ * Helper centralizado para chamadas à API
+ * Nota: Use apenas para funções legadas. Para novas funcionalidades, use o supabaseClient.ts
  */
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
     const baseUrl = await getApiBaseUrl();
+    
+    if (!baseUrl) {
+        throw new Error("Configuração da API não encontrada. Verifique as variáveis de ambiente.");
+    }
+
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
     const headers: Record<string, string> = {
@@ -36,9 +52,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     });
 
     if (response.status === 401) {
-        // Token expirado ou inválido
         localStorage.removeItem(AUTH_TOKEN_KEY);
-        // window.location.href = '/login'; // Opcional: Redirecionamento forçado
     }
 
     if (!response.ok) {
@@ -47,17 +61,13 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
         try {
             const errJson = JSON.parse(text);
             errorMsg = errJson.error || errorMsg;
-        } catch (e) {
-            // No JSON error format
-        }
+        } catch (e) {}
         throw new Error(`Erro na API (${response.status}): ${errorMsg}`);
     }
 
     if (response.status === 204) return {} as T;
-
     const result = await response.json();
 
-    // Suporte ao wrapper { success: true, data: ... }
     if (result && typeof result === 'object' && 'success' in result) {
         if (!result.success) {
             throw new Error(result.error || 'Erro desconhecido na API');
