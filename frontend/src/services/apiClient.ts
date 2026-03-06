@@ -44,19 +44,27 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
     let finalPath = path;
     const fetchOptions = { ...options };
 
-    const mappings: Record<string, string> = {
-        '/support/': '/support_',
-        '/audit-logs': '/audit_logs',
-        '/colaboradores': '/v_colaboradores',
-        '/clientes': '/v_clientes',
-        '/projetos': '/v_projetos',
-        '/tarefas': '/v_tarefas',
-        '/timesheets': '/horas_trabalhadas',
-        '/allocations': '/task_member_allocations'
+    const method = fetchOptions.method || 'GET';
+    const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
+    const baseMappings: Record<string, { view: string, table: string, pk: string }> = {
+        '/support/': { view: '/support_', table: '/support_', pk: 'id' },
+        '/audit-logs': { view: '/audit_logs', table: '/audit_logs', pk: 'id' },
+        '/colaboradores': { view: '/v_colaboradores', table: '/dim_colaboradores', pk: 'id_colaborador' },
+        '/clientes': { view: '/v_clientes', table: '/dim_clientes', pk: 'id_cliente' },
+        '/projetos': { view: '/v_projetos', table: '/dim_projetos', pk: 'ID_Projeto' },
+        '/tarefas': { view: '/v_tarefas', table: '/fato_tarefas', pk: 'id_tarefa_novo' },
+        '/tasks': { view: '/v_tarefas', table: '/fato_tarefas', pk: 'id_tarefa_novo' },
+        '/timesheets': { view: '/horas_trabalhadas', table: '/horas_trabalhadas', pk: 'id' },
+        '/allocations': { view: '/task_member_allocations', table: '/task_member_allocations', pk: 'id' }
     };
 
-    Object.entries(mappings).forEach(([key, val]) => {
-        if (finalPath.includes(key)) finalPath = finalPath.replace(key, val);
+    let matchedPk = 'id';
+    Object.entries(baseMappings).forEach(([key, config]) => {
+        if (finalPath.includes(key)) {
+            finalPath = finalPath.replace(key, isMutation ? config.table : config.view);
+            matchedPk = config.pk;
+        }
     });
 
     const urlParts = finalPath.split('?')[0].split('/');
@@ -64,7 +72,7 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
     if (urlParts.length > 2 && lastPart && !Number.isNaN(Number(lastPart))) {
         urlParts.pop();
         const resource = urlParts.join('/');
-        finalPath = `${resource}?id=eq.${lastPart}${finalPath.includes('?') ? '&' + finalPath.split('?')[1] : ''}`;
+        finalPath = `${resource}?${matchedPk}=eq.${lastPart}${finalPath.includes('?') ? '&' + finalPath.split('?')[1] : ''}`;
     }
 
     if (fetchOptions.method === 'PUT') fetchOptions.method = 'PATCH';
