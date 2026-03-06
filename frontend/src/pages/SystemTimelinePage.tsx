@@ -86,8 +86,8 @@ export const SystemTimelinePage: React.FC = () => {
                             <History className="w-8 h-8 text-purple-400" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Timeline do Sistema</h1>
-                            <p className="text-slate-400 mt-1 text-lg">Histórico gerencial de todas as ações e movimentações.</p>
+                            <h1 className="text-3xl font-bold tracking-tight">Atividades dos Usuários</h1>
+                            <p className="text-slate-400 mt-1 text-lg">Histórico gerencial de todas as ações e movimentações realizadas pelos usuários.</p>
                         </div>
                     </div>
 
@@ -111,7 +111,7 @@ export const SystemTimelinePage: React.FC = () => {
                         >
                             <option value="">Todos Usuários</option>
                             {users.map(u => (
-                                <option key={u.id} value={u.auth_user_id || u.id}>{u.name}</option>
+                                <option key={u.id} value={u.id}>{u.name}</option>
                             ))}
                         </select>
 
