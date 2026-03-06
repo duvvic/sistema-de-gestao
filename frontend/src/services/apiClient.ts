@@ -137,7 +137,12 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
             searchParams.set('select', matchedSelect);
         }
 
-        const newQuery = searchParams.toString();
+        // Manually reconstruct query string to avoid encoding dots (.) in operators (e.g., is.null, gte.2026-03-01)
+        const queryParts: string[] = [];
+        for (const [key, value] of searchParams.entries()) {
+            queryParts.push(`${key}=${value}`);
+        }
+        const newQuery = queryParts.join('&');
         finalPath = newQuery ? `${urlStr}?${newQuery}` : urlStr;
     } else if (matchedSelect && !isMutation) {
         finalPath = `${finalPath}?select=${matchedSelect}`;
