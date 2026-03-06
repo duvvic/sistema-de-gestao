@@ -78,6 +78,18 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
     // Limpar barras extras no início
     finalPath = finalPath.replace(/^\/+/, '/');
 
+    // Padrão específico para sub-recursos de alocações: /allocations/task/123
+    if (finalPath.includes('/task/')) {
+        const parts = finalPath.split('/task/');
+        const taskId = parts[1].split('?')[0];
+        if (taskId && taskId !== 'undefined') {
+            const baseResource = finalPath.startsWith('/') ? parts[0] : '/' + parts[0];
+            const mapped = baseMappings[baseResource] || baseMappings['/allocations'];
+            const table = isMutation ? mapped.table : mapped.view;
+            finalPath = `/${table}?task_id=eq.${taskId}${finalPath.includes('?') ? '&' + finalPath.split('?')[1] : ''}`;
+        }
+    }
+
     const urlParts = finalPath.split('?')[0].split('/');
     const lastPart = urlParts.at(-1);
     // Verificar se o último componente é um ID numérico (ex: /tarefas/41)
@@ -288,6 +300,12 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     const supabaseKey = SUPABASE_KEY;
 
     if (!baseUrl) throw new Error("Configuração da API não encontrada.");
+
+    // Bloqueia chamadas que contenham 'undefined' como string no path (bug comum de front)
+    if (path.includes('/undefined') || path.endsWith('/undefined')) {
+        console.warn('[API] Chamada abortada: Path contém "undefined":', path);
+        return [] as any; // Retorna vazio silenciosamente para evitar quebras em loops
+    }
 
     const isPostgrest = baseUrl.includes('.supabase.co/rest/v1');
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
