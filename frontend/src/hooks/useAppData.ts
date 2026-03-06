@@ -65,7 +65,7 @@ export function useAppData(): AppData {
   const { currentUser, isLoading: authLoading } = useAuth();
 
   const CACHE_KEY = 'nic_labs_app_data';
-  const CACHE_VERSION = '1.8';
+  const CACHE_VERSION = '1.9';
 
   useEffect(() => {
     try {

@@ -77,13 +77,11 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
       setSelectedUserId(userId);
     } else if (queryUserId) {
       setSelectedUserId(queryUserId);
-    } else if (!selectedUserId) {
-      // Fallback to memory or currentUser
-      const rememberedValue = localStorage.getItem('timesheet_last_selected_user_id');
-      if (rememberedValue) {
-        setSelectedUserId(rememberedValue);
-      } else if (currentUser) {
-        setSelectedUserId(currentUser.id);
+    } else if (!selectedUserId || (currentUser && selectedUserId !== currentUser.id && !isAdmin)) {
+      // Prioritize current user if not admin and no specific user in URL
+      const idToSet = (isAdmin ? (localStorage.getItem('timesheet_last_selected_user_id') || currentUser?.id) : currentUser?.id) || '';
+      if (idToSet) {
+        setSelectedUserId(idToSet);
       }
     }
   }, [currentUser, userId, queryUserId, selectedUserId]);
