@@ -60,7 +60,7 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
         '/projetos': { view: 'v_projetos', table: 'dim_projetos', pk: 'ID_Projeto' },
         '/tarefas': { view: 'v_tarefas', table: 'fato_tarefas', pk: 'id_tarefa_novo' },
         '/tasks': { view: 'v_tarefas', table: 'fato_tarefas', pk: 'id_tarefa_novo' },
-        '/timesheets': { view: 'horas_trabalhadas', table: 'horas_trabalhadas', pk: 'ID_Horas_Trabalhadas', select: '*,colaborador:dim_colaboradores(NomeColaborador:nome_colaborador)' },
+        '/timesheets': { view: 'horas_trabalhadas', table: 'horas_trabalhadas', pk: 'ID_Horas_Trabalhadas' },
         '/allocations': { view: 'task_member_allocations', table: 'task_member_allocations', pk: 'id' }
     };
 

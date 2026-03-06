@@ -176,7 +176,7 @@ export function useAppData(): AppData {
           return {
             id: String(r.ID_Horas_Trabalhadas || crypto.randomUUID()),
             userId: String(r.ID_Colaborador || ''),
-            userName: r.dim_colaboradores?.nome_colaborador || r.userName || '',
+            userName: userMap.get(String(r.ID_Colaborador || ''))?.name || r.userName || '',
             clientId: String(r.ID_Cliente || ''),
             projectId: String(r.ID_Projeto || ''),
             taskId: taskId,
