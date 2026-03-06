@@ -74,9 +74,9 @@ const TeamMemberDetail: React.FC = () => {
       setLoading(true);
       try {
          const payload = {
-            NomeColaborador: formData.name,
+            nome_colaborador: formData.name,
             email: formData.email,
-            Cargo: formData.cargo,
+            cargo: formData.cargo,
             nivel: formData.nivel,
             role: formData.role,
             ativo: formData.active,
@@ -90,7 +90,7 @@ const TeamMemberDetail: React.FC = () => {
          const { error } = await supabase
             .from('dim_colaboradores')
             .update(payload)
-            .eq('ID_Colaborador', Number(userId));
+            .eq('id_colaborador', Number(userId));
 
          if (error) throw error;
          alert('Dados atualizados com sucesso!');

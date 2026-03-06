@@ -201,9 +201,8 @@ export const useDataController = () => {
     };
 
     const createTimesheet = async (entry: TimesheetEntry): Promise<void> => {
-        // Generate a unique ID for ID_Horas_Trabalhadas
-        // Using timestamp + random to ensure uniqueness
-        const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
+        // ID como string UUID — compatível com a coluna text do banco
+        const uniqueId = crypto.randomUUID();
 
         const { data, error } = await supabase
             .from('horas_trabalhadas')
@@ -212,13 +211,13 @@ export const useDataController = () => {
                 ID_Colaborador: Number(entry.userId),
                 ID_Cliente: Number(entry.clientId),
                 ID_Projeto: Number(entry.projectId),
-                id_tarefa_novo: Number(entry.taskId),
+                id_tarefa_novo: entry.taskId ? Number(entry.taskId) : null,
                 Data: entry.date,
                 Horas_Trabalhadas: entry.totalHours,
                 Hora_Inicio: entry.startTime,
                 Hora_Fim: entry.endTime,
                 Almoco_Deduzido: entry.lunchDeduction,
-                Descricao: entry.description
+                Descricao: entry.description || null
             })
             .select('ID_Horas_Trabalhadas')
             .single();
@@ -272,20 +271,20 @@ export const useDataController = () => {
         const { data, error } = await supabase
             .from('dim_colaboradores')
             .insert([{
-                NomeColaborador: userData.name,
+                nome_colaborador: userData.name,
                 email: userData.email,
-                Cargo: userData.cargo,
+                cargo: userData.cargo,
                 nivel: userData.nivel,
-                role: userData.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : 'Resource', // Default role
+                role: userData.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : 'Resource',
                 ativo: userData.active ?? true,
                 custo_hora: userData.hourlyCost,
                 horas_disponiveis_dia: userData.dailyAvailableHours,
                 horas_disponiveis_mes: userData.monthlyAvailableHours
             }])
-            .select('ID_Colaborador')
+            .select('id_colaborador')
             .single();
         if (error) throw error;
-        return String(data.ID_Colaborador);
+        return String(data.id_colaborador);
     };
 
     const updateUser = async (userId: string, updates: Partial<User>): Promise<void> => {
@@ -304,7 +303,7 @@ export const useDataController = () => {
         const { error } = await supabase
             .from('dim_colaboradores')
             .update(payload)
-            .eq('ID_Colaborador', Number(userId));
+            .eq('id_colaborador', Number(userId));
         if (error) throw error;
     };
 
@@ -312,7 +311,7 @@ export const useDataController = () => {
         const { error } = await supabase
             .from('dim_colaboradores')
             .update({ ativo: false })
-            .eq('ID_Colaborador', Number(userId));
+            .eq('id_colaborador', Number(userId));
         if (error) throw error;
     };
 

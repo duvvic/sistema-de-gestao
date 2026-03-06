@@ -34,7 +34,21 @@ const MainLayout: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const navType = useNavigationType(); // Detecta PUSH, POP, REPLACE
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [isHovered, setIsHovered] = useState(false);
+    const hoverTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleSidebarEnter = () => {
+        if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = setTimeout(() => setIsHovered(true), 40);
+    };
+
+    const handleSidebarLeave = () => {
+        if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = setTimeout(() => setIsHovered(false), 120);
+    };
+
+    const sidebarOpen = isHovered;
+
 
     // Definição dos menus (movido para cima para ser usado na lógica de animação do menu)
     const adminMenuItems = [
@@ -67,23 +81,8 @@ const MainLayout: React.FC = () => {
     // Listamos as rotas "raiz" do menu para forçar a animação
     const MAIN_PATHS = React.useMemo(() => menuItems.map(m => m.path).concat(['/profile']), [menuItems]);
 
-    // Fechar sidebar automaticamente em telas específicas (ex: Executive Insights)
-    React.useEffect(() => {
-        const checkTab = () => {
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('tab') === 'executivo') {
-                setSidebarOpen(false);
-            }
-        };
+    // (Sidebar é controlado por hover — nenhum efeito adicional necessário)
 
-        const handleCloseSidebar = () => setSidebarOpen(false);
-
-        window.addEventListener('closeSidebar', handleCloseSidebar);
-        // Verifica no mount e em mudanças de location
-        checkTab();
-
-        return () => window.removeEventListener('closeSidebar', handleCloseSidebar);
-    }, [location.search]);
 
     // Ref para guardar o path anterior e calcular direção instantaneamente
     const prevPathRef = React.useRef(location.pathname);
@@ -198,134 +197,173 @@ const MainLayout: React.FC = () => {
 
     return (
         <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
-            {/* Sidebar */}
+            {/* Sidebar container — mantém largura fixa no layout, sidebar real faz overlay */}
             <div
-                className={`${sidebarOpen ? 'w-64' : 'w-20'
-                    } transition-all duration-300 flex flex-col z-20 shadow-2xl relative border-r border-white/5`}
-                style={{ background: 'linear-gradient(180deg, var(--sidebar-bg), var(--sidebar-bg-2))' }}
+                className="relative flex-shrink-0 h-full"
+                style={{ width: '4.5rem' }}
+                onMouseEnter={handleSidebarEnter}
+                onMouseLeave={handleSidebarLeave}
             >
-                <div className={`flex items-center justify-between border-b border-white/10 ${sidebarOpen ? 'p-6' : 'p-4 justify-center'}`}>
-                    {sidebarOpen ? (
-                        <>
-                            <div className="flex items-center gap-3">
-                                <img src={logoImg} alt="Logo" className="w-8 h-8 object-contain" />
-                                <h1 className="text-xl font-bold text-white">NIC-LABS</h1>
-                            </div>
-                            <button
-                                onClick={() => setSidebarOpen(false)}
-                                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </>
-                    ) : (
-                        <button
-                            onClick={() => setSidebarOpen(true)}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
-                        >
-                            <Menu className="w-5 h-5" />
-                        </button>
-                    )}
-                </div>
-
-                {/* User Info Melhorado e Clicável */}
-                <button
-                    className={`${sidebarOpen ? 'p-6' : 'p-4'} border-b border-white/10 w-full bg-white/5 hover:bg-white/10 transition-all flex items-center gap-3 group focus:outline-none relative`}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                        navigate('/profile');
-                        setSidebarOpen(false);
+                {/* Sidebar real — absolute, desliza por cima do conteúdo ao direita */}
+                <div
+                    className="absolute top-0 left-0 h-full flex flex-col shadow-2xl border-r border-white/5 overflow-hidden"
+                    style={{
+                        width: sidebarOpen ? '16rem' : '4.5rem',
+                        transition: 'width 180ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        background: 'linear-gradient(180deg, var(--sidebar-bg), var(--sidebar-bg-2))',
+                        zIndex: 30,
                     }}
-                    title="Ver/editar perfil"
                 >
-                    {isActive('/profile') && (
-                        <div className="absolute left-0 top-0 w-1 h-full bg-white" />
-                    )}
-                    {currentUser?.avatarUrl ? (
-                        <img
-                            src={currentUser.avatarUrl}
-                            alt={currentUser.name}
-                            className="w-12 h-12 rounded-full object-cover border-2 border-white/50 shadow-md group-hover:scale-105 transition-transform"
-                        />
-                    ) : (
-                        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold border-2 border-white/50 shadow-md group-hover:scale-105 transition-transform text-white">
-                            {currentUser?.name?.charAt(0) || 'U'}
-                        </div>
-                    )}
-                    {sidebarOpen && (
-                        <div className="flex-1 min-w-0 text-left">
-                            <p className="font-semibold truncate text-white group-hover:underline">{currentUser?.name}</p>
+                    <div
+                        className="flex items-center border-b border-white/10 overflow-hidden flex-shrink-0"
+                        style={{ padding: sidebarOpen ? '1.25rem' : '1rem', gap: sidebarOpen ? '0.75rem' : 0, justifyContent: sidebarOpen ? 'flex-start' : 'center' }}
+                    >
+                        <img src={logoImg} alt="Logo" className="w-8 h-8 object-contain flex-shrink-0" />
+                        <h1
+                            className="text-lg font-bold text-white whitespace-nowrap"
+                            style={{
+                                opacity: sidebarOpen ? 1 : 0,
+                                width: sidebarOpen ? 'auto' : 0,
+                                overflow: 'hidden',
+                                transition: 'opacity 150ms ease, width 180ms cubic-bezier(0.4,0,0.2,1)',
+                            }}
+                        >
+                            NIC-LABS
+                        </h1>
+                    </div>
+
+                    {/* User Info */}
+                    <button
+                        className="border-b border-white/10 w-full bg-white/5 hover:bg-white/10 transition-all flex items-center gap-3 group focus:outline-none relative flex-shrink-0 overflow-hidden"
+                        style={{ padding: sidebarOpen ? '1.5rem' : '1rem', justifyContent: sidebarOpen ? 'flex-start' : 'center', cursor: 'pointer' }}
+                        onClick={() => navigate('/profile')}
+                        title="Ver/editar perfil"
+                    >
+                        {isActive('/profile') && (
+                            <div className="absolute left-0 top-0 w-1 h-full bg-white" />
+                        )}
+                        {currentUser?.avatarUrl ? (
+                            <img
+                                src={currentUser.avatarUrl}
+                                alt={currentUser.name}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-white/50 shadow-md group-hover:scale-105 transition-transform flex-shrink-0"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg font-bold border-2 border-white/50 shadow-md group-hover:scale-105 transition-transform text-white flex-shrink-0">
+                                {currentUser?.name?.charAt(0) || 'U'}
+                            </div>
+                        )}
+                        <div
+                            className="flex-1 min-w-0 text-left overflow-hidden"
+                            style={{
+                                opacity: sidebarOpen ? 1 : 0,
+                                maxWidth: sidebarOpen ? '10rem' : 0,
+                                transition: 'opacity 150ms ease, max-width 180ms cubic-bezier(0.4,0,0.2,1)',
+                            }}
+                        >
+                            <p className="font-semibold truncate text-white group-hover:underline text-sm">{currentUser?.name}</p>
                             <p className="text-xs text-white/70 truncate capitalize">{currentUser?.cargo || 'Colaborador'}</p>
                         </div>
-                    )}
-                </button>
+                    </button>
 
-                {/* Menu Items */}
-                <nav className="flex-1 p-4 space-y-2 overflow-y-auto no-scrollbar">
-                    {menuItems.map((item) => {
-                        const Icon = item.icon;
-                        const active = isActive(item.path);
+                    {/* Menu Items */}
+                    <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
+                        {menuItems.map((item) => {
+                            const Icon = item.icon;
+                            const active = isActive(item.path);
 
-                        return (
-                            <button
-                                key={item.path}
-                                onClick={() => {
-                                    navigate(item.path);
-                                    setSidebarOpen(false);
-                                }}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all relative ${!sidebarOpen && 'justify-center'}`}
+                            return (
+                                <button
+                                    key={item.path}
+                                    onClick={() => navigate(item.path)}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors relative overflow-hidden"
+                                    style={{
+                                        backgroundColor: active ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+                                        color: active ? 'white' : 'rgba(255, 255, 255, 0.75)',
+                                        justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!active) {
+                                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                                            e.currentTarget.style.color = 'white';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!active) {
+                                            e.currentTarget.style.backgroundColor = 'transparent';
+                                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.75)';
+                                        }
+                                    }}
+                                    title={!sidebarOpen ? item.label : undefined}
+                                >
+                                    <Icon className="w-5 h-5 flex-shrink-0" />
+                                    <span
+                                        className="font-medium whitespace-nowrap"
+                                        translate="no"
+                                        style={{
+                                            opacity: sidebarOpen ? 1 : 0,
+                                            maxWidth: sidebarOpen ? '12rem' : 0,
+                                            overflow: 'hidden',
+                                            transition: 'opacity 150ms ease, max-width 180ms cubic-bezier(0.4,0,0.2,1)',
+                                        }}
+                                    >
+                                        {item.label}
+                                    </span>
+                                    {active && (
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-white rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+                                    )}
+                                </button>
+                            );
+                        })}
+
+                        <div className="my-3 h-px bg-white/10 mx-2" />
+
+                        <button
+                            onClick={toggleTheme}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/75 hover:bg-white/8 hover:text-white transition-colors overflow-hidden"
+                            style={{ justifyContent: sidebarOpen ? 'flex-start' : 'center' }}
+                            title={!sidebarOpen ? (themeMode === 'light' ? 'Modo Escuro' : 'Modo Claro') : undefined}
+                        >
+                            {themeMode === 'light' ? (
+                                <Moon className="w-5 h-5 flex-shrink-0" />
+                            ) : (
+                                <Sun className="w-5 h-5 flex-shrink-0" />
+                            )}
+                            <span
+                                className="font-medium whitespace-nowrap"
                                 style={{
-                                    backgroundColor: active ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                                    color: active ? 'white' : 'rgba(255, 255, 255, 0.8)',
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (!active) {
-                                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                                        e.currentTarget.style.color = 'white';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!active) {
-                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-                                    }
+                                    opacity: sidebarOpen ? 1 : 0,
+                                    maxWidth: sidebarOpen ? '12rem' : 0,
+                                    overflow: 'hidden',
+                                    transition: 'opacity 150ms ease, max-width 180ms cubic-bezier(0.4,0,0.2,1)',
                                 }}
                             >
-                                <Icon className="w-5 h-5 flex-shrink-0" />
-                                {sidebarOpen && <span className="font-medium" translate="no">{item.label}</span>}
-                                {active && (
-                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
-                                )}
-                            </button>
-                        );
-                    })}
+                                {themeMode === 'light' ? 'Escuro' : 'Claro'}
+                            </span>
+                        </button>
 
-                    {/* Divider visual subtle */}
-                    <div className="my-4 h-px bg-white/10 mx-2" />
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/75 hover:bg-red-500/70 hover:text-white transition-colors overflow-hidden"
+                            style={{ justifyContent: sidebarOpen ? 'flex-start' : 'center' }}
+                            title={!sidebarOpen ? 'Sair' : undefined}
+                        >
+                            <LogOut className="w-5 h-5 flex-shrink-0" />
+                            <span
+                                className="font-medium whitespace-nowrap"
+                                style={{
+                                    opacity: sidebarOpen ? 1 : 0,
+                                    maxWidth: sidebarOpen ? '12rem' : 0,
+                                    overflow: 'hidden',
+                                    transition: 'opacity 150ms ease, max-width 180ms cubic-bezier(0.4,0,0.2,1)',
+                                }}
+                            >
+                                Sair
+                            </span>
+                        </button>
+                    </nav>
 
-                    {/* Theme Toggle Button - Now Integrated */}
-                    <button
-                        onClick={toggleTheme}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/80 hover:bg-white/10 transition-colors ${!sidebarOpen && 'justify-center'}`}
-                    >
-                        {themeMode === 'light' ? (
-                            <Moon className="w-5 h-5 flex-shrink-0" />
-                        ) : (
-                            <Sun className="w-5 h-5 flex-shrink-0" />
-                        )}
-                        {sidebarOpen && <span className="font-medium">{themeMode === 'light' ? 'Escuro' : 'Claro'}</span>}
-                    </button>
-
-                    {/* Logout - Now Integrated */}
-                    <button
-                        onClick={handleLogout}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/80 hover:bg-red-500/80 hover:text-white transition-colors ${!sidebarOpen && 'justify-center'}`}
-                    >
-                        <LogOut className="w-5 h-5 flex-shrink-0" />
-                        {sidebarOpen && <span className="font-medium">Sair</span>}
-                    </button>
-                </nav>
-
+                </div>
             </div>
 
             {/* Main Content - iOS Navigation Wrapper */}

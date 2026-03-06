@@ -102,7 +102,7 @@ const TeamList: React.FC = () => {
       const matchesStatus = statusFilter === 'Todos' || userStatus === statusFilter;
 
       return matchesSearch && matchesCargo && matchesStatus;
-    });
+    }).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
   }, [visibleUsers, searchTerm, selectedCargo, statusFilter, tasks, absences]);
 
 

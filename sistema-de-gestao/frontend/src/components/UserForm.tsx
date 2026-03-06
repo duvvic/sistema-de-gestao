@@ -70,9 +70,9 @@ const UserForm: React.FC = () => {
     setLoading(true);
     try {
       const payload = {
-        NomeColaborador: formData.name,
+        nome_colaborador: formData.name,
         email: formData.email,
-        Cargo: formData.cargo,
+        cargo: formData.cargo,
         nivel: formData.nivel,
         role: formData.role,
         ativo: formData.active,
@@ -90,7 +90,7 @@ const UserForm: React.FC = () => {
         const { error } = await supabase
           .from('dim_colaboradores')
           .update(payload)
-          .eq('ID_Colaborador', userId);
+          .eq('id_colaborador', userId);
         if (error) throw error;
       }
       navigate(-1);
