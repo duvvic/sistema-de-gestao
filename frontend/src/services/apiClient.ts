@@ -55,7 +55,7 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
         '/projetos': { view: '/v_projetos', table: '/dim_projetos', pk: 'ID_Projeto' },
         '/tarefas': { view: '/v_tarefas', table: '/fato_tarefas', pk: 'id_tarefa_novo' },
         '/tasks': { view: '/v_tarefas', table: '/fato_tarefas', pk: 'id_tarefa_novo' },
-        '/timesheets': { view: '/horas_trabalhadas', table: '/horas_trabalhadas', pk: 'id', select: '*,colaborador:dim_colaboradores(NomeColaborador:nome_colaborador)' },
+        '/timesheets': { view: '/horas_trabalhadas', table: '/horas_trabalhadas', pk: 'ID_Horas_Trabalhadas', select: '*,colaborador:dim_colaboradores(NomeColaborador:nome_colaborador)' },
         '/allocations': { view: '/task_member_allocations', table: '/task_member_allocations', pk: 'id' }
     };
 
@@ -85,9 +85,31 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
         const searchParams = new URLSearchParams(paramsStr);
         const reserves = new Set(['select', 'limit', 'offset', 'order', 'columns', 'or', 'and']);
 
+        // Mapeamento de filtros amigáveis para colunas do Banco
+        const filterMap: Record<string, string> = {
+            'userId': 'ID_Colaborador',
+            'projectId': 'ID_Projeto',
+            'taskId': 'id_tarefa_novo',
+            'clientId': 'ID_Cliente',
+            'startDate': 'Data',
+            'endDate': 'Data'
+        };
+
         [...searchParams.keys()].forEach(k => {
             const val = searchParams.get(k);
-            if (!reserves.has(k) && !val?.includes('.')) searchParams.delete(k);
+            if (reserves.has(k) || val?.includes('.')) return;
+
+            const dbCol = filterMap[k];
+            if (dbCol) {
+                let op = 'eq';
+                if (k === 'startDate') op = 'gte';
+                if (k === 'endDate') op = 'lte';
+                // Usar append para permitir múltiplos filtros na mesma coluna (ex: Data gte e lte)
+                searchParams.append(dbCol, `${op}.${val}`);
+                searchParams.delete(k);
+            } else {
+                searchParams.delete(k);
+            }
         });
 
         if (matchedSelect && !isMutation && !searchParams.has('select')) {
@@ -125,6 +147,19 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
                 'risks': 'Riscos',
                 'notes': 'Observações',
                 'estimatedHours': 'estimated_hours',
+                'description': 'description'
+            },
+            '/horas_trabalhadas': {
+                'userId': 'ID_Colaborador',
+                'projectId': 'ID_Projeto',
+                'taskId': 'id_tarefa_novo',
+                'clientId': 'ID_Cliente',
+                'date': 'Data',
+                'totalHours': 'Horas_Trabalhadas',
+                'startTime': 'Hora_Inicio',
+                'endTime': 'Hora_Fim',
+                'lunchDeduction': 'Almoco_Deduzido',
+                'description': 'Descricao'
             }
         };
 
@@ -169,14 +204,14 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
                 // Set of known extra columns that frontend might send correctly in their db name
                 const validExtraColumns: Record<string, string[]> = {
                     '/dim_colaboradores': ['deleted_at', 'ativo', 'role', 'torre', 'nivel', 'email', 'avatar_url', 'atrasado', 'nome_colaborador', 'cargo', 'custo_hora', 'horas_disponiveis_dia', 'horas_disponiveis_mes'],
-                    '/fato_tarefas': ['em_testes', 'deleted_at', 'attachment', 'link_ef', 'is_impediment', 'task_weight', 'ID_Projeto', 'ID_Cliente', 'ID_Colaborador', 'Afazer', 'StatusTarefa', 'entrega_estimada', 'entrega_real', 'inicio_previsto', 'inicio_real', 'Porcentagem', 'Prioridade', 'Impacto', 'Riscos', 'Observações', 'estimated_hours', 'dias_atraso', 'ID_Tarefa']
+                    '/fato_tarefas': ['id_tarefa_novo', 'em_testes', 'deleted_at', 'attachment', 'link_ef', 'is_impediment', 'task_weight', 'ID_Projeto', 'ID_Cliente', 'ID_Colaborador', 'Afazer', 'StatusTarefa', 'entrega_estimada', 'entrega_real', 'inicio_previsto', 'inicio_real', 'Porcentagem', 'Prioridade', 'Impacto', 'Riscos', 'Observações', 'estimated_hours', 'dias_atraso', 'ID_Tarefa', 'description'],
+                    '/horas_trabalhadas': ['ID_Horas_Trabalhadas', 'Data', 'ID_Colaborador', 'ID_Cliente', 'ID_Projeto', 'id_tarefa_novo', 'Horas_Trabalhadas', 'Hora_Inicio', 'Hora_Fim', 'Almoco_Deduzido', 'Descricao', 'deleted_at']
                 };
 
                 for (const key of Object.keys(bodyObj)) {
                     let mappedKey = map[key];
                     let isKnownColumn = false;
 
-                    // Se a chave não estiver no mapa (ex: 'developer', 'project'), verificar se já é o nome de uma coluna
                     if (!mappedKey) {
                         const validCols = validExtraColumns[targetTable] || [];
                         if (validCols.includes(key)) {
@@ -190,14 +225,38 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
                     if (isKnownColumn && mappedKey) {
                         let val = bodyObj[key];
 
+                        // Skip mapping if value is null or undefined to avoid PostgREST errors
+                        if (val === null || val === undefined) continue;
+
+                        // Treat empty strings as null for IDs/Numeric fields to avoid 400
+                        if (typeof val === 'string' && val.trim() === '' && (mappedKey.startsWith('ID_') || mappedKey.includes('_id') || mappedKey === 'id_tarefa_novo')) {
+                            continue;
+                        }
+
                         if (targetTable === '/fato_tarefas') {
-                            if (key === 'status' || mappedKey === 'StatusTarefa') val = mapStatusToDb(val);
+                            if (key === 'status' || mappedKey === 'StatusTarefa') {
+                                switch (val) {
+                                    case 'Done': val = 'Concluído'; break;
+                                    case 'In Progress': val = 'Andamento'; break;
+                                    case 'Review': val = 'Análise'; break;
+                                    case 'Testing': val = 'Teste'; break;
+                                    case 'Backlog': case 'Todo': val = 'Pré-Projeto'; break;
+                                }
+                            }
                             if (key === 'priority' || mappedKey === 'Prioridade') val = mapPriorityToDb(val);
                             if (key === 'impact' || mappedKey === 'Impacto') val = mapImpactToDb(val);
-                            if (key === 'em_testes' || mappedKey === 'em_testes') val = val ? 1 : 0;
+                            if (key === 'em_testes' || mappedKey === 'em_testes') val = !!val;
                         }
 
                         newBody[mappedKey] = val;
+                    }
+                }
+
+                // If it's a POST, remove the primary key from body if it's null or empty
+                if (method === 'POST') {
+                    const pk = baseMappings[Object.keys(baseMappings).find(k => finalPath.includes(k)) || '']?.pk;
+                    if (pk && (newBody[pk] === null || newBody[pk] === undefined || newBody[pk] === '')) {
+                        delete newBody[pk];
                     }
                 }
 
