@@ -52,8 +52,21 @@ app.use(cors({
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "apikey", "ngrok-skip-browser-warning", "Prefer"]
+    allowedHeaders: ["Content-Type", "Authorization", "apikey", "ngrok-skip-browser-warning", "Prefer", "Access-Control-Request-Private-Network"]
 }));
+
+// Chrome Private Network Access: permite que sites HTTPS/externos chamem este servidor local
+// Responde ao preflight OPTIONS com o header necessário
+app.use((req, res, next) => {
+    if (req.headers['access-control-request-private-network']) {
+        res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    }
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Private-Network', 'true');
+        return res.sendStatus(200);
+    }
+    next();
+});
 
 // 3. Proteção contra Poluição de Parâmetros
 app.use(hpp());
