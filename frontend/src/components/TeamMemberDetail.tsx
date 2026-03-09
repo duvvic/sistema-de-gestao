@@ -1,4 +1,4 @@
-// components/TeamMemberDetail.tsx - Reestruturado: Resumo Topo + Edição Principal
+﻿// components/TeamMemberDetail.tsx - Reestruturado: Resumo Topo + Edição Principal
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -311,8 +311,7 @@ const TeamMemberDetail: React.FC = () => {
                   <button
                      type="button"
                      onClick={() => setIsEditing(!isEditing)}
-                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${isEditing ? 'bg-amber-500 text-white hover:bg-amber-600 hover:opacity-90' : 'text-white hover:opacity-90'}`}
-                     style={!isEditing ? { backgroundColor: 'var(--text)' } : {}}
+                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${isEditing ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-[var(--primary)] text-white hover:opacity-90'}`}
                   >
                      {isEditing ? 'Cancelar Edição' : 'Editar Perfil'}
                   </button>
