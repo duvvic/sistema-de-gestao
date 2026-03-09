@@ -182,12 +182,21 @@ export const useDataController = () => {
         },
         getTimesheetsByUser: (userId: string) => timesheetEntries.filter(e => e.userId === userId),
         createTimesheet: async (entry: TimesheetEntry) => {
-            await timesheetService.createTimesheet(entry);
-            setTimesheetEntries(prev => [entry, ...prev]);
+            const saved = await timesheetService.createTimesheet(entry);
+            // Garantir que o objeto salvo tenha o ID mapeado corretamente do Banco para o Front
+            const savedMapped = saved ? {
+                ...saved,
+                id: String((saved as any).ID_Horas_Trabalhadas || (saved as any).id || entry.id)
+            } : entry;
+            setTimesheetEntries(prev => [savedMapped, ...prev]);
         },
         updateTimesheet: async (entry: TimesheetEntry) => {
-            await timesheetService.updateTimesheet(entry.id!, entry);
-            setTimesheetEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
+            const saved = await timesheetService.updateTimesheet(entry.id!, entry);
+            const savedMapped = saved ? {
+                ...saved,
+                id: String((saved as any).ID_Horas_Trabalhadas || (saved as any).id || entry.id)
+            } : entry;
+            setTimesheetEntries(prev => prev.map(e => e.id === entry.id ? savedMapped : e));
         },
         deleteTimesheet: async (entryId: string) => {
             await timesheetService.deleteTimesheet(entryId);

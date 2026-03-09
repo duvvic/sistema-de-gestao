@@ -151,6 +151,7 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
     if (isMutation && fetchOptions.body && typeof fetchOptions.body === 'string') {
         const payloadMappings: Record<string, Record<string, string>> = {
             '/dim_colaboradores': {
+                'id': 'id_colaborador',
                 'NomeColaborador': 'nome_colaborador',
                 'Cargo': 'cargo',
                 'hourlyCost': 'custo_hora',
@@ -158,6 +159,7 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
                 'monthlyAvailableHours': 'horas_disponiveis_mes'
             },
             '/fato_tarefas': {
+                'id': 'id_tarefa_novo',
                 'projectId': 'ID_Projeto',
                 'clientId': 'ID_Cliente',
                 'developerId': 'ID_Colaborador',
@@ -176,6 +178,7 @@ function applyPostgrestTransformations(path: string, options: RequestInit): { fi
                 'description': 'description'
             },
             '/horas_trabalhadas': {
+                'id': 'ID_Horas_Trabalhadas',
                 'userId': 'ID_Colaborador',
                 'projectId': 'ID_Projeto',
                 'taskId': 'id_tarefa_novo',
@@ -308,8 +311,8 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
     // Bloqueia chamadas que contenham 'undefined' como string no path (bug comum de front)
     if (path.includes('/undefined') || path.endsWith('/undefined')) {
-        console.warn('[API] Chamada abortada: Path contém "undefined":', path);
-        return [] as any; // Retorna vazio silenciosamente para evitar quebras em loops
+        console.error('[API] Chamada abortada: Path contém "undefined":', path);
+        throw new Error(`Caminho de API inválido (${path}). Verifique se os IDs estão carregados.`);
     }
 
     const isPostgrest = baseUrl.includes('.supabase.co/rest/v1');
