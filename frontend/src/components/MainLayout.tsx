@@ -233,7 +233,8 @@ const MainLayout: React.FC = () => {
                         </div>
                         <button
                             onClick={() => setSidebarOpen(!sidebarOpen)}
-                            className={`absolute right-4 p-2 hover:bg-white/10 rounded-lg transition-all text-white ${!isExpanded ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'}`}
+                            className={`absolute right-4 p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg transition-all ${!isExpanded ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'}`}
+                            style={{ color: 'var(--sidebar-text)' }}
                         >
                             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                         </button>
