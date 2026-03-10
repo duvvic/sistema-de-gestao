@@ -59,6 +59,14 @@ export const taskRepository = {
         return true;
     },
 
+    async softDelete(id, deletedAt) {
+        return await dbUpdate('fato_tarefas', { id_tarefa_novo: id }, { deleted_at: deletedAt }, { select: false });
+    },
+
+    async softDeleteHours(taskId, deletedAt) {
+        return await dbUpdate('horas_trabalhadas', { id_tarefa_novo: taskId }, { deleted_at: deletedAt }, { select: false });
+    },
+
     async getCollaboratorIdByName(name) {
         const data = await dbFindAll('v_colaboradores', {
             select: 'id',
