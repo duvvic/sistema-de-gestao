@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { useDataController } from "@/controllers/useDataController";
 import { useAuth } from "@/contexts/AuthContext";
-import { Task, Project, User, Client } from '@/types';
+import { Task, Project, User, Client, TimesheetEntry, Absence } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getProjectStatusByTimeline, getProjectStatusColor } from '@/utils/projectStatus';
 import {
@@ -30,30 +30,36 @@ import ThemeToggle from './ThemeToggle';
 // --- Sub-componentes Estilizados ---
 
 const Badge = ({ children, status, className = "" }: { children: React.ReactNode, status: string, className?: string }) => {
-    const colors: any = {
-        'andamento': 'bg-blue-50 text-blue-600 border-blue-100',
-        'impedido': 'bg-amber-50 text-amber-600 border-amber-100',
-        'analise': 'bg-purple-50 text-purple-600 border-purple-100',
-        'nao-iniciado': 'text-slate-700 border-slate-200',
-        'concluido': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-        'atrasada': 'bg-red-500 text-white border-red-600',
-        'entrega-hoje': 'bg-blue-600 text-white border-blue-700 shadow-lg shadow-blue-500/20',
-        'pre-projeto': 'text-slate-700 border-slate-200',
-        'saudavel': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-        'critico': 'bg-red-100 text-red-700 border-red-200',
+    const colors: Record<string, { bg: string, text: string, border: string }> = {
+        'andamento': { bg: 'var(--info-bg)', text: 'var(--info-text)', border: 'var(--info)' },
+        'impedido': { bg: 'var(--warning-bg)', text: 'var(--warning-text)', border: 'var(--warning)' },
+        'analise': { bg: 'var(--primary-soft)', text: 'var(--primary)', border: 'var(--primary-muted)' },
+        'nao-iniciado': { bg: 'var(--surface-3)', text: 'var(--text-3)', border: 'var(--border)' },
+        'concluido': { bg: 'var(--success-bg)', text: 'var(--success-text)', border: 'var(--success)' },
+        'atrasada': { bg: 'var(--danger)', text: 'white', border: 'var(--danger-text)' },
+        'entrega-hoje': { bg: 'var(--info)', text: 'white', border: 'var(--info-text)' },
+        'pre-projeto': { bg: 'var(--surface-3)', text: 'var(--text-3)', border: 'var(--border)' },
+        'saudavel': { bg: 'var(--success-bg)', text: 'var(--success-text)', border: 'var(--border)' },
+        'critico': { bg: 'var(--danger-bg)', text: 'var(--danger-text)', border: 'var(--border)' },
     };
     const key = status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
-    const colorClass = colors[key] || 'text-slate-600 border-slate-200';
-    const shouldUseThemeBackground = key === 'nao-iniciado' || key === 'pre-projeto';
+    const colorObj = colors[key] || { bg: 'transparent', text: 'var(--text-muted)', border: 'var(--border)' };
 
     return (
-        <span className={`px-2 py-0.5 2xl:px-4 2xl:py-1.5 rounded-lg text-[9px] sm:text-[10px] 2xl:text-xs 3xl:text-sm font-black uppercase tracking-wide border-2 ${colorClass} ${className} whitespace-nowrap`} style={shouldUseThemeBackground ? { backgroundColor: 'var(--surface-3)', borderColor: 'var(--border)' } : {}}>
+        <span
+            className={`px-2 py-0.5 2xl:px-4 2xl:py-1.5 rounded-lg text-[9px] sm:text-[10px] 2xl:text-xs 3xl:text-sm font-black uppercase tracking-wide border-2 ${className} whitespace-nowrap`}
+            style={{
+                backgroundColor: colorObj.bg,
+                color: colorObj.text,
+                borderColor: colorObj.border
+            }}
+        >
             {children}
         </span>
     );
 };
 
-const SectionHeader = ({ label, icon: Icon, colorClass, children }: { label: string, icon: any, colorClass: string, children?: React.ReactNode }) => (
+const SectionHeader = ({ label, icon: Icon, colorClass, children }: { label: string, icon: React.ElementType, colorClass: string, children?: React.ReactNode }) => (
     <div className="flex items-center gap-2 sm:gap-3 2xl:gap-6 mb-1.5 sm:mb-2 lg:mb-3 2xl:mb-4">
         <div className={`w-1.5 h-3 sm:h-4 lg:h-5 2xl:h-7 rounded-full ${colorClass}`} />
         <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 2xl:w-5 2xl:h-5 shrink-0" style={{ color: 'var(--text-muted)' }} />
@@ -63,7 +69,7 @@ const SectionHeader = ({ label, icon: Icon, colorClass, children }: { label: str
     </div>
 );
 
-const CompactStat = ({ label, count, icon: Icon, colorClass }: { label: string, count: number, icon: any, colorClass: string }) => (
+const CompactStat = ({ label, count, icon: Icon, colorClass }: { label: string, count: number, icon: React.ElementType, colorClass: string }) => (
     <div className="backdrop-blur-sm px-1.5 py-0.5 2xl:px-2.5 2xl:py-1 rounded-md border shadow-sm flex items-center gap-1.5 transition-all" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
         <Icon className={`${colorClass} w-2 h-2 2xl:w-3.5 2xl:h-3.5 opacity-80`} />
         <span className={`text-[5px] sm:text-[5.5px] 2xl:text-[9.5px] font-black uppercase tracking-tighter ${colorClass}`}>
@@ -129,7 +135,11 @@ const AdminMonitoringView: React.FC = () => {
                     let conditionText = 'Nublado';
 
                     // Mapeamento de condições expandido
-                    const mappings: any = {
+                    interface WeatherMapping {
+                        text: string;
+                        hex: string;
+                    }
+                    const mappings: Record<number, WeatherMapping> = {
                         0: { text: 'Céu Limpo', hex: '2600' },
                         1: { text: 'Limpo', hex: '2600' },
                         2: { text: 'Parcialmente Nublado', hex: '1f324' },
@@ -210,11 +220,11 @@ const AdminMonitoringView: React.FC = () => {
             if (tick % 25 === 0) {
                 // Encontrar tarefas vencendo hoje
                 const todayStr = now.toISOString().split('T')[0];
-                const dueToday = tasksRef.current.filter(t => t.estimatedDelivery && t.estimatedDelivery.startsWith(todayStr) && t.status !== 'Done');
+                const dueToday = tasksRef.current.filter((t: Task) => t.estimatedDelivery && t.estimatedDelivery.startsWith(todayStr) && t.status !== 'Done');
 
                 if (dueToday.length > 0) {
                     const randomTask = dueToday[Math.floor(Math.random() * dueToday.length)];
-                    const dev = usersRef.current.find(u => u.id === randomTask.developerId);
+                    const dev = usersRef.current.find((u: User) => u.id === randomTask.developerId);
 
                     const msg = (
                         <div className="flex items-center gap-4">
@@ -278,20 +288,20 @@ const AdminMonitoringView: React.FC = () => {
 
     // 1. Timer para limpar a notificação atual (Dinâmico base na duration)
     useEffect(() => {
-        if (!currentNotification) return;
+        if (currentNotification) {
+            const notifId = currentNotification.id;
+            const notifObj = notifications.find(n => n.id === notifId);
+            const duration = notifObj?.duration || 5000;
 
-        // @ts-ignore - duration vem do obj original no state, mas aqui é simplificado
-        const notifObj = notifications.find(n => n.id === currentNotification.id);
-        const duration = notifObj?.duration || 5000;
+            const timer = setTimeout(() => {
+                const idToRemove = notifId;
+                setCurrentNotification(null);
+                setNotifications(prev => prev.filter(n => n.id !== idToRemove));
+                lastNotificationEndTime.current = Date.now();
+            }, duration);
 
-        const timer = setTimeout(() => {
-            const idToRemove = currentNotification.id;
-            setCurrentNotification(null);
-            setNotifications(prev => prev.filter(n => n.id !== idToRemove));
-            lastNotificationEndTime.current = Date.now();
-        }, duration);
-
-        return () => clearTimeout(timer);
+            return () => clearTimeout(timer);
+        }
     }, [currentNotification?.id, notifications]);
 
     // 2. Gerenciador da Fila e Preempt
@@ -356,7 +366,7 @@ const AdminMonitoringView: React.FC = () => {
 
 
     const tasksInProgressRaw = useMemo(() =>
-        allTasks.filter(t => {
+        allTasks.filter((t: Task) => {
             const status = (t.status || '').toLowerCase();
             return status === 'in progress' || status === 'review';
         }),
@@ -383,23 +393,23 @@ const AdminMonitoringView: React.FC = () => {
     }, [tasksInProgress.length, taskPage, itemsPerPage]);
 
     const filteredUsers = useMemo(() => {
-        return allUsers.filter(u =>
+        return allUsers.filter((u: User) =>
             u.active !== false && u.torre !== 'N/A'
         );
     }, [allUsers]);
 
-    const userMap = useMemo(() => new Map(filteredUsers.map(u => [u.id, u])), [filteredUsers]);
+    const userMap = useMemo(() => new Map<string, User>(filteredUsers.map((u: User) => [u.id, u])), [filteredUsers]);
 
-    const clientMap = useMemo(() => new Map(allClients.map(c => [c.id, c])), [allClients]);
-    const projectMap = useMemo(() => new Map(allProjects.map(p => [p.id, p])), [allProjects]);
+    const clientMap = useMemo(() => new Map<string, Client>(allClients.map((c: Client) => [c.id, c])), [allClients]);
+    const projectMap = useMemo(() => new Map<string, Project>(allProjects.map((p: Project) => [p.id, p])), [allProjects]);
 
-    const isTaskDelayed = (task: Task) => task.status !== 'Done' && task.status !== 'Review' && (task.progress || 0) < 100 && (task.daysOverdue ?? 0) > 0;
-    const isCollaboratorDelayed = (task: Task) => task.status !== 'Done' && task.status !== 'Review' && (task.progress || 0) < 100 && (task.daysOverdue ?? 0) > 0;
+    const isTaskDelayed = (task: Task) => task.status !== 'Done' && (task.daysOverdue ?? 0) > 0;
+    const isCollaboratorDelayed = (task: Task) => task.status !== 'Done' && (task.daysOverdue ?? 0) > 0;
 
     const activeProjects = useMemo(() => {
-        return allProjects.filter(p => {
-            const projTasks = allTasks.filter(t => t.projectId === p.id);
-            const hasActiveTasks = projTasks.some(t => t.status !== 'Done');
+        return allProjects.filter((p: Project) => {
+            const projTasks = allTasks.filter((t: Task) => t.projectId === p.id);
+            const hasActiveTasks = projTasks.some((t: Task) => t.status !== 'Done');
             return projTasks.length > 0 && hasActiveTasks;
         });
     }, [allProjects, allTasks]);
@@ -410,28 +420,28 @@ const AdminMonitoringView: React.FC = () => {
         const isAfter16h = hour >= 16;
         const todayStr = now.toISOString().split('T')[0];
 
-        const members = filteredUsers.map(user => {
+        const members = filteredUsers.map((user: User) => {
             // Tarefas onde ele é o principal ou colaborador extra
-            const userTasks = allTasks.filter(t =>
+            const userTasks = allTasks.filter((t: Task) =>
                 t.developerId === user.id ||
                 (t.collaboratorIds && t.collaboratorIds.includes(user.id))
             );
 
             // Tarefas ativas: Não Iniciado, Análise, Andamento ou Teste
-            const activeTasks = userTasks.filter(t => {
+            const activeTasks = userTasks.filter((t: Task) => {
                 const s = (t.status || '').toLowerCase();
                 return s === 'todo' || s === 'in progress' || s === 'testing' || s === 'review';
             });
 
             // Tarefas em atraso (entre as ativas)
-            const delayedTasksForStatus = activeTasks.filter(t => isCollaboratorDelayed(t));
+            const delayedTasksForStatus = activeTasks.filter((t: Task) => isCollaboratorDelayed(t));
 
             // Check de estudo
-            const hasStudy = userTasks.some(t => t.title.toLowerCase().includes('estudo'));
+            const hasStudy = userTasks.some((t: Task) => t.title.toLowerCase().includes('estudo'));
             const isStudyCargo = user.cargo?.toLowerCase().includes('estudo');
 
             // Check de apontamento (pelo menos um registro no dia de hoje)
-            const hasTimesheetToday = allTimesheets.some(entry =>
+            const hasTimesheetToday = allTimesheets.some((entry: TimesheetEntry) =>
                 entry.userId === user.id &&
                 entry.date === todayStr
             );
@@ -440,11 +450,11 @@ const AdminMonitoringView: React.FC = () => {
             let absenceData = undefined;
 
             // Check if absent today
-            const userAbsences = allAbsences.filter(a =>
+            const userAbsences = allAbsences.filter((a: Absence) =>
                 a.userId === user.id &&
                 (a.status === 'finalizada_dp' || a.status === 'aprovada_rh')
             );
-            const absentToday = userAbsences.find(a => {
+            const absentToday = userAbsences.find((a: Absence) => {
                 const start = new Date(a.startDate + 'T00:00:00');
                 start.setHours(0, 0, 0, 0);
                 const end = new Date(a.endDate + 'T23:59:59');
@@ -473,28 +483,28 @@ const AdminMonitoringView: React.FC = () => {
     }, [allUsers, allTasks, allTimesheets, allAbsences]);
 
     const stats = useMemo(() => {
-        const delayed = allTasks.filter(t => t.status !== 'Done' && (t.status === 'In Progress' || t.status === 'Testing') && (t.progress || 0) < 100 && (t.daysOverdue ?? 0) > 0).length;
-        const review = allTasks.filter(t => t.status === 'Review').length;
-        const preProjeto = allProjects.filter(p => !allTasks.some(t => t.projectId === p.id)).length;
-        const analise = allProjects.filter(p => {
-            const tasks = allTasks.filter(t => t.projectId === p.id);
-            return tasks.length > 0 && tasks.every(t => t.status === 'Todo');
+        const delayed = allTasks.filter((t: Task) => t.status !== 'Done' && (t.daysOverdue ?? 0) > 0).length;
+        const review = allTasks.filter((t: Task) => t.status === 'Review').length;
+        const preProjeto = allProjects.filter((p: Project) => !allTasks.some((t: Task) => t.projectId === p.id)).length;
+        const analise = allProjects.filter((p: Project) => {
+            const tasks = allTasks.filter((t: Task) => t.projectId === p.id);
+            return tasks.length > 0 && tasks.every((t: Task) => t.status === 'Todo');
         }).length;
-        const andamento = allProjects.filter(p => {
-            const tasks = allTasks.filter(t => t.projectId === p.id);
-            return tasks.some(t => t.status === 'In Progress' || t.status === 'Testing');
+        const andamento = allProjects.filter((p: Project) => {
+            const tasks = allTasks.filter((t: Task) => t.projectId === p.id);
+            return tasks.some((t: Task) => t.status === 'In Progress' || t.status === 'Testing');
         }).length;
 
         const tasksByStatus = {
-            todo: allTasks.filter(t => t.status === 'Todo').length,
-            inProgress: allTasks.filter(t => t.status === 'In Progress').length,
-            testing: allTasks.filter(t => t.status === 'Testing').length,
-            review: allTasks.filter(t => t.status === 'Review').length,
-            done: allTasks.filter(t => t.status === 'Done').length,
+            todo: allTasks.filter((t: Task) => t.status === 'Todo').length,
+            inProgress: allTasks.filter((t: Task) => t.status === 'In Progress').length,
+            testing: allTasks.filter((t: Task) => t.status === 'Testing').length,
+            review: allTasks.filter((t: Task) => t.status === 'Review').length,
+            done: allTasks.filter((t: Task) => t.status === 'Done').length,
         };
 
         const todayStr = new Date().toISOString().split('T')[0];
-        const entregaHoje = allTasks.filter(t => t.estimatedDelivery && t.estimatedDelivery.startsWith(todayStr) && t.status !== 'Done').length;
+        const entregaHoje = allTasks.filter((t: Task) => t.estimatedDelivery && t.estimatedDelivery.startsWith(todayStr) && t.status !== 'Done').length;
 
         return {
             atrasados: delayed,
@@ -505,21 +515,21 @@ const AdminMonitoringView: React.FC = () => {
             andamento,
             tasksByStatus,
             team: {
-                livre: teamStatus.filter(m => m.boardStatus === 'LIVRE').length,
-                ocupado: teamStatus.filter(m => m.boardStatus === 'OCUPADO').length,
-                atrasado: teamStatus.filter(m => m.boardStatus === 'ATRASADO').length,
-                estudando: teamStatus.filter(m => m.boardStatus === 'ESTUDANDO').length,
-                apontado: teamStatus.filter(m => m.boardStatus === 'APONTADO').length,
-                ausente: teamStatus.filter(m => m.boardStatus === 'AUSENTE').length
+                livre: teamStatus.filter((m: any) => m.boardStatus === 'LIVRE').length,
+                ocupado: teamStatus.filter((m: any) => m.boardStatus === 'OCUPADO').length,
+                atrasado: teamStatus.filter((m: any) => m.boardStatus === 'ATRASADO').length,
+                estudando: teamStatus.filter((m: any) => m.boardStatus === 'ESTUDANDO').length,
+                apontado: teamStatus.filter((m: any) => m.boardStatus === 'APONTADO').length,
+                ausente: teamStatus.filter((m: any) => m.boardStatus === 'AUSENTE').length
             }
         };
     }, [allTasks, allProjects, teamStatus]);
 
     if (loading) return (
-        <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-slate-50">
+        <div className="h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
             <div className="flex flex-col items-center gap-4">
                 <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] sm:tracking-widest text-slate-500">Inicializando Sistemas...</span>
+                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] sm:tracking-widest" style={{ color: 'var(--text-muted)' }}>Inicializando Sistemas...</span>
             </div>
         </div>
     );
@@ -527,7 +537,7 @@ const AdminMonitoringView: React.FC = () => {
     const weekDay = currentTime.toLocaleDateString('pt-BR', { weekday: 'long' }).toUpperCase();
 
     return (
-        <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-white to-slate-100 flex flex-col overflow-hidden font-sans text-slate-900 selection:bg-purple-100">
+        <div className="h-screen w-full flex flex-col overflow-hidden font-sans selection:bg-purple-100" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
 
             {/* --- BARRA INFORMATIVA --- */}
             <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-white/10 px-4 sm:px-6 h-[72px] 2xl:h-[100px] flex items-center justify-between shrink-0 shadow-xl overflow-hidden z-50">
@@ -541,9 +551,9 @@ const AdminMonitoringView: React.FC = () => {
                             <div className="flex flex-col">
                                 <div className="flex items-start">
                                     <span className="text-xl sm:text-2xl 2xl:text-4xl font-black text-white tabular-nums leading-none">{weather.temp}</span>
-                                    <span className="text-xs font-bold text-slate-400 ml-0.5 mt-0.5 leading-none 2xl:text-base">°C</span>
+                                    <span className="text-xs font-bold text-slate-300 ml-0.5 mt-0.5 leading-none 2xl:text-base">°C</span>
                                 </div>
-                                <span className="text-[8px] 2xl:text-xs font-black text-slate-400 uppercase tracking-[0.2em] mt-1 leading-none">{weather.condition}</span>
+                                <span className="text-[8px] 2xl:text-xs font-black text-slate-300 uppercase tracking-[0.2em] mt-1 leading-none">{weather.condition}</span>
                             </div>
                         </div>
                     ) : (
@@ -594,7 +604,7 @@ const AdminMonitoringView: React.FC = () => {
                         <span className="text-xs sm:text-sm font-black text-white tabular-nums leading-none uppercase tracking-tight">
                             {weekDay}
                         </span>
-                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 tabular-nums leading-none mt-1">
+                        <span className="text-[10px] sm:text-[11px] font-bold tabular-nums leading-none mt-1" style={{ color: 'var(--text-muted)' }}>
                             {(() => {
                                 const d = new Date(currentTime);
                                 if (d.getFullYear() < 2025) d.setFullYear(2026);
@@ -610,7 +620,7 @@ const AdminMonitoringView: React.FC = () => {
                 {/* Section 1: OPERAÇÕES EM EXECUÇÃO (Snake Carousel) */}
                 <section className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     {(() => {
-                        const reviewCount = tasksInProgress.filter(t => t.status === 'Review').length;
+                        const reviewCount = tasksInProgress.filter((t: Task) => t.status === 'Review').length;
                         return (
                             <SectionHeader
                                 label="Operações Iniciadas & Pendentes"
@@ -639,7 +649,7 @@ const AdminMonitoringView: React.FC = () => {
                                     const startIdx = taskPage * itemsPerPage;
                                     const pageItems = tasksInProgress.slice(startIdx, startIdx + itemsPerPage);
 
-                                    return pageItems.map((task, idx) => {
+                                    return pageItems.map((task: Task, idx: number) => {
                                         const project = projectMap.get(task.projectId);
                                         const client = clientMap.get(task.clientId);
                                         const dev = userMap.get(task.developerId || '');
@@ -679,7 +689,7 @@ const AdminMonitoringView: React.FC = () => {
                                                 isReview ? 'shadow-[0_8px_30px_rgb(234,179,8,0.2)] border-yellow-200' :
                                                     'shadow-[0_8px_30px_rgb(147,51,234,0.1)] border-purple-100';
 
-                                        const extraCollaborators = Array.from(new Set(task.collaboratorIds || []))
+                                        const extraCollaborators = Array.from(new Set<string>(task.collaboratorIds || []))
                                             .filter(id => id !== task.developerId)
                                             .map(id => userMap.get(id))
                                             .filter(Boolean) as User[];
@@ -718,7 +728,7 @@ const AdminMonitoringView: React.FC = () => {
                                                         {task.status === 'Done' ? (
                                                             task.actualDelivery && (
                                                                 <span className="text-[8px] sm:text-[10px] 2xl:text-xs font-black uppercase flex items-center gap-1 mt-0.5 text-emerald-600">
-                                                                    ✅ Entregue em {new Date(task.actualDelivery + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                                    ✅ Entregue em {new Date((task.actualDelivery as string) + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                                                                 </span>
                                                             )
                                                         ) : (
@@ -745,24 +755,24 @@ const AdminMonitoringView: React.FC = () => {
                                                         <div className="flex -space-x-1.5 2xl:-space-x-3">
                                                             <div className="w-6 h-6 2xl:w-10 2xl:h-10 rounded-full overflow-hidden border-2 shadow-sm shrink-0 z-10" style={{ borderColor: 'var(--surface)', backgroundColor: 'var(--surface-3)' }}>
                                                                 <img
-                                                                    src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(task.developer)}&background=f8fafc&color=475569`}
+                                                                    src={dev?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(task.developer || '')}&background=f8fafc&color=475569`}
                                                                     className="w-full h-full object-cover"
                                                                     onError={(e) => {
                                                                         const target = e.target as HTMLImageElement;
                                                                         target.onerror = null;
-                                                                        target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(task.developer)}&background=f8fafc&color=475569`;
+                                                                        target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(task.developer || '')}&background=f8fafc&color=475569`;
                                                                     }}
                                                                 />
                                                             </div>
-                                                            {(extraCollaborators || []).slice(0, 2).map((collab) => (
+                                                            {(extraCollaborators || []).slice(0, 2).map((collab: User) => (
                                                                 <div key={collab.id} className="w-6 h-6 2xl:w-10 2xl:h-10 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white">
                                                                     <img src={collab.avatarUrl || `https://ui-avatars.com/api/?name=${collab.name}`} className="w-full h-full object-cover" />
                                                                 </div>
                                                             ))}
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
-                                                            <span className="text-[7px] sm:text-[8px] 2xl:text-[10px] font-black uppercase text-slate-400 leading-none">Equipe</span>
-                                                            <span className="text-[8px] sm:text-[9px] 2xl:text-sm font-bold text-slate-700 truncate max-w-[60px] sm:max-w-[70px] 2xl:max-w-[120px] leading-tight">
+                                                            <span className="text-[7px] sm:text-[8px] 2xl:text-[10px] font-black uppercase leading-none" style={{ color: 'var(--text-3)' }}>Equipe</span>
+                                                            <span className="text-[8px] sm:text-[9px] 2xl:text-sm font-bold truncate max-w-[60px] sm:max-w-[70px] 2xl:max-w-[120px] leading-tight" style={{ color: 'var(--text)' }}>
                                                                 {dev?.name ? dev.name.split(' ')[0] : task.developer}
                                                                 {extraCollaborators.length > 0 && ` +${extraCollaborators.length}`}
                                                             </span>
@@ -816,14 +826,14 @@ const AdminMonitoringView: React.FC = () => {
                             </SectionHeader>
                             <div className="relative w-full overflow-hidden pb-1.5 sm:pb-2">
                                 <div className="flex gap-2 sm:gap-3 lg:gap-4 w-max animate-marquee hover:[animation-play-state:paused]">
-                                    {[...activeProjects, ...activeProjects, ...activeProjects].map((proj, idx) => { // Triplicated for infinite loop
+                                    {[...activeProjects, ...activeProjects, ...activeProjects].map((proj: Project, idx: number) => { // Triplicated for infinite loop
                                         const Icons = [Cloud, Database, Zap, Shield, Box, Activity, Cpu, Wifi];
                                         const ProjIcon = Icons[idx % Icons.length];
 
-                                        const projTasks = allTasks.filter(t => t.projectId === proj.id);
-                                        const hasDelay = projTasks.some(t => isTaskDelayed(t));
-                                        const hasReview = projTasks.some(t => t.status === 'Review');
-                                        const hasInProgress = projTasks.some(t => t.status === 'In Progress');
+                                        const projTasks = allTasks.filter((t: Task) => t.projectId === proj.id);
+                                        const hasDelay = projTasks.some((t: Task) => isTaskDelayed(t));
+                                        const hasReview = projTasks.some((t: Task) => t.status === 'Review');
+                                        const hasInProgress = projTasks.some((t: Task) => t.status === 'In Progress');
 
                                         const projStatus = getProjectStatusByTimeline(proj, projTasks);
                                         const colors = getProjectStatusColor(projStatus);
@@ -834,9 +844,9 @@ const AdminMonitoringView: React.FC = () => {
                                         const client = clientMap.get(proj.clientId || '');
 
                                         return (
-                                            <div key={`${proj.id}-${idx}`} className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-between shadow-lg min-w-[220px] sm:min-w-[250px] 2xl:min-w-[320px] h-[56px] 2xl:h-[75px] group hover:border-blue-400 hover:shadow-xl transition-all">
+                                            <div key={`${proj.id}-${idx}`} className="border rounded-xl p-2 flex items-center justify-between shadow-lg min-w-[220px] sm:min-w-[250px] 2xl:min-w-[320px] h-[56px] 2xl:h-[75px] group hover:border-blue-400 hover:shadow-xl transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                                                 <div className="flex items-center gap-2 sm:gap-2.5 2xl:gap-4 min-w-0 flex-1">
-                                                    <div className="w-8 h-8 2xl:w-12 2xl:h-12 bg-white rounded-lg flex items-center justify-center border border-slate-100 group-hover:border-blue-300 transition-all overflow-hidden p-1 shadow-sm shrink-0">
+                                                    <div className="w-8 h-8 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center border group-hover:border-blue-300 transition-all overflow-hidden p-1 shadow-sm shrink-0" style={{ backgroundColor: 'var(--surface-3)', borderColor: 'var(--border)' }}>
                                                         {client?.logoUrl ? (
                                                             <img
                                                                 src={client.logoUrl}
@@ -848,26 +858,26 @@ const AdminMonitoringView: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col min-w-0 flex-1">
-                                                        <span className="text-[7px] sm:text-[8px] 2xl:text-[10px] font-black text-slate-400 uppercase tracking-tight leading-none mb-0.5">{client?.name || 'Interno'}</span>
-                                                        <span className="text-[11px] sm:text-xs 2xl:text-lg font-black text-slate-800 uppercase truncate tracking-tight leading-tight">{proj.name}</span>
+                                                        <span className="text-[7px] sm:text-[8px] 2xl:text-[10px] font-black uppercase tracking-tight leading-none mb-0.5" style={{ color: 'var(--text-3)' }}>{client?.name || 'Interno'}</span>
+                                                        <span className="text-[11px] sm:text-xs 2xl:text-lg font-black uppercase truncate tracking-tight leading-tight" style={{ color: 'var(--text)' }}>{proj.name}</span>
 
                                                         <div className="flex items-center gap-1.5 mt-0.5 2xl:mt-1 overflow-hidden">
                                                             {hasInProgress && (
                                                                 <div className="flex items-center gap-0.5 shrink-0">
                                                                     <div className="w-1 h-1 2xl:w-1.5 2xl:h-1.5 rounded-full bg-blue-500" />
-                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">{projTasks.filter(t => t.status === 'In Progress').length} andamento</span>
+                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold uppercase whitespace-nowrap" style={{ color: 'var(--text-3)' }}>{projTasks.filter((t: Task) => t.status === 'In Progress').length} andamento</span>
                                                                 </div>
                                                             )}
                                                             {hasReview && (
                                                                 <div className="flex items-center gap-0.5 shrink-0">
                                                                     <div className="w-1 h-1 2xl:w-1.5 2xl:h-1.5 rounded-full bg-amber-500" />
-                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">{projTasks.filter(t => t.status === 'Review').length} análise</span>
+                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold uppercase whitespace-nowrap" style={{ color: 'var(--text-3)' }}>{projTasks.filter((t: Task) => t.status === 'Review').length} análise</span>
                                                                 </div>
                                                             )}
                                                             {hasDelay && (
                                                                 <div className="flex items-center gap-0.5 shrink-0">
                                                                     <div className="w-1 h-1 2xl:w-1.5 2xl:h-1.5 rounded-full bg-red-500" />
-                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold text-red-600 uppercase whitespace-nowrap">{projTasks.filter(t => isTaskDelayed(t)).length} atrasos</span>
+                                                                    <span className="text-[7px] 2xl:text-[10px] font-bold text-red-600 uppercase whitespace-nowrap">{projTasks.filter((t: Task) => isTaskDelayed(t)).length} atrasos</span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -898,26 +908,26 @@ const AdminMonitoringView: React.FC = () => {
                             <div className="flex gap-2 sm:gap-3 lg:gap-4 w-max animate-marquee-reverse hover:[animation-play-state:paused]">
                                 {[...teamStatus, ...teamStatus, ...teamStatus].map((member, idx) => { // Triplicated for infinite loop
                                     const colors: any = {
-                                        'LIVRE': 'text-emerald-600 border-emerald-500 bg-emerald-50',
-                                        'OCUPADO': 'text-purple-600 border-purple-500 bg-purple-50',
-                                        'ESTUDANDO': 'text-blue-600 border-blue-500 bg-blue-50',
-                                        'ATRASADO': 'text-red-600 border-red-500 bg-red-50',
-                                        'APONTADO': 'text-indigo-700 border-indigo-500 bg-indigo-50',
-                                        'AUSENTE': 'text-orange-600 border-orange-500 bg-orange-50'
+                                        'LIVRE': { text: 'var(--success-text)', border: 'var(--success)', bg: 'var(--success-bg)' },
+                                        'OCUPADO': { text: 'var(--info-text)', border: 'var(--info)', bg: 'var(--info-bg)' },
+                                        'ESTUDANDO': { text: 'var(--primary)', border: 'var(--primary-muted)', bg: 'var(--primary-soft)' },
+                                        'ATRASADO': { text: 'var(--danger-text)', border: 'var(--danger)', bg: 'var(--danger-bg)' },
+                                        'APONTADO': { text: 'var(--info-text)', border: 'var(--info)', bg: 'var(--info-bg)' },
+                                        'AUSENTE': { text: 'var(--warning-text)', border: 'var(--warning)', bg: 'var(--warning-bg)' }
                                     };
                                     const dotColors: any = {
                                         'LIVRE': 'bg-emerald-500',
-                                        'OCUPADO': 'bg-purple-500',
-                                        'ESTUDANDO': 'bg-blue-500',
+                                        'OCUPADO': 'bg-blue-500',
+                                        'ESTUDANDO': 'bg-purple-500',
                                         'ATRASADO': 'bg-red-500',
                                         'APONTADO': 'bg-indigo-600',
                                         'AUSENTE': 'bg-orange-500'
                                     };
 
                                     return (
-                                        <div key={`${member.id}-${idx}`} className="min-w-[170px] sm:min-w-[190px] 2xl:min-w-[260px] h-[65px] sm:h-[70px] 2xl:h-[100px] bg-white border border-slate-200 rounded-xl p-2 2xl:p-4 flex flex-col justify-between shadow-lg group hover:border-emerald-400 hover:shadow-xl transition-all relative overflow-hidden">
+                                        <div key={`${member.id}-${idx}`} className="min-w-[170px] sm:min-w-[190px] 2xl:min-w-[260px] h-[65px] sm:h-[70px] 2xl:h-[100px] border rounded-xl p-2 2xl:p-4 flex flex-col justify-between shadow-lg group hover:border-emerald-400 hover:shadow-xl transition-all relative overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                                             <div className="flex items-center gap-2 2xl:gap-4 mb-1">
-                                                <div className="w-7 h-7 2xl:w-11 2xl:h-11 rounded-full p-0.5 border border-slate-200 shadow-sm shrink-0">
+                                                <div className="w-7 h-7 2xl:w-11 2xl:h-11 rounded-full p-0.5 border shadow-sm shrink-0" style={{ borderColor: 'var(--border)' }}>
                                                     <img
                                                         src={member.avatarUrl || `https://ui-avatars.com/api/?name=${member.name}&background=f8fafc&color=475569`}
                                                         className="w-full h-full rounded-full object-cover"
@@ -929,13 +939,20 @@ const AdminMonitoringView: React.FC = () => {
                                                     />
                                                 </div>
                                                 <div className="flex flex-col min-w-0 flex-1">
-                                                    <h4 className="text-[10px] 2xl:text-base font-black text-slate-800 uppercase tracking-tight truncate leading-tight">{member.name}</h4>
-                                                    <p className="text-[7px] 2xl:text-xs font-black text-slate-400 uppercase tracking-widest truncate">{member.cargo || 'Especialista'}</p>
+                                                    <h4 className="text-[10px] 2xl:text-base font-black uppercase tracking-tight truncate leading-tight" style={{ color: 'var(--text)' }}>{member.name}</h4>
+                                                    <p className="text-[7px] 2xl:text-xs font-black uppercase tracking-widest truncate" style={{ color: 'var(--text-muted)' }}>{member.cargo || 'Especialista'}</p>
                                                 </div>
                                             </div>
 
-                                            <div className="border-t border-slate-50 pt-1 2xl:pt-3 flex items-center justify-between gap-2">
-                                                <span className={`text-[7px] 2xl:text-[10px] font-black px-2 py-0.5 rounded-lg border ${colors[member.boardStatus]} whitespace-nowrap ${member.boardStatus === 'AUSENTE' ? 'flex-1 text-center truncate shadow-sm bg-opacity-30' : ''}`}>
+                                            <div className="border-t pt-1 2xl:pt-3 flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-muted)' }}>
+                                                <span
+                                                    className={`text-[7px] 2xl:text-[10px] font-black px-2 py-0.5 rounded-lg border whitespace-nowrap ${member.boardStatus === 'AUSENTE' ? 'flex-1 text-center truncate shadow-sm' : ''}`}
+                                                    style={{
+                                                        backgroundColor: colors[member.boardStatus].bg,
+                                                        color: colors[member.boardStatus].text,
+                                                        borderColor: colors[member.boardStatus].border
+                                                    }}
+                                                >
                                                     {member.boardStatus === 'AUSENTE' && (member as any).absenceData ? (
                                                         (() => {
                                                             const abs = (member as any).absenceData;

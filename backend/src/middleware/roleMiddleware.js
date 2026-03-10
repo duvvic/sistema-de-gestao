@@ -14,13 +14,18 @@ export const roleMiddleware = (allowedRoles) => {
 
             const userRole = String(req.user.role || '').toUpperCase();
 
-            // ADMIN tem acesso total sempre
-            if (userRole === 'ADMIN' || userRole === 'SYSTEM_ADMIN' || userRole === 'EXECUTIVE') {
+            // ADMIN e DEVELOPER tem acesso total sempre
+            if (userRole === 'ADMIN' || userRole === 'ADMINISTRADOR' || userRole === 'SYSTEM_ADMIN' || userRole === 'EXECUTIVE' || userRole === 'DEVELOPER') {
                 return next();
             }
 
             // Normaliza as permissões da rota
             const normalizedAllowed = allowedRoles.map(r => r.toUpperCase());
+
+            // Mapeamento de grupos de permissões
+            if (normalizedAllowed.includes('MANAGER')) {
+                normalizedAllowed.push('PMO', 'TECH_LEAD', 'FINANCIAL', 'GESTOR', 'GERENTE');
+            }
 
             // Se a rota permite "USER" ou "ANY", qualquer usuário autenticado pode acessar
             if (normalizedAllowed.includes('USER') || normalizedAllowed.includes('ANY')) {

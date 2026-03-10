@@ -11,6 +11,6 @@ router.get('/', roleMiddleware(['ADMIN', 'MANAGER', 'USER']), taskController.get
 router.get('/:id', roleMiddleware(['ADMIN', 'MANAGER', 'USER']), taskController.getTaskById);
 router.post('/', roleMiddleware(['ADMIN', 'MANAGER']), taskController.createTask);
 router.put('/:id', roleMiddleware(['ADMIN', 'MANAGER']), taskController.updateTask);
-router.delete('/:id', roleMiddleware(['ADMIN']), taskController.deleteTask);
+router.delete('/:id', roleMiddleware(['ADMIN', 'MANAGER']), taskController.deleteTask);
 
 export default router;

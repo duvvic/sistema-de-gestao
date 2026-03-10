@@ -251,7 +251,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                     <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4">
 
                         {error && (
-                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-500 text-sm font-medium">
+                            <div className="p-3 rounded-lg flex items-center gap-2 text-sm font-medium border" style={{ backgroundColor: 'var(--danger-bg)', borderColor: 'var(--danger-muted)', color: 'var(--danger-text)' }}>
                                 <AlertCircle className="w-4 h-4" />
                                 {error}
                             </div>
@@ -264,11 +264,11 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                 value={clientId}
                                 onChange={(e) => { setClientId(e.target.value); setProjectId(''); }}
                                 disabled={!!preSelectedClientId}
-                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] disabled:opacity-50 transition-colors ${!clientId ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] disabled:opacity-50 transition-colors bg-[var(--bg)] ${!clientId ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-[var(--border)]'}`}
                             >
-                                <option value="">Selecione o Cliente...</option>
+                                <option value="" className="bg-[var(--surface)]">Selecione o Cliente...</option>
                                 {availableClients.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                    <option key={c.id} value={c.id} className="bg-[var(--surface)]">{c.name}</option>
                                 ))}
                             </select>
                         </div>
@@ -280,11 +280,11 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                 value={projectId}
                                 onChange={(e) => { setProjectId(e.target.value); }}
                                 disabled={!clientId || !!preSelectedProjectId}
-                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] disabled:opacity-50 transition-colors ${!projectId ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] disabled:opacity-50 transition-colors bg-[var(--bg)] ${!projectId ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-[var(--border)]'}`}
                             >
-                                <option value="">Selecione o Projeto...</option>
+                                <option value="" className="bg-[var(--surface)]">Selecione o Projeto...</option>
                                 {filteredProjects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                    <option key={p.id} value={p.id} className="bg-[var(--surface)]">{p.name}</option>
                                 ))}
                             </select>
                         </div>
@@ -296,7 +296,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                 type="button"
                                 onClick={() => setIsCollaboratorsOpen(!isCollaboratorsOpen)}
                                 disabled={!projectId}
-                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm flex items-center justify-between focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] disabled:opacity-50 text-left transition-colors ${collaboratorIds.length === 0 ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm flex items-center justify-between focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] disabled:opacity-50 text-left transition-colors bg-[var(--bg)] ${collaboratorIds.length === 0 ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-[var(--border)]'}`}
                             >
                                 <span className={collaboratorIds.length === 0 ? 'text-[var(--muted)]' : ''}>
                                     {collaboratorIds.length === 0
@@ -349,13 +349,13 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                 value={developerId}
                                 onChange={(e) => setDeveloperId(e.target.value)}
                                 disabled={collaboratorIds.length === 0}
-                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] disabled:opacity-50 transition-colors ${!developerId ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] disabled:opacity-50 transition-colors bg-[var(--bg)] ${!developerId ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-[var(--border)]'}`}
                             >
-                                <option value="">Selecione o Responsável...</option>
+                                <option value="" className="bg-[var(--surface)]">Selecione o Responsável...</option>
                                 {eligibleUsers
                                     .filter(u => collaboratorIds.includes(u.id))
                                     .map(u => (
-                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                        <option key={u.id} value={u.id} className="bg-[var(--surface)]">{u.name}</option>
                                     ))
                                 }
                             </select>
@@ -379,7 +379,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="Ex: Criar tela de login"
-                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] transition-colors ${!title.trim() ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                                className={`w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] transition-colors bg-[var(--bg)] ${!title.trim() ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-[var(--border)]'}`}
                             />
                         </div>
 
@@ -408,7 +408,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70 text-blue-400">Link de Documentação (URL)</label>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70" style={{ color: 'var(--info-text)' }}>Link de Documentação (URL)</label>
                                 <input
                                     type="url"
                                     value={link_ef}
@@ -428,7 +428,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                     type="date"
                                     value={scheduledStart}
                                     onChange={(e) => setScheduledStart(e.target.value)}
-                                    className={`w-full p-2.5 border rounded-lg outline-none font-medium text-[11px] focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] transition-colors ${!scheduledStart ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                                    className={`w-full p-2.5 border rounded-lg outline-none font-medium text-[11px] focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] transition-colors bg-[var(--bg)] ${!scheduledStart ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-[var(--border)]'}`}
                                 />
                             </div>
 
@@ -439,13 +439,13 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                     type="date"
                                     value={estimatedDelivery}
                                     onChange={(e) => setEstimatedDelivery(e.target.value)}
-                                    className={`w-full p-2.5 border rounded-lg outline-none font-medium text-[11px] focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] transition-colors ${!estimatedDelivery ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                                    className={`w-full p-2.5 border rounded-lg outline-none font-medium text-[11px] focus:ring-1 focus:ring-[var(--primary)] text-[var(--text)] transition-colors bg-[var(--bg)] ${!estimatedDelivery ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-[var(--border)]'}`}
                                 />
                             </div>
 
                             {/* Horas Estimadas */}
                             <div>
-                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70 text-purple-400">Horas *</label>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70" style={{ color: 'var(--primary)' }}>Horas *</label>
                                 <input
                                     type="text"
                                     value={estimatedHours}
@@ -456,7 +456,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                         }
                                     }}
                                     placeholder="0h"
-                                    className={`w-full p-2.5 border rounded-lg outline-none font-bold text-[11px] focus:ring-1 focus:ring-purple-500/50 text-[var(--text)] transition-colors ${!estimatedHours || Number(estimatedHours) === 0 ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-[var(--bg)] border-[var(--border)]'}`}
+                                    className={`w-full p-2.5 border rounded-lg outline-none font-bold text-[11px] focus:ring-1 focus:ring-purple-500/50 text-[var(--text)] transition-colors bg-[var(--bg)] ${!estimatedHours || Number(estimatedHours) === 0 ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-[var(--border)]'}`}
                                 />
                             </div>
                         </div>
@@ -470,26 +470,26 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                                     onChange={(e) => setStatus(e.target.value as Status)}
                                     className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--primary)] bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
                                 >
-                                    <option value="Todo">A Fazer</option>
-                                    <option value="In Progress">Em Andamento</option>
-                                    <option value="Testing">Em Teste</option>
-                                    <option value="Review">Pendente / Revisão</option>
-                                    <option value="Done">Concluído</option>
+                                    <option value="Todo" className="bg-[var(--surface)]">A Fazer</option>
+                                    <option value="In Progress" className="bg-[var(--surface)]">Em Andamento</option>
+                                    <option value="Testing" className="bg-[var(--surface)]">Em Teste</option>
+                                    <option value="Review" className="bg-[var(--surface)]">Pendente / Revisão</option>
+                                    <option value="Done" className="bg-[var(--surface)]">Concluído</option>
                                 </select>
                             </div>
 
                             {/* Prioridade */}
                             <div>
-                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70 text-amber-400">Prioridade</label>
+                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70" style={{ color: 'var(--warning-text)' }}>Prioridade</label>
                                 <select
                                     value={priority}
                                     onChange={(e) => setPriority(e.target.value as Priority)}
                                     className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-amber-500/50 bg-[var(--bg)] border-[var(--border)] text-[var(--text)]"
                                 >
-                                    <option value="Low">Baixa</option>
-                                    <option value="Medium">Média</option>
-                                    <option value="High">Alta</option>
-                                    <option value="Critical">Crítica</option>
+                                    <option value="Low" className="bg-[var(--surface)]">Baixa</option>
+                                    <option value="Medium" className="bg-[var(--surface)]">Média</option>
+                                    <option value="High" className="bg-[var(--surface)]">Alta</option>
+                                    <option value="Critical" className="bg-[var(--surface)]">Crítica</option>
                                 </select>
                             </div>
                         </div>

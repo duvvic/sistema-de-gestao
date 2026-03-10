@@ -22,6 +22,8 @@ export const auditRepository = {
         if (filters.user_id) query.filters.user_id = filters.user_id;
         if (filters.action) query.filters.action = filters.action;
         if (filters.entity) query.filters.entity_type = filters.entity;
+        if (filters.client_id) query.filters.client_id = filters.client_id;
+        if (filters.project_id) query.filters.project_id = filters.project_id;
         if (filters.date_from) query.gte.created_at = `${filters.date_from}T00:00:00.000Z`;
         if (filters.date_to) query.lte.created_at = `${filters.date_to}T23:59:59.999Z`;
 

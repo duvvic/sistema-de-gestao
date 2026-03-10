@@ -17,7 +17,6 @@ import {
   GraduationCap,
   StickyNote,
   Activity,
-  RefreshCw,
   Palmtree,
   Bell,
   Search,
@@ -48,7 +47,6 @@ const MainLayoutNew: React.FC = () => {
     { path: '/admin/team', icon: Users, label: 'Colaboradores' },
     { path: '/admin/rh', icon: Palmtree, label: 'Gestão RH' },
     { path: '/admin/reports', icon: LayoutDashboard, label: 'Relatórios' },
-    { path: '/admin/sync', icon: RefreshCw, label: 'Sincronização' },
     { path: '/timesheet', icon: Clock, label: 'Timesheet' },
   ];
 

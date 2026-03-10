@@ -71,12 +71,12 @@ const RHManagement: React.FC = () => {
 
     const getStatusStyle = (status: Absence['status']) => {
         switch (status) {
-        case 'sugestao': return 'surface-tinted-amber text-amber-700 dark:text-amber-400 border';
-        case 'aprovada_gestao': return 'surface-tinted-blue text-cyan-700 dark:text-cyan-400 border';
-        case 'aprovada_rh': return 'surface-tinted-emerald text-emerald-700 dark:text-emerald-400 border';
-        case 'finalizada_dp': return 'surface-tinted-purple text-purple-700 dark:text-purple-400 border';
-        case 'rejeitado': return 'surface-tinted-red text-rose-700 dark:text-rose-400 border';
-        default: return 'bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)]';
+            case 'sugestao': return 'surface-tinted-amber text-amber-700 dark:text-amber-400 border';
+            case 'aprovada_gestao': return 'surface-tinted-blue text-cyan-700 dark:text-cyan-400 border';
+            case 'aprovada_rh': return 'surface-tinted-emerald text-emerald-700 dark:text-emerald-400 border';
+            case 'finalizada_dp': return 'surface-tinted-purple text-purple-700 dark:text-purple-400 border';
+            case 'rejeitado': return 'surface-tinted-red text-rose-700 dark:text-rose-400 border';
+            default: return 'bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)]';
         }
     };
 
@@ -295,15 +295,15 @@ const RHManagement: React.FC = () => {
                             {/* RIGHT SIDE: SIDEBAR */}
                             <div className="w-full xl:w-[340px] flex-shrink-0 flex flex-col gap-6">
                                 {/* POLÍTICAS 2026 - Dark Theme as requested */}
-                                <div className="bg-[#130E1F] border border-[#2A233C] rounded-[24px] p-6 shadow-xl relative overflow-hidden group">
-                                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                                        <ShieldCheck size={80} className="text-white" />
+                                <div className="bg-[#EADDFF]/50 dark:bg-[#130E1F] border border-[#D0BCFF] dark:border-[#2A233C] rounded-[24px] p-6 shadow-xl relative overflow-hidden group transition-all">
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                        <ShieldCheck size={80} className="text-[#6750A4] dark:text-white" />
                                     </div>
                                     <div className="flex items-center gap-3 mb-5">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                                        <div className="w-8 h-8 rounded-full bg-[#6750A4]/20 dark:bg-indigo-500/20 flex items-center justify-center text-[#6750A4] dark:text-indigo-400">
                                             <Info size={14} />
                                         </div>
-                                        <h3 className="text-[13px] font-bold tracking-widest text-[#EADDFF]">POLÍTICAS 2026</h3>
+                                        <h3 className="text-[13px] font-bold tracking-widest text-[#6750A4] dark:text-[#EADDFF]">POLÍTICAS 2026</h3>
                                     </div>
                                     <div className="space-y-3">
                                         {[
@@ -311,9 +311,9 @@ const RHManagement: React.FC = () => {
                                             { text: 'Um período deve ter 14d+', color: 'bg-cyan-400' },
                                             { text: 'Duração mínima de 5d fixos', color: 'bg-indigo-400' }
                                         ].map((rule, idx) => (
-                                            <div key={idx} className="flex items-center gap-3 p-3 bg-[#1B1429]/80 rounded-xl border border-[#2A233C]/50">
+                                            <div key={idx} className="flex items-center gap-3 p-3 bg-[var(--surface)] dark:bg-[#1B1429]/80 rounded-xl border border-[var(--border)] dark:border-[#2A233C]/50 transition-colors">
                                                 <div className={`w-1.5 h-1.5 rounded-full ${rule.color}`} />
-                                                <span className="text-[11px] font-medium text-[#D0C6E6]">{rule.text}</span>
+                                                <span className="text-[11px] font-medium text-[var(--text-2)] dark:text-[#D0C6E6]">{rule.text}</span>
                                             </div>
                                         ))}
                                     </div>

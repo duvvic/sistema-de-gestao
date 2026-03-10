@@ -263,9 +263,9 @@ const AdminDashboard: React.FC = () => {
   // Proteção contra undefined
   const safeClients = clients || [];
   const safeProjects = useMemo(() => {
-    let filtered = (projects || []).filter(p => p.active !== false);
+    let filtered = (projects || []).filter((p: Project) => p.active !== false);
     if (!showForaDoFluxo) {
-      filtered = filtered.filter(p => !p.fora_do_fluxo);
+      filtered = filtered.filter((p: Project) => !p.fora_do_fluxo);
     }
     return filtered;
   }, [projects, showForaDoFluxo]);
@@ -275,10 +275,10 @@ const AdminDashboard: React.FC = () => {
   // Removing local broken realtime logic.
 
   const activeClients = useMemo(() =>
-    safeClients.filter(c => {
+    safeClients.filter((c: Client) => {
       // Incluir se for cliente final OU se tiver projetos ativos vinculados
       // ID comparison with String() for safety
-      const hasProjects = safeProjects.some(p => String(p.clientId) === String(c.id));
+      const hasProjects = safeProjects.some((p: Project) => String(p.clientId) === String(c.id));
       const isNicLabs = c.name?.toLowerCase().includes('nic-labs');
       return c.active !== false && (c.tipo_cliente !== 'parceiro' || hasProjects || isNicLabs);
     }),
@@ -287,16 +287,16 @@ const AdminDashboard: React.FC = () => {
 
   // Tarefa mais recente de um cliente
   const getMostRecentTaskDate = (clientId: string): Date | null => {
-    const clientTasks = safeTasks.filter(t => t.clientId === clientId);
+    const clientTasks = safeTasks.filter((t: Task) => t.clientId === clientId);
     if (clientTasks.length === 0) return null;
 
     const dates = clientTasks
-      .map(t => t.actualStart)
+      .map((t: Task) => t.actualStart)
       .filter(Boolean)
-      .map(d => new Date(d!));
+      .map((d: string | undefined | null) => new Date(d!));
 
     if (dates.length === 0) return null;
-    return new Date(Math.max(...dates.map(d => d.getTime())));
+    return new Date(Math.max(...dates.map((d: Date) => d.getTime())));
   };
 
   // Filtrar e Ordenar clientes
@@ -307,34 +307,34 @@ const AdminDashboard: React.FC = () => {
     if (searchTerm && searchTerm.trim()) {
       const term = searchTerm.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
 
-      result = result.filter(c => {
+      result = result.filter((c: Client) => {
         // 1. Match Nome do Cliente
         const clientName = (c.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
         const clientWords = clientName.split(/[\s-]+/);
-        if (clientWords.some(word => word.startsWith(term)) || clientName.includes(term)) return true;
+        if (clientWords.some((word: string) => word.startsWith(term)) || clientName.includes(term)) return true;
 
         // 2. Match Nome de Projetos do Cliente
-        const clientProjects = safeProjects.filter(p => String(p.clientId) === String(c.id));
-        const matchesProject = clientProjects.some(p => {
+        const clientProjects = safeProjects.filter((p: Project) => String(p.clientId) === String(c.id));
+        const matchesProject = clientProjects.some((p: Project) => {
           const name = p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
           return name.includes(term);
         });
         if (matchesProject) return true;
 
         // 3. Match Nome de Tarefas ou Colaboradores
-        const clientTasks = safeTasks.filter(t => String(t.clientId) === String(c.id));
-        const matchesTaskOrCollab = clientTasks.some(t => {
+        const clientTasks = safeTasks.filter((t: Task) => String(t.clientId) === String(c.id));
+        const matchesTaskOrCollab = clientTasks.some((t: Task) => {
           // Título da tarefa
           const title = (t.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
           if (title.includes(term)) return true;
 
           // Colaborador (Responsável)
-          const dev = users.find(u => u.id === t.developerId);
+          const dev = users.find((u: User) => u.id === t.developerId);
           const devName = (dev?.name || t.developer || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
           if (devName.includes(term)) return true;
 
           // Outros Colaboradores
-          const otherColabs = (t.collaboratorIds || []).map(id => users.find(u => u.id === id)).filter(Boolean);
+          const otherColabs = (t.collaboratorIds || []).map(id => users.find((u: User) => u.id === id)).filter(Boolean);
           if (otherColabs.some(u => (u?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(term))) return true;
 
           return false;
@@ -344,23 +344,34 @@ const AdminDashboard: React.FC = () => {
       });
     }
 
-    // Aplicar Filtro de Status de Tarefa
+    // Aplicar Filtro de Status de Tarefa (Menu Operacional)
     if (taskStatusFilter !== 'all') {
-      result = result.filter(client => {
-        const clientTasks = safeTasks.filter(t => String(t.clientId) === String(client.id));
+      const ongoingStatuses: Array<Task['status']> = ['Todo', 'Review', 'In Progress', 'Testing'];
+
+      result = result.filter((client: Client) => {
+        const clientTasks = safeTasks.filter((t: Task) => String(t.clientId) === String(client.id));
+
         if (taskStatusFilter === 'late') {
-          return clientTasks.some(t => {
-            if (t.status === 'Done' || t.status === 'Review') return false;
-            if (!t.estimatedDelivery) return false;
-            return (t.daysOverdue ?? 0) > 0;
-          });
+          // Atrasado = Sub-filtro do 'Em Andamento' (deve estar no fluxo ativo E ter atraso)
+          return clientTasks.some((t: Task) => ongoingStatuses.includes(t.status) && (t.daysOverdue ?? 0) > 0);
         }
+
         if (taskStatusFilter === 'ongoing') {
-          return clientTasks.some(t => t.status === 'In Progress');
+          // Em andamento = todos que estão no fluxo ativo (não mostrar os que já saíram do fluxo)
+          return clientTasks.some((t: Task) => ongoingStatuses.includes(t.status));
         }
+
         if (taskStatusFilter === 'done') {
-          const clientProjects = safeProjects.filter(p => String(p.clientId) === String(client.id));
-          return clientProjects.some(p => p.status === 'Concluído');
+          // Concluido = quando todos estão concluidos
+          const clientProjects = safeProjects.filter((p: Project) => String(p.clientId) === String(client.id));
+          const hasTasks = clientTasks.length > 0;
+          const allTasksDone = hasTasks && clientTasks.every((t: Task) => t.status === 'Done');
+          const allProjectsDone = clientProjects.length > 0 && clientProjects.every((p: Project) => p.status === 'Concluído');
+
+          // Se tiver tarefas, todas devem estar Done. Se tiver projetos, todos devem estar Concluído.
+          return (hasTasks || clientProjects.length > 0) &&
+            (hasTasks ? allTasksDone : true) &&
+            (clientProjects.length > 0 ? allProjectsDone : true);
         }
         return true;
       });

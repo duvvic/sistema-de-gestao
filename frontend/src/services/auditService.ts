@@ -20,6 +20,8 @@ export interface AuditLogFilters {
     entity?: string;
     date_from?: string;
     date_to?: string;
+    client_id?: string;
+    project_id?: string;
     limit?: number;
 }
 
@@ -31,6 +33,8 @@ export const auditService = {
         if (filters?.entity) queryParams.append('entity', filters.entity);
         if (filters?.date_from) queryParams.append('date_from', filters.date_from);
         if (filters?.date_to) queryParams.append('date_to', filters.date_to);
+        if (filters?.client_id) queryParams.append('client_id', filters.client_id);
+        if (filters?.project_id) queryParams.append('project_id', filters.project_id);
         if (filters?.limit) queryParams.append('limit', String(filters.limit));
 
         return await apiRequest(`/audit-logs?${queryParams.toString()}`);

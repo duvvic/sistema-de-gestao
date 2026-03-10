@@ -26,7 +26,7 @@ export default function Login() {
 
     const [showFirstAccess, setShowFirstAccess] = useState(false)
     const [isCheckingEmail, setIsCheckingEmail] = useState(false)
-    const [showPasswordInput, setShowPasswordInput] = useState(false)
+    const [showPasswordInput, setShowPasswordInput] = useState(true)
 
     const [showPass, setShowPass] = useState(false)
     const [showNewPass, setShowNewPass] = useState(false)
@@ -266,16 +266,35 @@ export default function Login() {
             const { error } = await sb.auth.updateUser({
                 password: newPassword
             })
-            if (error) throw error
+            if (error) {
+                let msg = error.message
+                if (msg === 'New password should be different from the old password.') {
+                    msg = 'A nova senha deve ser diferente da senha anterior.'
+                }
+                throw new Error(msg)
+            }
 
-            setPendingRedirect(true)
+            // Desloga o usuário para forçar o login normal
+            await sb.auth.signOut()
+
+            // Preenche o campo de senha com a nova senha recém-criada
+            setPassword(newPassword)
+
+            // Volta a tela para o modo de login padrão
+            setMode('login')
+            setShowFirstAccess(false)
+            setShowPasswordInput(true)
+
+            // Não faz redirect automático, pois o usuário vai logar de novo agora
+            setPendingRedirect(false)
+
             showAlert(
-                'Sua senha foi definida com sucesso!',
+                'Sua senha foi definida com sucesso! Clique em Entrar no Sistema para acessar.',
                 'Sucesso'
             )
         } catch (err: any) {
             showAlert(
-                'Erro ao definir senha: ' + err.message,
+                err.message,
                 'Erro'
             )
         } finally {
@@ -396,9 +415,9 @@ export default function Login() {
                                     type="text"
                                     value={otpToken}
                                     onChange={(e) => setOtpToken(e.target.value)}
-                                    className="w-full pl-12 pr-4 py-4 text-center text-2xl font-black tracking-[0.5em] bg-slate-50 border-2 border-[#1e1b4b]/10 rounded-2xl outline-none focus:bg-white transition-all"
-                                    placeholder="000000"
-                                    maxLength={6}
+                                    className="w-full pl-12 pr-4 py-4 text-center text-2xl font-black tracking-[0.3em] bg-slate-50 border-2 border-[#1e1b4b]/10 rounded-2xl outline-none focus:bg-white transition-all"
+                                    placeholder="00000000"
+                                    maxLength={8}
                                     required
                                     autoFocus
                                 />
@@ -470,7 +489,10 @@ export default function Login() {
                     {showFirstAccess && mode === 'login' && (
                         <button
                             type="button"
-                            onClick={() => setShowFirstAccess(false)}
+                            onClick={() => {
+                                setShowFirstAccess(false);
+                                setShowPasswordInput(true);
+                            }}
                             className="w-full text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors pt-2"
                         >
                             Voltar para o Login
@@ -491,6 +513,7 @@ export default function Login() {
                         <button
                             onClick={closeAlert}
                             className="w-full bg-[#1e1b4b] text-white py-3 rounded-xl font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
+                            autoFocus
                         >
                             Entendido
                         </button>

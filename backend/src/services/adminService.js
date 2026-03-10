@@ -1,10 +1,11 @@
 import { clientRepository } from '../repositories/clientRepository.js';
 import { projectRepository } from '../repositories/projectRepository.js';
-import { auditRepository } from '../repositories/auditRepository.js';
+import { auditRepository } from '../audit/auditRepository.js';
 import { collaboratorRepository } from '../repositories/collaboratorRepository.js';
 import { taskRepository } from '../repositories/taskRepository.js';
 import { checkProjectHasTasks, checkTaskHasHours } from './projectService.js';
 import { USER_ROLES } from '../constants/roles.js';
+import { auditService } from '../audit/auditService.js';
 
 export const adminService = {
     async listClients(includeInactive) {
@@ -27,8 +28,8 @@ export const adminService = {
     },
 
     async deactivateProject(projectId, force, user) {
-        const numericId = parseInt(projectId, 10);
-        if (isNaN(numericId)) throw new Error('ID de projeto inválido');
+        const numericId = Number.parseInt(projectId, 10);
+        if (Number.isNaN(numericId)) throw new Error('ID de projeto inválido');
 
         const project = await projectRepository.findById(numericId);
         if (!project) throw new Error('Projeto não encontrado');
@@ -54,10 +55,15 @@ export const adminService = {
         const result = await projectRepository.update(numericId, { ativo: false });
 
         // Log de Auditoria
-        await auditRepository.create('DELETE (Soft)', 'Projeto', numericId, user, {
-            name: project.NomeProjeto,
+        await auditService.logAction({
+            userId: user.colaboradorId,
+            action: 'DELETE (Soft)',
+            entity: 'Projeto',
+            entityId: numericId,
+            userName: user.nome,
+            entityName: project.NomeProjeto,
             clientId: project.ID_Cliente,
-            forced: force === 'true'
+            oldData: { name: project.NomeProjeto, budget: project.budget }
         });
 
         return result;
@@ -88,18 +94,22 @@ export const adminService = {
             await taskRepository.softDeleteHours(taskId, now);
         }
 
-        await auditRepository.create('DELETE (Soft)', 'Tarefa', taskId, user, {
-            name: task.Afazer,
+        await auditService.logAction({
+            userId: user.colaboradorId,
+            action: 'DELETE (Soft)',
+            entity: 'Tarefa',
+            entityId: taskId,
+            userName: user.nome,
+            entityName: task.Afazer,
             projectId: task.ID_Projeto,
             clientId: task.ID_Cliente,
-            forced: force === 'true',
-            hadHours: hasHours,
-            deletedHours: deleteHours === 'true'
+            oldData: { name: task.Afazer, status: task.StatusTarefa }
         });
 
         return result;
     },
     async listAuditLogs(limit) {
-        return await auditRepository.findAll(limit ? parseInt(limit, 10) : undefined);
+        const parsedLimit = limit ? Number.parseInt(limit, 10) : 200;
+        return await auditRepository.findAll({ limit: parsedLimit });
     }
 };

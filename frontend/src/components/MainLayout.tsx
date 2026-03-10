@@ -18,11 +18,8 @@ import {
     Book,
     GraduationCap,
     StickyNote,
-    Zap,
     Activity,
-    RefreshCw,
     Palmtree,
-    ShieldAlert,
     History
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -35,7 +32,7 @@ const MainLayout: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const navType = useNavigationType(); // Detecta PUSH, POP, REPLACE
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
     const isExpanded = sidebarOpen || isHovered;
@@ -48,7 +45,6 @@ const MainLayout: React.FC = () => {
         { path: '/admin/team', icon: Users, label: 'Colaboradores' },
         { path: '/admin/rh', icon: Palmtree, label: 'Gestão RH' },
         { path: '/admin/reports', icon: LayoutDashboard, label: 'Relatórios' },
-        { path: '/admin/sync', icon: RefreshCw, label: 'Sincronização' },
 
         { path: '/timesheet', icon: Clock, label: 'Timesheet' },
         { path: '/admin/timeline', icon: History, label: 'Ações de Usuário' },
@@ -206,70 +202,88 @@ const MainLayout: React.FC = () => {
             {/* Sidebar Wrapper */}
             <div
                 className={`relative z-30 flex-shrink-0 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarOpen ? 'w-64' : 'w-20'}`}
-                onMouseEnter={() => !sidebarOpen && setIsHovered(true)}
+                onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
                 <div
-                    className={`absolute left-0 top-0 h-full flex flex-col z-20 shadow-2xl border-r border-white/5 overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.19,1,0.22,1)] ${isExpanded ? 'w-64' : 'w-20'}`}
-                    style={{ background: 'linear-gradient(180deg, var(--sidebar-bg), var(--sidebar-bg-2))' }}
+                    className={`absolute left-0 top-0 h-full flex flex-col z-20 shadow-2xl border-r overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isExpanded ? 'w-64' : 'w-20'}`}
+                    style={{
+                        background: 'linear-gradient(180deg, var(--sidebar-bg), var(--sidebar-bg-2))',
+                        borderColor: 'var(--sidebar-border)'
+                    }}
                 >
-                    <div className={`flex items-center justify-between border-b border-white/10 ${isExpanded ? 'p-6' : 'p-4 justify-center'}`}>
-                        {isExpanded ? (
-                            <>
-                                <div className="flex items-center gap-3">
-                                    <img src={logoImg} alt="Logo" className="w-8 h-8 object-contain" />
-                                    <h1 className="text-xl font-bold text-white tracking-widest uppercase">NIC-LABS</h1>
-                                </div>
-                                <button
-                                    onClick={() => setSidebarOpen(false)}
-                                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </>
-                        ) : (
-                            <button
-                                onClick={() => setSidebarOpen(true)}
-                                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
-                            >
-                                <Menu className="w-5 h-5" />
-                            </button>
-                        )}
+                    <div className="flex items-center border-b h-[80px] relative overflow-hidden" style={{ borderColor: 'var(--sidebar-border)' }}>
+                        <div className="w-20 flex-shrink-0 flex items-center justify-center">
+                            <img src={logoImg} alt="Logo" className="w-8 h-8 object-contain shrink-0" />
+                        </div>
+                        <div className="flex-1 flex items-center min-w-0 pr-12">
+                            <AnimatePresence>
+                                {isExpanded && (
+                                    <motion.h1
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -10 }}
+                                        className="text-xl font-bold tracking-widest uppercase whitespace-nowrap overflow-hidden"
+                                        style={{ color: 'var(--sidebar-text)' }}
+                                    >
+                                        NIC-LABS
+                                    </motion.h1>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                        <button
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className={`absolute right-4 p-2 hover:bg-white/10 rounded-lg transition-all text-white ${!isExpanded ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'}`}
+                        >
+                            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                        </button>
                     </div>
 
                     {/* User Info Melhorado e Clicável */}
                     <button
-                        className={`${isExpanded ? 'p-6' : 'p-4'} border-b border-white/10 w-full bg-white/5 hover:bg-white/10 transition-all flex items-center gap-3 group focus:outline-none relative`}
-                        style={{ cursor: 'pointer' }}
+                        className="border-b w-full bg-white/5 hover:bg-white/10 transition-all flex items-center group focus:outline-none relative h-[90px] overflow-hidden px-2 outline-none"
+                        style={{ cursor: 'pointer', borderColor: 'var(--sidebar-border)' }}
                         onClick={() => {
                             navigate('/profile');
-                            setSidebarOpen(false);
                         }}
                         title="Ver/editar perfil"
                     >
                         {isActive('/profile') && (
-                            <div className="absolute left-0 top-0 w-1 h-full bg-white" />
+                            <div className="absolute left-0 top-0 w-1.5 h-full bg-white z-10 shadow-[0_0_10px_white]" />
                         )}
-                        {currentUser?.avatarUrl ? (
-                            <img
-                                src={currentUser.avatarUrl}
-                                alt={currentUser.name}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-white/50 shadow-md group-hover:scale-105 transition-transform"
-                            />
-                        ) : (
-                            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold border-2 border-white/50 shadow-md group-hover:scale-105 transition-transform text-white">
-                                {currentUser?.name?.charAt(0) || 'U'}
-                            </div>
-                        )}
-                        {isExpanded && (
-                            <div className="flex-1 min-w-0 text-left">
-                                <p className="font-semibold truncate text-white group-hover:underline">{currentUser?.name}</p>
-                                <p className="text-xs text-white/70 truncate capitalize">{currentUser?.cargo || 'Colaborador'}</p>
-                            </div>
-                        )}
+                        <div className="w-16 flex-shrink-0 flex items-center justify-center relative">
+                            {currentUser?.avatarUrl ? (
+                                <img
+                                    src={currentUser.avatarUrl}
+                                    alt={currentUser.name}
+                                    className="w-10 h-10 rounded-full object-cover border-2 shadow-md group-hover:scale-110 transition-transform"
+                                    style={{ borderColor: 'var(--sidebar-border)' }}
+                                />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-[var(--primary-soft)] flex items-center justify-center text-lg font-bold border-2 shadow-md group-hover:scale-110 transition-transform"
+                                    style={{ borderColor: 'var(--sidebar-border)', color: 'var(--primary)' }}>
+                                    {currentUser?.name?.charAt(0) || 'U'}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0 pr-4 text-left ml-2">
+                            <AnimatePresence>
+                                {isExpanded && (
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -10 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <p className="font-bold truncate leading-tight transition-colors" style={{ color: 'var(--sidebar-text)' }}>{currentUser?.name}</p>
+                                        <p className="text-[10px] truncate uppercase tracking-widest font-black mt-0.5 opacity-60" style={{ color: 'var(--sidebar-text)' }}>{currentUser?.role || 'Colaborador'}</p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </button>
 
-                    <nav className="flex-1 p-4 space-y-2 overflow-y-auto no-scrollbar">
+                    <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto no-scrollbar">
                         {menuItems.map((item) => {
                             const Icon = item.icon;
                             const active = isActive(item.path);
@@ -279,43 +293,48 @@ const MainLayout: React.FC = () => {
                                     key={item.path}
                                     onClick={() => {
                                         navigate(item.path);
-                                        if (!sidebarOpen) setIsHovered(false);
                                     }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all relative ${!isExpanded && 'justify-center'}`}
+                                    className="w-full h-12 flex items-center rounded-xl transition-all relative group/item overflow-hidden px-0 outline-none"
                                     style={{
-                                        backgroundColor: active ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                                        color: active ? 'white' : 'rgba(255, 255, 255, 0.8)',
+                                        backgroundColor: active ? 'var(--primary)' : 'transparent',
+                                        color: active ? 'white' : 'var(--sidebar-text)',
                                     }}
                                     onMouseEnter={(e) => {
                                         if (!active) {
-                                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                                            e.currentTarget.style.color = 'white';
+                                            e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)';
                                         }
                                     }}
                                     onMouseLeave={(e) => {
                                         if (!active) {
                                             e.currentTarget.style.backgroundColor = 'transparent';
-                                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
                                         }
                                     }}
                                 >
-                                    <Icon className="w-5 h-5 flex-shrink-0" />
-                                    <AnimatePresence>
-                                        {isExpanded && (
-                                            <motion.span
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: -10 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="font-medium whitespace-nowrap"
-                                                translate="no"
-                                            >
-                                                {item.label}
-                                            </motion.span>
-                                        )}
-                                    </AnimatePresence>
+                                    <div className="w-16 h-full flex items-center justify-center flex-shrink-0 transition-transform group-hover/item:scale-110">
+                                        <Icon className="w-5 h-5" style={{
+                                            color: active ? 'white' : 'var(--sidebar-text)',
+                                            opacity: active ? 1 : 0.6,
+                                            transition: 'color 0.2s, opacity 0.2s'
+                                        }} />
+                                    </div>
+                                    <div className="flex-1 pr-4 overflow-hidden relative text-left ml-2">
+                                        <AnimatePresence initial={false}>
+                                            {isExpanded && (
+                                                <motion.span
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: -10 }}
+                                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                                    className="font-bold text-sm whitespace-nowrap block"
+                                                    translate="no"
+                                                >
+                                                    {item.label}
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
                                     {active && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-r-full shadow-[0_0_10px_white] z-10" />
                                     )}
                                 </button>
                             );
@@ -327,47 +346,57 @@ const MainLayout: React.FC = () => {
                         {/* Theme Toggle Button - Now Integrated */}
                         <button
                             onClick={toggleTheme}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/80 hover:bg-white/10 transition-colors ${!isExpanded && 'justify-center'}`}
+                            className="w-full h-12 flex items-center rounded-xl transition-all hover:bg-black/5 dark:hover:bg-white/5 group/theme overflow-hidden px-0 outline-none"
+                            style={{ color: 'var(--sidebar-text)' }}
                         >
-                            {themeMode === 'light' ? (
-                                <Moon className="w-5 h-5 flex-shrink-0" />
-                            ) : (
-                                <Sun className="w-5 h-5 flex-shrink-0" />
-                            )}
-                            <AnimatePresence>
-                                {isExpanded && (
-                                    <motion.span
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -10 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="font-medium whitespace-nowrap"
-                                    >
-                                        {themeMode === 'light' ? 'Escuro' : 'Claro'}
-                                    </motion.span>
+                            <div className="w-16 h-full flex items-center justify-center flex-shrink-0 transition-transform group-hover/theme:rotate-12 opacity-60 group-hover/theme:opacity-100">
+                                {themeMode === 'light' ? (
+                                    <Moon className="w-5 h-5" />
+                                ) : (
+                                    <Sun className="w-5 h-5" />
                                 )}
-                            </AnimatePresence>
+                            </div>
+                            <div className="flex-1 pr-4 overflow-hidden relative text-left ml-2">
+                                <AnimatePresence initial={false}>
+                                    {isExpanded && (
+                                        <motion.span
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -10 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="font-bold text-sm whitespace-nowrap block opacity-60 group-hover/theme:opacity-100"
+                                        >
+                                            {themeMode === 'light' ? 'Modo Escuro' : 'Modo Claro'}
+                                        </motion.span>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </button>
 
                         {/* Logout - Now Integrated */}
                         <button
                             onClick={handleLogout}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/80 hover:bg-red-500/80 hover:text-white transition-colors ${!isExpanded && 'justify-center'}`}
+                            className="w-full h-12 flex items-center rounded-xl transition-all hover:bg-red-500/10 dark:hover:bg-red-500/20 group/logout overflow-hidden px-0 outline-none"
+                            style={{ color: 'var(--sidebar-text)' }}
                         >
-                            <LogOut className="w-5 h-5 flex-shrink-0" />
-                            <AnimatePresence>
-                                {isExpanded && (
-                                    <motion.span
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -10 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="font-medium whitespace-nowrap"
-                                    >
-                                        Sair
-                                    </motion.span>
-                                )}
-                            </AnimatePresence>
+                            <div className="w-16 h-full flex items-center justify-center flex-shrink-0 transition-transform group-hover/logout:translate-x-1 opacity-60 group-hover/logout:opacity-100 text-red-500">
+                                <LogOut className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 pr-4 overflow-hidden relative text-left ml-2">
+                                <AnimatePresence initial={false}>
+                                    {isExpanded && (
+                                        <motion.span
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -10 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="font-bold text-sm whitespace-nowrap block opacity-60 group-hover/logout:opacity-100"
+                                        >
+                                            Sair do Sistema
+                                        </motion.span>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </button>
                     </nav>
 
