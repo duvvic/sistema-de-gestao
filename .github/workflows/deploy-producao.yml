@@ -24,8 +24,8 @@ jobs:
         run: |
           cd /opt/nic-labs/core
           # Reconstrói apenas as imagens do sistema de gestão
-          docker compose build gestao_backend gestao_frontend
-          docker compose up -d gestao_backend gestao_frontend
+          sudo docker compose build gestao_backend gestao_frontend
+          sudo docker compose up -d gestao_backend gestao_frontend
           
           # Limpeza do disco
-          docker image prune -f
+          sudo docker image prune -f
