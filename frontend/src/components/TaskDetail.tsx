@@ -414,20 +414,24 @@ const TaskDetail: React.FC = () => {
     }
 
     try {
-      setLoading(true);
-      await deleteTask(taskId, deleteConfirmation.force, shouldDeleteHours);
-      discardChanges(); navigate(-1);
+      const force = deleteConfirmation.force;
+      setDeleteConfirmation(null); // Fecha o modal imediatamente (Otimista)
+
+      await deleteTask(taskId, force, shouldDeleteHours);
+      discardChanges();
+      navigate(-1);
     } catch (error: any) {
       if (error.message?.includes("horas apontadas") || error.message?.includes("seguinte erro: 400")) {
         setDeleteConfirmation({ force: true });
         setDeleteConfirmText('');
       } else if (error.message?.includes("403")) {
         alert("Acesso Negado: Apenas Administradores do Sistema podem excluir tarefas com horas.");
-        setDeleteConfirmation(null);
       } else {
         alert("Erro ao excluir: " + error.message);
       }
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBack = () => {

@@ -344,7 +344,10 @@ export default function Login() {
                             <div className="relative group">
                                 <Mail className={`absolute left-4 top-4 h-5 w-5 transition-colors ${email ? 'text-[#1e1b4b]' : 'text-slate-300 group-focus-within:text-[#1e1b4b]'}`} />
                                 <input
+                                    id="email"
+                                    name="email"
                                     type="email"
+                                    autoComplete="username"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-[#1e1b4b]/10 focus:bg-white rounded-2xl outline-none transition-all font-semibold text-slate-700"
@@ -365,7 +368,10 @@ export default function Login() {
                                         <Lock className={`absolute left-4 top-4 h-5 w-5 transition-colors ${password ? 'text-[#1e1b4b]' : 'text-slate-300 group-focus-within:text-[#1e1b4b]'}`} />
                                         <input
                                             ref={passwordRef}
+                                            id="password"
+                                            name="password"
                                             type={showPass ? "text" : "password"}
+                                            autoComplete="current-password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-transparent focus:border-[#1e1b4b]/10 focus:bg-white rounded-2xl outline-none transition-all font-semibold text-slate-700"

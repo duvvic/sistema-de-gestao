@@ -818,11 +818,17 @@ export const KanbanBoard = () => {
       }
 
       try {
-        await deleteTask(taskToDelete.id, isForceDelete, shouldDeleteHours);
+        const idToDelete = taskToDelete.id;
+        const force = isForceDelete;
+        const delHours = shouldDeleteHours;
+
+        // Fecha o modal e limpa estado imediatamente (Otimista)
         setDeleteModalOpen(false);
         setTaskToDelete(null);
         setIsForceDelete(false);
         setDeleteConfirmText('');
+
+        await deleteTask(idToDelete, force, delHours);
       } catch (error: any) {
         console.error('Erro ao excluir tarefa:', error);
         const msg = error.message || "";

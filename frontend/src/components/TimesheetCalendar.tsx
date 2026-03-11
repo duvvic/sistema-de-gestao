@@ -472,7 +472,10 @@ const TimesheetCalendar: React.FC<TimesheetCalendarProps> = ({ userId, embedded 
                       >
                         <Search className="w-3.5 h-3.5 text-white" />
                         <input
+                          id="member-search"
+                          name="member-search"
                           type="text"
+                          autoComplete="off"
                           placeholder="Buscar membro..."
                           value={searchTerm}
                           onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }}

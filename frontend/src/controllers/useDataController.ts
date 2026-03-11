@@ -221,10 +221,10 @@ export const useDataController = () => {
         deleteTask: async (taskId: string, force: boolean = false, deleteHours: boolean = false) => {
             const previousTasks = [...tasks];
             setTasks(prev => prev.filter(t => t.id !== taskId));
-            showDeleteSuccess('Tarefa Excluída');
 
             try {
                 await taskService.deleteTask(taskId, force, deleteHours);
+                showDeleteSuccess('Tarefa Excluída');
             } catch (error) {
                 setTasks(previousTasks);
                 throw error;
