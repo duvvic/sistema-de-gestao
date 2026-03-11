@@ -15,7 +15,10 @@ export const ADM_ROLES = [
     'DIRETORIA',
     'DIRETORIA_GERAL',
     'EXECUTIVE',
-    'COORDENADOR'
+    'COORDENADOR',
+    'FINANCIAL',
+    'FINANCEIRO',
+    'TECH_LEAD'
 ];
 
 /**

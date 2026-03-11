@@ -46,7 +46,8 @@ const MainLayout: React.FC = () => {
         { path: '/admin/rh', icon: Palmtree, label: 'Gestão RH' },
         { path: '/admin/reports', icon: LayoutDashboard, label: 'Relatórios' },
 
-        { path: '/timesheet', icon: Clock, label: 'Timesheet' },
+        { path: '/timesheet', icon: Clock, label: 'Meu Timesheet' },
+        { path: '/admin/timesheet', icon: Users, label: 'Timesheet Geral' },
         { path: '/admin/timeline', icon: History, label: 'Ações de Usuário' },
     ];
 
