@@ -23,11 +23,9 @@ jobs:
       - name: Reconstruir e reiniciar contêineres (Docker Compose)
         run: |
           cd /opt/nic-labs/core
-          # Removemos o sudo pois ele requer senha em ambiente não-interativo.
-          # Usamos --env-file /dev/null para evitar o erro de 'permission denied' ao tentar ler o .env do root.
-          # Os containers usam suas próprias variáveis internas ou do repositório.
-          docker compose --env-file /dev/null build gestao_backend gestao_frontend
-          docker compose --env-file /dev/null up -d gestao_backend gestao_frontend
+          # Utilizamos o arquivo de segredos específico para evitar o erro de permissão no .env do root
+          docker compose --env-file secrets/gestao_backend.env build gestao_backend gestao_frontend
+          docker compose --env-file secrets/gestao_backend.env up -d gestao_backend gestao_frontend
           
-          # Limpeza do disco (sem sudo)
+          # Limpeza do disco
           docker image prune -f
