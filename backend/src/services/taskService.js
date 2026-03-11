@@ -2,7 +2,7 @@ import { taskRepository } from '../repositories/taskRepository.js';
 import { auditService } from '../audit/auditService.js';
 import { auditContext } from '../audit/auditMiddleware.js';
 import { isAdmUser } from '../utils/security.js';
-import { projectService } from './projectService.js';
+import { projectService, checkTaskHasHours } from './projectService.js';
 import { notifyUpdates } from '../utils/realtime.js';
 
 const safeNum = (val) => {
@@ -213,7 +213,7 @@ export const taskService = {
         // Verifica existência e permissão básica (assigned ou vinculado)
         const task = await this.getTaskById(user, id);
 
-        const hasHours = await projectService.checkTaskHasHours(id);
+        const hasHours = await checkTaskHasHours(id);
 
         if (hasHours && !force) {
             const error = new Error('Não é possível excluir esta tarefa pois existem horas apontadas nela.');
