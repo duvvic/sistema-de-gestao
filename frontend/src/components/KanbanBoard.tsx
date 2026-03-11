@@ -1141,9 +1141,9 @@ export const KanbanBoard = () => {
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
             onClick={() => setShowTaskCreationModal(true)}
           >
-            + Nova Tarefa
+            <Plus size={18} />
+            Nova Tarefa
           </button>
-          )}
         </div>
       </div>
 
@@ -1355,15 +1355,17 @@ export const KanbanBoard = () => {
         disabled={isForceDelete && (deleteConfirmText !== taskToDelete?.title || !isAdmin)}
       />
 
-      {showTaskCreationModal && (
-        <TaskCreationModal
-          isOpen={showTaskCreationModal}
-          onClose={() => setShowTaskCreationModal(false)}
-          preSelectedProjectId={filteredProjectId || undefined}
-          preSelectedClientId={filteredClientId || undefined}
-        />
-      )}
-    </div>
+      {
+        showTaskCreationModal && (
+          <TaskCreationModal
+            isOpen={showTaskCreationModal}
+            onClose={() => setShowTaskCreationModal(false)}
+            preSelectedProjectId={filteredProjectId || undefined}
+            preSelectedClientId={filteredClientId || undefined}
+          />
+        )
+      }
+    </div >
   );
 };
 
