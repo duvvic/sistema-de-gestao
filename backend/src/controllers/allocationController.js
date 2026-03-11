@@ -24,7 +24,7 @@ export const allocationController = {
             await dbDelete('task_member_allocations', { task_id, user_id });
 
             if (reserved_hours > 0) {
-                const [result] = await dbInsert('task_member_allocations', {
+                const result = await dbInsert('task_member_allocations', {
                     task_id,
                     user_id,
                     reserved_hours
