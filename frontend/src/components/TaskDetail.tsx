@@ -400,9 +400,9 @@ const TaskDetail: React.FC = () => {
   const performDelete = async () => {
     if (!taskId || !deleteConfirmation) return;
 
-    // Se houver horas e NÃO for system_admin, bloqueia no front também
-    if (deleteConfirmation.force && currentUser?.role !== 'system_admin') {
-      alert("Apenas o Administrador do Sistema pode excluir tarefas que já possuem horas apontadas.");
+    // Se houver horas e NÃO for system_admin ou admin, bloqueia no front também
+    if (deleteConfirmation.force && !['system_admin', 'admin', 'ceo'].includes(currentUser?.role || '')) {
+      alert("Aviso: Como esta tarefa possui banco de horas vinculado, você não possui o nível de acesso à deleção forçada. Apenas o Administrador do Sistema pode excluir tarefas que já possuem horas apontadas.");
       setDeleteConfirmation(null);
       return;
     }
@@ -1238,10 +1238,14 @@ const TaskDetail: React.FC = () => {
                 </label>
               </div>
 
-              {currentUser?.role !== 'system_admin' ? (
-                <p className="text-xs p-3 bg-red-500/10 rounded-lg text-red-600 font-bold border border-red-500/20">
-                  Bloqueado: Apenas o Administrador do Sistema pode realizar esta operação.
-                </p>
+              {!['system_admin', 'admin', 'ceo'].includes(currentUser?.role || '') ? (
+                <div className="flex bg-amber-50 rounded-xl p-4 items-start gap-4 mb-3 shadow-inner">
+                  <AlertTriangle size={18} className="text-amber-500 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-amber-800">Aviso: Como esta tarefa possui banco de horas vinculado, você não possui o nível de acesso à deleção forçada.</p>
+                    <p className="text-[10px] text-amber-700 mt-1">Apenas usuários com perfil de Administrador do Sistema, Administrador ou CEO podem realizar esta operação.</p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-2">
                   <p className="text-[10px] uppercase font-bold opacity-50">Para habilitar, digite o nome da tarefa abaixo:</p>
@@ -1261,7 +1265,7 @@ const TaskDetail: React.FC = () => {
         confirmColor="red"
         onConfirm={performDelete}
         onCancel={() => { setDeleteConfirmation(null); setDeleteConfirmText(''); setShouldDeleteHours(false); }}
-        disabled={!!(deleteConfirmation?.force && (currentUser?.role !== 'system_admin' || deleteConfirmText !== task?.title))}
+        disabled={!!(deleteConfirmation?.force && (!['system_admin', 'admin', 'ceo'].includes(currentUser?.role || '') || deleteConfirmText !== task?.title))}
       />
 
       {

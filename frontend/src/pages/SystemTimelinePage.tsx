@@ -19,7 +19,9 @@ interface UserNotification {
     icon: any;
     badgeColor: string;
     logData?: AuditLog;
+    colabAvatar?: string;
     clientLogo?: string;
+    clientLogoUrl?: string;
 }
 
 export const SystemTimelinePage: React.FC = () => {
@@ -75,14 +77,14 @@ export const SystemTimelinePage: React.FC = () => {
     }, [users]);
 
     const collaboratorIds = useMemo(() => {
-        return new Set(collaborators.map(u => String(u.id)));
+        return new Set(collaborators.map((u: any) => String(u.id)));
     }, [collaborators]);
 
     const getTaskNotification = (log: AuditLog, locationStr: string) => {
         const action = log.action.toUpperCase();
         const tName = log.new_data?.tarefa || log.old_data?.tarefa || log.new_data?.title || log.old_data?.title || 'uma tarefa';
         const pId = log.new_data?.projeto_id || log.old_data?.projeto_id || log.new_data?.ID_Projeto || log.old_data?.ID_Projeto;
-        const foundProject = projects.find(p => String(p.id) === String(pId));
+        const foundProject = projects.find((p: any) => String(p.id) === String(pId));
         const pName = foundProject ? foundProject.name : (log.new_data?.project_name || log.old_data?.project_name || pId || 'um projeto');
 
         if (action === 'UPDATE') {
@@ -117,76 +119,112 @@ export const SystemTimelinePage: React.FC = () => {
 
     const getLogNotification = (log: AuditLog) => {
         const action = log.action.toUpperCase();
-        const entity = log.entity.toLowerCase();
-        let clientLogo = '';
+        const entity = log.entity?.toLowerCase() || '';
 
-        const clientIdRaw = log.new_data?.client_id || log.new_data?.cliente_id || log.old_data?.client_id || log.old_data?.cliente_id;
-        if (clientIdRaw) {
-            const c = clients.find(cl => String(cl.id) === String(clientIdRaw));
-            if (c?.name) clientLogo = c.name.substring(0, 2).toUpperCase();
-        } else if (log.new_data?.client_name) {
-            clientLogo = String(log.new_data.client_name).substring(0, 2).toUpperCase();
+        const clientLogoUrl = log.client_logo;
+        const clientLogoText = log.client_name ? log.client_name.substring(0, 2).toUpperCase() : '';
+
+        // Detalhes humanizados
+        let humanDetails = '';
+        if (action === 'UPDATE' && log.old_data && log.new_data) {
+            const changes = [];
+
+            // Mapeamento de campos técnicos para nomes amigáveis
+            const fieldMap: Record<string, string> = {
+                'status': 'status',
+                'StatusTarefa': 'status',
+                'Porcentagem': 'progresso',
+                'progress': 'progresso',
+                'inicio_previsto': 'data inicial',
+                'entrega_estimada': 'data de entrega',
+                'ID_Colaborador': 'responsável',
+                'estimated_hours': 'horas previstas',
+                'horas_meta_mes': 'meta de horas mensal'
+            };
+
+            for (const key in log.new_data) {
+                if (log.old_data[key] !== log.new_data[key] && fieldMap[key]) {
+                    const oldVal = log.old_data[key];
+                    const newVal = log.new_data[key];
+
+                    if (key === 'ID_Colaborador') {
+                        const oldU = users.find((u: any) => String(u.id) === String(oldVal));
+                        const newU = users.find((u: any) => String(u.id) === String(newVal));
+                        changes.push(`alterou o responsável de ${oldU?.name || oldVal} para ${newU?.name || newVal}`);
+                    } else if (key.includes('date') || key.includes('inicio') || key.includes('entrega')) {
+                        changes.push(`alterou ${fieldMap[key]} de ${oldVal || 'vazio'} para ${newVal || 'vazio'}`);
+                    } else {
+                        changes.push(`alterou ${fieldMap[key]} para ${newVal}`);
+                    }
+                }
+            }
+            if (changes.length > 0) humanDetails = changes.join(', ');
         }
 
         if (entity === 'fato_tarefas') {
-            const tName = log.new_data?.tarefa || log.old_data?.tarefa || log.new_data?.title || log.old_data?.title || 'uma tarefa';
-            const pId = log.new_data?.projeto_id || log.old_data?.projeto_id || log.new_data?.ID_Projeto || log.old_data?.ID_Projeto;
-            const foundProject = projects.find(p => String(p.id) === String(pId));
-            const pName = foundProject ? foundProject.name : (log.new_data?.project_name || log.old_data?.project_name || pId || 'um projeto');
+            const tName = log.task_name || 'uma tarefa';
+            const pName = log.project_name || 'um projeto';
+            const cName = log.client_name || '';
 
-            const foundClient = foundProject ? clients.find(c => String(c.id) === String(foundProject.clientId)) : null;
-            const cName = foundClient ? foundClient.name : (log.new_data?.client_name || log.old_data?.client_name || '');
-
-            const loc = `na tarefa "${tName}", projeto "${pName}"${cName ? `, cliente ${cName}` : ''}`;
+            const loc = `na tarefa "${tName}"${pName ? `, projeto "${pName}"` : ''}${cName ? `, cliente ${cName}` : ''}`;
             const res = getTaskNotification(log, loc);
-            return res ? { ...res, type: res.type || 'info' as const, clientLogo } : null;
+            return res ? { ...res, type: res.type || 'info' as const, clientLogo: clientLogoText, clientLogoUrl, humanDetails } : null;
         }
+
         if (entity === 'dim_projetos' && action === 'CREATE') {
-            const pName = log.new_data?.name || log.new_data?.title || 'um projeto';
-            const cName = log.new_data?.client_name || '';
+            const pName = log.project_name || 'um projeto';
+            const cName = log.client_name || '';
             return {
                 message: `criou o projeto "${pName}"${cName ? ` para o cliente ${cName}` : ''}`,
-                icon: FolderPlus, badgeColor: 'bg-purple-100 text-purple-700', type: 'info' as const, clientLogo
+                icon: FolderPlus, badgeColor: 'bg-purple-100 text-purple-700', type: 'info' as const, clientLogo: clientLogoText, clientLogoUrl, humanDetails: ''
             };
         }
+
         if (entity === 'ausencias' && action === 'CREATE') {
-            return { message: 'agendou uma ausência', type: 'warning' as const, icon: Palmtree, badgeColor: 'bg-amber-100 text-amber-700', clientLogo };
+            return { message: 'agendou uma ausência', type: 'warning' as const, icon: Palmtree, badgeColor: 'bg-amber-100 text-amber-700', clientLogo: clientLogoText, clientLogoUrl, humanDetails: '' };
         }
+
         if (entity === 'horas_trabalhadas' && action === 'CREATE') {
-            return { message: 'realizou um apontamento de horas', icon: Clock, badgeColor: 'bg-indigo-100 text-indigo-700', type: 'info' as const, clientLogo };
+            const hours = log.new_data?.total_hours || log.new_data?.totalHours || '';
+            return {
+                message: `realizou um apontamento de ${hours ? `${hours} ` : ''}horas`,
+                icon: Clock, badgeColor: 'bg-indigo-100 text-indigo-700', type: 'info' as const, clientLogo: clientLogoText, clientLogoUrl, humanDetails: ''
+            };
         }
+
         if (entity === 'membros_projeto' || entity.includes('project_members')) {
             const assId = log.new_data?.user_id || log.new_data?.id_colaborador;
-            const assU = users.find(u => String(u.id) === String(assId));
+            const assU = users.find((u: any) => String(u.id) === String(assId));
             return {
                 message: `adicionou ${assU ? assU.name : 'um colaborador'} a um projeto`,
-                icon: Users, badgeColor: 'bg-slate-100 text-slate-700', type: 'info' as const, clientLogo
+                icon: Users, badgeColor: 'bg-slate-100 text-slate-700', type: 'info' as const, clientLogo: clientLogoText, clientLogoUrl, humanDetails: ''
             };
         }
+
         return null;
     };
 
     // Notification Feed
     const notifications = useMemo(() => {
         const feed: UserNotification[] = [];
-        logs.forEach(log => {
+        logs.forEach((log: AuditLog) => {
             const res = getLogNotification(log);
             if (!res) return;
-            const foundUser = users.find(u => String(u.id) === String(log.user_id));
-            const resolvedUserName = foundUser ? foundUser.name : (log.user_name && isNaN(Number(log.user_name)) ? log.user_name : 'Usuário Desconhecido');
 
             feed.push({
                 id: `log-${log.id}`,
                 date: new Date(log.created_at),
                 userId: String(log.user_id),
-                userName: resolvedUserName,
+                userName: log.user_name || 'Sistema/Desconhecido',
+                colabAvatar: log.avatar_url,
                 message: res.message,
-                details: '',
+                details: res.humanDetails || '',
                 type: res.type,
                 icon: res.icon,
                 badgeColor: res.badgeColor,
                 logData: log,
-                clientLogo: res.clientLogo
+                clientLogo: res.clientLogo,
+                clientLogoUrl: res.clientLogoUrl
             });
         });
 
@@ -203,7 +241,7 @@ export const SystemTimelinePage: React.FC = () => {
 
         if (clientFilter) {
             filtered = filtered.filter(f => {
-                const cid = f.logData?.new_data?.client_id || f.logData?.old_data?.client_id || f.logData?.new_data?.cliente_id;
+                const cid = f.logData?.client_id || f.logData?.old_data?.client_id || f.logData?.new_data?.cliente_id;
                 return String(cid) === String(clientFilter);
             });
         }
@@ -265,7 +303,7 @@ export const SystemTimelinePage: React.FC = () => {
                             style={{ backgroundColor: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
                         >
                             <option value="">Colaborador</option>
-                            {collaborators.map(u => (
+                            {collaborators.map((u: any) => (
                                 <option key={u.id} value={u.id}>{u.name}</option>
                             ))}
                         </select>
@@ -277,7 +315,7 @@ export const SystemTimelinePage: React.FC = () => {
                             style={{ backgroundColor: 'var(--surface-3)', borderColor: 'var(--border)', color: 'var(--text)' }}
                         >
                             <option value="">Cliente</option>
-                            {clients.map(c => (
+                            {clients.map((c: any) => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
                         </select>
@@ -392,17 +430,25 @@ export const SystemTimelinePage: React.FC = () => {
                                                     key={notif.id}
                                                     className="relative pl-20 group"
                                                 >
-                                                    {/* Timeline Node Icon */}
+                                                    {/* Timeline Node Icon / Avatar */}
                                                     <div className={`absolute left-0 top-3 w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm z-10 
-                                                                                    ${notif.badgeColor} border-4 group-hover:scale-110 transition-transform duration-300`}
+                                                                                    ${notif.badgeColor} border-4 group-hover:scale-110 transition-transform duration-300 overflow-hidden`}
                                                         style={{ borderColor: 'var(--bg)' }}>
-                                                        <notif.icon className="w-6 h-6" />
+                                                        {notif.colabAvatar ? (
+                                                            <img src={notif.colabAvatar} alt={notif.userName} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <notif.icon className="w-6 h-6" />
+                                                        )}
                                                     </div>
 
-                                                    {notif.clientLogo && (
-                                                        <div title="Cliente associado" className="absolute left-[20px] top-[74px] w-5 h-5 border rounded flex items-center justify-center text-[9px] font-bold z-10 shadow-sm leading-none pt-0.5"
-                                                            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                                                            {notif.clientLogo.substring(0, 2).toUpperCase()}
+                                                    {(notif.clientLogoUrl || notif.clientLogo) && (
+                                                        <div title="Cliente associado" className="absolute left-[20px] top-[74px] w-5 h-5 border rounded flex items-center justify-center text-[9px] font-bold z-10 shadow-sm leading-none bg-white overflow-hidden"
+                                                            style={{ borderColor: 'var(--border)' }}>
+                                                            {notif.clientLogoUrl ? (
+                                                                <img src={notif.clientLogoUrl} alt="logo" className="w-full h-full object-contain" />
+                                                            ) : (
+                                                                <span style={{ color: 'var(--text-muted)' }}>{notif.clientLogo}</span>
+                                                            )}
                                                         </div>
                                                     )}
 
@@ -470,7 +516,7 @@ export const SystemTimelinePage: React.FC = () => {
                                     <div>
                                         <h3 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Dados Técnicos da Alteração</h3>
                                         <p className="font-medium" style={{ color: 'var(--text-muted)' }}>
-                                            {users.find(u => String(u.id) === String(selectedLog.user_id))?.name || (selectedLog.user_name && isNaN(Number(selectedLog.user_name)) ? selectedLog.user_name : 'Usuário')} registrou esta ação
+                                            {users.find((u: any) => String(u.id) === String(selectedLog.user_id))?.name || (selectedLog.user_name && isNaN(Number(selectedLog.user_name)) ? selectedLog.user_name : 'Usuário')} registrou esta ação
                                         </p>
                                     </div>
                                 </div>

@@ -4,6 +4,8 @@ export interface AuditLog {
     id: number;
     user_id: string | null;
     user_name: string;
+    collaborator_id?: number | string;
+    avatar_url?: string;
     action: string;
     entity: string;
     entity_name: string;
@@ -12,6 +14,12 @@ export interface AuditLog {
     new_data: any;
     ip_address: string | null;
     created_at: string;
+    client_id?: string;
+    client_name?: string;
+    client_logo?: string;
+    project_id?: string;
+    project_name?: string;
+    task_name?: string;
 }
 
 export interface AuditLogFilters {

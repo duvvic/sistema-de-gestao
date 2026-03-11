@@ -169,21 +169,26 @@ export interface Absence {
 export interface AuditLogEntry {
   id: number;
   timestamp: string;
+  created_at?: string;
   user_id: string; // Pode ser number no banco, mas string no front facilita join com users auth
   user_role: string;
   action: string;
   resource: string;
   resource_id: string; // ou number
   changes: any; // JSONB
+  old_data?: any;
+  new_data?: any;
   ip_address?: string;
   user_agent?: string;
   user_name?: string; // Campo calculado no front (join)
+  avatar_url?: string;
   client_id?: string | number;
   project_id?: string | number;
   task_id?: string | number;
   client_name?: string;
   project_name?: string;
   task_name?: string;
+  client_logo?: string;
 }
 
 export interface ProjectMember {

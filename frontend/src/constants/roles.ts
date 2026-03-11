@@ -3,6 +3,7 @@
 
 export const USER_ROLES = {
     SYSTEM_ADMIN: 'system_admin',
+    ADMIN: 'admin',
     CEO: 'ceo',
     EXECUTIVE: 'executive',
     PMO: 'pmo',
@@ -16,6 +17,7 @@ export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
 
 export const ROLE_DISPLAY_NAMES: Record<string, string> = {
     system_admin: 'Administrador do Sistema',
+    admin: 'Administrador',
     ceo: 'CEO / Presidência',
     executive: 'Direção / Gestão Executiva',
     pmo: 'Gerente de Projetos / PMO',
@@ -27,6 +29,7 @@ export const ROLE_DISPLAY_NAMES: Record<string, string> = {
 
 export const ROLE_HIERARCHY: Record<string, number> = {
     system_admin: 6,
+    admin: 6,
     ceo: 6,
     executive: 5,
     pmo: 4,
@@ -41,21 +44,24 @@ export const FINANCIAL_ROLES: UserRole[] = [
     USER_ROLES.SYSTEM_ADMIN,
     USER_ROLES.CEO,
     USER_ROLES.EXECUTIVE,
-    USER_ROLES.FINANCIAL
+    USER_ROLES.FINANCIAL,
+    'admin' as any // Incluindo admin antigo
 ];
 
 // Roles que podem editar projetos
 export const PROJECT_EDIT_ROLES: UserRole[] = [
     USER_ROLES.SYSTEM_ADMIN,
     USER_ROLES.CEO,
-    USER_ROLES.PMO
+    USER_ROLES.PMO,
+    'admin' as any
 ];
 
 // Roles que podem gerenciar usuários
 export const USER_MANAGEMENT_ROLES: UserRole[] = [
     USER_ROLES.SYSTEM_ADMIN,
     USER_ROLES.CEO,
-    USER_ROLES.RH
+    USER_ROLES.RH,
+    'admin' as any
 ];
 
 // Roles que podem ver os lançamentos (Timesheet) de todos os colaboradores

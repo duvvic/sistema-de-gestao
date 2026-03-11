@@ -179,11 +179,26 @@ export default function Login() {
                 throw new Error('Perfil do colaborador não encontrado.')
             }
 
+            const normalizeUserRole = (roleValue: string | null): Role => {
+                if (!roleValue) return "developer";
+                const p = roleValue.toLowerCase().trim();
+                if (p === 'system_admin' || p === 'system admin') return 'system_admin';
+                if (p === 'diretoria') return 'diretoria';
+                if (p === 'pmo') return 'pmo';
+                if (p === 'gestor') return 'gestor';
+                if (p === 'tech lead' || p === 'tech_lead') return 'tech_lead';
+                if (p === 'financeiro') return 'financeiro';
+                if (p === 'administrador' || p === 'admin') return 'admin';
+                if (p === 'executive' || p === 'executivo') return 'executive';
+                if (p === 'ceo') return 'ceo';
+                return 'developer';
+            };
+
             const user = {
                 id: String(colab.id_colaborador),
                 name: colab.nome_colaborador,
                 email: colab.email,
-                role: (colab.role || 'resource') as Role,
+                role: normalizeUserRole(colab.role),
                 cargo: colab.cargo,
                 avatarUrl: colab.avatar_url,
                 active: colab.ativo ?? true

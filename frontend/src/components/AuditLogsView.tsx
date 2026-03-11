@@ -31,19 +31,8 @@ const AuditLogsView: React.FC = () => {
         try {
             const data = await apiRequest<any[]>('/admin/audit-logs?limit=200');
 
-            // Mapear user_id para user_name se possível
-            const mappedLogs = (data || []).map((log: any) => {
-                // Tenta achar usuario pelo ID. Nota: audit_log.user_id pode não bater com dim_colaboradores se for auth.users
-                // Assumindo que user_id no audit é UUID do auth ou ID do colaborador.
-                // Vou tentar bater com users.id (UUID)
-                const user = users.find(u => u.id === log.user_id) || users.find(u => u.email === log.user_email);
-                return {
-                    ...log,
-                    user_name: user ? user.name : (log.user_email || log.user_id || 'Sistema/Desconhecido')
-                };
-            });
-
-            setLogs(mappedLogs);
+            // A view v_audit_logs já traz os nomes resolvidos
+            setLogs(data || []);
         } catch (error) {
             console.error('Erro ao buscar logs:', error);
         } finally {
@@ -210,16 +199,20 @@ const AuditLogsView: React.FC = () => {
                             {filteredLogs.map(log => (
                                 <tr key={log.id} onClick={() => setSelectedLog(log)} className={`hover:bg-purple-50/50 transition-colors cursor-pointer ${selectedLog?.id === log.id ? 'bg-purple-50' : ''}`}>
                                     <td className="px-6 py-4 text-slate-500 font-mono text-xs whitespace-nowrap">
-                                        {new Date(log.timestamp).toLocaleString('pt-BR')}
+                                        {new Date(log.created_at || log.timestamp).toLocaleString('pt-BR')}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
-                                                {log.user_name ? log.user_name.substring(0, 2).toUpperCase() : '??'}
-                                            </div>
+                                            {log.avatar_url ? (
+                                                <img src={log.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover shadow-sm" />
+                                            ) : (
+                                                <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                                                    {log.user_name ? log.user_name.substring(0, 2).toUpperCase() : '??'}
+                                                </div>
+                                            )}
                                             <span className="font-medium text-slate-700">{log.user_name}</span>
                                         </div>
-                                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-8">{log.user_role || 'N/A'}</span>
+                                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-8">{log.user_role || (log.action === 'LOGIN' ? 'Autenticação' : 'Ação no Sistema')}</span>
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-lg text-xs font-bold border ${getActionColor(log.action)} uppercase`}>
@@ -227,9 +220,18 @@ const AuditLogsView: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex flex-col">
-                                            <span className="font-medium text-slate-700">{log.project_name || log.resource}</span>
-                                            <span className="text-[10px] text-slate-400">{log.client_name || 'N/A'}</span>
+                                        <div className="flex items-center gap-3">
+                                            {log.client_logo ? (
+                                                <img src={log.client_logo} alt="" className="w-8 h-8 rounded border border-slate-100 object-contain p-1 bg-white" />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                                                    {log.client_name ? log.client_name.substring(0, 2).toUpperCase() : 'N/A'}
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-slate-700">{log.project_name || log.resource}</span>
+                                                <span className="text-[10px] text-slate-400">{log.client_name || 'Geral'}</span>
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
@@ -287,12 +289,46 @@ const AuditLogsView: React.FC = () => {
 
                             <div>
                                 <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
-                                    <FileTextIcon className="w-4 h-4 text-purple-600" /> Alterações (JSON)
+                                    <ShieldAlert className="w-4 h-4 text-purple-600" /> Detalhes da Alteração
                                 </h4>
-                                <div className="bg-slate-900 rounded-xl p-4 overflow-x-auto border border-slate-800 shadow-inner">
-                                    <pre className="text-xs font-mono text-emerald-400 leading-relaxed">
-                                        {JSON.stringify(selectedLog.changes, null, 2)}
-                                    </pre>
+                                <div className="space-y-4">
+                                    {/* Humanized View */}
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {selectedLog.old_data && selectedLog.new_data ? (
+                                            Object.keys(selectedLog.new_data).map(key => {
+                                                const oldVal = selectedLog.old_data[key];
+                                                const newVal = selectedLog.new_data[key];
+                                                if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                                                    return (
+                                                        <div key={key} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1">
+                                                            <span className="font-bold text-slate-500 text-[10px] uppercase">{key}</span>
+                                                            <div className="flex items-center gap-2 text-sm">
+                                                                <span className="text-red-500 line-through opacity-60 decoration-1">{String(oldVal || 'vazio')}</span>
+                                                                <span className="text-slate-400 text-xs">→</span>
+                                                                <span className="text-emerald-600 font-medium">{String(newVal || 'vazio')}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })
+                                        ) : selectedLog.new_data ? (
+                                            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                                <span className="text-emerald-700 text-sm">Criação de novo registro com os dados acima.</span>
+                                            </div>
+                                        ) : (
+                                            <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                                                <span className="text-red-700 text-sm">Exclusão do registro.</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <h5 className="text-xs font-bold text-slate-400 uppercase mt-6 mb-2">Dados Brutos (JSON)</h5>
+                                    <div className="bg-slate-900 rounded-xl p-4 overflow-x-auto border border-slate-800 shadow-inner">
+                                        <pre className="text-xs font-mono text-emerald-400 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">
+                                            {JSON.stringify(selectedLog.old_data || selectedLog.new_data || selectedLog.changes, null, 2)}
+                                        </pre>
+                                    </div>
                                 </div>
                             </div>
 
