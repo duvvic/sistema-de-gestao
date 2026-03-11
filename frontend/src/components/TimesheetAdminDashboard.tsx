@@ -11,7 +11,7 @@ const TimesheetAdminDashboard: React.FC = () => {
    const [searchParams, setSearchParams] = useSearchParams();
    const navigate = useNavigate();
 
-   const { users, clients, projects, tasks, timesheetEntries: entries, absences } = useDataController();
+   const { users, clients, projects, tasks, timesheetEntries: entries, absences, loading } = useDataController();
 
    const initialTab = (searchParams.get('tab') as 'projects' | 'collaborators' | 'status') || 'projects';
    const selectedClientId = searchParams.get('clientId');
@@ -285,64 +285,91 @@ const TimesheetAdminDashboard: React.FC = () => {
             </div>
          </div>
 
-         {/* Conteúdo */}
-         {!selectedClientId && activeTab === 'projects' ? (
-            // Lista de Clientes
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {clients.map(client => {
-                     const stats = getClientStats(client.id);
-                     const clientProjects = projects.filter(p => p.clientId === client.id);
-                     return (
-                        <div
-                           key={client.id}
-                           onClick={() => {
-                              setSearchParams({ tab: 'projects', clientId: client.id });
-                           }}
-                           className="rounded-2xl border p-6 cursor-pointer hover:shadow-lg transition-all group flex flex-col h-full relative"
-                           style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-                        >
-                           <style>{`.group:hover { border-color: var(--primary) !important; transform: translateY(-4px); }`}</style>
-                           <div className="flex items-start justify-between mb-4">
-                              <div className="w-14 h-14 rounded-2xl border p-2 flex items-center justify-center flex-shrink-0 shadow-sm"
-                                 style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                                 {client.logoUrl ? (
-                                    <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
-                                 ) : (
-                                    <div className="text-xl font-bold" style={{ color: 'var(--muted)' }}>{client.name.charAt(0)}</div>
-                                 )}
-                              </div>
-                              <div className="flex flex-col items-end gap-2">
-                                 <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all group-hover:scale-110"
-                                    style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--primary)' }}>
-                                    <ArrowRight className="w-4 h-4" />
-                                 </div>
-
-                              </div>
-                              <style>{`.group:hover .rounded-full { background-color: var(--primary) !important; color: white !important; }`}</style>
-                           </div>
-                           <h3 className="text-lg font-bold mb-4 line-clamp-2" style={{ color: 'var(--text)' }}>{client.name}</h3>
-                           <div className="mt-auto space-y-3 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
-                              <div className="flex justify-between items-center">
-                                 <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--muted)' }}>
-                                    <TrendingUp className="w-3 h-3 text-emerald-500" /> Horas Totais
-                                 </span>
-                                 <span className="text-lg font-black text-emerald-600">{formatDecimalToTime(stats.totalHours)}</span>
-                              </div>
-                              <div className="text-[10px] font-bold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--muted)' }}>
-                                 <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {clientProjects.length} Projetos</span>
-                                 {stats.projectCount > 0 && <span className="font-black" style={{ color: 'var(--primary)' }}>{stats.projectCount} ativos</span>}
-                              </div>
-                           </div>
-                        </div>
-                     );
-                  })}
+         {/* Conteúdo com Loading Global */}
+         {loading && clients.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-12 bg-[var(--surface-2)]">
+               <div className="relative">
+                  <div className="w-24 h-24 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin shadow-lg shadow-[var(--primary)]/20" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                     <Clock className="w-8 h-8 text-[var(--primary)] animate-pulse" />
+                  </div>
+               </div>
+               <h3 className="text-xl font-black mt-8 tracking-tighter" style={{ color: 'var(--text)' }}>Sincronizando Dashboard</h3>
+               <p className="text-sm font-medium mt-2 opacity-60 text-center max-w-xs" style={{ color: 'var(--text)' }}>
+                  Carregando métricas de projetos e colaboradores em tempo real...
+               </p>
+               <div className="flex gap-2 mt-8">
+                  {[0, 1, 2].map(i => (
+                     <div key={i} className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: `${i * 0.1}s` }} />
+                  ))}
                </div>
             </div>
-         ) : !selectedClientId && activeTab === 'status' ? (
-            // Aba Status dos Colaboradores - VISÃO 3 COLUNAS (Original Design)
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-               <style>{`
+         ) : (
+            <div className="flex-1 flex flex-col overflow-hidden relative">
+               {loading && (
+                  <div className="absolute top-4 right-8 z-[100] flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] px-4 py-2 rounded-full shadow-2xl animate-in fade-in slide-in-from-top-4">
+                     <div className="w-2.5 h-2.5 rounded-full bg-[var(--primary)] animate-ping" />
+                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">Atualizando Métricas...</span>
+                  </div>
+               )}
+
+               {!selectedClientId && activeTab === 'projects' ? (
+                  // Lista de Clientes
+                  <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {clients.map(client => {
+                           const stats = getClientStats(client.id);
+                           const clientProjects = projects.filter(p => p.clientId === client.id);
+                           return (
+                              <div
+                                 key={client.id}
+                                 onClick={() => {
+                                    setSearchParams({ tab: 'projects', clientId: client.id });
+                                 }}
+                                 className="rounded-2xl border p-6 cursor-pointer hover:shadow-lg transition-all group flex flex-col h-full relative"
+                                 style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                              >
+                                 <style>{`.group:hover { border-color: var(--primary) !important; transform: translateY(-4px); }`}</style>
+                                 <div className="flex items-start justify-between mb-4">
+                                    <div className="w-14 h-14 rounded-2xl border p-2 flex items-center justify-center flex-shrink-0 shadow-sm"
+                                       style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                                       {client.logoUrl ? (
+                                          <img src={client.logoUrl} alt={client.name} className="w-full h-full object-contain" />
+                                       ) : (
+                                          <div className="text-xl font-bold" style={{ color: 'var(--muted)' }}>{client.name.charAt(0)}</div>
+                                       )}
+                                    </div>
+                                    <div className="flex flex-col items-end gap-2">
+                                       <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all group-hover:scale-110"
+                                          style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--primary)' }}>
+                                          <ArrowRight className="w-4 h-4" />
+                                       </div>
+
+                                    </div>
+                                    <style>{`.group:hover .rounded-full { background-color: var(--primary) !important; color: white !important; }`}</style>
+                                 </div>
+                                 <h3 className="text-lg font-bold mb-4 line-clamp-2" style={{ color: 'var(--text)' }}>{client.name}</h3>
+                                 <div className="mt-auto space-y-3 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                                    <div className="flex justify-between items-center">
+                                       <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--muted)' }}>
+                                          <TrendingUp className="w-3 h-3 text-emerald-500" /> Horas Totais
+                                       </span>
+                                       <span className="text-lg font-black text-emerald-600">{formatDecimalToTime(stats.totalHours)}</span>
+                                    </div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--muted)' }}>
+                                       <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {clientProjects.length} Projetos</span>
+                                       {stats.projectCount > 0 && <span className="font-black" style={{ color: 'var(--primary)' }}>{stats.projectCount} ativos</span>}
+                                    </div>
+                                 </div>
+                              </div>
+                           );
+                        })}
+                     </div>
+                  </div>
+               ) : !selectedClientId && activeTab === 'status' ? (
+                  // Aba Status dos Colaboradores - VISÃO 3 COLUNAS (Original Design)
+                  <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                     <style>{`
                   .status-column {
                     flex: 1;
                     min-width: 320px;
@@ -371,343 +398,345 @@ const TimesheetAdminDashboard: React.FC = () => {
                      border-color: var(--primary);
                   }
                 `}</style>
-               <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-6 h-full min-h-[600px]">
-                  {/* COLUNA: LIVRES */}
-                  <div className="status-column" style={{ backgroundColor: 'var(--success-bg)' }}>
-                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: 'var(--success)' }}>
-                           <CheckSquare className="w-6 h-6" />
-                        </div>
-                        <div>
-                           <h3 className="font-bold" style={{ color: 'var(--success-text)' }}>Livres</h3>
-                           <p className="text-[10px] uppercase font-black tracking-widest" style={{ color: 'var(--success-text)', opacity: 0.8 }}>Sem tarefas</p>
-                        </div>
-                     </div>
-
-                     {(() => {
-                        const freeCollabs = collaboratorsStatus.filter(s => s.finalStatus === 'livre');
-                        return freeCollabs.length === 0 ? (
-                           <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4" style={{ color: 'var(--success-text)', opacity: 0.5 }}>
-                              Nenhum colaborador livre
+                     <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-6 h-full min-h-[600px]">
+                        {/* COLUNA: LIVRES */}
+                        <div className="status-column" style={{ backgroundColor: 'var(--success-bg)' }}>
+                           <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: 'var(--success)' }}>
+                                 <CheckSquare className="w-6 h-6" />
+                              </div>
+                              <div>
+                                 <h3 className="font-bold" style={{ color: 'var(--success-text)' }}>Livres</h3>
+                                 <p className="text-[10px] uppercase font-black tracking-widest" style={{ color: 'var(--success-text)', opacity: 0.8 }}>Sem tarefas</p>
+                              </div>
                            </div>
-                        ) : (
-                           <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-                              {freeCollabs.map(s => (
-                                 <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
-                                       style={{ backgroundColor: 'var(--surface)', color: 'var(--success)', borderColor: 'var(--success-bg)' }}>
-                                       {s.user.name.charAt(0)}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                       <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
-                                       {!s.isUpToDate && (
-                                          <span className="text-[8px] font-black text-red-500 uppercase">Falta Apontamento</span>
-                                       )}
-                                    </div>
+
+                           {(() => {
+                              const freeCollabs = collaboratorsStatus.filter(s => s.finalStatus === 'livre');
+                              return freeCollabs.length === 0 ? (
+                                 <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4" style={{ color: 'var(--success-text)', opacity: 0.5 }}>
+                                    Nenhum colaborador livre
                                  </div>
-                              ))}
-                           </div>
-                        );
-                     })()}
-                  </div>
-
-                  {/* COLUNA: OCUPADOS */}
-                  <div className="status-column" style={{ backgroundColor: 'var(--warning-bg)' }}>
-                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: 'var(--warning-text)' }}>
-                           <Clock className="w-6 h-6" />
-                        </div>
-                        <div>
-                           <h3 className="font-bold" style={{ color: 'var(--warning-text)' }}>Ocupados</h3>
-                           <p className="text-[10px] uppercase font-black tracking-widest" style={{ color: 'var(--warning-text)', opacity: 0.8 }}>Em atividade</p>
-                        </div>
-                     </div>
-
-                     {(() => {
-                        const busyCollabs = collaboratorsStatus.filter(s => s.finalStatus === 'ocupado');
-                        return busyCollabs.length === 0 ? (
-                           <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4" style={{ color: 'var(--warning-text)', opacity: 0.5 }}>
-                              Nenhum colaborador ocupado
-                           </div>
-                        ) : (
-                           <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-                              {busyCollabs.map(s => (
-                                 <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
-                                       style={{ backgroundColor: 'var(--surface)', color: 'var(--warning-text)', borderColor: 'var(--warning-bg)' }}>
-                                       {s.user.name.charAt(0)}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                       <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
-                                       <p className="text-[10px] font-bold" style={{ color: 'var(--muted)' }}>{s.activeTasksCount} tarefas ativas</p>
-                                    </div>
-                                 </div>
-                              ))}
-                           </div>
-                        );
-                     })()}
-                  </div>
-
-                  {/* COLUNA: ESTUDANDO */}
-                  <div className="status-column" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}>
-                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-blue-500">
-                           <TrendingUp className="w-6 h-6" />
-                        </div>
-                        <div>
-                           <h3 className="font-bold text-blue-700">Estudando</h3>
-                           <p className="text-[10px] uppercase font-black tracking-widest text-blue-600 opacity-0.8">Capacitação</p>
-                        </div>
-                     </div>
-
-                     {(() => {
-                        const studyCollabs = collaboratorsStatus.filter(s => s.finalStatus === 'estudando');
-                        return studyCollabs.length === 0 ? (
-                           <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4 text-blue-500 opacity-0.5">
-                              Ninguém em capacitação
-                           </div>
-                        ) : (
-                           <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-                              {studyCollabs.map(s => (
-                                 <div key={s.user.id} className="status-card border-blue-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-blue-200 bg-blue-50 text-blue-600">
-                                       {s.user.name.charAt(0)}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                       <p className="font-bold truncate text-slate-800">{s.user.name}</p>
-                                       <p className="text-[9px] font-black uppercase text-blue-500">Em Estudo</p>
-                                    </div>
-                                 </div>
-                              ))}
-                           </div>
-                        );
-                     })()}
-                  </div>
-
-                  {/* COLUNA: ATRASADOS */}
-                  <div className="status-column" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
-                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-red-600">
-                           <AlertTriangle className="w-6 h-6" />
-                        </div>
-                        <div>
-                           <h3 className="font-bold text-red-700">Atrasados</h3>
-                           <p className="text-[10px] uppercase font-black tracking-widest text-red-600 opacity-0.8">Pendências</p>
-                        </div>
-                     </div>
-
-                     {(() => {
-                        const lateCollabs = collaboratorsStatus.filter(s => s.finalStatus === 'atrasado');
-                        return lateCollabs.length === 0 ? (
-                           <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4 text-red-500 opacity-0.5">
-                              Ninguém em atraso!
-                           </div>
-                        ) : (
-                           <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-                              {lateCollabs.map(s => (
-                                 <div key={s.user.id} className="status-card border-red-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-red-200 bg-red-50 text-red-600">
-                                       {s.user.name.charAt(0)}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                       <p className="font-bold truncate text-slate-800">{s.user.name}</p>
-                                       <p className="text-[9px] font-black uppercase text-red-500 flex items-center gap-1">
-                                          <AlertCircle className="w-3 h-3" /> Tarefas em Atraso
-                                       </p>
-                                    </div>
-                                 </div>
-                              ))}
-                           </div>
-                        );
-                     })()}
-                  </div>
-
-                  {/* COLUNA: AUSENTES */}
-                  <div className="status-column" style={{ backgroundColor: 'rgba(249, 115, 22, 0.1)' }}>
-                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-orange-500">
-                           <AlertCircle className="w-6 h-6" />
-                        </div>
-                        <div>
-                           <h3 className="font-bold text-orange-700">Ausentes</h3>
-                           <p className="text-[10px] uppercase font-black tracking-widest text-orange-600 opacity-0.8">Férias & Licenças</p>
-                        </div>
-                     </div>
-
-                     {(() => {
-                        const inactiveCollabs = collaboratorsStatus.filter((s: any) => s.finalStatus === 'ausente' || !s.isUpToDate);
-                        return inactiveCollabs.length === 0 ? (
-                           <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4 text-orange-500 opacity-0.5">
-                              Todos disponíveis ou em dia!
-                           </div>
-                        ) : (
-                           <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-                              {inactiveCollabs.map((s: any) => (
-                                 <div key={s.user.id} className="status-card border-orange-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-orange-200 bg-orange-50 text-orange-600">
-                                       {s.user.name.charAt(0)}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                       <p className="font-bold truncate text-slate-800">{s.user.name}</p>
-                                       {s.finalStatus === 'ausente' ? (
-                                          <span className="text-[9px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 inline-block mt-0.5">
-                                             {s.statusLabel}
-                                          </span>
-                                       ) : !s.isUpToDate && (
-                                          <span className="text-[9px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md bg-red-100 text-red-700 inline-block mt-0.5">
-                                             Falta Apontamento
-                                          </span>
-                                       )}
-                                    </div>
-                                 </div>
-                              ))}
-                           </div>
-                        );
-                     })()}
-                  </div>
-               </div>
-            </div>
-         ) : (
-            // Detalhe do Cliente com Abas
-            <div className="flex-1 flex flex-col overflow-hidden">
-               {/* NAVEGAÇÃO DE SUB-MENUS (VERSÃO COMPACTA & FUNCIONAL) */}
-               <div className="px-8 py-3 bg-[var(--surface)] border-b border-[var(--border)]">
-                  <div className="flex bg-[var(--surface-2)] p-1 rounded-lg border border-[var(--border)] w-fit">
-                     <button
-                        onClick={() => setActiveTab('projects')}
-                        className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${activeTab === 'projects'
-                           ? 'bg-slate-800 text-white shadow-sm'
-                           : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
-                           }`}
-                     >
-                        Projetos <span className="ml-1 opacity-60">({projectsWithHours.length})</span>
-                     </button>
-
-                     <button
-                        onClick={() => setActiveTab('collaborators')}
-                        className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${activeTab === 'collaborators'
-                           ? 'bg-slate-800 text-white shadow-sm'
-                           : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
-                           }`}
-                     >
-                        Colaboradores <span className="ml-1 opacity-60">({collaboratorsWithHours.length})</span>
-                     </button>
-                  </div>
-               </div>
-
-               {/* Conteúdo das Abas */}
-               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                  {/* Aba Projetos */}
-                  {activeTab === 'projects' && (
-                     <div className="space-y-6">
-                        <h2 className="text-xl font-bold flex items-center gap-3" style={{ color: 'var(--text)' }}>
-                           {selectedClient?.logoUrl && <img src={selectedClient.logoUrl} className="w-10 h-10 object-contain p-1 bg-white rounded-lg shadow-sm border border-slate-100" />}
-                           Projetos de {selectedClient?.name}
-                        </h2>
-
-                        {projectsWithHours.length === 0 ? (
-                           <div className="text-center py-12 border-2 border-dashed rounded-2xl"
-                              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
-                              <Briefcase className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                              <p>Nenhum projeto encontrado</p>
-                           </div>
-                        ) : (
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {projectsWithHours.map(proj => (
-                                 <div key={proj.id} className={`rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group transform hover:scale-[1.01] ${proj.entryCount > 0 ? '' : 'border-dashed opacity-75'}`}
-                                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-                                    onClick={() => navigate(`/admin/projects/${proj.id}`)}
-                                 >
-                                    <div className="flex justify-between items-start mb-2">
-                                       <div className="flex items-center gap-2">
-                                          <h3 className="font-bold transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--text)' }}>{proj.name}</h3>
-
+                              ) : (
+                                 <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
+                                    {freeCollabs.map(s => (
+                                       <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
+                                             style={{ backgroundColor: 'var(--surface)', color: 'var(--success)', borderColor: 'var(--success-bg)' }}>
+                                             {s.user.name.charAt(0)}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                             <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
+                                             {!s.isUpToDate && (
+                                                <span className="text-[8px] font-black text-red-500 uppercase">Falta Apontamento</span>
+                                             )}
+                                          </div>
                                        </div>
-                                       <span className={`text-lg font-black transition-colors ${proj.totalHours > 0 ? 'text-[var(--primary)]' : 'opacity-30'}`}>
-                                          {formatDecimalToTime(proj.totalHours)}
-                                       </span>
-                                    </div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
-                                       {proj.entryCount} apontamentos
-                                    </p>
+                                    ))}
                                  </div>
-                              ))}
+                              );
+                           })()}
+                        </div>
+
+                        {/* COLUNA: OCUPADOS */}
+                        <div className="status-column" style={{ backgroundColor: 'var(--warning-bg)' }}>
+                           <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: 'var(--warning-text)' }}>
+                                 <Clock className="w-6 h-6" />
+                              </div>
+                              <div>
+                                 <h3 className="font-bold" style={{ color: 'var(--warning-text)' }}>Ocupados</h3>
+                                 <p className="text-[10px] uppercase font-black tracking-widest" style={{ color: 'var(--warning-text)', opacity: 0.8 }}>Em atividade</p>
+                              </div>
                            </div>
-                        )}
+
+                           {(() => {
+                              const busyCollabs = collaboratorsStatus.filter(s => s.finalStatus === 'ocupado');
+                              return busyCollabs.length === 0 ? (
+                                 <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4" style={{ color: 'var(--warning-text)', opacity: 0.5 }}>
+                                    Nenhum colaborador ocupado
+                                 </div>
+                              ) : (
+                                 <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
+                                    {busyCollabs.map(s => (
+                                       <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
+                                             style={{ backgroundColor: 'var(--surface)', color: 'var(--warning-text)', borderColor: 'var(--warning-bg)' }}>
+                                             {s.user.name.charAt(0)}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                             <p className="font-bold truncate" style={{ color: 'var(--text)' }}>{s.user.name}</p>
+                                             <p className="text-[10px] font-bold" style={{ color: 'var(--muted)' }}>{s.activeTasksCount} tarefas ativas</p>
+                                          </div>
+                                       </div>
+                                    ))}
+                                 </div>
+                              );
+                           })()}
+                        </div>
+
+                        {/* COLUNA: ESTUDANDO */}
+                        <div className="status-column" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}>
+                           <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-blue-500">
+                                 <TrendingUp className="w-6 h-6" />
+                              </div>
+                              <div>
+                                 <h3 className="font-bold text-blue-700">Estudando</h3>
+                                 <p className="text-[10px] uppercase font-black tracking-widest text-blue-600 opacity-0.8">Capacitação</p>
+                              </div>
+                           </div>
+
+                           {(() => {
+                              const studyCollabs = collaboratorsStatus.filter(s => s.finalStatus === 'estudando');
+                              return studyCollabs.length === 0 ? (
+                                 <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4 text-blue-500 opacity-0.5">
+                                    Ninguém em capacitação
+                                 </div>
+                              ) : (
+                                 <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
+                                    {studyCollabs.map(s => (
+                                       <div key={s.user.id} className="status-card border-blue-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-blue-200 bg-blue-50 text-blue-600">
+                                             {s.user.name.charAt(0)}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                             <p className="font-bold truncate text-slate-800">{s.user.name}</p>
+                                             <p className="text-[9px] font-black uppercase text-blue-500">Em Estudo</p>
+                                          </div>
+                                       </div>
+                                    ))}
+                                 </div>
+                              );
+                           })()}
+                        </div>
+
+                        {/* COLUNA: ATRASADOS */}
+                        <div className="status-column" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+                           <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-red-600">
+                                 <AlertTriangle className="w-6 h-6" />
+                              </div>
+                              <div>
+                                 <h3 className="font-bold text-red-700">Atrasados</h3>
+                                 <p className="text-[10px] uppercase font-black tracking-widest text-red-600 opacity-0.8">Pendências</p>
+                              </div>
+                           </div>
+
+                           {(() => {
+                              const lateCollabs = collaboratorsStatus.filter(s => s.finalStatus === 'atrasado');
+                              return lateCollabs.length === 0 ? (
+                                 <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4 text-red-500 opacity-0.5">
+                                    Ninguém em atraso!
+                                 </div>
+                              ) : (
+                                 <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
+                                    {lateCollabs.map(s => (
+                                       <div key={s.user.id} className="status-card border-red-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-red-200 bg-red-50 text-red-600">
+                                             {s.user.name.charAt(0)}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                             <p className="font-bold truncate text-slate-800">{s.user.name}</p>
+                                             <p className="text-[9px] font-black uppercase text-red-500 flex items-center gap-1">
+                                                <AlertCircle className="w-3 h-3" /> Tarefas em Atraso
+                                             </p>
+                                          </div>
+                                       </div>
+                                    ))}
+                                 </div>
+                              );
+                           })()}
+                        </div>
+
+                        {/* COLUNA: AUSENTES */}
+                        <div className="status-column" style={{ backgroundColor: 'rgba(249, 115, 22, 0.1)' }}>
+                           <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-orange-500">
+                                 <AlertCircle className="w-6 h-6" />
+                              </div>
+                              <div>
+                                 <h3 className="font-bold text-orange-700">Ausentes</h3>
+                                 <p className="text-[10px] uppercase font-black tracking-widest text-orange-600 opacity-0.8">Férias & Licenças</p>
+                              </div>
+                           </div>
+
+                           {(() => {
+                              const inactiveCollabs = collaboratorsStatus.filter((s: any) => s.finalStatus === 'ausente' || !s.isUpToDate);
+                              return inactiveCollabs.length === 0 ? (
+                                 <div className="flex-1 flex items-center justify-center italic text-sm text-center px-4 text-orange-500 opacity-0.5">
+                                    Todos disponíveis ou em dia!
+                                 </div>
+                              ) : (
+                                 <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
+                                    {inactiveCollabs.map((s: any) => (
+                                       <div key={s.user.id} className="status-card border-orange-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-orange-200 bg-orange-50 text-orange-600">
+                                             {s.user.name.charAt(0)}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                             <p className="font-bold truncate text-slate-800">{s.user.name}</p>
+                                             {s.finalStatus === 'ausente' ? (
+                                                <span className="text-[9px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 inline-block mt-0.5">
+                                                   {s.statusLabel}
+                                                </span>
+                                             ) : !s.isUpToDate && (
+                                                <span className="text-[9px] uppercase font-black tracking-widest px-2 py-0.5 rounded-md bg-red-100 text-red-700 inline-block mt-0.5">
+                                                   Falta Apontamento
+                                                </span>
+                                             )}
+                                          </div>
+                                       </div>
+                                    ))}
+                                 </div>
+                              );
+                           })()}
+                        </div>
                      </div>
-                  )}
+                  </div>
+               ) : (
+                  // Detalhe do Cliente com Abas
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                     {/* NAVEGAÇÃO DE SUB-MENUS (VERSÃO COMPACTA & FUNCIONAL) */}
+                     <div className="px-8 py-3 bg-[var(--surface)] border-b border-[var(--border)]">
+                        <div className="flex bg-[var(--surface-2)] p-1 rounded-lg border border-[var(--border)] w-fit">
+                           <button
+                              onClick={() => setActiveTab('projects')}
+                              className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${activeTab === 'projects'
+                                 ? 'bg-slate-800 text-white shadow-sm'
+                                 : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                                 }`}
+                           >
+                              Projetos <span className="ml-1 opacity-60">({projectsWithHours.length})</span>
+                           </button>
 
-                  {/* Aba Colaboradores */}
-                  {activeTab === 'collaborators' && (
-                     <div className="space-y-4">
-                        <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text)' }}>Colaboradores no Cliente</h2>
+                           <button
+                              onClick={() => setActiveTab('collaborators')}
+                              className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${activeTab === 'collaborators'
+                                 ? 'bg-slate-800 text-white shadow-sm'
+                                 : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                                 }`}
+                           >
+                              Colaboradores <span className="ml-1 opacity-60">({collaboratorsWithHours.length})</span>
+                           </button>
+                        </div>
+                     </div>
 
-                        {collaboratorsWithHours.length === 0 ? (
-                           <div className="text-center py-12 border-2 border-dashed rounded-2xl"
-                              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
-                              <Users className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                              <p>Nenhum colaborador encontrado</p>
-                           </div>
-                        ) : (
-                           <div className="space-y-4">
-                              {collaboratorsWithHours.map((collab: any, idx: number) => {
-                                 const isExpanded = expandedCollaborators.has(`${idx}-${collab.name}`);
-                                 const hasApontamentos = collab.entries > 0;
-                                 const toggleExpand = () => {
-                                    const newSet = new Set(expandedCollaborators);
-                                    const key = `${idx}-${collab.name}`;
-                                    if (newSet.has(key)) newSet.delete(key);
-                                    else newSet.add(key);
-                                    setExpandedCollaborators(newSet);
-                                 };
+                     {/* Conteúdo das Abas */}
+                     <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                        {/* Aba Projetos */}
+                        {activeTab === 'projects' && (
+                           <div className="space-y-6">
+                              <h2 className="text-xl font-bold flex items-center gap-3" style={{ color: 'var(--text)' }}>
+                                 {selectedClient?.logoUrl && <img src={selectedClient.logoUrl} className="w-10 h-10 object-contain p-1 bg-white rounded-lg shadow-sm border border-slate-100" />}
+                                 Projetos de {selectedClient?.name}
+                              </h2>
 
-                                 return (
-                                    <div key={idx} className="rounded-2xl border overflow-hidden hover:shadow-md transition-all"
-                                       style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                                       <div
-                                          className="p-5 flex items-center justify-between cursor-pointer transition-colors"
-                                          onClick={toggleExpand}
-                                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
-                                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                              {projectsWithHours.length === 0 ? (
+                                 <div className="text-center py-12 border-2 border-dashed rounded-2xl"
+                                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
+                                    <Briefcase className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                                    <p>Nenhum projeto encontrado</p>
+                                 </div>
+                              ) : (
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {projectsWithHours.map(proj => (
+                                       <div key={proj.id} className={`rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group transform hover:scale-[1.01] ${proj.entryCount > 0 ? '' : 'border-dashed opacity-75'}`}
+                                          style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                                          onClick={() => navigate(`/admin/projects/${proj.id}`)}
                                        >
-                                          <div className="flex items-center gap-4">
-                                             <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm"
-                                                style={{ backgroundColor: 'var(--primary)', color: 'white' }}>
-                                                {collab.name.charAt(0)}
-                                             </div>
-                                             <div>
-                                                <h3 className="font-bold" style={{ color: 'var(--text)' }}>{collab.name}</h3>
-                                                <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{collab.entries} apontamentos</p>
-                                             </div>
-                                          </div>
-                                          <div className="flex items-center gap-4">
-                                             <span className="text-xl font-black" style={{ color: 'var(--primary)' }}>{formatDecimalToTime(collab.hours)}</span>
-                                             {isExpanded ? <ChevronUp className="w-4 h-4" style={{ color: 'var(--muted)' }} /> : <ChevronDown className="w-4 h-4" style={{ color: 'var(--muted)' }} />}
-                                          </div>
-                                       </div>
+                                          <div className="flex justify-between items-start mb-2">
+                                             <div className="flex items-center gap-2">
+                                                <h3 className="font-bold transition-colors group-hover:text-[var(--primary)]" style={{ color: 'var(--text)' }}>{proj.name}</h3>
 
-                                       {hasApontamentos && isExpanded && (
-                                          <div className="border-t p-4 space-y-2 shadow-inner" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                                             {collab.taskEntries.map((task: any, tIdx: number) => (
-                                                <div key={tIdx} className="p-3 rounded-xl border flex justify-between items-center text-sm shadow-sm transform hover:scale-[1.01] transition-all"
-                                                   style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
-                                                   <div>
-                                                      <p className="font-bold" style={{ color: 'var(--text)' }}>{task.taskName}</p>
-                                                      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{new Date(task.date).toLocaleDateString()} • {task.startTime} - {task.endTime}</p>
-                                                   </div>
-                                                   <span className="font-black text-[var(--primary)]">{formatDecimalToTime(task.totalHours)}</span>
-                                                </div>
-                                             ))}
+                                             </div>
+                                             <span className={`text-lg font-black transition-colors ${proj.totalHours > 0 ? 'text-[var(--primary)]' : 'opacity-30'}`}>
+                                                {formatDecimalToTime(proj.totalHours)}
+                                             </span>
                                           </div>
-                                       )}
-                                    </div>
-                                 );
-                              })}
+                                          <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
+                                             {proj.entryCount} apontamentos
+                                          </p>
+                                       </div>
+                                    ))}
+                                 </div>
+                              )}
+                           </div>
+                        )}
+
+                        {/* Aba Colaboradores */}
+                        {activeTab === 'collaborators' && (
+                           <div className="space-y-4">
+                              <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text)' }}>Colaboradores no Cliente</h2>
+
+                              {collaboratorsWithHours.length === 0 ? (
+                                 <div className="text-center py-12 border-2 border-dashed rounded-2xl"
+                                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
+                                    <Users className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                                    <p>Nenhum colaborador encontrado</p>
+                                 </div>
+                              ) : (
+                                 <div className="space-y-4">
+                                    {collaboratorsWithHours.map((collab: any, idx: number) => {
+                                       const isExpanded = expandedCollaborators.has(`${idx}-${collab.name}`);
+                                       const hasApontamentos = collab.entries > 0;
+                                       const toggleExpand = () => {
+                                          const newSet = new Set(expandedCollaborators);
+                                          const key = `${idx}-${collab.name}`;
+                                          if (newSet.has(key)) newSet.delete(key);
+                                          else newSet.add(key);
+                                          setExpandedCollaborators(newSet);
+                                       };
+
+                                       return (
+                                          <div key={idx} className="rounded-2xl border overflow-hidden hover:shadow-md transition-all"
+                                             style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                                             <div
+                                                className="p-5 flex items-center justify-between cursor-pointer transition-colors"
+                                                onClick={toggleExpand}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                             >
+                                                <div className="flex items-center gap-4">
+                                                   <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm"
+                                                      style={{ backgroundColor: 'var(--primary)', color: 'white' }}>
+                                                      {collab.name.charAt(0)}
+                                                   </div>
+                                                   <div>
+                                                      <h3 className="font-bold" style={{ color: 'var(--text)' }}>{collab.name}</h3>
+                                                      <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{collab.entries} apontamentos</p>
+                                                   </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                   <span className="text-xl font-black" style={{ color: 'var(--primary)' }}>{formatDecimalToTime(collab.hours)}</span>
+                                                   {isExpanded ? <ChevronUp className="w-4 h-4" style={{ color: 'var(--muted)' }} /> : <ChevronDown className="w-4 h-4" style={{ color: 'var(--muted)' }} />}
+                                                </div>
+                                             </div>
+
+                                             {hasApontamentos && isExpanded && (
+                                                <div className="border-t p-4 space-y-2 shadow-inner" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                                                   {collab.taskEntries.map((task: any, tIdx: number) => (
+                                                      <div key={tIdx} className="p-3 rounded-xl border flex justify-between items-center text-sm shadow-sm transform hover:scale-[1.01] transition-all"
+                                                         style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                                                         <div>
+                                                            <p className="font-bold" style={{ color: 'var(--text)' }}>{task.taskName}</p>
+                                                            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{new Date(task.date).toLocaleDateString()} • {task.startTime} - {task.endTime}</p>
+                                                         </div>
+                                                         <span className="font-black text-[var(--primary)]">{formatDecimalToTime(task.totalHours)}</span>
+                                                      </div>
+                                                   ))}
+                                                </div>
+                                             )}
+                                          </div>
+                                       );
+                                    })}
+                                 </div>
+                              )}
                            </div>
                         )}
                      </div>
-                  )}
-               </div>
+                  </div>
+               )}
             </div>
          )}
       </div>

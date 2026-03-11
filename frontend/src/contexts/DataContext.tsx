@@ -105,7 +105,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         taskMemberAllocations,
         absences,
         holidays,
-        loading: dataLoading && (clients.length === 0),
+        loading: dataLoading,
         error: dataError,
         refreshData,
         setClients,
