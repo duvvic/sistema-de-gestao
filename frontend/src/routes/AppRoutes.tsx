@@ -44,8 +44,9 @@ import AbsenceManager from '@/components/AbsenceManager';
 
 // Definição de grupos de acesso
 const ADMIN_ROLES: Role[] = [
-    'admin', 'gestor', 'diretoria', 'pmo', 'financeiro', 'financial', 'tech_lead',
-    'system_admin', 'executive', 'ceo'
+    'admin', 'administrador', 'gestor', 'gestao', 'gestão', 'gerente',
+    'diretoria', 'pmo', 'financeiro', 'financial', 'tech_lead',
+    'system_admin', 'executive', 'ceo', 'coordenador'
 ];
 
 interface ProtectedWrapperProps {

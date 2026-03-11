@@ -64,7 +64,7 @@ const TimesheetAdminDashboard: React.FC = () => {
 
       const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead'];
       const monitoredCollaborators = users.filter((u: User) =>
-         u.active !== false && u.torre !== 'N/A'
+         true
       );
 
       return monitoredCollaborators.map((user: User) => {
@@ -203,7 +203,7 @@ const TimesheetAdminDashboard: React.FC = () => {
          // Se o usuário existir e tiver horas, nós o mantemos para fins de histórico.
          // Se for inativo ou de outra torre, mas tiver horas, ele deve aparecer no histórico do projeto.
          const hasHours = collab.hours > 0;
-         const isParticipant = user && user.active !== false && user.torre !== 'N/A';
+         const isParticipant = true;
 
          if (!isParticipant && !hasHours) {
             collabMap.delete(userId);
