@@ -633,9 +633,26 @@ const TaskDetail: React.FC = () => {
                     onChange={e => {
                       const selectedId = e.target.value;
                       const u = users.find(usr => usr.id === selectedId);
-                      let updatedCollabs = formData.collaboratorIds || [];
-                      if (selectedId && !updatedCollabs.includes(selectedId)) updatedCollabs = [...updatedCollabs, selectedId];
-                      setFormData({ ...formData, developerId: selectedId, developer: u?.name || '', collaboratorIds: updatedCollabs });
+                      const oldResponsibleId = formData.developerId;
+
+                      let updatedCollabs = [...(formData.collaboratorIds || [])];
+
+                      // Mantém o antigo responsável na equipe como colaborador
+                      if (oldResponsibleId && !updatedCollabs.includes(oldResponsibleId)) {
+                        updatedCollabs.push(oldResponsibleId);
+                      }
+
+                      // Garante que o novo responsável também esteja na lista de colaboradores
+                      if (selectedId && !updatedCollabs.includes(selectedId)) {
+                        updatedCollabs.push(selectedId);
+                      }
+
+                      setFormData({
+                        ...formData,
+                        developerId: selectedId,
+                        developer: u?.name || '',
+                        collaboratorIds: updatedCollabs
+                      });
                       markDirty();
                     }}
                     className={`w-full px-3 py-1 text-xs font-bold border rounded-lg outline-none transition-all ${hasError('developerId') ? 'bg-yellow-400/20 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.1)]' : 'bg-[var(--bg)] border-[var(--border)]'}`}
