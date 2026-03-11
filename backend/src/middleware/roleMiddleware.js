@@ -12,10 +12,13 @@ export const roleMiddleware = (allowedRoles) => {
                 return sendError(res, "Usuário não autenticado", 401);
             }
 
-            const userRole = String(req.user.role || '').toUpperCase();
+            // Normaliza o role do usuário para comparação (remove espaços, transforma em uppercase)
+            const userRole = String(req.user.role || '').trim().toUpperCase().replace(/\s+/g, '_');
 
-            // ADMIN e DEVELOPER tem acesso total sempre
-            if (userRole === 'ADMIN' || userRole === 'ADMINISTRADOR' || userRole === 'SYSTEM_ADMIN' || userRole === 'EXECUTIVE' || userRole === 'DEVELOPER') {
+            // ADMIN, SYSTEM_ADMIN, EXECUTIVOS e GESTORES tem acesso total sempre
+            const ADMIN_ROLES = ['ADMIN', 'ADMINISTRADOR', 'SYSTEM_ADMIN', 'EXECUTIVE', 'DEVELOPER', 'CEO', 'GESTOR', 'PMO', 'DIRETORIA', 'GERENTE'];
+
+            if (ADMIN_ROLES.includes(userRole)) {
                 return next();
             }
 

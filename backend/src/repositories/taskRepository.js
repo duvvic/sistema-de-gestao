@@ -28,15 +28,26 @@ const TASK_SELECT = [
 ].join(', ');
 
 export const taskRepository = {
-    async findAll({ projectId, clientId, status } = {}) {
+    async findAll({ projectId, projectIds, clientId, clientIds, status } = {}) {
         const query = {
             select: TASK_SELECT,
             order: { column: 'inicio_previsto', ascending: false },
-            filters: {}
+            filters: {},
+            in: {}
         };
 
         if (projectId) query.filters.projeto_id = projectId;
+        if (projectIds) {
+            const ids = typeof projectIds === 'string' ? projectIds.split(',').map(Number) : projectIds;
+            query.in.projeto_id = ids;
+        }
+
         if (clientId) query.filters.cliente_id = clientId;
+        if (clientIds) {
+            const ids = typeof clientIds === 'string' ? clientIds.split(',').map(Number) : clientIds;
+            query.in.cliente_id = ids;
+        }
+
         if (status) query.filters.status = status;
 
         return await dbFindAll('v_tarefas', query);

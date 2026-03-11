@@ -38,9 +38,18 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     }
 
     // Verificar se o role do usuário está na lista de permitidos
-    const userRole = currentUser.role || 'resource';
+    const userRole = String(currentUser.role || 'resource').trim().toLowerCase().replace(/\s+/g, '_');
 
-    if (!allowedRoles.includes(userRole as Role)) {
+    // Bypass automático para roles administrativas (opcional, mas recomendado se quiser consistência com backend)
+    const ADMIN_ROLES = ['admin', 'administrador', 'gestor', 'diretoria', 'pmo', 'system_admin', 'executive', 'ceo', 'gerente', 'developer'];
+
+    if (ADMIN_ROLES.includes(userRole)) {
+        return <>{children}</>;
+    }
+
+    const normalizedAllowed = allowedRoles.map(r => String(r).trim().toLowerCase().replace(/\s+/g, '_'));
+
+    if (!normalizedAllowed.includes(userRole)) {
         console.warn(`Acesso negado: usuário com role "${userRole}" tentou acessar rota que requer: ${allowedRoles.join(', ')}`);
         return <Navigate to={redirectTo} replace />;
     }
@@ -56,10 +65,16 @@ export const useRoleCheck = () => {
     const hasRole = (roles: Role | Role[]): boolean => {
         if (!currentUser) return false;
 
-        const userRole = currentUser.role || 'resource';
-        const rolesArray = Array.isArray(roles) ? roles : [roles];
+        const userRole = String(currentUser.role || 'resource').trim().toLowerCase().replace(/\s+/g, '_');
 
-        return rolesArray.includes(userRole as Role);
+        // ADMIN Bypass
+        const ADMIN_ROLES = ['admin', 'administrador', 'gestor', 'diretoria', 'pmo', 'system_admin', 'executive', 'ceo', 'gerente', 'developer'];
+        if (ADMIN_ROLES.includes(userRole)) return true;
+
+        const rolesArray = Array.isArray(roles) ? roles : [roles];
+        const normalizedRoles = rolesArray.map(r => String(r).trim().toLowerCase().replace(/\s+/g, '_'));
+
+        return normalizedRoles.includes(userRole);
     };
 
     const hasAnyRole = (roles: Role[]): boolean => {
@@ -68,8 +83,9 @@ export const useRoleCheck = () => {
 
     const hasAllRoles = (roles: Role[]): boolean => {
         if (!currentUser) return false;
-        const userRole = currentUser.role || 'resource';
-        return roles.every(role => role === userRole);
+        const userRole = String(currentUser.role || 'resource').trim().toLowerCase().replace(/\s+/g, '_');
+        const normalizedRoles = roles.map(r => String(r).trim().toLowerCase().replace(/\s+/g, '_'));
+        return normalizedRoles.every(role => role === userRole);
     };
 
     return {

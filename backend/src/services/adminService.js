@@ -24,7 +24,11 @@ export const adminService = {
     },
 
     async listTasks(filters) {
-        return await taskRepository.findAll({ projectIds: filters.projectIds });
+        return await taskRepository.findAll({
+            projectIds: filters.projectIds,
+            clientIds: filters.clientIds,
+            status: filters.status
+        });
     },
 
     async deactivateProject(projectId, force, user) {
@@ -88,7 +92,8 @@ export const adminService = {
         }
 
         const now = new Date().toISOString();
-        const result = await taskRepository.softDelete(taskId, now);
+        // O taskRepository.delete já implementa o soft-delete para fato_tarefas via database adapter
+        const result = await taskRepository.delete(taskId);
 
         if (deleteHours === 'true' && hasHours) {
             await taskRepository.softDeleteHours(taskId, now);

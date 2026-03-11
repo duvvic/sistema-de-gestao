@@ -1242,13 +1242,15 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 )}
 
-                <button
-                  onClick={() => navigate('/admin/clients/new?tipo=parceiro')}
-                  className="ml-2 px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all font-bold text-xs bg-[var(--text)] text-[var(--bg)] hover:opacity-90 active:scale-95"
-                >
-                  <Plus size={16} />
-                  Novo Parceiro
-                </button>
+                {!selectedPartnerId && (
+                  <button
+                    onClick={() => navigate('/admin/clients/new?tipo=parceiro')}
+                    className="ml-2 px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all font-bold text-xs bg-[var(--text)] text-[var(--bg)] hover:opacity-90 active:scale-95"
+                  >
+                    <Plus size={16} />
+                    Novo Parceiro
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1303,10 +1305,10 @@ const AdminDashboard: React.FC = () => {
                                     className="group border rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col h-[220px]"
                                     style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                                   >
-                                    <div className="flex-1 bg-white p-6 flex items-center justify-center border-b border-[var(--border)]">
+                                    <div className="flex-1 min-h-0 overflow-hidden bg-white p-6 flex items-center justify-center border-b border-[var(--border)]">
                                       <img src={client.logoUrl} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" alt={client.name} onError={(e) => { e.currentTarget.src = `https://placehold.co/100x100?text=${client.name.charAt(0)}`; }} />
                                     </div>
-                                    <div className="px-4 py-3 flex flex-col justify-center text-center bg-slate-50 dark:bg-slate-900/20 shadow-inner">
+                                    <div className="shrink-0 px-4 py-3 flex flex-col justify-center text-center bg-slate-50 dark:bg-slate-900/20 shadow-inner">
                                       <h4 className="text-[11px] font-black uppercase tracking-tight truncate mb-0.5" style={{ color: 'var(--text)' }}>{client.name}</h4>
                                       <div className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-widest">
                                         {clientProjects.length} {clientProjects.length === 1 ? 'PROJETO' : 'PROJETOS'}
@@ -1330,25 +1332,25 @@ const AdminDashboard: React.FC = () => {
                               {/* Coluna de Métricas */}
                               <div className="md:col-span-2 space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
-                                  <div className="p-6 rounded-[2rem] border surface-tinted-emerald">
+                                  <div className="p-6 rounded-[2rem] border bg-emerald-500/10 border-emerald-500/30">
                                     <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Faturamento Total</p>
-                                    <p className="text-2xl font-black text-[var(--textTitle)] font-mono">
+                                    <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 font-mono">
                                       {partner.totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
                                     </p>
                                   </div>
-                                  <div className="p-6 rounded-[2rem] border surface-tinted-blue">
+                                  <div className="p-6 rounded-[2rem] border bg-blue-500/10 border-blue-500/30">
                                     <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Carga Horária</p>
-                                    <p className="text-2xl font-black text-[var(--textTitle)] font-mono">
+                                    <p className="text-2xl font-black text-blue-700 dark:text-blue-300 font-mono">
                                       {Math.round(partner.totalHours)}<span className="text-xs ml-0.5 opacity-50 uppercase">h</span>
                                     </p>
                                   </div>
-                                  <div className="p-6 rounded-[2rem] border surface-tinted-purple">
+                                  <div className="p-6 rounded-[2rem] border bg-purple-500/10 border-purple-500/30">
                                     <p className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-1">SLA / Entregabilidade</p>
-                                    <p className="text-2xl font-black text-[var(--textTitle)] font-mono">{Math.round(partner.averageProgress)}%</p>
+                                    <p className="text-2xl font-black text-purple-700 dark:text-purple-300 font-mono">{Math.round(partner.averageProgress)}%</p>
                                   </div>
-                                  <div className="p-6 rounded-[2rem] border surface-tinted-amber">
+                                  <div className="p-6 rounded-[2rem] border bg-amber-500/10 border-amber-500/30">
                                     <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Volume de Tarefas</p>
-                                    <p className="text-2xl font-black text-[var(--textTitle)] font-mono">{partner.taskCount}</p>
+                                    <p className="text-2xl font-black text-amber-700 dark:text-amber-300 font-mono">{partner.taskCount}</p>
                                   </div>
                                 </div>
 
@@ -1409,9 +1411,9 @@ const AdminDashboard: React.FC = () => {
                                     <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">Informações cadastrais completas do parceiro</p>
                                   </div>
                                   <button
-                                    onClick={() => navigate(`/admin/clients/${partner.id}`)}
+                                    onClick={() => navigate(`/admin/clients/${partner.id}/edit?returnTo=${partner.id}&sub=info`)}
                                     className="px-6 py-2.5 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"
-                                    style={{ backgroundColor: 'var(--primary)' }}
+                                    style={{ backgroundColor: 'var(--primary)', boxShadow: '0 4px 14px 0 var(--shadow)' }}
                                   >
                                     <Edit2 size={12} /> Editar
                                   </button>

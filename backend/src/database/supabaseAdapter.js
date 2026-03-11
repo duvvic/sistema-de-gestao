@@ -103,7 +103,9 @@ export const supabaseAdapter = {
             q = q.is('deleted_at', null);
         }
 
-        const [key, value] = Object.entries(id)[0];
+        const entries = Object.entries(id);
+        if (entries.length === 0) throw new Error('Query ID object cannot be empty');
+        const [key, value] = entries[0];
         q = q.eq(key, value);
 
         if (query.is) {

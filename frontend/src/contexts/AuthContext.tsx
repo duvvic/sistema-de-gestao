@@ -105,10 +105,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
     };
 
-    const isAdmin = !!currentUser && [
-        'admin', 'gestor', 'diretoria', 'pmo', 'financeiro',
-        'tech_lead', 'system_admin', 'executive', 'ceo'
-    ].includes(currentUser.role);
+    const isAdmin = !!currentUser && (() => {
+        const role = String(currentUser.role || '').trim().toLowerCase().replace(/\s+/g, '_');
+        return [
+            'admin', 'administrador', 'gestor', 'diretoria', 'pmo', 'financeiro',
+            'tech_lead', 'system_admin', 'executive', 'ceo', 'gerente', 'developer'
+        ].includes(role);
+    })();
 
     return (
         <AuthContext.Provider value={{

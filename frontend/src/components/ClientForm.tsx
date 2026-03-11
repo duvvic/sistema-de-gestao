@@ -107,7 +107,13 @@ const ClientForm: React.FC = () => {
         });
         alert(`${tipo_cliente === 'parceiro' ? 'Parceiro' : 'Cliente'} criado com sucesso!`);
       }
-      navigate('/admin/clients');
+      const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+      const subTab = new URLSearchParams(window.location.search).get('sub');
+      if (returnTo) {
+        navigate(`/admin/clients?partnerId=${returnTo}${subTab ? `&sub=${subTab}` : ''}`);
+      } else {
+        navigate('/admin/clients');
+      }
     } catch (error) {
       console.error(error);
       alert('Erro ao salvar.');
