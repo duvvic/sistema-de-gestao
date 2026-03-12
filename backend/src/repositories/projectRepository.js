@@ -17,7 +17,8 @@ const PROJECT_SELECT = [
     '"estimatedDelivery"',
     'valor_total_rs',
     'torre',
-    'partner_id'
+    'partner_id',
+    'horas_vendidas'
 ].join(', ');
 
 export const projectRepository = {

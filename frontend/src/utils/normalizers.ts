@@ -187,7 +187,9 @@ export function mapDbProjectToProject(row: any): Project {
         estimatedDelivery: row.estimatedDelivery || undefined,
         valor_total_rs: row.valor_total_rs ? Number(row.valor_total_rs) : undefined,
         torre: row.torre || undefined,
-        project_type: row.project_type || 'planned'
+        project_type: row.project_type || 'planned',
+        horas_vendidas: row.horas_vendidas ? Number(row.horas_vendidas) : undefined,
+        valor_diario: row.valor_diario ? Number(row.valor_diario) : undefined,
     };
 }
 

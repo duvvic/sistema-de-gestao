@@ -62,6 +62,8 @@ export function useAppData(): AppData {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { currentUser, isLoading: authLoading } = useAuth();
 
@@ -92,7 +94,17 @@ export function useAppData(): AppData {
   }, []);
 
   async function refreshData() {
+    if (isRefreshing) return;
+
+    // Throttle: evita refresh completo se o último foi há menos de 5 segundos
+    const now = Date.now();
+    if (now - lastRefreshTime < 5000) {
+      console.log('[useAppData] Refresh ignorado por throttle (intervalo < 5s)');
+      return;
+    }
+
     try {
+      setIsRefreshing(true);
       setLoading(true);
       setError(null);
 
@@ -105,18 +117,26 @@ export function useAppData(): AppData {
         return;
       }
 
-      const results = await Promise.allSettled([
+      const batch1 = await Promise.allSettled([
         fetchUsers(),
         fetchClients(),
         fetchProjects(),
         fetchTasks(),
-        fetchTaskCollaborators(),
+        fetchTaskCollaborators()
+      ]);
+
+      // Pequeno delay entre batches para evitar burst
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const batch2 = await Promise.allSettled([
         fetchProjectMembers(),
         fetchTimesheets(),
         fetchAbsences(),
         fetchHolidays(),
         fetchAllocations()
       ]);
+
+      const results = [...batch1, ...batch2];
 
       const safeResult = <T>(result: PromiseSettledResult<T>, fallback: T, name: string): T => {
         if (result.status === 'rejected') {
@@ -231,6 +251,8 @@ export function useAppData(): AppData {
         reservedHours: Number(row.reserved_hours),
       })));
 
+      setLastRefreshTime(Date.now());
+
       if (membersData) {
         const membersMapped: ProjectMember[] = membersData.map((row: any) => ({
           id_pc: row.id_pc,
@@ -271,6 +293,7 @@ export function useAppData(): AppData {
       setError(err instanceof Error ? err.message : "Falha ao carregar dados do banco.");
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }
 
