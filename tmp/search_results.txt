@@ -1,0 +1,5 @@
+c:\Users\login\OneDrive\Área de Trabalho\Projetos\sistema-de-gest-o\backend\src\utils\realtime.js
+c:\Users\login\OneDrive\Área de Trabalho\Projetos\sistema-de-gest-o\frontend\src\contexts\DataContext.tsx
+c:\Users\login\OneDrive\Área de Trabalho\Projetos\sistema-de-gest-o\frontend\src\hooks\useSupabaseRealtime.ts
+c:\Users\login\OneDrive\Área de Trabalho\Projetos\sistema-de-gest-o\tmp\search_code_v3.js
+c:\Users\login\OneDrive\Área de Trabalho\Projetos\sistema-de-gest-o\tmp\search_code_v4.js

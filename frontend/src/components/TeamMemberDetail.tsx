@@ -321,9 +321,7 @@ const TeamMemberDetail: React.FC = () => {
 
    return (
       <div
-         ref={scrollRef}
-         onScroll={handleScroll}
-         className="h-full flex flex-col p-0 overflow-y-auto custom-scrollbar"
+         className="h-screen flex flex-col p-0 overflow-hidden"
          style={{ backgroundColor: 'var(--bg)' }}
       >
          {/* CABEÇALHO SUPERIOR - COM PROFUNDIDADE */}
@@ -616,10 +614,21 @@ const TeamMemberDetail: React.FC = () => {
                                              >
                                                 {/* Heatmap Bars */}
                                                 {!day.isAbsent && (
-                                                   <div className="w-full h-full flex flex-col">
-                                                      <div style={{ height: `${(day.plannedHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none', backgroundColor: 'var(--status-occupied)' }} />
-
-                                                      <div style={{ height: `${(day.bufferHours / Math.max(1, day.capacity)) * 100}%`, flex: 'none', backgroundColor: 'var(--status-free-bg)' }} />
+                                                   <div className="w-full h-full flex flex-col-reverse">
+                                                      <div
+                                                         style={{
+                                                            height: `${Math.min(100, (day.plannedHours / Math.max(1, day.capacity)) * 100)}%`,
+                                                            backgroundColor: isOverloaded ? 'var(--danger)' : 'var(--status-occupied)'
+                                                         }}
+                                                         className="w-full transition-all duration-500"
+                                                      />
+                                                      <div
+                                                         style={{
+                                                            height: `${Math.min(100, (day.bufferHours / Math.max(1, day.capacity)) * 100)}%`,
+                                                            backgroundColor: 'var(--status-free)'
+                                                         }}
+                                                         className="w-full opacity-20 transition-all duration-500"
+                                                      />
                                                    </div>
                                                 )}
 
@@ -752,7 +761,14 @@ const TeamMemberDetail: React.FC = () => {
                                     </div>
                                     <div className="space-y-1.5">
                                        <label className="block text-[10px] font-black text-[var(--muted)] uppercase">Hrs Meta Dia</label>
-                                       <input type="text" value={formData.dailyAvailableHours || ''} onChange={(e) => handleNumberChange('dailyAvailableHours', e.target.value)} placeholder="0" className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-bold focus:ring-2 focus:ring-[var(--primary)]/20 outline-none disabled:bg-transparent disabled:px-0 disabled:border-none" />
+                                       <input 
+                                           type="text" 
+                                           value={formData.dailyAvailableHours || ''} 
+                                           onChange={(e) => handleNumberChange('dailyAvailableHours', e.target.value)} 
+                                           placeholder="0" 
+                                           className={`w-full px-4 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-bold outline-none transition-all ${isEditing ? 'bg-[var(--surface-2)] focus:ring-2 focus:ring-[var(--primary)]/20 shadow-inner' : 'bg-transparent border-transparent px-0 disabled:text-[var(--text)]'}`}
+                                           disabled={!isEditing} 
+                                        />
                                     </div>
                                     <div className="space-y-1.5">
                                        <div className="flex items-center justify-between">
@@ -781,7 +797,7 @@ const TeamMemberDetail: React.FC = () => {
                                           )}
                                        </div>
                                        <div className="space-y-1">
-                                          <div className={`w-full px-4 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-black flex justify-between items-center transition-all ${isEditing ? 'bg-[var(--surface-2)] focus-within:ring-2 focus-within:ring-[var(--primary)]/20' : 'bg-transparent border-transparent px-0'}`}>
+                                          <div className={`w-full px-4 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--text)] font-black flex justify-between items-center transition-all ${isEditing ? 'bg-[var(--surface-2)] focus-within:ring-2 focus-within:ring-[var(--primary)]/20 shadow-inner' : 'bg-transparent border-transparent px-0'}`}>
                                              <input
                                                 type="text"
                                                 value={monthlyHoursMode === 'auto'
@@ -789,10 +805,10 @@ const TeamMemberDetail: React.FC = () => {
                                                    : (formData.monthlyAvailableHours ?? '')}
                                                 onChange={(e) => handleNumberChange('monthlyAvailableHours', e.target.value)}
                                                 disabled={!isEditing || monthlyHoursMode === 'auto'}
-                                                className="w-24 bg-transparent border-none outline-none font-black p-0 focus:ring-0 disabled:text-[var(--text)]"
+                                                className={`w-24 bg-transparent border-none outline-none font-black p-0 focus:ring-0 ${monthlyHoursMode === 'auto' ? 'text-[var(--text)] opacity-40' : 'text-[var(--primary)]'}`}
                                              />
                                              {capacityStats.isCurrentMonth && (
-                                                <span className="text-[10px] bg-purple-500/10 text-purple-600 px-2 py-1 rounded-lg font-black uppercase tracking-tight">
+                                                <span className="text-[10px] bg-purple-500/10 text-purple-600 px-2 py-1 rounded-lg font-black uppercase tracking-tight shadow-sm border border-purple-500/20">
                                                    RESTAM: {formatDecimalToTime(capacityStats.calculatedResidual)}
                                                 </span>
                                              )}

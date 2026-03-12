@@ -114,7 +114,7 @@ export function mapDbTaskToTask(row: any, userMap?: Map<string, any>, projectNam
         actualDelivery: row.entrega_real || undefined,
         scheduledStart: row.inicio_previsto || undefined,
         actualStart: row.inicio_real || undefined,
-        progress: Math.min(100, Math.max(0, Number(row.progress) || 0)),
+        progress: Math.min(100, Math.max(0, Number(row.Porcentagem ?? row.progress) || 0)),
         priority: normalizePriority(row.prioridade),
         impact: normalizeImpact(row.impacto),
         description: row.description || undefined,

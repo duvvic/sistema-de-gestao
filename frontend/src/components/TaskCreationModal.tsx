@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDataController } from '@/controllers/useDataController';
 import { Dialog } from '@headlessui/react';
 import { X, Save, AlertCircle } from 'lucide-react';
-import { Priority, Status } from '@/types';
+import { Priority, Status, Project, Client, User } from '@/types';
 
 interface TaskCreationModalProps {
     isOpen: boolean;
@@ -38,71 +38,71 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
     // Reset fields when opening/closing or changing initial props
     useEffect(() => {
         if (isOpen) {
-            // Se temos um projeto pré-selecionado, precisamos setar o cliente automaticamente
-            let initialClientId = preSelectedClientId || '';
+            // Só resetamos se estiver abrindo pela primeira vez (ou se mudou o projeto selecionado drasticamente)
+            const isFreshOpen = !clientId && !projectId && !title;
 
-            if (preSelectedProjectId && !preSelectedClientId) {
-                // Buscar o projeto para pegar o clientId
-                const project = projects.find(p => p.id === preSelectedProjectId);
-                if (project) {
-                    initialClientId = project.clientId;
+            if (isFreshOpen) {
+                let initialClientId = preSelectedClientId || '';
+
+                if (preSelectedProjectId && !preSelectedClientId) {
+                    const project = projects.find((p: Project) => p.id === preSelectedProjectId);
+                    if (project) {
+                        initialClientId = project.clientId;
+                    }
                 }
+
+                setClientId(initialClientId);
+                setProjectId(preSelectedProjectId || '');
+                setTitle('');
+                setDescription('');
+                setNotes('');
+                setLinkEf('');
+                setPriority('Medium');
+                setStatus('Todo');
+
+                if (!isAdmin && currentUser) {
+                    setCollaboratorIds([currentUser.id]);
+                    setDeveloperId(currentUser.id);
+                } else {
+                    setDeveloperId('');
+                    setCollaboratorIds([]);
+                }
+
+                const today = new Date();
+                setScheduledStart(today.toISOString().split('T')[0]);
+
+                const nextWeek = new Date();
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                setEstimatedDelivery(nextWeek.toISOString().split('T')[0]);
+                setEstimatedHours('');
+                setError('');
             }
-
-            setClientId(initialClientId);
-            setProjectId(preSelectedProjectId || '');
-            setTitle('');
-            setDescription('');
-            setNotes('');
-            setLinkEf('');
-            setPriority('Medium');
-            setStatus('Todo');
-
-            // Auto-allocate if not admin
-            if (!isAdmin && currentUser) {
-                setCollaboratorIds([currentUser.id]);
-                setDeveloperId(currentUser.id);
-            } else {
-                setDeveloperId('');
-                setCollaboratorIds([]);
-            }
-
-            // Set default dates: Start today, delivery +7 days
-            const today = new Date();
-            setScheduledStart(today.toISOString().split('T')[0]);
-
-            const nextWeek = new Date();
-            nextWeek.setDate(nextWeek.getDate() + 7);
-            setEstimatedDelivery(nextWeek.toISOString().split('T')[0]);
-            setEstimatedHours('');
-
-            setError('');
         }
-    }, [isOpen, preSelectedClientId, preSelectedProjectId, currentUser, projects]);
+    }, [isOpen, preSelectedClientId, preSelectedProjectId]);
 
     // Derived state for selects
 
     // Filter projects based on Client AND User Permissions
-    const filteredProjects = projects.filter(p => {
+    const filteredProjects = projects.filter((p: Project) => {
         const matchesClient = p.clientId === clientId;
         const isActive = p.active !== false;
 
         // Permissão: Admin vê tudo, Colaborador vê apenas onde é membro
-        const isMember = isAdmin || projectMembers.some(pm => String(pm.id_projeto) === String(p.id) && String(pm.id_colaborador) === String(currentUser?.id));
+        const isMember = isAdmin || projectMembers.some((pm: any) => String(pm.id_projeto) === String(p.id) && String(pm.id_colaborador) === String(currentUser?.id));
 
         return matchesClient && isActive && isMember;
     });
 
     // Filter Clients: Only show clients that have at least one accessible project
-    const availableClients = clients.filter(c => {
+    const availableClients = clients.filter((c: Client) => {
         if (c.active === false) return false;
         if (isAdmin) return true;
 
         // Se não for admin, só mostra clientes que possuem projetos vinculados ao usuário
-        const hasAccessibleProject = projects.some(p =>
+        const hasAccessibleProject = projects.some((p: Project) =>
             p.clientId === c.id &&
             p.active !== false &&
-            projectMembers.some(pm => String(pm.id_projeto) === String(p.id) && String(pm.id_colaborador) === String(currentUser?.id))
+            projectMembers.some((pm: any) => String(pm.id_projeto) === String(p.id) && String(pm.id_colaborador) === String(currentUser?.id))
         );
 
         return hasAccessibleProject;
@@ -112,8 +112,8 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
 
     const eligibleUsers = useMemo(() => {
         return projectId
-            ? users.filter(u => u.active !== false && projectMembers.some(pm => String(pm.id_projeto) === String(projectId) && String(pm.id_colaborador) === String(u.id)))
-            : users.filter(u => u.active !== false);
+            ? users.filter((u: User) => u.active !== false && projectMembers.some((pm: any) => String(pm.id_projeto) === String(projectId) && String(pm.id_colaborador) === String(u.id)))
+            : users.filter((u: User) => u.active !== false);
     }, [users, projectId, projectMembers]);
 
     const handleSave = async () => {
@@ -151,7 +151,7 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
         }
 
         // Validar intervalo do projeto
-        const project = projects.find(p => String(p.id) === String(projectId));
+        const project = projects.find((p: Project) => String(p.id) === String(projectId));
         if (project) {
             const pStart = project.startDate ? new Date(project.startDate + 'T00:00:00') : null;
             const pEnd = project.estimatedDelivery ? new Date(project.estimatedDelivery + 'T23:59:59') : null;
@@ -225,13 +225,13 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({ isOpen, on
                             <div className="flex items-center gap-1.5 mt-0.5">
                                 {clientId && (
                                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)] opacity-80">
-                                        {clients.find(c => c.id === clientId)?.name}
+                                        {clients.find((c: Client) => c.id === clientId)?.name}
                                     </span>
                                 )}
                                 {clientId && projectId && <span className="text-[10px] opacity-30">•</span>}
                                 {projectId && (
                                     <span className="text-[10px] font-bold text-[var(--muted)] truncate max-w-[200px]">
-                                        {projects.find(p => p.id === projectId)?.name}
+                                        {projects.find((p: Project) => p.id === projectId)?.name}
                                     </span>
                                 )}
                             </div>

@@ -22,7 +22,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Task, Client, Project, Status, User } from '@/types';
+import { Task, Client, Project, Status, User, TimesheetEntry } from '@/types';
 import {
   Calendar,
   User as UserIcon,
@@ -48,11 +48,11 @@ import ConfirmationModal from './ConfirmationModal';
 import { TaskCreationModal } from './TaskCreationModal';
 
 const STATUS_COLUMNS: { id: Status; title: string; color: string; bg: string; badgeColor: string }[] = [
-  { id: 'Todo', title: 'Pré-Projeto', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
-  { id: 'Review', title: 'Análise', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
-  { id: 'In Progress', title: 'Andamento', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
-  { id: 'Testing', title: 'Teste', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
-  { id: 'Done', title: 'Concluído', color: 'var(--muted)', bg: 'var(--surface-2)', badgeColor: 'var(--muted)' },
+  { id: 'Todo', title: 'Pré-Projeto', color: '#64748b', bg: '#f8fafc', badgeColor: '#64748b' },
+  { id: 'Review', title: 'Análise', color: '#f59e0b', bg: '#fffbeb', badgeColor: '#f59e0b' },
+  { id: 'In Progress', title: 'Andamento', color: '#3b82f6', bg: '#eff6ff', badgeColor: '#3b82f6' },
+  { id: 'Testing', title: 'Teste', color: '#8b5cf6', bg: '#f5f3ff', badgeColor: '#8b5cf6' },
+  { id: 'Done', title: 'Concluído', color: '#10b981', bg: '#ecfdf5', badgeColor: '#10b981' },
 ];
 
 const STATUS_ORDER: Status[] = ['Todo', 'Review', 'In Progress', 'Testing', 'Done'];
@@ -252,11 +252,11 @@ const KanbanCard = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
+          <div className="flex-1 h-2 rounded-full overflow-hidden shadow-inner" style={{ backgroundColor: 'var(--surface-2)' }}>
             <div
-              className={`h-full rounded-full`}
+              className={`h-full rounded-full transition-all duration-500`}
               style={{
-                width: `${task.progress || 0}%`,
+                width: `${Math.min(100, Math.max(0, task.progress || 0))}%`,
                 backgroundColor: task.is_impediment
                   ? '#ea580c'
                   : isDelayed
@@ -267,14 +267,14 @@ const KanbanCard = ({
               }}
             />
           </div>
-          <span className="text-[10px] font-medium" style={{ color: 'var(--muted)' }}>{task.progress || 0}%</span>
+          <span className="text-[10px] font-black tabular-nums" style={{ color: 'var(--text)' }}>{Math.round(task.progress || 0)}%</span>
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t mt-1" style={{ borderColor: 'var(--border)' }}>
           <div className="flex -space-x-1.5 overflow-hidden">
             {/* Responsável Principal */}
             {(() => {
-              const dev = users.find(u => u.id === task.developerId);
+              const dev = users.find((u: User) => u.id === task.developerId);
               return (
                 <button
                   type="button"
@@ -551,7 +551,16 @@ export const KanbanBoard = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser, isAdmin } = useAuth();
-  const { tasks, clients, projects, users, timesheetEntries, updateTask, deleteTask, loading } = useDataController();
+  const {
+    tasks,
+    clients,
+    projects,
+    users,
+    timesheetEntries,
+    updateTask,
+    deleteTask,
+    loading
+  } = useDataController();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -631,7 +640,7 @@ export const KanbanBoard = () => {
   }, [filteredDeveloperIds]);
 
   const filteredTasks = useMemo(() => {
-    let result = tasks.filter((t) => {
+    let result = tasks.filter((t: Task) => {
       // 1. Core filters (Admin sees all, Dev sees ONLY own)
       const isOwner = t.developerId === currentUser?.id;
       const isCollaborator = t.collaboratorIds?.includes(currentUser?.id || '');
@@ -669,17 +678,18 @@ export const KanbanBoard = () => {
         if (titleMatch || descMatch) return true;
 
         // Match no desenvolvedor
-        const developer = users.find(u => u.id === t.developerId);
+        // Match no desenvolvedor
+        const developer = users.find((u: User) => u.id === t.developerId);
         const devName = (developer?.name || t.developer || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
         if (devName.includes(term)) return true;
 
         // Match no cliente
-        const client = clients.find(c => c.id === t.clientId);
+        const client = clients.find((c: Client) => c.id === t.clientId);
         const clientMatch = (client?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(term);
         if (clientMatch) return true;
 
         // Match no projeto
-        const project = projects.find(p => p.id === t.projectId);
+        const project = projects.find((p: Project) => p.id === t.projectId);
         const projectMatch = (project?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(term);
         if (projectMatch) return true;
 
@@ -696,16 +706,16 @@ export const KanbanBoard = () => {
   const availableClientsForDoneFilter = useMemo(() => {
     if (!currentUser) return [];
 
-    const doneTasks = filteredTasks.filter(t => t.status === 'Done');
-    const clientIds = new Set(doneTasks.map(t => t.clientId));
+    const doneTasks = filteredTasks.filter((t: Task) => t.status === 'Done');
+    const clientIds = new Set(doneTasks.map((t: Task) => t.clientId));
 
     return clients
-      .filter(c => clientIds.has(c.id))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter((c: Client) => clientIds.has(c.id))
+      .sort((a: Client, b: Client) => a.name.localeCompare(b.name));
   }, [filteredTasks, clients, currentUser]);
 
-  const currentClient = useMemo(() => clients.find(c => c.id === filteredClientId), [clients, filteredClientId]);
-  const currentProject = useMemo(() => projects.find(p => p.id === filteredProjectId), [projects, filteredProjectId]);
+  const currentClient = useMemo(() => clients.find((c: Client) => c.id === filteredClientId), [clients, filteredClientId]);
+  const currentProject = useMemo(() => projects.find((p: Project) => p.id === filteredProjectId), [projects, filteredProjectId]);
 
   // Highlight effect
   useEffect(() => {
@@ -736,18 +746,18 @@ export const KanbanBoard = () => {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const activeTask = tasks.find(t => t.id === activeId);
+    const activeTask = tasks.find((t: Task) => t.id === activeId);
     if (!activeTask) return;
 
     let newStatus: Status;
     if (STATUS_COLUMNS.some(col => col.id === overId)) {
       newStatus = overId as Status;
     } else {
-      const overTask = tasks.find(t => t.id === overId);
+      const overTask = tasks.find((t: Task) => t.id === overId);
       newStatus = overTask?.status as Status;
     }
 
-    if (activeTask.status !== newStatus) {
+    if (activeTask.status !== newStatus && newStatus) {
       // Regra: Não permitir voltar status
       const oldIndex = STATUS_ORDER.indexOf(activeTask.status);
       const newIndex = STATUS_ORDER.indexOf(newStatus);
@@ -762,43 +772,51 @@ export const KanbanBoard = () => {
         }
       }
 
-      // Calcular novo progresso automático
+      // Calcular novo progresso automático baseado no status
       let newProgress = activeTask.progress;
-      // Progress calculation removed to allow manual control only
+      const updatePayload: any = {
+        status: newStatus,
+        progress: newProgress,
+      };
 
-      try {
-        const updatePayload: any = {
-          status: newStatus,
-          progress: newProgress,
-        };
-
-        // Automatizar datas reais baseadas no status
-        if (newStatus === 'In Progress' && !activeTask.actualStart) {
+      if (newStatus === 'Done') {
+        newProgress = 100;
+        updatePayload.progress = 100;
+        if (!activeTask.actualDelivery) {
+          updatePayload.actualDelivery = new Date().toISOString().split('T')[0];
+        }
+      } else if (newStatus === 'Review') {
+        newProgress = Math.max(newProgress, 90);
+        updatePayload.progress = newProgress;
+      } else if (newStatus === 'Testing') {
+        newProgress = Math.max(newProgress, 75);
+        updatePayload.progress = newProgress;
+      } else if (newStatus === 'In Progress') {
+        newProgress = Math.max(newProgress, 10);
+        updatePayload.progress = newProgress;
+        if (!activeTask.actualStart) {
           updatePayload.actualStart = new Date().toISOString().split('T')[0];
         }
+      } else if (newStatus === 'Todo') {
+        newProgress = 0;
+        updatePayload.progress = 0;
+      }
 
-        // Se mudou para "Done", garantir progresso 100% e registrar data real se necessário
-        if (newStatus === 'Done') {
-          updatePayload.progress = 100;
-          if (!activeTask.actualDelivery) {
-            updatePayload.actualDelivery = new Date().toISOString().split('T')[0];
-          }
-        }
-
-        // Atualizar via Controller
+      try {
         await updateTask(activeId, updatePayload);
       } catch (error) {
         console.error("Erro ao mover tarefa:", error);
+        alert("Falha ao mover tarefa no servidor.");
       }
     }
   };
 
-  const activeTask = useMemo(() => tasks.find(t => t.id === activeId), [activeId, tasks]);
+  const activeTask = useMemo(() => tasks.find((t: Task) => t.id === activeId), [activeId, tasks]);
 
   const handleDeleteClick = (e: React.MouseEvent, task: Task) => {
     e.stopPropagation();
     setTaskToDelete(task);
-    const taskHours = timesheetEntries.filter(h => h.taskId === task.id);
+    const taskHours = timesheetEntries.filter((h: TimesheetEntry) => h.taskId === task.id);
     const hasHours = taskHours.length > 0;
     setIsForceDelete(hasHours);
     setShouldDeleteHours(hasHours);
@@ -996,14 +1014,14 @@ export const KanbanBoard = () => {
                         <div className="h-px bg-white/5 my-1 mx-2" />
 
                         {(() => {
-                          const activeRoles = ['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'resource'];
+                          const activeRoles = new Set(['admin', 'system_admin', 'gestor', 'diretoria', 'pmo', 'ceo', 'tech_lead', 'resource']);
                           return users
-                            .filter(u => u.active !== false &&
-                              (u.torre !== 'N/A' || activeRoles.includes(u.role?.toLowerCase() || '')) &&
+                            .filter((u: User) => u.active !== false &&
+                              (u.torre !== 'N/A' || activeRoles.has(u.role?.toLowerCase() || '')) &&
                               (devSearchTerm === '' || u.name.toLowerCase().includes(devSearchTerm.toLowerCase())))
-                            .filter(u => !showOnlyDelayed || lateDevelopers.some(ld => ld.user.id === u.id))
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map(user => {
+                            .filter((u: User) => !showOnlyDelayed || lateDevelopers.some((ld: any) => ld.user.id === u.id))
+                            .sort((a: User, b: User) => a.name.localeCompare(b.name))
+                            .map((user: User) => {
                               const isSelected = tempSelectedIds.includes(user.id);
                               return (
                                 <button
@@ -1113,7 +1131,7 @@ export const KanbanBoard = () => {
           >
             <AlertCircle size={16} className={`${showOnlyImpediments ? 'animate-pulse' : ''}`} style={{ color: showOnlyImpediments ? 'white' : '#ea580c' }} />
             <span className="hidden sm:inline" style={{ color: showOnlyImpediments ? 'white' : '#ea580c' }}>Impedidos</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black min-w-[20px] ${showOnlyImpediments ? 'bg-white text-orange-600' : 'bg-orange-600/10 text-orange-600'}`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black min-w-[20px] ${showOnlyImpediments ? 'bg-white text-orange-600' : 'bg-orange-600/20 text-orange-600'}`}>
               {stats.impeded}
             </span>
           </button>
@@ -1355,16 +1373,7 @@ export const KanbanBoard = () => {
         disabled={isForceDelete && (deleteConfirmText !== taskToDelete?.title || !isAdmin)}
       />
 
-      {
-        showTaskCreationModal && (
-          <TaskCreationModal
-            isOpen={showTaskCreationModal}
-            onClose={() => setShowTaskCreationModal(false)}
-            preSelectedProjectId={filteredProjectId || undefined}
-            preSelectedClientId={filteredClientId || undefined}
-          />
-        )
-      }
+      {/* Modal de exclusão removido daqui e unificado acima */}
     </div >
   );
 };

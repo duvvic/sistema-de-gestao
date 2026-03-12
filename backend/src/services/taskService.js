@@ -151,7 +151,7 @@ export const taskService = {
             ip: context.ip
         });
 
-        await notifyUpdates('tasks');
+        await notifyUpdates('tasks', { type: 'created', data: createdTask });
         return createdTask;
     },
 
@@ -205,7 +205,7 @@ export const taskService = {
             ip: context.ip
         });
 
-        await notifyUpdates('tasks');
+        await notifyUpdates('tasks', { type: 'updated', data: updatedTask });
         return updatedTask;
     },
 
@@ -245,7 +245,7 @@ export const taskService = {
             ip: context.ip
         });
 
-        await notifyUpdates('tasks');
+        await notifyUpdates('tasks', { id, deleted: true });
         return true;
     }
 };

@@ -105,7 +105,10 @@ export function useAppData(): AppData {
 
     try {
       setIsRefreshing(true);
-      setLoading(true);
+      // Only show global loading if we have NO data at all
+      if (users.length === 0 && tasks.length === 0) {
+        setLoading(true);
+      }
       setError(null);
 
       const urlParams = new URLSearchParams(window.location.search);

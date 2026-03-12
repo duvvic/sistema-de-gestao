@@ -3,6 +3,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { Task, Project, Client, User, TimesheetEntry, Absence, ProjectMember, Holiday, TaskMemberAllocation } from '@/types';
 import { enrichProjectsWithTaskDates } from '@/utils/projectUtils';
 import { supabase } from '@/services/supabaseClient';
+import { mapDbTaskToTask, mapDbProjectToProject, mapDbTimesheetToEntry } from '@/utils/normalizers';
 
 
 interface DataContextType {
@@ -79,14 +80,70 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // REALTIME: Escuta avisos do backend para recarregar dados
     useEffect(() => {
+        const userMap = new Map(users.map(u => [u.id, u]));
+
         const channel = supabase.channel('app-updates')
             .on('broadcast', { event: 'refresh' }, ({ payload }) => {
-                console.log('[Realtime] Recebido sinal de refresh:', payload);
-                refreshData();
+                console.log('[Realtime] Mensagem:', payload);
+
+                const { type, data } = payload;
+
+                // Se não houver dados específicos, faz um refresh total (fallback)
+                if (!data) {
+                    refreshData();
+                    return;
+                }
+
+                if (type === 'tasks') {
+                    if (data.deleted) {
+                        setTasks(prev => prev.filter(t => t.id !== String(data.id)));
+                    } else {
+                        const taskRow = data.data || data;
+                        const normalizedTask = mapDbTaskToTask(taskRow, userMap);
+                        setTasks(prev => {
+                            const exists = prev.find(t => t.id === normalizedTask.id);
+                            if (exists) {
+                                return prev.map(t => t.id === normalizedTask.id ? { ...t, ...normalizedTask } : t);
+                            }
+                            return [...prev, normalizedTask];
+                        });
+                    }
+                } else if (type === 'projects') {
+                    if (data.deleted) {
+                        setProjects(prev => prev.filter(p => p.id !== String(data.id)));
+                    } else {
+                        const projectRow = data.data || data;
+                        const normalizedProject = mapDbProjectToProject(projectRow);
+                        setProjects(prev => {
+                            const exists = prev.find(p => p.id === normalizedProject.id);
+                            if (exists) {
+                                return prev.map(p => p.id === normalizedProject.id ? { ...p, ...normalizedProject } : p);
+                            }
+                            return [...prev, normalizedProject];
+                        });
+                    }
+                } else if (type === 'timesheet') {
+                    if (data.deleted) {
+                        setTimesheetEntries(prev => prev.filter(e => e.id !== String(data.id)));
+                    } else {
+                        const row = data.data || data;
+                        const normalizedEntry = mapDbTimesheetToEntry(row);
+                        setTimesheetEntries(prev => {
+                            const exists = prev.find(e => e.id === normalizedEntry.id);
+                            if (exists) {
+                                return prev.map(e => e.id === normalizedEntry.id ? { ...e, ...normalizedEntry } : e);
+                            }
+                            return [normalizedEntry, ...prev];
+                        });
+                    }
+                } else {
+                    // Outros tipos ou atualizações genéricas
+                    refreshData();
+                }
             })
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    console.log('[Realtime] Ouvindo canal app-updates');
+                    console.log('[Realtime] WebSocket Conectado (Broadcast)');
                 }
             });
 

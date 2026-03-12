@@ -102,7 +102,7 @@ export const projectService = {
             ip: context.ip
         });
 
-        await notifyUpdates('projects');
+        await notifyUpdates('projects', { type: 'created', data: created });
         return created;
     },
 
@@ -127,7 +127,7 @@ export const projectService = {
             ip: context.ip
         });
 
-        await notifyUpdates('projects');
+        await notifyUpdates('projects', { type: 'updated', data: updated });
         return updated;
     },
 
@@ -168,7 +168,7 @@ export const projectService = {
             ip: context.ip
         });
 
-        await notifyUpdates('projects');
+        await notifyUpdates('projects', { id, deleted: true });
         return true;
     }
 };

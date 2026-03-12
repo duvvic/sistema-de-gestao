@@ -17,9 +17,6 @@ const TimesheetAdminDashboard: React.FC = () => {
    const initialTab = (searchParams.get('tab') as 'projects' | 'collaborators' | 'status') || 'projects';
    const selectedClientId = searchParams.get('clientId');
 
-   const { projectMembers } = useDataController();
-
-
    const [activeTab, setActiveTab] = useState<'projects' | 'collaborators' | 'status'>(initialTab);
    const [expandedCollaborators, setExpandedCollaborators] = useState<Set<string>>(new Set());
 
@@ -36,10 +33,7 @@ const TimesheetAdminDashboard: React.FC = () => {
       setSearchParams(params);
    }, [activeTab, selectedClientId, setSearchParams]);
 
-   // Aggregate Logic - Total de todas as horas
-   const totalAllHours = useMemo(() => {
-      return entries.reduce((acc: number, curr: TimesheetEntry) => acc + curr.totalHours, 0);
-   }, [entries]);
+
 
    // Status dos Colaboradores - verificar dias em dia
    const collaboratorsStatus = useMemo(() => {
@@ -109,7 +103,7 @@ const TimesheetAdminDashboard: React.FC = () => {
             finalStatus,
             activeTasksCount: tasks.filter((t: Task) => (t.developerId === user.id || t.collaboratorIds?.includes(user.id)) && t.status !== 'Done').length
          };
-      }).sort((a: any, b: any) => b.missingDays - a.missingDays);
+      }).sort((a, b) => b.missingDays - a.missingDays);
    }, [users, entries, tasks, projects, clients, absences, selectedMonth, selectedYear]);
 
    const getClientStats = (clientId: string) => {
@@ -323,8 +317,15 @@ const TimesheetAdminDashboard: React.FC = () => {
                            return (
                               <div
                                  key={client.id}
+                                 role="button"
+                                 tabIndex={0}
                                  onClick={() => {
                                     setSearchParams({ tab: 'projects', clientId: client.id });
+                                 }}
+                                 onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                       setSearchParams({ tab: 'projects', clientId: client.id });
+                                    }
                                  }}
                                  className="rounded-2xl border p-6 cursor-pointer hover:shadow-lg transition-all group flex flex-col h-full relative"
                                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
@@ -420,7 +421,14 @@ const TimesheetAdminDashboard: React.FC = () => {
                               ) : (
                                  <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
                                     {freeCollabs.map(s => (
-                                       <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                       <div
+                                          key={s.user.id}
+                                          role="button"
+                                          tabIndex={0}
+                                          className="status-card"
+                                          onClick={() => navigate(`/admin/team/${s.user.id}`)}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/admin/team/${s.user.id}`); }}
+                                       >
                                           <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
                                              style={{ backgroundColor: 'var(--surface)', color: 'var(--success)', borderColor: 'var(--success-bg)' }}>
                                              {s.user.name.charAt(0)}
@@ -459,7 +467,14 @@ const TimesheetAdminDashboard: React.FC = () => {
                               ) : (
                                  <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
                                     {busyCollabs.map(s => (
-                                       <div key={s.user.id} className="status-card" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                       <div
+                                          key={s.user.id}
+                                          role="button"
+                                          tabIndex={0}
+                                          className="status-card"
+                                          onClick={() => navigate(`/admin/team/${s.user.id}`)}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/admin/team/${s.user.id}`); }}
+                                       >
                                           <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border shadow-inner"
                                              style={{ backgroundColor: 'var(--surface)', color: 'var(--warning-text)', borderColor: 'var(--warning-bg)' }}>
                                              {s.user.name.charAt(0)}
@@ -496,7 +511,14 @@ const TimesheetAdminDashboard: React.FC = () => {
                               ) : (
                                  <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
                                     {studyCollabs.map(s => (
-                                       <div key={s.user.id} className="status-card border-blue-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                       <div
+                                          key={s.user.id}
+                                          role="button"
+                                          tabIndex={0}
+                                          className="status-card border-blue-200"
+                                          onClick={() => navigate(`/admin/team/${s.user.id}`)}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/admin/team/${s.user.id}`); }}
+                                       >
                                           <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-blue-200 bg-blue-50 text-blue-600">
                                              {s.user.name.charAt(0)}
                                           </div>
@@ -532,7 +554,14 @@ const TimesheetAdminDashboard: React.FC = () => {
                               ) : (
                                  <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
                                     {lateCollabs.map(s => (
-                                       <div key={s.user.id} className="status-card border-red-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                       <div
+                                          key={s.user.id}
+                                          role="button"
+                                          tabIndex={0}
+                                          className="status-card border-red-200"
+                                          onClick={() => navigate(`/admin/team/${s.user.id}`)}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/admin/team/${s.user.id}`); }}
+                                       >
                                           <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-red-200 bg-red-50 text-red-600">
                                              {s.user.name.charAt(0)}
                                           </div>
@@ -569,8 +598,15 @@ const TimesheetAdminDashboard: React.FC = () => {
                                  </div>
                               ) : (
                                  <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-                                    {inactiveCollabs.map((s: any) => (
-                                       <div key={s.user.id} className="status-card border-orange-200" onClick={() => navigate(`/admin/team/${s.user.id}`)}>
+                                    {inactiveCollabs.map((s: { user: User; isUpToDate: boolean; finalStatus: string; statusLabel: string }) => (
+                                       <div
+                                          key={s.user.id}
+                                          role="button"
+                                          tabIndex={0}
+                                          className="status-card border-orange-200"
+                                          onClick={() => navigate(`/admin/team/${s.user.id}`)}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/admin/team/${s.user.id}`); }}
+                                       >
                                           <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-orange-200 bg-orange-50 text-orange-600">
                                              {s.user.name.charAt(0)}
                                           </div>
@@ -641,9 +677,14 @@ const TimesheetAdminDashboard: React.FC = () => {
                               ) : (
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {projectsWithHours.map(proj => (
-                                       <div key={proj.id} className={`rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group transform hover:scale-[1.01] ${proj.entryCount > 0 ? '' : 'border-dashed opacity-75'}`}
+                                       <div
+                                          key={proj.id}
+                                          role="button"
+                                          tabIndex={0}
+                                          className={`rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group transform hover:scale-[1.01] ${proj.entryCount > 0 ? '' : 'border-dashed opacity-75'}`}
                                           style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                                           onClick={() => navigate(`/admin/projects/${proj.id}`)}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/admin/projects/${proj.id}`); }}
                                        >
                                           <div className="flex justify-between items-start mb-2">
                                              <div className="flex items-center gap-2">
@@ -677,7 +718,7 @@ const TimesheetAdminDashboard: React.FC = () => {
                                  </div>
                               ) : (
                                  <div className="space-y-4">
-                                    {collaboratorsWithHours.map((collab: any, idx: number) => {
+                                    {collaboratorsWithHours.map((collab: { name: string; entries: number; hours: number; taskEntries: any[] }, idx: number) => {
                                        const isExpanded = expandedCollaborators.has(`${idx}-${collab.name}`);
                                        const hasApontamentos = collab.entries > 0;
                                        const toggleExpand = () => {

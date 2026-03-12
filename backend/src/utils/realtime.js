@@ -5,7 +5,7 @@ import { supabaseAdmin } from '../config/supabaseAdmin.js';
  * Isso avisa os clientes conectados que eles precisam atualizar seus dados
  * chamando a API do backend, sem acessar o banco diretamente pelo front.
  */
-export const notifyUpdates = async (type = 'general') => {
+export const notifyUpdates = async (type = 'general', data = null) => {
     try {
         const channel = supabaseAdmin.channel('app-updates');
 
@@ -17,7 +17,7 @@ export const notifyUpdates = async (type = 'general') => {
             await channel.send({
                 type: 'broadcast',
                 event: 'refresh',
-                payload: { type, timestamp: new Date().toISOString() },
+                payload: { type, data, timestamp: new Date().toISOString() },
             });
             console.log(`[Realtime] Notificação enviada: ${type}`);
         }

@@ -84,7 +84,7 @@ export const timesheetService = {
             ip: context.ip
         });
 
-        await notifyUpdates('timesheet');
+        await notifyUpdates('timesheet', { data: created });
         return created;
     },
 
@@ -120,7 +120,7 @@ export const timesheetService = {
             ip: context.ip
         });
 
-        await notifyUpdates('timesheet');
+        await notifyUpdates('timesheet', { data: updated });
         return updated;
     },
 
@@ -140,7 +140,7 @@ export const timesheetService = {
             ip: context.ip
         });
 
-        await notifyUpdates('timesheet');
+        await notifyUpdates('timesheet', { deleted: true, id });
         return true;
     }
 };

@@ -576,21 +576,32 @@ const TaskDetail: React.FC = () => {
                         const newStatus = e.target.value as any;
                         let newProgress = formData.progress;
                         let newActualDelivery = formData.actualDelivery;
+                        let newActualStart = formData.actualStart;
 
                         if (newStatus === 'Done') {
                           newProgress = 100;
                           if (!newActualDelivery) {
                             newActualDelivery = new Date().toISOString().split('T')[0];
                           }
-                        } else if (formData.status === 'Done') {
-                          newActualDelivery = '';
+                        } else if (newStatus === 'Review') {
+                          newProgress = Math.max(newProgress, 90);
+                        } else if (newStatus === 'Testing') {
+                          newProgress = Math.max(newProgress, 75);
+                        } else if (newStatus === 'In Progress') {
+                          newProgress = Math.max(newProgress, 10);
+                          if (!newActualStart) {
+                            newActualStart = new Date().toISOString().split('T')[0];
+                          }
+                        } else if (newStatus === 'Todo') {
+                          newProgress = 0;
                         }
 
                         setFormData({
                           ...formData,
                           status: newStatus,
                           progress: newProgress,
-                          actualDelivery: newActualDelivery
+                          actualDelivery: newActualDelivery,
+                          actualStart: newActualStart
                         });
                         markDirty();
                       }}

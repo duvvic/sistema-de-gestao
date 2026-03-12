@@ -136,8 +136,9 @@ export const getUserContinuousCommitment = (
     dateStr?: string
 ): number => {
     // REFORMULADO: Alocação automática por membresia foi abolida.
-    // Agora o sistema considera apenas o que está explicitamente alocado em tarefas.
-    return 0;
+    // Como regra de negócio, assumimos que um colaborador tem compromisso de base (manutenções/apoio) 
+    // de 50% da sua capacidade para fins de cálculo de data realista, a menos que especificado o contrário.
+    return userDailyCap * 0.5;
 };
 
 /**
@@ -160,7 +161,11 @@ export const simulateUserDailyAllocation = (
     const start = new Date(startDate + 'T12:00:00');
     const end = new Date(endDate + 'T12:00:00');
     const todayStr = new Date().toISOString().split('T')[0];
-    const capacityDia = userDailyCap;
+
+    const userTasks = allTasks.filter(t => {
+        const isAssigned = String(t.developerId) === String(userId) || (t.collaboratorIds || []).some(id => String(id) === String(userId));
+        return isAssigned && !t.deleted_at;
+    });
 
     let current = new Date(start);
     while (current <= end) {
@@ -179,54 +184,52 @@ export const simulateUserDailyAllocation = (
         const isAbsent = !!activeAbsence;
         const isWorkingDay = !isWeekend && !isHoliday && !isAbsent;
 
-        let plannedHours = 0;
-        let bufferHours = 0;
-        let currentCapacity = isAbsent ? 0 : capacityDia;
+        let dayTotalPlanned = 0;
+        let dayTotalContinuous = 0;
+        const currentCapacity = isAbsent ? 0 : userDailyCap;
 
         if (isWorkingDay) {
-            // 1. CAPTURAR HORAS REAIS (APONTAMENTOS)
-            // Se o usuário trabalhou no dia, isso deve refletir no mapa, independente do status da tarefa.
+            // 1. Apontamentos Reais (Obrigatórios)
             const reportedOnDay = timesheetEntries
                 .filter(e => String(e.userId) === String(userId) && e.date === dateStr)
                 .reduce((sum, e) => sum + (Number(e.totalHours) || 0), 0);
 
-            plannedHours = reportedOnDay;
+            dayTotalPlanned = reportedOnDay;
 
-            // 2. ADICIONAR PREVISÃO PLANEJADA (HOJE E FUTURO)
-            // Se o dia é hoje ou futuro, verificamos se há tarefas ATIVAS (não concluídas) para reservar o slot.
+            // 2. Previsão Teórica (Somente hoje e futuro)
             if (dateStr >= todayStr) {
-                const hasActiveTask = allTasks.some(t => {
-                    const isAssigned = String(t.developerId) === String(userId) || t.collaboratorIds?.some(id => String(id) === String(userId));
-                    if (!isAssigned || !!t.deleted_at) return false;
+                userTasks.forEach(t => {
+                    const isClosed = t.status === 'Done' || (t.status as string) === 'Cancelled' || (t.status as string) === 'Cancelada';
+                    if (isClosed) return;
 
-                    const isClosed = t.status === 'Done' || (t.status as string) === 'Concluído' || (t.status as string) === 'Cancelled' || (t.status as string) === 'Cancelada';
-                    if (isClosed) return false;
+                    const p = allProjects.find(proj => String(proj.id) === String(t.projectId));
+                    if (!p || p.active === false) return;
 
-                    const project = allProjects.find(p => String(p.id) === String(t.projectId));
-                    if (!project) return false;
+                    const tStart = t.scheduledStart || t.actualStart || p.startDate || startDate;
+                    const tEnd = t.estimatedDelivery || p.estimatedDelivery || endDate;
 
-                    const tStart = t.scheduledStart || t.actualStart || project.startDate || '';
-                    const tEnd = t.estimatedDelivery || ''; // Se não tem fim, assume que continua ocupando
+                    if (dateStr >= tStart && dateStr <= tEnd) {
+                        const totalDays = getWorkingDaysInRange(tStart, tEnd, holidays, absences.filter(a => String(a.userId) === String(userId))) || 1;
+                        const hoursPerDay = (Number(t.estimatedHours) || 0) / totalDays;
 
-                    return dateStr >= tStart && (tEnd === '' || dateStr <= tEnd);
+                        if (p.project_type === 'continuous') {
+                            dayTotalContinuous += hoursPerDay;
+                        } else {
+                            dayTotalPlanned += hoursPerDay;
+                        }
+                    }
                 });
-
-                if (hasActiveTask && plannedHours < currentCapacity) {
-                    // Reservar pelo menos a capacidade do dia se houver tarefa ativa e for hoje/futuro
-                    plannedHours = currentCapacity;
-                }
             }
-
-            // O buffer é o que sobra da capacidade diária
-            bufferHours = Math.max(0, currentCapacity - plannedHours);
         }
+
+        const totalLoad = dayTotalPlanned + dayTotalContinuous;
+        const bufferHours = Math.max(0, currentCapacity - totalLoad);
 
         allocations.push({
             date: dateStr,
-            plannedHours: Number(plannedHours.toFixed(2)),
-
+            plannedHours: Number(totalLoad.toFixed(2)),
             bufferHours: Number(bufferHours.toFixed(2)),
-            totalOccupancy: Number(plannedHours.toFixed(2)),
+            totalOccupancy: Number(totalLoad.toFixed(2)),
             isWorkingDay,
             isAbsent,
             absenceType: activeAbsence?.type,
@@ -302,7 +305,7 @@ export const calculateTaskPredictedEndDate = (
 
     // O fallback de 0.1h é APENAS técnico para evitar divisão por zero ou negativa,
     // mas o sinal de saturação deve ser disparado para a gestão.
-    const capRealista = Math.max(0.1, userDailyCap - commitment);
+    const capRealista = Math.max(0.8, userDailyCap - commitment);
 
     const diasRealista = Math.ceil(effortRestante / capRealista);
     const realisticDate = addBusinessDays(startCalc, diasRealista, holidays, absences);
@@ -618,8 +621,9 @@ export const calculateIndividualReleaseDate = (
     const commitment = getUserContinuousCommitment(String(user.id), allProjects, projectMembers, dailyCap);
     const isSaturated = commitment >= dailyCap;
 
-    // Fallback apenas técnico para evitar divisão por zero, sinalizando saturação na UI
-    const capRealista = Math.max(0.1, dailyCap - commitment);
+    // Fallback de 0.8h para garantir que a data se desloque mesmo em saturação crítica,
+    // permitindo que o gestor veja o tamanho do problema no calendário.
+    const capRealista = Math.max(0.8, dailyCap - commitment);
 
     const diasRealista = Math.ceil(totalEffortRemaining / capRealista);
     const realistic = addBusinessDays(today, diasRealista, holidays, absences.filter(a => String(a.userId) === String(user.id)));

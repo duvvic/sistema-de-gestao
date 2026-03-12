@@ -25,6 +25,10 @@ const TASK_SELECT = [
     'estimated_hours',
     'allocated_hours',
     'dias_atraso',
+    'progress',
+    '"Porcentagem"',
+    'is_impediment',
+    'deleted_at'
 ].join(', ');
 
 export const taskRepository = {
