@@ -27,8 +27,7 @@ const TASK_SELECT = [
     'dias_atraso',
     'progress',
     '"Porcentagem"',
-    'is_impediment',
-    'deleted_at'
+    'is_impediment'
 ].join(', ');
 
 export const taskRepository = {
