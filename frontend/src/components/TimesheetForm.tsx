@@ -1,14 +1,14 @@
 // components/TimesheetForm.tsx - Adaptado para Router
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { useDataController } from '@/controllers/useDataController';
-import { TimesheetEntry } from '@/types';
-import { ALL_ADMIN_ROLES } from '@/constants/roles';
+import { useAuth } from '../contexts/AuthContext';
+import { useDataController } from '../controllers/useDataController';
+import { TimesheetEntry, User, Client, Project, Task, ProjectMember } from '../types';
+import { ALL_ADMIN_ROLES } from '../constants/roles';
 import { ArrowLeft, Save, Clock, Trash2, User as UserIcon, Briefcase, CheckSquare, Calendar, AlertCircle, CalendarRange, CalendarDays } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
-import { useUnsavedChangesPrompt } from '@/hooks/useUnsavedChangesPrompt';
-import { formatDecimalToTime } from '@/utils/normalizers';
+import { useUnsavedChangesPrompt } from '../hooks/useUnsavedChangesPrompt';
+import { formatDecimalToTime } from '../utils/normalizers';
 import TimePicker from './TimePicker';
 import TaskWorkloadCalendar from './TaskWorkloadCalendar';
 import CalendarPicker from './CalendarPicker';
@@ -18,10 +18,10 @@ const TimesheetForm: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentUser, isAdmin } = useAuth();
-  const { users, clients, projects, tasks, timesheetEntries, createTimesheet, updateTimesheet, deleteTimesheet, updateTask } = useDataController();
+  const { users, clients, projects, tasks, timesheetEntries, createTimesheet, updateTimesheet, deleteTimesheet, updateTask, projectMembers, refreshData } = useDataController();
 
   const isNew = !entryId || entryId === 'new';
-  const initialEntry = !isNew ? timesheetEntries.find(e => e.id === entryId) : null;
+  const initialEntry = !isNew ? timesheetEntries.find((e: TimesheetEntry) => e.id === entryId) : null;
   const preSelectedDate = searchParams.get('date');
   const preSelectedUserId = searchParams.get('userId');
   const preSelectedTaskId = searchParams.get('taskId');
@@ -75,7 +75,7 @@ const TimesheetForm: React.FC = () => {
   // Validate time - now accepts full 24h range
   const validateAndSetTime = (field: 'startTime' | 'endTime', val: string) => {
     markDirty();
-    setFormData(prev => ({ ...prev, [field]: val }));
+    setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, [field]: val }));
   };
 
   // Init form - Run only once or when entryId changes
@@ -92,9 +92,9 @@ const TimesheetForm: React.FC = () => {
       }
       isInitialized.current = true;
     } else if (isAdmin && preSelectedUserId) {
-      const targetUser = users.find(u => u.id === preSelectedUserId);
+      const targetUser = users.find((u: User) => u.id === preSelectedUserId);
       if (targetUser) {
-        setFormData(prev => ({
+        setFormData((prev: Partial<TimesheetEntry>) => ({
           ...prev,
           userId: targetUser.id,
           userName: targetUser.name,
@@ -108,16 +108,16 @@ const TimesheetForm: React.FC = () => {
       const targetUserId = preSelectedUserId || user.id;
 
       const dayEntries = timesheetEntries
-        .filter(e => e.date === targetDate && e.userId === targetUserId)
-        .sort((a, b) => (b.endTime || '').localeCompare(a.endTime || ''));
+        .filter((e: TimesheetEntry) => e.date === targetDate && e.userId === targetUserId)
+        .sort((a: TimesheetEntry, b: TimesheetEntry) => (b.endTime || '').localeCompare(a.endTime || ''));
 
       const lastEndTime = dayEntries.length > 0 ? dayEntries[0].endTime : '09:00';
       const suggestedEnd = lastEndTime === '18:00' ? '18:00' : (lastEndTime > '18:00' ? lastEndTime : '18:00');
 
-      setFormData(prev => ({
+      setFormData((prev: Partial<TimesheetEntry>) => ({
         ...prev,
         userId: targetUserId,
-        userName: isAdmin ? (users.find(u => u.id === targetUserId)?.name || user.name) : user.name,
+        userName: isAdmin ? (users.find((u: User) => u.id === targetUserId)?.name || user.name) : user.name,
         clientId: preSelectedClientId || prev.clientId,
         projectId: preSelectedProjectId || prev.projectId,
         taskId: preSelectedTaskId || prev.taskId,
@@ -133,7 +133,7 @@ const TimesheetForm: React.FC = () => {
   // Update progress when task changes
   useEffect(() => {
     if (formData.taskId) {
-      const selectedTask = tasks.find(t => t.id === formData.taskId);
+      const selectedTask = tasks.find((t: Task) => t.id === formData.taskId);
       if (selectedTask) {
         setTaskProgress(selectedTask.progress || 0);
       }
@@ -182,11 +182,11 @@ const TimesheetForm: React.FC = () => {
     const targetDate = formData.date;
     if (!targetUserId || !targetDate) return [];
 
-    return timesheetEntries.filter(e =>
+    return timesheetEntries.filter((e: TimesheetEntry) =>
       e.userId === targetUserId &&
       e.date === targetDate &&
       e.id !== initialEntry?.id // Exclude current entry if editing
-    ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+    ).sort((a: TimesheetEntry, b: TimesheetEntry) => a.startTime.localeCompare(b.startTime));
   }, [timesheetEntries, formData.userId, formData.date, user?.id, initialEntry?.id]);
 
   // Debug: log entries for day
@@ -206,7 +206,7 @@ const TimesheetForm: React.FC = () => {
     const newStart = formData.startTime;
     const newEnd = formData.endTime;
 
-    return entriesForDay.some(entry => {
+    return entriesForDay.some((entry: TimesheetEntry) => {
       const existingStart = entry.startTime;
       const existingEnd = entry.endTime;
 
@@ -217,7 +217,7 @@ const TimesheetForm: React.FC = () => {
 
   // Calculate total hours for the day
   const totalHoursForDay = React.useMemo(() => {
-    return entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0) + adjustedTotalHours;
+    return entriesForDay.reduce((sum: number, e: TimesheetEntry) => sum + (e.totalHours || 0), 0) + adjustedTotalHours;
   }, [entriesForDay, adjustedTotalHours]);
 
 
@@ -241,7 +241,7 @@ const TimesheetForm: React.FC = () => {
       return;
     }
 
-    const selectedTask = tasks.find(t => t.id === formData.taskId);
+    const selectedTask = tasks.find((t: Task) => t.id === formData.taskId);
     const isTaskCurrentlyDone = selectedTask?.status === 'Done' || selectedTask?.actualDelivery != null;
     const willBeCompleted = !isTaskCurrentlyDone && taskProgress === 100;
 
@@ -311,7 +311,7 @@ const TimesheetForm: React.FC = () => {
         await updateTask(pendingSave.taskId, { progress: 100, status: 'Done', actualDelivery: new Date().toISOString() });
       }
       await saveEntry(pendingSave);
-    } catch (e) {
+    } catch (e: any) {
       setLoading(false);
     } finally {
       setCompletionModalOpen(false);
@@ -327,7 +327,7 @@ const TimesheetForm: React.FC = () => {
       await refreshData(true);
       setDeleteModalOpen(false);
       navigate(-1);
-    } catch (e) {
+    } catch (e: any) {
       alert("Erro ao excluir.");
     } finally {
       setLoading(false);
@@ -340,7 +340,6 @@ const TimesheetForm: React.FC = () => {
   }, [requestBack, navigate]);
 
   // Filter Logic
-  const { projectMembers, refreshData } = useDataController();
 
   const availableProjectsIds = React.useMemo(() => {
     const targetUserId = formData.userId || currentUser?.id;
@@ -349,31 +348,31 @@ const TimesheetForm: React.FC = () => {
     // Se o usuário alvo for um Admin (diretoria/gestor), talvez ele deva ver tudo,
     // mas a regra solicitada é restritiva ao vínculo.
     // Vamos verificar se o usuário alvo tem cargo de gestão/admin.
-    const targetUser = users.find(u => u.id === targetUserId);
+    const targetUser = users.find((u: User) => u.id === targetUserId);
     const targetIsAdmin = ALL_ADMIN_ROLES.includes(targetUser?.role?.toLowerCase() || '');
 
-    if (targetIsAdmin) return projects.map(p => p.id);
+    if (targetIsAdmin) return projects.map((p: Project) => p.id);
 
     // Projetos onde o usuário alvo é membro oficial
     const memberProjectIds = projectMembers
-      .filter(pm => String(pm.id_colaborador) === String(targetUserId))
-      .map(pm => String(pm.id_projeto));
+      .filter((pm: ProjectMember) => String(pm.id_colaborador) === String(targetUserId))
+      .map((pm: ProjectMember) => String(pm.id_projeto));
 
     // Projetos que contêm tarefas vinculadas ao usuário alvo
     const taskProjectIds = tasks
-      .filter(t => t.developerId === targetUserId || t.collaboratorIds?.includes(targetUserId))
-      .map(t => t.projectId);
+      .filter((t: Task) => t.developerId === targetUserId || t.collaboratorIds?.includes(targetUserId))
+      .map((t: Task) => t.projectId);
 
     // Projetos que contêm apontamentos do usuário alvo (Histórico)
     const timesheetProjectIds = timesheetEntries
-      .filter(e => e.userId === targetUserId)
-      .map(e => e.projectId);
+      .filter((e: TimesheetEntry) => e.userId === targetUserId)
+      .map((e: TimesheetEntry) => e.projectId);
 
     // Combinar todos e remover duplicatas
     return [...new Set([...memberProjectIds, ...taskProjectIds, ...timesheetProjectIds])];
   }, [projectMembers, tasks, timesheetEntries, formData.userId, currentUser, projects, users]);
 
-  const availableProjects = projects.filter(p =>
+  const availableProjects = projects.filter((p: Project) =>
     availableProjectsIds.includes(p.id) &&
     (!formData.clientId || p.clientId === formData.clientId)
   );
@@ -382,31 +381,31 @@ const TimesheetForm: React.FC = () => {
     const targetUserId = formData.userId || currentUser?.id;
     if (!targetUserId) return [];
 
-    const targetUser = users.find(u => u.id === targetUserId);
+    const targetUser = users.find((u: User) => u.id === targetUserId);
     const activeRoles = ALL_ADMIN_ROLES;
     const normalizedRole = String(targetUser?.role || '').trim().toLowerCase().replace(/\s+/g, '_');
     const targetIsAdmin = activeRoles.includes(normalizedRole);
 
-    if (targetIsAdmin) return clients.map(c => c.id);
+    if (targetIsAdmin) return clients.map((c: Client) => c.id);
 
     const isOperational = targetUser?.torre !== 'N/A';
 
     if (!isOperational && !targetIsAdmin) {
       // Se não for operacional e não for admin, vê apenas projetos internos (ex: Nic-Labs)
       return clients
-        .filter(c => c.name.toLowerCase().includes('nic-labs'))
-        .map(c => c.id);
+        .filter((c: Client) => c.name.toLowerCase().includes('nic-labs'))
+        .map((c: Client) => c.id);
     }
 
-    const userProjects = projects.filter(p => availableProjectsIds.includes(p.id));
-    return [...new Set(userProjects.map(p => p.clientId))];
+    const userProjects = projects.filter((p: Project) => availableProjectsIds.includes(p.id));
+    return [...new Set(userProjects.map((p: Project) => p.clientId))];
   }, [clients, projects, availableProjectsIds, formData.userId, currentUser, users]);
 
-  const filteredClients = clients.filter(c => availableClientIds.includes(c.id));
+  const filteredClients = clients.filter((c: Client) => availableClientIds.includes(c.id));
   const filteredProjects = availableProjects;
 
   // Filtrar tarefas: mostrar apenas as vinculadas ao usuário (exceto para admin)
-  const filteredTasks = tasks.filter(t => {
+  const filteredTasks = tasks.filter((t: Task) => {
     // Primeiro filtro: deve pertencer ao projeto selecionado (se houver)
     if (formData.projectId && t.projectId !== formData.projectId) return false;
 
@@ -428,21 +427,21 @@ const TimesheetForm: React.FC = () => {
 
     // Para usuários normais: mostrar apenas tarefas onde ele é desenvolvedor ou colaborador
     const isTaskDeveloper = String(t.developerId) === String(user?.id);
-    const isTaskCollaborator = (t.collaboratorIds || []).some(id => String(id) === String(user?.id));
+    const isTaskCollaborator = (t.collaboratorIds || []).some((id: string) => String(id) === String(user?.id));
 
     return isTaskDeveloper || isTaskCollaborator;
   });
 
   const isTaskLogMode = !!preSelectedTaskId;
   const canEnterTime = !!formData.clientId && !!formData.projectId && !!formData.taskId;
-  const currentTaskTitle = tasks.find(t => t.id === formData.taskId)?.title;
+  const currentTaskTitle = tasks.find((t: Task) => t.id === formData.taskId)?.title;
 
-  const currentProject = projects.find(p => p.id === formData.projectId);
+  const currentProject = projects.find((p: Project) => p.id === formData.projectId);
   const isTrainingProject = currentProject && currentProject.name &&
     (currentProject.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('treinamento') ||
       currentProject.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('capacitacao'));
 
-  const targetUser = users.find(u => u.id === formData.userId);
+  const targetUser = users.find((u: User) => u.id === formData.userId);
   const isPmoTower = targetUser?.torre?.toLowerCase() === 'pmo';
 
   if (!user) return <div className="p-8">Usuário não identificado</div>;
@@ -491,8 +490,8 @@ const TimesheetForm: React.FC = () => {
               <div className="flex flex-col leading-tight">
                 <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--textMuted)' }}>Já apontado hoje</span>
                 <span className="text-sm font-black" style={{ color: 'var(--text)' }}>
-                  {formatDecimalToTime(entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0))}
-                  <span className="ml-1 opacity-50 font-normal">/ {(users.find(u => u.id === (formData.userId || user?.id))?.dailyAvailableHours || 8)}h</span>
+                  {formatDecimalToTime(entriesForDay.reduce((sum: number, e: TimesheetEntry) => sum + (e.totalHours || 0), 0))}
+                  <span className="ml-1 opacity-50 font-normal">/ {(users.find((u: User) => u.id === (formData.userId || user?.id))?.dailyAvailableHours || 8)}h</span>
                 </span>
               </div>
             </div>
@@ -544,17 +543,17 @@ const TimesheetForm: React.FC = () => {
                       {isAdmin ? (
                         <select
                           value={formData.userId || ''}
-                          onChange={(e) => {
-                            const u = users.find(user => user.id === e.target.value);
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                            const u = users.find((user: User) => user.id === e.target.value);
                             markDirty();
-                            setFormData(prev => ({ ...prev, userId: u?.id || '', userName: u?.name || '' }));
+                            setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, userId: u?.id || '', userName: u?.name || '' }));
                           }}
                           disabled={isEditing}
                           className="w-full p-2.5 border rounded-lg outline-none font-medium text-sm focus:ring-1 focus:ring-[var(--ring)] disabled:opacity-70 disabled:cursor-not-allowed"
                           style={{ backgroundColor: isEditing ? 'var(--surface-2)' : 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                         >
                           <option value="">Selecione...</option>
-                          {users.filter(u => u.active !== false || u.id === formData.userId).map(u => (
+                          {users.filter((u: User) => u.active !== false || u.id === formData.userId).map((u: User) => (
                             <option key={u.id} value={u.id}>{u.name}</option>
                           ))}
                         </select>
@@ -572,26 +571,26 @@ const TimesheetForm: React.FC = () => {
                         <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>Cliente *</label>
                         <select
                           value={formData.clientId}
-                          onChange={(e) => { markDirty(); setFormData(prev => ({ ...prev, clientId: e.target.value, projectId: '', taskId: '' })); }}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => { markDirty(); setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, clientId: e.target.value, projectId: '', taskId: '' })); }}
                           disabled={isEditing}
                           className="w-full p-2.5 border rounded-lg outline-none font-bold text-sm transition-all focus:ring-1 focus:ring-[var(--ring)] disabled:opacity-70 disabled:cursor-not-allowed"
                           style={{ backgroundColor: isEditing ? 'var(--surface-2)' : 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                         >
                           <option value="">Selecione...</option>
-                          {filteredClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          {filteredClients.map((c: Client) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>Projeto *</label>
                         <select
                           value={formData.projectId}
-                          onChange={(e) => { markDirty(); setFormData(prev => ({ ...prev, projectId: e.target.value, taskId: '' })); }}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => { markDirty(); setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, projectId: e.target.value, taskId: '' })); }}
                           disabled={!formData.clientId || isEditing}
                           className="w-full p-2.5 border rounded-lg outline-none font-bold text-sm transition-all focus:ring-1 focus:ring-[var(--ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{ backgroundColor: isEditing ? 'var(--surface-2)' : 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                         >
                           <option value="">Selecione...</option>
-                          {filteredProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          {filteredProjects.map((p: Project) => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
                     </div>
@@ -601,13 +600,13 @@ const TimesheetForm: React.FC = () => {
                       <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>Tarefa *</label>
                       <select
                         value={formData.taskId}
-                        onChange={(e) => { markDirty(); setFormData(prev => ({ ...prev, taskId: e.target.value })); }}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => { markDirty(); setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, taskId: e.target.value })); }}
                         disabled={!formData.projectId || isEditing}
                         className="w-full p-2.5 border rounded-lg outline-none font-bold text-sm transition-all focus:ring-1 focus:ring-[var(--ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ backgroundColor: isEditing ? 'var(--surface-2)' : 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                       >
                         <option value="">Selecione a tarefa...</option>
-                        {filteredTasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                        {filteredTasks.map((t: Task) => <option key={t.id} value={t.id}>{t.title}</option>)}
                       </select>
                     </div>
 
@@ -623,10 +622,10 @@ const TimesheetForm: React.FC = () => {
                       </div>
                       <textarea
                         value={formData.description || ''}
-                        onChange={(e) => {
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                           const val = e.target.value;
                           markDirty();
-                          setFormData(prev => ({ ...prev, description: val }));
+                          setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, description: val }));
                         }}
                         className="w-full p-3 border rounded-xl outline-none resize-none font-medium text-sm transition-all flex-1 focus:ring-1 focus:ring-[var(--primary)] border-[var(--border)]"
                         style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
@@ -657,9 +656,9 @@ const TimesheetForm: React.FC = () => {
                   <div className="flex items-center gap-2 pb-2 mb-2 border-b border-dashed" style={{ borderColor: 'var(--border)' }}>
                     <Briefcase className="w-3 h-3 text-[var(--muted)]" />
                     <span className="text-xs font-bold text-[var(--muted)]">
-                      {clients.find(c => c.id === formData.clientId)?.name}
+                      {clients.find((c: Client) => c.id === formData.clientId)?.name}
                       <span className="mx-1">/</span>
-                      {projects.find(p => p.id === formData.projectId)?.name}
+                      {projects.find((p: Project) => p.id === formData.projectId)?.name}
                     </span>
                   </div>
                 )}
@@ -687,10 +686,10 @@ const TimesheetForm: React.FC = () => {
                         <input
                           type="date"
                           value={formData.date}
-                          onChange={(e) => { markDirty(); setFormData(prev => ({ ...prev, date: e.target.value })); }}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, date: e.target.value })); }}
                           className="bg-transparent outline-none font-bold text-sm w-full cursor-pointer"
                           style={{ color: 'var(--text)' }}
-                          onClick={(e) => { e.preventDefault(); setShowDatePicker(!showDatePicker); setShowCalendar(false); }}
+                          onClick={(e: React.MouseEvent<HTMLInputElement>) => { e.preventDefault(); setShowDatePicker(!showDatePicker); setShowCalendar(false); }}
                         />
                         <CalendarDays className="w-4 h-4 opacity-40 cursor-pointer hover:opacity-100 transition-opacity" onClick={() => { setShowDatePicker(!showDatePicker); setShowCalendar(false); }} />
                       </div>
@@ -698,11 +697,11 @@ const TimesheetForm: React.FC = () => {
                       {showDatePicker && (
                         <CalendarPicker
                           selectedDate={formData.date || ''}
-                          minDate={projects.find(p => p.id === formData.projectId)?.startDate}
-                          maxDate={projects.find(p => p.id === formData.projectId)?.estimatedDelivery}
-                          onSelectDate={(date) => {
+                          minDate={projects.find((p: Project) => p.id === formData.projectId)?.startDate}
+                          maxDate={projects.find((p: Project) => p.id === formData.projectId)?.estimatedDelivery}
+                          onSelectDate={(date: string) => {
                             markDirty();
-                            setFormData(prev => ({ ...prev, date }));
+                            setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, date }));
                           }}
                           onClose={() => setShowDatePicker(false)}
                         />
@@ -715,9 +714,9 @@ const TimesheetForm: React.FC = () => {
                           taskId={formData.taskId}
                           userId={formData.userId || user?.id || ''}
                           selectedDate={formData.date || ''}
-                          onSelectDate={(date) => {
+                          onSelectDate={(date: string) => {
                             markDirty();
-                            setFormData(prev => ({ ...prev, date }));
+                            setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, date }));
                           }}
                           onClose={() => setShowCalendar(false)}
                         />
@@ -730,13 +729,13 @@ const TimesheetForm: React.FC = () => {
                       label="Início *"
                       icon={<Clock className="w-3 h-3 text-emerald-500" />}
                       value={formData.startTime || '09:00'}
-                      onChange={(val) => validateAndSetTime('startTime', val)}
+                      onChange={(val: string) => validateAndSetTime('startTime', val)}
                     />
                     <TimePicker
                       label="Fim *"
                       icon={<Clock className="w-3 h-3 text-red-500" />}
                       value={formData.endTime || '18:00'}
-                      onChange={(val) => validateAndSetTime('endTime', val)}
+                      onChange={(val: string) => validateAndSetTime('endTime', val)}
                     />
                   </div>
 
@@ -745,7 +744,7 @@ const TimesheetForm: React.FC = () => {
                       type="button"
                       onClick={() => {
                         markDirty();
-                        setFormData(prev => ({ ...prev, startTime: '08:00', endTime: '17:00' }));
+                        setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, startTime: '08:00', endTime: '17:00' }));
                       }}
                       className="flex-1 py-2 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border hover:bg-[var(--surface-hover)] hover:shadow-sm"
                       style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--muted)' }}
@@ -756,7 +755,7 @@ const TimesheetForm: React.FC = () => {
                       type="button"
                       onClick={() => {
                         markDirty();
-                        setFormData(prev => ({ ...prev, startTime: '08:30', endTime: '17:30' }));
+                        setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, startTime: '08:30', endTime: '17:30' }));
                       }}
                       className="flex-1 py-2 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border hover:bg-[var(--surface-hover)] hover:shadow-sm"
                       style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--muted)' }}
@@ -803,17 +802,17 @@ const TimesheetForm: React.FC = () => {
                       {entriesForDay.length > 0 && (
                         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/20">
                           <span className="text-[10px] font-bold text-[var(--primary)]">
-                            {formatDecimalToTime(entriesForDay.reduce((sum, e) => sum + (e.totalHours || 0), 0))}
-                            <span className="ml-1 opacity-50 font-normal text-[8px]">/ {(users.find(u => u.id === (formData.userId || user?.id))?.dailyAvailableHours || 8)}h Meta</span>
+                            {formatDecimalToTime(entriesForDay.reduce((sum: number, e: TimesheetEntry) => sum + (e.totalHours || 0), 0))}
+                            <span className="ml-1 opacity-50 font-normal text-[8px]">/ {(users.find((u: User) => u.id === (formData.userId || user?.id))?.dailyAvailableHours || 8)}h Meta</span>
                           </span>
                         </div>
                       )}
                     </div>
                     {entriesForDay.length > 0 ? (
                       <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
-                        {entriesForDay.map(entry => {
-                          const project = projects.find(p => p.id === entry.projectId);
-                          const task = tasks.find(t => t.id === entry.taskId);
+                        {entriesForDay.map((entry: TimesheetEntry) => {
+                          const project = projects.find((p: Project) => p.id === entry.projectId);
+                          const task = tasks.find((t: Task) => t.id === entry.taskId);
                           return (
                             <div key={entry.id} className="p-2.5 rounded-lg bg-[var(--bg)] border border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -854,7 +853,7 @@ const TimesheetForm: React.FC = () => {
                         min="0"
                         max="100"
                         value={taskProgress}
-                        onChange={(e) => { markDirty(); setTaskProgress(Number(e.target.value)); }}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setTaskProgress(Number(e.target.value)); }}
                         className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
                         style={{ backgroundColor: 'var(--border)' }}
                       />
@@ -874,7 +873,7 @@ const TimesheetForm: React.FC = () => {
                       </div>
                       <textarea
                         value={formData.description || ''}
-                        onChange={(e) => { markDirty(); setFormData(prev => ({ ...prev, description: e.target.value })); }}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { markDirty(); setFormData((prev: Partial<TimesheetEntry>) => ({ ...prev, description: e.target.value })); }}
                         className="w-full p-3 border rounded-xl outline-none resize-none font-medium text-sm transition-all h-32 focus:ring-1 focus:ring-[var(--primary)] border-[var(--border)]"
                         style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
                         placeholder="Descreva a atividade realizada (opcional)..."
@@ -917,7 +916,7 @@ const TimesheetForm: React.FC = () => {
         onConfirm={async () => {
           if (pendingSave) {
             setWarningModalOpen(false);
-            await saveEntry(pendingSave, tasks.find(t => t.id === pendingSave.taskId)?.progress);
+            await saveEntry(pendingSave, tasks.find((t: Task) => t.id === pendingSave.taskId)?.progress);
             setPendingSave(null);
           }
         }}
@@ -932,7 +931,7 @@ const TimesheetForm: React.FC = () => {
         onConfirm={async () => {
           if (pendingSave) {
             setAvailabilityModalOpen(false);
-            await saveEntry(pendingSave, tasks.find(t => t.id === pendingSave.taskId)?.progress);
+            await saveEntry(pendingSave, tasks.find((t: Task) => t.id === pendingSave.taskId)?.progress);
             setPendingSave(null);
           }
         }}
