@@ -671,6 +671,14 @@ const TimesheetForm: React.FC = () => {
                   <div className="relative" ref={calendarRef}>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-[10px] font-bold uppercase tracking-wider opacity-70" style={{ color: 'var(--muted)' }}>Data *</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowCalendar(!showCalendar)}
+                        className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase transition-all ${showCalendar ? 'bg-[var(--primary)] text-white' : 'bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white'}`}
+                      >
+                        <CalendarRange className="w-3 h-3" />
+                        Ver Período tarefa
+                      </button>
                     </div>
                     <div className="relative group">
                       <input
@@ -683,6 +691,19 @@ const TimesheetForm: React.FC = () => {
                         style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                       />
                     </div>
+
+                    {showCalendar && formData.taskId && (
+                      <TaskWorkloadCalendar
+                        taskId={formData.taskId}
+                        userId={formData.userId || user?.id || ''}
+                        selectedDate={formData.date || ''}
+                        onSelectDate={(date) => {
+                          markDirty();
+                          setFormData(prev => ({ ...prev, date }));
+                        }}
+                        onClose={() => setShowCalendar(false)}
+                      />
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
