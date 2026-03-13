@@ -50,14 +50,26 @@ export const clientService = {
     async createClient(data) {
         // Formata os dados conforme a tabela dim_clientes
         const payload = {
-            NomeCliente: data.NomeCliente.trim(),
-            "E-mail": data["E-mail"] || null,
-            email: data.email || null,
+            NomeCliente: data.NomeCliente?.trim() || "(Sem nome)",
+            "E-mail": data["E-mail"] || data.email || null,
+            email: data.email || data["E-mail"] || null,
             ativo: data.ativo ?? true,
-            Responsavel: data.Responsavel || null,
-            Telefone: data.Telefone || null,
-            Criado: new Date().toISOString()
+            Responsavel: data.Responsavel || data.responsavel_externo || null,
+            Telefone: data.Telefone || data.telefone || null,
+            NewLogo: data.NewLogo || data.logoUrl || null,
+            Pais: data.Pais || data.pais || null,
+            tipo_cliente: data.tipo_cliente || 'cliente_final',
+            partner_id: data.partner_id || null,
+            responsavel_interno_id: data.responsavel_interno_id || null,
+            responsavel_externo: data.responsavel_externo || data.Responsavel || null,
+            email_contato: data.email_contato || data.email || data["E-mail"] || null,
+            cnpj: data.cnpj || null,
+            Criado: data.Criado || new Date().toISOString().split('T')[0]
         };
+
+        if (payload.tipo_cliente === 'cliente_final' && !payload.partner_id) {
+            throw new Error('Todo cliente deve estar obrigatoriamente vinculado a um parceiro responsável.');
+        }
 
         const created = await clientRepository.create(payload);
 
@@ -80,7 +92,20 @@ export const clientService = {
         const client = await clientRepository.findById(id);
         if (!client) throw new Error('Cliente não encontrado');
 
-        const updated = await clientRepository.update(id, data);
+        const payload = { ...data };
+
+        // Garantir que campos vazios sejam nulos para o banco
+        Object.keys(payload).forEach(key => {
+            if (payload[key] === '' || payload[key] === undefined) {
+                payload[key] = null;
+            }
+        });
+
+        if (payload.tipo_cliente === 'cliente_final' && !payload.partner_id) {
+            throw new Error('Todo cliente deve estar obrigatoriamente vinculado a um parceiro responsável.');
+        }
+
+        const updated = await clientRepository.update(client.ID_Cliente || id, payload);
 
         const context = auditContext.getStore() || {};
         await auditService.logAction({

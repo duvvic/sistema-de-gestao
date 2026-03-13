@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
 import { Client, Project, Task, User, TimesheetEntry, ProjectMember } from "@/types";
-import { Plus, Building2, Search as SearchIcon, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, AlertTriangle, ArrowUp, Trash2, DollarSign, Target, TrendingUp, BarChart, Users, User as UserIcon, Calendar, PieChart, ArrowRight, Layers, FileSpreadsheet, X, HelpCircle, Info, Handshake, ArrowLeft, Mail, Phone, ExternalLink, Activity, Zap, FolderKanban } from "lucide-react";
+import { Plus, Building2, Search as SearchIcon, ArrowDownAZ, Briefcase, LayoutGrid, List, Edit2, CheckSquare, ChevronDown, Filter, Clock, AlertCircle, AlertTriangle, ArrowUp, Trash2, DollarSign, Target, TrendingUp, BarChart, Users, User as UserIcon, Calendar, PieChart, ArrowRight, Layers, FileSpreadsheet, X, HelpCircle, Info, Handshake, ArrowLeft, Mail, Phone, ExternalLink, Activity, Zap, FolderKanban, UserCheck } from "lucide-react";
 import ConfirmationModal from "./ConfirmationModal";
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
@@ -184,7 +184,7 @@ const ExecutiveRow = React.memo(({ p, idx, safeClients, users, groupedData, navi
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { clients, projects, tasks, error, loading, users, deleteProject, projectMembers, timesheetEntries, holidays, taskMemberAllocations, absences } = useDataController();
+  const { clients, projects, tasks, error, loading, users, deleteProject, updateClient, projectMembers, timesheetEntries, holidays, taskMemberAllocations, absences } = useDataController();
   const { currentUser, isAdmin } = useAuth();
   const [sortBy, setSortBy] = useState<SortOption>(() => (localStorage.getItem('admin_clients_sort_by') as SortOption) || 'alphabetical');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'late' | 'ongoing' | 'done'>('all');
@@ -196,6 +196,8 @@ const AdminDashboard: React.FC = () => {
   const [showCapDoc, setShowCapDoc] = useState(false);
   const [showForaDoFluxo, setShowForaDoFluxo] = useState<boolean>(() => localStorage.getItem('admin_show_fora_do_fluxo') === 'true');
 
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -552,7 +554,7 @@ const AdminDashboard: React.FC = () => {
     const managers = safeClients.filter(c => c.tipo_cliente === 'parceiro');
 
     return managers.map(partner => {
-      const partnerClients = safeClients.filter(c => c.partner_id === partner.id);
+      const partnerClients = safeClients.filter(c => c.partner_id?.split(',').includes(partner.id));
       const partnerProjects = safeProjects.filter(p => p.partnerId === partner.id);
 
       const totalRevenue = partnerProjects.reduce((acc, p) => acc + (p.valor_total_rs || 0), 0);
@@ -1185,8 +1187,16 @@ const AdminDashboard: React.FC = () => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-8 pb-10 flex flex-col h-full">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pt-6">
               <div className="flex items-center gap-4">
-                <div className="p-2.5 rounded-xl border text-emerald-600" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                  <Handshake className="w-5 h-5" />
+                <div className="p-1.5 rounded-2xl border-2 overflow-hidden flex items-center justify-center bg-white shadow-lg mx-auto md:mx-0" style={{ borderColor: 'var(--border)', width: '64px', height: '64px' }}>
+                  {selectedPartnerId && partnerMetrics.find(p => p.id === selectedPartnerId)?.logoUrl ? (
+                    <img
+                      src={partnerMetrics.find(p => p.id === selectedPartnerId)?.logoUrl}
+                      className="w-full h-full object-contain"
+                      alt="Logo Parceiro"
+                    />
+                  ) : (
+                    <Handshake className="w-8 h-8 text-emerald-600" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h1 className="text-xl font-black tracking-tight flex items-center gap-2" style={{ color: 'var(--text)' }}>
@@ -1244,7 +1254,7 @@ const AdminDashboard: React.FC = () => {
 
                 {!selectedPartnerId && (
                   <button
-                    onClick={() => navigate('/admin/clients/new?tipo=parceiro')}
+                    onClick={() => navigate('/admin/clients/new?tipo=parceiro&returnTo=dashboard&sub=parceiros')}
                     className="ml-2 px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all font-bold text-xs bg-[var(--text)] text-[var(--bg)] hover:opacity-90 active:scale-95"
                   >
                     <Plus size={16} />
@@ -1318,11 +1328,11 @@ const AdminDashboard: React.FC = () => {
                                 );
                               })}
                               <button
-                                onClick={() => navigate(`/admin/clients/new?tipo=cliente_final&partnerId=${partner.id}`)}
+                                onClick={() => setIsAddClientModalOpen(true)}
                                 className="border-2 border-dashed border-[var(--border)] rounded-xl flex flex-col items-center justify-center p-6 text-[var(--muted)] hover:text-purple-600 hover:border-purple-600/50 hover:bg-purple-600/5 transition-all group h-[220px]"
                               >
                                 <Plus className="w-8 h-8 mb-2 opacity-30 group-hover:scale-110 transition-transform" />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Novo Cliente</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">Adicionar Cliente</span>
                               </button>
                             </div>
                           )}
@@ -2527,6 +2537,151 @@ const AdminDashboard: React.FC = () => {
       />
       {/* Modal de Documentação de Capacidade */}
       <CapacityDocumentation isOpen={showCapDoc} onClose={() => setShowCapDoc(false)} />
+      {/* MODAL ADICIONAR CLIENTE AO PARCEIRO */}
+      <AnimatePresence>
+        {isAddClientModalOpen && selectedPartnerId && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddClientModalOpen(false)}
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-[var(--border)] bg-[var(--surface-2)]">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-xl font-black tracking-tight text-[var(--text)] uppercase">Vincular Cliente</h2>
+                    <p className="text-[9px] font-black text-purple-600 uppercase tracking-widest mt-0.5 opacity-80">Associe clientes ao parceiro</p>
+                  </div>
+                  <button
+                    onClick={() => setIsAddClientModalOpen(false)}
+                    className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-[var(--muted)]" />
+                  </button>
+                </div>
+
+                <div className="relative group">
+                  <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500 transition-transform group-focus-within:scale-110" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por nome ou CNPJ..."
+                    value={clientSearchTerm}
+                    onChange={(e) => setClientSearchTerm(e.target.value)}
+                    className="w-full bg-[var(--surface)] border-2 border-[var(--border)] focus:border-purple-500 rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text)] transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* List */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 bg-[var(--surface)]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {(() => {
+                    const filtered = (safeClients as Client[])
+                      .filter((c: Client) =>
+                        c.tipo_cliente !== 'parceiro' &&
+                        c.active !== false &&
+                        (c.name?.toLowerCase().includes(clientSearchTerm.toLowerCase()) || c.cnpj?.includes(clientSearchTerm))
+                      )
+                      .sort((a: Client, b: Client) => {
+                        const aHasPartner = !!a.partner_id;
+                        const bHasPartner = !!b.partner_id;
+                        if (!aHasPartner && bHasPartner) return -1;
+                        if (aHasPartner && !bHasPartner) return 1;
+                        return a.name.localeCompare(b.name);
+                      });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="py-20 text-center">
+                          <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-white/10">
+                            <Users className="w-8 h-8 text-[var(--muted)]" />
+                          </div>
+                          <p className="text-xs font-black text-[var(--muted)] uppercase tracking-widest">Nenhum cliente encontrado</p>
+                        </div>
+                      );
+                    }
+
+                    return filtered.map((client: Client) => {
+                      const linkedPartners = client.partner_id ? client.partner_id.split(',') : [];
+                      const isLinked = linkedPartners.includes(selectedPartnerId);
+                      const otherPartners = linkedPartners.filter(id => id !== selectedPartnerId);
+
+                      return (
+                        <button
+                          key={client.id}
+                          onClick={async () => {
+                            const newIds = isLinked
+                              ? linkedPartners.filter((id: string) => id !== selectedPartnerId).join(',')
+                              : [...linkedPartners, selectedPartnerId].join(',');
+                            await updateClient(client.id, { partner_id: newIds });
+                          }}
+                          className={`group p-2.5 rounded-2xl border-2 transition-all flex items-center justify-between text-left ${isLinked
+                            ? 'bg-purple-600/5 border-purple-500/20'
+                            : 'bg-[var(--surface-2)] border-transparent hover:border-purple-500/20 hover:bg-white/5'
+                            }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="w-9 h-9 rounded-lg border bg-white p-1.5 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm" style={{ borderColor: 'var(--border)' }}>
+                              <img
+                                src={client.logoUrl}
+                                className="w-full h-full object-contain"
+                                alt={client.name}
+                                onError={(e) => { e.currentTarget.src = `https://placehold.co/100x100?text=${client.name.charAt(0)}`; }}
+                              />
+                            </div>
+                            <div className="min-w-0 pr-2">
+                              <h4 className="text-[11px] font-bold text-[var(--text)] uppercase truncate leading-tight">{client.name}</h4>
+                              {linkedPartners.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {linkedPartners.map((id: string) => {
+                                    const pName = (safeClients as Client[]).find((c: Client) => c.id === id)?.name;
+                                    if (!pName) return null;
+                                    return (
+                                      <span key={id} className="text-[8px] font-black bg-purple-600/10 text-purple-400 px-1.5 py-0.5 rounded-md uppercase tracking-tight">
+                                        {pName}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${isLinked
+                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                            : 'bg-white/5 text-transparent group-hover:text-purple-400 border border-white/5 group-hover:border-purple-500/20'
+                            }`}>
+                            {isLinked ? <UserCheck className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                          </div>
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 bg-[var(--surface-2)] border-t border-[var(--border)] flex justify-center">
+                <button
+                  onClick={() => setIsAddClientModalOpen(false)}
+                  className="px-8 py-3 bg-[var(--text)] text-[var(--bg)] rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 shadow-xl"
+                >
+                  Concluir Seleção
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div >
   );
 };

@@ -1,16 +1,18 @@
 // components/ClientDetailsView.tsx - Unificado: Resumo + Detalhes/Edição + Projetos + Tarefas
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDataController } from '@/controllers/useDataController';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowLeft, Plus, Briefcase, CheckSquare, Clock, Edit,
   LayoutGrid, ListTodo, Filter, Trash2, Save, Upload,
-  User as UserIcon, Building2, Globe, Phone, FileText, AlertTriangle, AlertCircle
+  User as UserIcon, Building2, Globe, Phone, FileText, AlertTriangle, AlertCircle,
+  Search, ChevronDown, Handshake, X, Check
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { motion } from 'framer-motion';
 import * as CapacityUtils from '@/utils/capacity';
+import type { Client, User, Project, Task } from '@/types';
 
 type ViewTab = 'details' | 'projects' | 'tasks';
 
@@ -41,6 +43,51 @@ const ClientDetailsView: React.FC = () => {
     pais: ''
   });
 
+  // Searchable Partner Select States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Memoized Partners List (Filtered & Sorted)
+  const partners = useMemo(() => {
+    return (clients as Client[])
+      .filter((c: Client) => c.tipo_cliente === 'parceiro')
+      .sort((a: Client, b: Client) => (a.name || '').localeCompare(b.name || ''));
+  }, [clients]);
+
+  const filteredPartners = useMemo(() => {
+    return partners.filter((p: Client) =>
+      (p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [partners, searchTerm]);
+
+  const selectedPartners = useMemo(() => {
+    const ids = formData.partner_id?.split(',').filter(Boolean) || [];
+    return partners.filter((p: Client) => ids.includes(p.id));
+  }, [partners, formData.partner_id]);
+
+  const togglePartner = (id: string) => {
+    const ids = formData.partner_id?.split(',').filter(Boolean) || [];
+    let newIds;
+    if (ids.includes(id)) {
+      newIds = ids.filter(i => i !== id);
+    } else {
+      newIds = [...ids, id];
+    }
+    setFormData({ ...formData, partner_id: newIds.join(',') });
+  };
+
+  // Click Outside Handler
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     if (client) {
       setFormData({
@@ -55,20 +102,22 @@ const ClientDetailsView: React.FC = () => {
     }
   }, [client]);
 
-  const clientProjects = useMemo(() =>
-    projects.filter(p => p.clientId === clientId),
-    [projects, clientId]
-  );
+  // Computed Stats
+  const clientProjects = projects.filter((p: Project) => p.clientId === clientId);
+  const clientTasks = tasks.filter((t: Task) => t.clientId === clientId);
 
-  const clientTasks = useMemo(() =>
-    tasks.filter(t => t.clientId === clientId),
-    [tasks, clientId]
-  );
+  const totalHoursSold = clientProjects.reduce((sum: number, p: Project) => sum + (Number(p.horas_vendidas) || 0), 0);
+  const totalHoursReported = clientTasks.reduce((sum: number, t: Task) => {
+    const hours = (tasks as Task[])
+      .filter((task: Task) => String(task.id) === String(t.id))
+      .reduce((s: number, entry: Task) => s + (Number(entry.totalHours) || 0), 0);
+    return sum + hours;
+  }, 0);
 
-  const getComputedProjectStatus = (projectTasks: any[]) => {
+  const getComputedProjectStatus = (projectTasks: Task[]) => {
     if (projectTasks.length === 0) return 'S/ Tarefas';
 
-    const isDelayed = (t: any) => {
+    const isDelayed = (t: Task) => {
       if (t.status === 'Done' || (t.progress || 0) >= 100) return false;
       if (!t.estimatedDelivery) return false;
       const parts = t.estimatedDelivery.split('-');
@@ -80,30 +129,30 @@ const ClientDetailsView: React.FC = () => {
     };
 
     if (projectTasks.some(isDelayed)) return 'Atrasado';
-    if (projectTasks.some(t => t.status === 'In Progress')) return 'Em Andamento';
-    if (projectTasks.some(t => t.status === 'Testing')) return 'Teste';
-    if (projectTasks.some(t => t.status === 'Review')) return 'Análise';
-    if (projectTasks.some(t => t.status === 'Todo')) return 'Pré-Projeto';
-    if (projectTasks.every(t => t.status === 'Done')) return 'Concluído';
+    if (projectTasks.some((t: Task) => t.status === 'In Progress')) return 'Em Andamento';
+    if (projectTasks.some((t: Task) => t.status === 'Testing')) return 'Teste';
+    if (projectTasks.some((t: Task) => t.status === 'Review')) return 'Análise';
+    if (projectTasks.some((t: Task) => t.status === 'Todo')) return 'Pré-Projeto';
+    if (projectTasks.every((t: Task) => t.status === 'Done')) return 'Concluído';
 
     return 'Iniciado';
   };
 
   const projectStats = useMemo(() => {
-    const withComputed = clientProjects.map(p => {
-      const pTasks = tasks.filter(t => t.projectId === p.id);
+    const withComputed = clientProjects.map((p: Project) => {
+      const pTasks = tasks.filter((t: Task) => t.projectId === p.id);
       const computedStatus = getComputedProjectStatus(pTasks);
       return { ...p, computedStatus };
     });
 
-    const active = withComputed.filter(p =>
+    const active = withComputed.filter((p: Project & { computedStatus: string }) =>
       p.computedStatus !== 'Concluído' &&
       p.status !== 'Concluído' &&
       p.status !== 'Finalizado' &&
       p.status !== 'Entregue'
     ).length;
 
-    const completed = withComputed.filter(p =>
+    const completed = withComputed.filter((p: Project & { computedStatus: string }) =>
       p.computedStatus === 'Concluído' ||
       p.status === 'Concluído' ||
       p.status === 'Finalizado' ||
@@ -122,7 +171,7 @@ const ClientDetailsView: React.FC = () => {
     if (projectFilter === 'all') return projectStats.withComputed;
 
     if (projectFilter === 'completed') {
-      return projectStats.withComputed.filter(p =>
+      return projectStats.withComputed.filter((p: Project & { computedStatus: string }) =>
         p.computedStatus === 'Concluído' ||
         p.status === 'Concluído' ||
         p.status === 'Finalizado' ||
@@ -130,7 +179,7 @@ const ClientDetailsView: React.FC = () => {
       );
     }
 
-    return projectStats.withComputed.filter(p =>
+    return projectStats.withComputed.filter((p: Project & { computedStatus: string }) =>
       p.computedStatus !== 'Concluído' &&
       p.status !== 'Concluído' &&
       p.status !== 'Finalizado' &&
@@ -138,7 +187,7 @@ const ClientDetailsView: React.FC = () => {
     );
   }, [projectStats, projectFilter]);
 
-  const isProjectIncomplete = (p: any) => {
+  const isProjectIncomplete = (p: Project) => {
     return (
       !p.name?.trim() ||
       !p.clientId ||
@@ -148,14 +197,17 @@ const ClientDetailsView: React.FC = () => {
       !p.startDate ||
       !p.estimatedDelivery ||
       !p.responsibleNicLabsId ||
-      !p.managerClient ||
-      projectMembers.filter(pm => String(pm.id_projeto) === p.id).length === 0
+      projectMembers.filter((pm: any) => String(pm.id_projeto) === p.id).length === 0
     );
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId) return;
+
+    if (formData.tipo_cliente === 'cliente_final' && !formData.partner_id) {
+      return alert('É obrigatório vincular este cliente a um parceiro.');
+    }
 
     setLoading(true);
     try {
@@ -167,16 +219,30 @@ const ClientDetailsView: React.FC = () => {
         cnpj: formData.cnpj,
         telefone: formData.telefone,
         pais: formData.pais
-      } as any);
+      } as Partial<Client>);
 
       alert('Cliente atualizado com sucesso!');
       setIsEditing(false);
     } catch (error: any) {
-      console.error(error);
-      alert('Erro ao salvar: ' + (error.message || 'Erro desconhecido'));
+      console.error('Erro ao atualizar cliente:', error);
+      alert('Erro ao salvar informações.');
     } finally {
       setLoading(false);
+      setIsEditing(false);
     }
+  };
+
+  const statusColors: Record<string, string> = {
+    'Todo': 'bg-gray-500',
+    'In Progress': 'bg-blue-500',
+    'Testing': 'bg-purple-500',
+    'Review': 'bg-orange-500',
+    'Done': 'bg-green-500'
+  };
+
+  const getPartnerName = (id: string) => {
+    const partner = clients.find((c: Client) => c.id === id);
+    return partner ? partner.name : 'Direto';
   };
 
   const handleDeleteClient = async () => {
@@ -423,19 +489,147 @@ const ClientDetailsView: React.FC = () => {
                           </select>
                         </div>
                         {formData.tipo_cliente === 'cliente_final' && (
-                          <div>
-                            <label className="block text-[10px] font-black uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Parceiro Vinculado</label>
-                            <select
-                              value={formData.partner_id}
-                              onChange={(e) => setFormData({ ...formData, partner_id: e.target.value })}
-                              className="w-full px-4 py-3 border-2 focus:border-purple-500 rounded-xl font-bold outline-none disabled:bg-transparent disabled:border-none disabled:px-0 disabled:appearance-none"
-                              style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                          <div className="relative">
+                            <label className="block text-[10px] font-black uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Parceiros Vinculados *</label>
+
+                            <div
+                              onClick={() => isEditing && setIsDropdownOpen(true)}
+                              className={`w-full p-3 border-2 rounded-xl text-left transition-all flex flex-wrap gap-2 outline-none ${isEditing ? 'cursor-pointer border-[var(--border)] hover:border-purple-500/40 bg-[var(--input-bg)]' : 'border-none bg-transparent'}`}
                             >
-                              <option value="">Direto (Sem intermédio)</option>
-                              {clients.filter(c => c.tipo_cliente === 'parceiro' && c.id !== clientId).map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                              ))}
-                            </select>
+                              {selectedPartners.length > 0 ? (
+                                selectedPartners.map(p => (
+                                  <div key={p.id} className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1.5 rounded-lg shadow-sm">
+                                    {p.logoUrl ? (
+                                      <img src={p.logoUrl} alt={p.name} className="w-5 h-5 object-contain rounded border bg-white p-0.5" />
+                                    ) : (
+                                      <Handshake className="w-3.5 h-3.5 text-purple-500 opacity-50" />
+                                    )}
+                                    <span className="text-xs font-bold leading-tight">{p.name}</span>
+                                    {isEditing && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); togglePartner(p.id); }}
+                                        className="ml-1 p-0.5 hover:bg-purple-500/20 rounded-md transition-colors"
+                                      >
+                                        <X size={10} className="text-purple-500" />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))
+                              ) : (
+                                <span className={`${isEditing ? 'text-[var(--text-placeholder)]' : 'text-[var(--text)]'} font-normal text-sm py-1`}>Nenhum parceiro vinculado...</span>
+                              )}
+                            </div>
+
+                            {/* Modal de Seleção de Parceiros */}
+                            {isEditing && isDropdownOpen && (
+                              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  exit={{ opacity: 0 }}
+                                  onClick={() => setIsDropdownOpen(false)}
+                                  className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                                />
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  className="relative w-full max-w-2xl bg-[var(--surface)] border border-[var(--border)] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+                                >
+                                  <div className="p-6 border-b border-[var(--border)] bg-[var(--bg)]/50 backdrop-blur-md flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                      <div className="p-3 bg-purple-500/10 text-purple-600 rounded-2xl">
+                                        <Handshake size={24} />
+                                      </div>
+                                      <div>
+                                        <h3 className="text-lg font-black uppercase tracking-tight">Vincular Parceiros</h3>
+                                        <p className="text-xs font-medium opacity-50">Selecione um ou mais parceiros para este cliente</p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsDropdownOpen(false)}
+                                      className="p-2.5 hover:bg-[var(--surface-hover)] rounded-xl transition-colors"
+                                    >
+                                      <X size={20} className="text-muted" />
+                                    </button>
+                                  </div>
+
+                                  <div className="p-6 pb-2">
+                                    <div className="relative">
+                                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-500/50" />
+                                      <input
+                                        autoFocus
+                                        type="text"
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                        placeholder="Procurar parceiro por nome ou CNPJ..."
+                                        className="w-full pl-12 pr-4 py-4 bg-[var(--bg)] border-2 border-[var(--border)] focus:border-purple-500 rounded-2xl text-base font-bold outline-none transition-all shadow-sm"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-2">
+                                    {filteredPartners.length > 0 ? (
+                                      filteredPartners.map((p: Client) => {
+                                        const isSelected = formData.partner_id?.split(',').includes(p.id);
+                                        return (
+                                          <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => togglePartner(p.id)}
+                                            className={`w-full p-4 flex items-center gap-4 rounded-[20px] transition-all text-left border-2 ${isSelected ? 'bg-purple-600/10 border-purple-500/30 shadow-sm' : 'hover:bg-purple-500/5 border-transparent'}`}
+                                          >
+                                            <div className="relative">
+                                              {p.logoUrl ? (
+                                                <img src={p.logoUrl} alt={p.name} className={`w-12 h-12 object-contain rounded-xl border p-1.5 bg-white ${isSelected ? 'border-purple-500/50' : 'border-[var(--border)]'}`} />
+                                              ) : (
+                                                <div className={`w-12 h-12 rounded-xl border flex items-center justify-center ${isSelected ? 'bg-purple-500/20 border-purple-500/30' : 'bg-[var(--bg)] border-[var(--border)]'}`}>
+                                                  <Handshake className={`w-6 h-6 ${isSelected ? 'text-purple-500' : 'opacity-20'}`} />
+                                                </div>
+                                              )}
+                                              {isSelected && (
+                                                <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center border-2 border-[var(--surface)] shadow-lg">
+                                                  <Check size={12} strokeWidth={4} />
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="flex flex-col min-w-0 flex-1">
+                                              <span className={`font-black tracking-tight text-base ${isSelected ? 'text-purple-600' : 'text-[var(--text)]'}`}>{p.name}</span>
+                                              {p.cnpj && <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">{p.cnpj}</span>}
+                                            </div>
+                                            <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-purple-600 border-purple-600 shadow-md' : 'border-[var(--border)] bg-transparent'}`}>
+                                              {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
+                                            </div>
+                                          </button>
+                                        );
+                                      })
+                                    ) : (
+                                      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+                                        <div className="p-5 bg-purple-500/5 rounded-full mb-4">
+                                          <Search className="w-10 h-10 text-purple-500/20" />
+                                        </div>
+                                        <p className="text-base font-black text-[var(--text)] uppercase tracking-widest opacity-30">Nenhum parceiro encontrado</p>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="p-6 border-t border-[var(--border)] bg-[var(--bg)]/30 backdrop-blur-md flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black uppercase tracking-widest opacity-50">Selecionados</span>
+                                      <span className="text-lg font-black text-purple-600">{selectedPartners.length} Parceiro(s)</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsDropdownOpen(false)}
+                                      className="px-10 py-4 bg-purple-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-purple-500/30 hover:bg-purple-700 hover:-translate-y-0.5 transition-all active:translate-y-0"
+                                    >
+                                      Confirmar Seleção
+                                    </button>
+                                  </div>
+                                </motion.div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -449,10 +643,10 @@ const ClientDetailsView: React.FC = () => {
                       </h4>
                       <div className="flex flex-wrap gap-3">
                         {Array.from(new Set([
-                          ...clientProjects.flatMap(p => projectMembers.filter(pm => String(pm.id_projeto) === String(p.id)).map(pm => String(pm.id_colaborador))),
-                          ...clientTasks.map(t => t.developerId).filter(id => id)
-                        ])).map(uId => {
-                          const user = users.find(u => u.id === uId);
+                          ...clientProjects.flatMap((p: Project) => projectMembers.filter((pm: any) => String(pm.id_projeto) === String(p.id)).map((pm: any) => String(pm.id_colaborador))),
+                          ...clientTasks.map((t: Task) => t.developerId).filter((id?: string) => id)
+                        ])).map((uId: string) => {
+                          const user = users.find((u: User) => u.id === uId);
                           if (!user) return null;
                           return (
                             <div key={user.id} className="flex items-center gap-3 px-4 py-2 border rounded-2xl shadow-sm hover:border-purple-300 transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -549,10 +743,10 @@ const ClientDetailsView: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProjects.map(project => {
-                    const projectTasks = tasks.filter(t => t.projectId === project.id);
-                    const doneTasks = projectTasks.filter(t => t.status === 'Done').length;
-                    const progress = projectTasks.length > 0 ? Math.round(CapacityUtils.calculateProjectWeightedProgress(project.id, tasks as any)) : 0;
+                  {filteredProjects.map((project: Project & { computedStatus: string }) => {
+                    const projectTasks = tasks.filter((t: Task) => t.projectId === project.id);
+                    const doneTasks = projectTasks.filter((t: Task) => t.status === 'Done').length;
+                    const progress = projectTasks.length > 0 ? Math.round(CapacityUtils.calculateProjectWeightedProgress(project.id, tasks as Task[])) : 0;
                     const isIncomplete = isProjectIncomplete(project);
 
                     return (
@@ -617,9 +811,9 @@ const ClientDetailsView: React.FC = () => {
 
                           <div className="flex -space-x-3 mt-4">
                             {projectMembers
-                              .filter(pm => String(pm.id_projeto) === String(project.id))
-                              .map(pm => {
-                                const member = users.find(u => u.id === String(pm.id_colaborador));
+                              .filter((pm: any) => String(pm.id_projeto) === String(project.id))
+                              .map((pm: any) => {
+                                const member = users.find((u: User) => u.id === String(pm.id_colaborador));
                                 if (!member) return null;
                                 return (
                                   <div key={member.id} className="w-9 h-9 rounded-2xl border-4 shadow-sm overflow-hidden" style={{ borderColor: 'var(--surface)', backgroundColor: 'var(--surface-hover)' }} title={member.name}>
@@ -666,9 +860,9 @@ const ClientDetailsView: React.FC = () => {
                   </div>
                 ) : (
                   clientProjects
-                    .filter(project => clientTasks.some(task => task.projectId === project.id))
-                    .map(project => {
-                      const projectTasks = clientTasks.filter(t => t.projectId === project.id);
+                    .filter((project: Project) => clientTasks.some((task: Task) => task.projectId === project.id))
+                    .map((project: Project) => {
+                      const projectTasks = clientTasks.filter((t: Task) => t.projectId === project.id);
                       return (
                         <div key={project.id} className="space-y-4">
                           {/* Rich Project Status Bar */}
@@ -701,12 +895,12 @@ const ClientDetailsView: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-black" style={{ color: 'var(--brand)' }}>
                                     {projectTasks.length > 0
-                                      ? Math.round(projectTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / projectTasks.length)
+                                      ? Math.round(projectTasks.reduce((acc: number, t: Task) => acc + (t.progress || 0), 0) / projectTasks.length)
                                       : 0}%
                                   </span>
                                   <div className="flex-1 h-1 w-16 bg-white/5 rounded-full overflow-hidden">
                                     <div className="h-full bg-[var(--brand)]" style={{
-                                      width: `${projectTasks.length > 0 ? projectTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / projectTasks.length : 0}%`
+                                      width: `${projectTasks.length > 0 ? projectTasks.reduce((acc: number, t: Task) => acc + (t.progress || 0), 0) / projectTasks.length : 0}%`
                                     }} />
                                   </div>
                                 </div>
@@ -770,13 +964,17 @@ const ClientDetailsView: React.FC = () => {
                                   <div className="shrink-0">
                                     {task.developerId && (
                                       <div className="w-8 h-8 rounded-xl border p-0.5 shadow-sm" style={{ backgroundColor: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                                        {users.find(u => u.id === task.developerId)?.avatarUrl ? (
-                                          <img src={users.find(u => u.id === task.developerId)?.avatarUrl} className="w-full h-full object-cover rounded-lg" alt="Dev" />
-                                        ) : (
-                                          <div className="w-full h-full flex items-center justify-center font-bold text-[10px] uppercase" style={{ color: 'var(--muted)' }}>
-                                            {(task.developer || '??').substring(0, 2)}
-                                          </div>
-                                        )}
+                                        {(() => {
+                                          const user = users.find((u: User) => u.id === task.developerId);
+                                          if (user?.avatarUrl) {
+                                            return <img src={user.avatarUrl} className="w-full h-full object-cover rounded-lg" alt="Dev" />;
+                                          }
+                                          return (
+                                            <div className="w-full h-full flex items-center justify-center font-bold text-[10px] uppercase" style={{ color: 'var(--muted)' }}>
+                                              {(task.developer || '??').substring(0, 2)}
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     )}
                                   </div>

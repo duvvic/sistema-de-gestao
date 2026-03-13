@@ -39,42 +39,54 @@ const startTime = Date.now();
 // 1. Segurança de Cabeçalhos
 app.use(helmet());
 
+// Custom Middleware para Chrome Private Network Access (deve vir antes do CORS)
+app.use((req, res, next) => {
+    if (req.headers['access-control-request-private-network']) {
+        res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    }
+    next();
+});
+
 // 2. CORS Seguro
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
+const defaultOrigins = [
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:3000",
     "https://gestao.nic-labs.com",
     "https://api-gestao.nic-labs.com"
 ];
+
+const envOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()) || [];
+const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
+
 app.use(cors({
     origin: (origin, callback) => {
-        // Permite requisições sem origin (como mobile apps ou curl) ou se estiver na whitelist ou se CORS_ORIGIN for *
-        if (!origin || allowedOrigins.includes(origin) || process.env.CORS_ORIGIN === "*") {
+        const isAllowed = !origin ||
+            allowedOrigins.includes(origin) ||
+            process.env.CORS_ORIGIN?.trim() === "*";
+
+        if (isAllowed) {
             callback(null, true);
         } else {
-            logger.warn(`Origin negada pelo CORS: ${origin}`, "CORS");
-            callback(new Error("CORS não permitido"));
+            logger.warn(`Origin negada pelo CORS: ${origin}. Permitidas: ${allowedOrigins.join(", ")}`, "CORS");
+            callback(null, false);
         }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "apikey", "ngrok-skip-browser-warning", "Prefer", "Access-Control-Request-Private-Network"],
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+        "apikey",
+        "ngrok-skip-browser-warning",
+        "Prefer",
+        "Access-Control-Request-Private-Network"
+    ],
     exposedHeaders: ["Content-Disposition"]
 }));
-
-// Chrome Private Network Access: permite que sites HTTPS/externos chamem este servidor local
-// Responde ao preflight OPTIONS com o header necessário
-app.use((req, res, next) => {
-    if (req.headers['access-control-request-private-network']) {
-        res.setHeader('Access-Control-Allow-Private-Network', 'true');
-    }
-    if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Private-Network', 'true');
-        return res.sendStatus(200);
-    }
-    next();
-});
 
 // 3. Proteção contra Poluição de Parâmetros
 app.use(hpp());
@@ -149,6 +161,7 @@ app.use("/api/v1", apiV1);
  */
 app.use("/api/auth", authRoutes);
 app.use("/api/clientes", clientsRoutes);
+app.use("/api/clients", clientsRoutes);
 app.use("/api/projetos", projectRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/tarefas", tasksRoutes);
