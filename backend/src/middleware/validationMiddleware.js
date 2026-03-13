@@ -9,7 +9,11 @@ export const validate = (schema) => (req, res, next) => {
         schema.parse(req.body);
         next();
     } catch (err) {
-        const errorMessage = err.errors?.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') || 'Dados inválidos';
-        return sendError(res, errorMessage, 400);
+        if (err instanceof Error && err.name === 'ZodError') {
+            // Ensure Zod error details are exposed in the return message
+            const errorMessage = err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+            return sendError(res, errorMessage, 400);
+        }
+        return sendError(res, err.message || 'Dados inválidos', 400);
     }
 };
