@@ -1324,8 +1324,8 @@ const AdminDashboard: React.FC = () => {
                                     className="group border rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col h-[220px]"
                                     style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
                                   >
-                                    <div className="flex-1 min-h-0 overflow-hidden bg-white p-6 flex items-center justify-center border-b border-[var(--border)]">
-                                      <img src={client.logoUrl} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" alt={client.name} onError={(e) => { e.currentTarget.src = `https://placehold.co/100x100?text=${client.name.charAt(0)}`; }} />
+                                    <div className="flex-1 min-h-0 overflow-hidden bg-white flex items-center justify-center border-b border-[var(--border)]">
+                                      <img src={client.logoUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={client.name} onError={(e) => { e.currentTarget.src = `https://placehold.co/100x100?text=${client.name.charAt(0)}`; }} />
                                     </div>
                                     <div className="shrink-0 px-4 py-3 flex flex-col justify-center text-center bg-slate-50 dark:bg-slate-900/20 shadow-inner">
                                       <h4 className="text-[11px] font-black uppercase tracking-tight truncate mb-0.5" style={{ color: 'var(--text)' }}>{client.name}</h4>

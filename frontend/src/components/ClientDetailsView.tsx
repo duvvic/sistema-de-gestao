@@ -582,7 +582,7 @@ const ClientDetailsView: React.FC = () => {
                                           >
                                             <div className="relative">
                                               {p.logoUrl ? (
-                                                <img src={p.logoUrl} alt={p.name} className={`w-12 h-12 object-contain rounded-xl border p-1.5 bg-white ${isSelected ? 'border-purple-500/50' : 'border-[var(--border)]'}`} />
+                                                <img src={p.logoUrl} alt={p.name} className={`w-12 h-12 object-cover rounded-xl border bg-white ${isSelected ? 'border-purple-500/50' : 'border-[var(--border)]'}`} />
                                               ) : (
                                                 <div className={`w-12 h-12 rounded-xl border flex items-center justify-center ${isSelected ? 'bg-purple-500/20 border-purple-500/30' : 'bg-[var(--bg)] border-[var(--border)]'}`}>
                                                   <Handshake className={`w-6 h-6 ${isSelected ? 'text-purple-500' : 'opacity-20'}`} />
